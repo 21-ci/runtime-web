@@ -7,6 +7,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
+	"io/fs"
 	"mime"
 	"path"
 	"strings"
@@ -93,10 +94,20 @@ func sniff(b []byte) string {
 		return "wasm"
 	case len(b) >= 262 && string(b[257:262]) == "ustar":
 		return "tar"
-	case json.Valid(b) && bytes.HasPrefix(bytes.TrimSpace(b), []byte("{")):
+	case isBundleJSON(b):
 		return "json"
 	}
 	return "ts"
+}
+
+// isBundleJSON reports whether b is a JSON object with an "entry" key, the runtime's bundle shape.
+func isBundleJSON(b []byte) bool {
+	var m map[string]json.RawMessage
+	if err := json.Unmarshal(b, &m); err != nil {
+		return false
+	}
+	_, ok := m["entry"]
+	return ok
 }
 
 // checkBundle validates a json/zip/tar bundle: an entry in files, safe paths, UTF-8 sources.
@@ -123,7 +134,8 @@ func checkBundle(f Files) (Files, error) {
 	return f, nil
 }
 
-// checkPath rejects absolute paths, backslashes, and any path that escapes the bundle root.
+// checkPath accepts only clean relative paths. It rejects absolute paths, backslashes, any path that
+// escapes the bundle root, and ./-prefixed names (archives must use names like main.ts).
 func checkPath(name string) error {
 	clean := path.Clean(name)
 	if name == "" || path.IsAbs(name) || strings.Contains(name, "\\") ||
@@ -149,7 +161,7 @@ func unpackZip(body []byte) (Files, error) {
 		return Files{}, fmt.Errorf("apps: zip: %w", apperr.ErrInvalid)
 	}
 	files := map[string]string{}
-	var total uint64
+	var used int64
 	for _, zf := range zr.File {
 		if zf.FileInfo().IsDir() {
 			continue
@@ -157,28 +169,49 @@ func unpackZip(body []byte) (Files, error) {
 		if err := checkPath(zf.Name); err != nil {
 			return Files{}, err
 		}
-		total += zf.UncompressedSize64
-		if total > maxBundleBytes {
+		if zf.Mode()&fs.ModeType != 0 {
+			// Symlinks and devices could point outside the bundle.
+			return Files{}, fmt.Errorf("apps: zip entry %q is not a regular file: %w", zf.Name, apperr.ErrInvalid)
+		}
+		if _, dup := files[zf.Name]; dup {
+			return Files{}, fmt.Errorf("apps: zip repeats %q: %w", zf.Name, apperr.ErrInvalid)
+		}
+		if zf.UncompressedSize64 > maxBundleBytes {
 			return Files{}, fmt.Errorf("apps: archive exceeds %d bytes: %w", maxBundleBytes, apperr.ErrInvalid)
 		}
 		rc, err := zf.Open()
 		if err != nil {
 			return Files{}, fmt.Errorf("apps: zip open %s: %w", zf.Name, apperr.ErrInvalid)
 		}
-		b, err := io.ReadAll(io.LimitReader(rc, maxBundleBytes+1))
+		src, n, err := readCapped(rc, used, zf.Name)
 		_ = rc.Close()
 		if err != nil {
-			return Files{}, fmt.Errorf("apps: zip read %s: %w", zf.Name, apperr.ErrInvalid)
+			return Files{}, err
 		}
-		files[zf.Name] = string(b)
+		used = n
+		files[zf.Name] = src
 	}
 	return archiveFiles(files)
+}
+
+// readCapped reads one archive member and counts its real bytes against the bundle budget. Header
+// sizes can lie, so the count comes from what is actually read.
+func readCapped(r io.Reader, used int64, name string) (string, int64, error) {
+	left := maxBundleBytes - used
+	b, err := io.ReadAll(io.LimitReader(r, left+1))
+	if err != nil {
+		return "", 0, fmt.Errorf("apps: read %s: %w", name, apperr.ErrInvalid)
+	}
+	if int64(len(b)) > left {
+		return "", 0, fmt.Errorf("apps: archive exceeds %d bytes: %w", maxBundleBytes, apperr.ErrInvalid)
+	}
+	return string(b), used + int64(len(b)), nil
 }
 
 func unpackTar(body []byte) (Files, error) {
 	tr := tar.NewReader(bytes.NewReader(body))
 	files := map[string]string{}
-	var total int64
+	var used int64
 	for {
 		hdr, err := tr.Next()
 		if err == io.EOF {
@@ -198,15 +231,18 @@ func unpackTar(body []byte) (Files, error) {
 		if err := checkPath(hdr.Name); err != nil {
 			return Files{}, err
 		}
-		total += hdr.Size
-		if total > maxBundleBytes {
+		if _, dup := files[hdr.Name]; dup {
+			return Files{}, fmt.Errorf("apps: tar repeats %q: %w", hdr.Name, apperr.ErrInvalid)
+		}
+		if hdr.Size > maxBundleBytes {
 			return Files{}, fmt.Errorf("apps: archive exceeds %d bytes: %w", maxBundleBytes, apperr.ErrInvalid)
 		}
-		b, err := io.ReadAll(io.LimitReader(tr, maxBundleBytes+1))
+		src, n, err := readCapped(tr, used, hdr.Name)
 		if err != nil {
-			return Files{}, fmt.Errorf("apps: tar read %s: %w", hdr.Name, apperr.ErrInvalid)
+			return Files{}, err
 		}
-		files[hdr.Name] = string(b)
+		used = n
+		files[hdr.Name] = src
 	}
 	return archiveFiles(files)
 }

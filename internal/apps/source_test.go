@@ -4,8 +4,12 @@ import (
 	"archive/tar"
 	"archive/zip"
 	"bytes"
+	"compress/flate"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"hash/crc32"
+	"io/fs"
 	"reflect"
 	"strings"
 	"testing"
@@ -167,5 +171,126 @@ func TestBundleJSONRoundTrip(t *testing.T) {
 	got, err := Unpack(b, "application/json")
 	if err != nil || got.Entry != "main.ts" {
 		t.Fatalf("got %+v, err %v", got, err)
+	}
+}
+
+// lyingZip stores n deflated copies of payload with headers that claim 1 byte each.
+func lyingZip(t *testing.T, n int, payload []byte) []byte {
+	t.Helper()
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	for i := 0; i < n; i++ {
+		var comp bytes.Buffer
+		fw, err := flate.NewWriter(&comp, flate.BestSpeed)
+		if err != nil {
+			t.Fatalf("flate: %v", err)
+		}
+		if _, err := fw.Write(payload); err != nil {
+			t.Fatalf("flate write: %v", err)
+		}
+		if err := fw.Close(); err != nil {
+			t.Fatalf("flate close: %v", err)
+		}
+		name := fmt.Sprintf("f%02d.ts", i)
+		if i == 0 {
+			name = "main.ts"
+		}
+		w, err := zw.CreateRaw(&zip.FileHeader{Name: name, Method: zip.Deflate, CompressedSize64: uint64(comp.Len()),
+			UncompressedSize64: 1, CRC32: crc32.ChecksumIEEE(payload)})
+		if err != nil {
+			t.Fatalf("CreateRaw: %v", err)
+		}
+		if _, err := w.Write(comp.Bytes()); err != nil {
+			t.Fatalf("raw write: %v", err)
+		}
+	}
+	if err := zw.Close(); err != nil {
+		t.Fatalf("zip close: %v", err)
+	}
+	return buf.Bytes()
+}
+
+func TestFilesUnpackZipLyingHeadersCapped(t *testing.T) {
+	// 12 MB of real data behind headers that claim 12 bytes: the real count must reject it.
+	payload := bytes.Repeat([]byte("a"), 1<<20)
+	_, err := Unpack(lyingZip(t, 12, payload), "application/zip")
+	if !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("err = %v, want ErrInvalid", err)
+	}
+}
+
+func TestFilesUnpackZipHonestOverBudget(t *testing.T) {
+	payload := bytes.Repeat([]byte("a"), 1<<20)
+	z := zipOf(t, map[string]string{"main.ts": string(payload), "b.ts": string(payload), "c.ts": string(payload),
+		"d.ts": string(payload), "e.ts": string(payload), "f.ts": string(payload), "g.ts": string(payload),
+		"h.ts": string(payload), "i.ts": string(payload), "j.ts": string(payload), "k.ts": string(payload)})
+	_, err := Unpack(z, "application/zip")
+	if !errors.Is(err, apperr.ErrInvalid) || !strings.Contains(err.Error(), "exceeds") {
+		t.Fatalf("err = %v, want exceeds ErrInvalid", err)
+	}
+}
+
+func TestFilesUnpackRejectsZipSymlink(t *testing.T) {
+	var buf bytes.Buffer
+	zw := zip.NewWriter(&buf)
+	w, _ := zw.Create("main.ts")
+	_, _ = w.Write([]byte("export {};"))
+	fh := &zip.FileHeader{Name: "link.ts", Method: zip.Store}
+	fh.SetMode(fs.ModeSymlink | 0o777)
+	lw, err := zw.CreateHeader(fh)
+	if err != nil {
+		t.Fatalf("CreateHeader: %v", err)
+	}
+	_, _ = lw.Write([]byte("/etc/passwd"))
+	if err := zw.Close(); err != nil {
+		t.Fatalf("close: %v", err)
+	}
+	_, err = Unpack(buf.Bytes(), "application/zip")
+	if !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("err = %v, want ErrInvalid", err)
+	}
+}
+
+func TestFilesUnpackRejectsDuplicateNames(t *testing.T) {
+	var zb bytes.Buffer
+	zw := zip.NewWriter(&zb)
+	for _, body := range []string{"one", "two"} {
+		w, _ := zw.Create("main.ts")
+		_, _ = w.Write([]byte(body))
+	}
+	_ = zw.Close()
+	_, err := Unpack(zb.Bytes(), "application/zip")
+	if !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("zip err = %v, want ErrInvalid", err)
+	}
+
+	var tb bytes.Buffer
+	tw := tar.NewWriter(&tb)
+	for _, body := range []string{"one", "two"} {
+		_ = tw.WriteHeader(&tar.Header{Name: "main.ts", Mode: 0o644, Size: int64(len(body)), Typeflag: tar.TypeReg})
+		_, _ = tw.Write([]byte(body))
+	}
+	_ = tw.Close()
+	_, err = Unpack(tb.Bytes(), "application/x-tar")
+	if !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("tar err = %v, want ErrInvalid", err)
+	}
+}
+
+func TestFilesUnpackRejectsDotSlashNames(t *testing.T) {
+	_, err := Unpack(zipOf(t, map[string]string{"./main.ts": "a"}), "application/zip")
+	if !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("err = %v, want ErrInvalid", err)
+	}
+}
+
+func TestJSONSniffNeedsEntry(t *testing.T) {
+	// No content type and no "entry" key: this is TypeScript source, not a bundle.
+	got, err := Unpack([]byte(`{"files":{"main.ts":"x"}}`), "")
+	if err != nil {
+		t.Fatalf("Unpack: %v", err)
+	}
+	if got.Kind != "ts" || got.Entry != "main.ts" {
+		t.Fatalf("got %+v, want ts", got)
 	}
 }

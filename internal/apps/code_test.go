@@ -5,9 +5,11 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"net/http/httptest"
 	"regexp"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/21cloud/runtime-web/internal/apperr"
 	"github.com/21cloud/runtime-web/internal/authz"
@@ -274,4 +276,27 @@ func (r *recorder) count(method, pathSuffix string) int {
 		}
 	}
 	return n
+}
+
+func TestAwaitBuildTimeoutIs409(t *testing.T) {
+	// A build that never leaves "building" must end as build_timeout (409), not hang.
+	stub := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		_, _ = w.Write([]byte(`{"version":2,"build_state":"building"}`))
+	}))
+	t.Cleanup(stub.Close)
+	f := newFixture(t)
+	ctx := context.Background()
+	cred, err := f.svc.creds.DefaultCred(ctx, f.org.ID)
+	if err != nil {
+		t.Fatalf("DefaultCred: %v", err)
+	}
+	cli := runtime.New(stub.URL, stub.Client()).With(cred)
+
+	oldTimeout, oldPoll := buildTimeout, pollInterval
+	buildTimeout, pollInterval = 50*time.Millisecond, time.Millisecond
+	t.Cleanup(func() { buildTimeout, pollInterval = oldTimeout, oldPoll })
+
+	_, err = f.svc.awaitBuild(ctx, cli, "svc_x", runtime.Version{Version: 2, BuildState: "building"})
+	wantConflict(t, err, "build_timeout")
 }

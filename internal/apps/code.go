@@ -15,10 +15,12 @@ import (
 	"github.com/21cloud/runtime-web/internal/runtime"
 )
 
-// buildTimeout bounds how long Save waits for an eager build; pollInterval paces the checks.
-const buildTimeout = 60 * time.Second
-
-var pollInterval = 200 * time.Millisecond
+// buildTimeout bounds how long Save waits for an eager build; pollInterval paces the checks. Vars so
+// tests can shorten them.
+var (
+	buildTimeout = 60 * time.Second
+	pollInterval = 200 * time.Millisecond
+)
 
 // LogLine is one build log entry from the runtime's SSE stream.
 type LogLine struct {
@@ -151,7 +153,8 @@ func (s *Service) awaitBuild(ctx context.Context, cli *runtime.Scoped, svcID str
 		case <-ctx.Done():
 			return v, ctx.Err()
 		case <-timeout.C:
-			return v, fmt.Errorf("apps: build of v%d did not finish in %s", v.Version, buildTimeout)
+			// 409: the build is still running, so the caller retries later.
+			return v, fmt.Errorf("apps: build of v%d did not finish: %w", v.Version, apperr.Conflict{Code: "build_timeout"})
 		case <-tick.C:
 		}
 		next, err := cli.GetVersion(ctx, svcID, v.Version)
