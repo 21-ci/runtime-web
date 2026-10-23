@@ -34,6 +34,7 @@ type Domain struct {
 	CertNotAfter  sql.NullInt64
 	CertError     sql.NullString
 	CreatedAt     int64
+	AppSlug       string
 }
 
 type Identity struct {

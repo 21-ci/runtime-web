@@ -10,9 +10,54 @@ import (
 	"database/sql"
 )
 
+const activateDomain = `-- name: ActivateDomain :execrows
+UPDATE domains SET status = 'active', verified_at = ?1, last_checked_at = ?1, txt_misses = 0
+WHERE id = ?2 AND status <> 'active'
+`
+
+type ActivateDomainParams struct {
+	At sql.NullInt64
+	ID string
+}
+
+func (q *Queries) ActivateDomain(ctx context.Context, arg ActivateDomainParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, activateDomain, arg.At, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const activeDomainByHost = `-- name: ActiveDomainByHost :one
+SELECT id, org_id, project_slug, service_id, host, token, status, last_checked_at, verified_at, txt_misses, cert_status, cert_not_after, cert_error, created_at, app_slug FROM domains WHERE host = ?1 AND status = 'active'
+`
+
+func (q *Queries) ActiveDomainByHost(ctx context.Context, host string) (Domain, error) {
+	row := q.db.QueryRowContext(ctx, activeDomainByHost, host)
+	var i Domain
+	err := row.Scan(
+		&i.ID,
+		&i.OrgID,
+		&i.ProjectSlug,
+		&i.ServiceID,
+		&i.Host,
+		&i.Token,
+		&i.Status,
+		&i.LastCheckedAt,
+		&i.VerifiedAt,
+		&i.TxtMisses,
+		&i.CertStatus,
+		&i.CertNotAfter,
+		&i.CertError,
+		&i.CreatedAt,
+		&i.AppSlug,
+	)
+	return i, err
+}
+
 const createDomain = `-- name: CreateDomain :exec
-INSERT INTO domains (id, org_id, project_slug, service_id, host, token, status, created_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+INSERT INTO domains (id, org_id, project_slug, service_id, app_slug, host, token, status, created_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
 `
 
 type CreateDomainParams struct {
@@ -20,6 +65,7 @@ type CreateDomainParams struct {
 	OrgID       string
 	ProjectSlug string
 	ServiceID   string
+	AppSlug     string
 	Host        string
 	Token       string
 	Status      string
@@ -32,6 +78,7 @@ func (q *Queries) CreateDomain(ctx context.Context, arg CreateDomainParams) erro
 		arg.OrgID,
 		arg.ProjectSlug,
 		arg.ServiceID,
+		arg.AppSlug,
 		arg.Host,
 		arg.Token,
 		arg.Status,
@@ -40,8 +87,20 @@ func (q *Queries) CreateDomain(ctx context.Context, arg CreateDomainParams) erro
 	return err
 }
 
+const deleteDomain = `-- name: DeleteDomain :execrows
+DELETE FROM domains WHERE id = ?1
+`
+
+func (q *Queries) DeleteDomain(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteDomain, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getDomain = `-- name: GetDomain :one
-SELECT id, org_id, project_slug, service_id, host, token, status, last_checked_at, verified_at, txt_misses, cert_status, cert_not_after, cert_error, created_at FROM domains WHERE id = ?1
+SELECT id, org_id, project_slug, service_id, host, token, status, last_checked_at, verified_at, txt_misses, cert_status, cert_not_after, cert_error, created_at, app_slug FROM domains WHERE id = ?1
 `
 
 func (q *Queries) GetDomain(ctx context.Context, id string) (Domain, error) {
@@ -62,8 +121,41 @@ func (q *Queries) GetDomain(ctx context.Context, id string) (Domain, error) {
 		&i.CertNotAfter,
 		&i.CertError,
 		&i.CreatedAt,
+		&i.AppSlug,
 	)
 	return i, err
+}
+
+const listActiveRoutes = `-- name: ListActiveRoutes :many
+SELECT host, app_slug FROM domains WHERE status = 'active' ORDER BY host
+`
+
+type ListActiveRoutesRow struct {
+	Host    string
+	AppSlug string
+}
+
+func (q *Queries) ListActiveRoutes(ctx context.Context) ([]ListActiveRoutesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listActiveRoutes)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListActiveRoutesRow
+	for rows.Next() {
+		var i ListActiveRoutesRow
+		if err := rows.Scan(&i.Host, &i.AppSlug); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listAllDomains = `-- name: ListAllDomains :many
@@ -121,7 +213,7 @@ func (q *Queries) ListAllDomains(ctx context.Context) ([]ListAllDomainsRow, erro
 }
 
 const listDomainsByOrg = `-- name: ListDomainsByOrg :many
-SELECT id, org_id, project_slug, service_id, host, token, status, last_checked_at, verified_at, txt_misses, cert_status, cert_not_after, cert_error, created_at FROM domains WHERE org_id = ?1 ORDER BY host
+SELECT id, org_id, project_slug, service_id, host, token, status, last_checked_at, verified_at, txt_misses, cert_status, cert_not_after, cert_error, created_at, app_slug FROM domains WHERE org_id = ?1 ORDER BY host
 `
 
 func (q *Queries) ListDomainsByOrg(ctx context.Context, orgID string) ([]Domain, error) {
@@ -148,6 +240,7 @@ func (q *Queries) ListDomainsByOrg(ctx context.Context, orgID string) ([]Domain,
 			&i.CertNotAfter,
 			&i.CertError,
 			&i.CreatedAt,
+			&i.AppSlug,
 		); err != nil {
 			return nil, err
 		}
@@ -160,6 +253,137 @@ func (q *Queries) ListDomainsByOrg(ctx context.Context, orgID string) ([]Domain,
 		return nil, err
 	}
 	return items, nil
+}
+
+const listDomainsByService = `-- name: ListDomainsByService :many
+SELECT id, org_id, project_slug, service_id, host, token, status, last_checked_at, verified_at, txt_misses, cert_status, cert_not_after, cert_error, created_at, app_slug FROM domains WHERE org_id = ?1 AND service_id = ?2 ORDER BY host
+`
+
+type ListDomainsByServiceParams struct {
+	OrgID     string
+	ServiceID string
+}
+
+func (q *Queries) ListDomainsByService(ctx context.Context, arg ListDomainsByServiceParams) ([]Domain, error) {
+	rows, err := q.db.QueryContext(ctx, listDomainsByService, arg.OrgID, arg.ServiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Domain
+	for rows.Next() {
+		var i Domain
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrgID,
+			&i.ProjectSlug,
+			&i.ServiceID,
+			&i.Host,
+			&i.Token,
+			&i.Status,
+			&i.LastCheckedAt,
+			&i.VerifiedAt,
+			&i.TxtMisses,
+			&i.CertStatus,
+			&i.CertNotAfter,
+			&i.CertError,
+			&i.CreatedAt,
+			&i.AppSlug,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listDomainsByStatus = `-- name: ListDomainsByStatus :many
+SELECT id, org_id, project_slug, service_id, host, token, status, last_checked_at, verified_at, txt_misses, cert_status, cert_not_after, cert_error, created_at, app_slug FROM domains WHERE status = ?1 ORDER BY host
+`
+
+func (q *Queries) ListDomainsByStatus(ctx context.Context, status string) ([]Domain, error) {
+	rows, err := q.db.QueryContext(ctx, listDomainsByStatus, status)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Domain
+	for rows.Next() {
+		var i Domain
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrgID,
+			&i.ProjectSlug,
+			&i.ServiceID,
+			&i.Host,
+			&i.Token,
+			&i.Status,
+			&i.LastCheckedAt,
+			&i.VerifiedAt,
+			&i.TxtMisses,
+			&i.CertStatus,
+			&i.CertNotAfter,
+			&i.CertError,
+			&i.CreatedAt,
+			&i.AppSlug,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setDomainCert = `-- name: SetDomainCert :execrows
+UPDATE domains SET cert_status = ?1, cert_not_after = ?2, cert_error = ?3
+WHERE host = ?4 AND status = 'active'
+`
+
+type SetDomainCertParams struct {
+	CertStatus   string
+	CertNotAfter sql.NullInt64
+	CertError    sql.NullString
+	Host         string
+}
+
+func (q *Queries) SetDomainCert(ctx context.Context, arg SetDomainCertParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setDomainCert,
+		arg.CertStatus,
+		arg.CertNotAfter,
+		arg.CertError,
+		arg.Host,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const setDomainCheck = `-- name: SetDomainCheck :exec
+UPDATE domains SET last_checked_at = ?1, txt_misses = ?2 WHERE id = ?3
+`
+
+type SetDomainCheckParams struct {
+	At        sql.NullInt64
+	TxtMisses int64
+	ID        string
+}
+
+func (q *Queries) SetDomainCheck(ctx context.Context, arg SetDomainCheckParams) error {
+	_, err := q.db.ExecContext(ctx, setDomainCheck, arg.At, arg.TxtMisses, arg.ID)
+	return err
 }
 
 const updateDomainStatus = `-- name: UpdateDomainStatus :execrows
