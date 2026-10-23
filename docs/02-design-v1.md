@@ -24,7 +24,7 @@ Supersedes the open choices in [00-research-and-design.md](00-research-and-desig
 
 | Role | Scope | Can |
 |---|---|---|
-| Instance admin | instance | Operator pages (node status/config/scheduler/cache/drain), orgs CRUD, users CRUD + invites + 2FA reset, instance settings (OAuth providers, public URL, require 2FA, SSO-only login), instance audit log, all domains, impersonating an org (acts as org owner, audited) |
+| Instance admin | instance | Operator pages (node status/config/scheduler/cache/drain), orgs CRUD, users CRUD + invites + 2FA reset, instance settings (OAuth providers, public URL, require 2FA, SSO-only login), instance audit log, all domains; acts as owner in any org (audited) |
 | Org owner | org | Everything in the org: projects, apps, members, invites, project grants, custom tokens, domains, rotating the default key, org audit log, own org usage |
 | Org admin | org | Same as owner except deleting the org and changing owners (`members.owners`) |
 | Org member | org | Only the projects granted to them, at the granted project role |
