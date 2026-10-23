@@ -2,7 +2,10 @@ package apps
 
 import (
 	"context"
+	"encoding/json"
+	"fmt"
 
+	"github.com/21cloud/runtime-web/internal/apperr"
 	"github.com/21cloud/runtime-web/internal/authz"
 	"github.com/21cloud/runtime-web/internal/runtime"
 )
@@ -104,11 +107,56 @@ func (s *Service) CreateSchedule(ctx context.Context, sub authz.Subject, orgID, 
 	return out, nil
 }
 
-// UpdateSchedule replaces schedule id with in. The runtime needs the full body, kind included.
-func (s *Service) UpdateSchedule(ctx context.Context, sub authz.Subject, orgID, slug, id string, in runtime.ScheduleBody) (runtime.Schedule, error) {
+// SchedulePatch changes some fields of a schedule. A nil field keeps the current value. The kind
+// cannot change.
+type SchedulePatch struct {
+	Cron         *string
+	EverySeconds *int64
+	Timezone     *string
+	Payload      json.RawMessage
+	Enabled      *bool
+}
+
+// UpdateSchedule applies patch to schedule id. The runtime takes a full body, so the current
+// schedule is read and merged with patch first.
+func (s *Service) UpdateSchedule(ctx context.Context, sub authz.Subject, orgID, slug, id string, patch SchedulePatch) (runtime.Schedule, error) {
 	app, cli, err := s.app(ctx, sub, orgID, slug, authz.AppSchedulesWrite)
 	if err != nil {
 		return runtime.Schedule{}, err
+	}
+	items, err := cli.ListSchedules(ctx, app.SvcID)
+	if err != nil {
+		return runtime.Schedule{}, mapErr("update schedule "+slug, err)
+	}
+	var cur *runtime.Schedule
+	for i := range items {
+		if items[i].ID == id {
+			cur = &items[i]
+			break
+		}
+	}
+	if cur == nil {
+		return runtime.Schedule{}, fmt.Errorf("apps: schedule %s: %w", id, apperr.ErrNotFound)
+	}
+	enabled := cur.Enabled
+	in := runtime.ScheduleBody{
+		Kind: cur.Kind, Cron: cur.Cron, EverySeconds: cur.EverySeconds, Timezone: cur.Timezone,
+		Payload: cur.Payload, Enabled: &enabled,
+	}
+	if patch.Cron != nil {
+		in.Cron = patch.Cron
+	}
+	if patch.EverySeconds != nil {
+		in.EverySeconds = patch.EverySeconds
+	}
+	if patch.Timezone != nil {
+		in.Timezone = patch.Timezone
+	}
+	if patch.Payload != nil {
+		in.Payload = patch.Payload
+	}
+	if patch.Enabled != nil {
+		in.Enabled = patch.Enabled
 	}
 	out, err := cli.UpdateSchedule(ctx, app.SvcID, id, in)
 	if err != nil {

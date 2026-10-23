@@ -123,6 +123,54 @@ func TestCronTemplateOnConfiguredPlan(t *testing.T) {
 	}
 }
 
+func TestSetSecretErrorOmitsValue(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	f.app(t, f.org.ID, "default", "production", "s4")
+	const value = "never-echo-me-123"
+	if _, err := f.svc.Queue(ctx, owner, f.org.ID, "s4"); err != nil {
+		t.Fatalf("Queue: %v", err)
+	}
+	f.fake.FailNext(http.StatusUnprocessableEntity, "invalid", 0)
+	err := f.svc.SetSecret(ctx, owner, f.org.ID, "s4", "TOKEN", value)
+	if !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("SetSecret err = %v, want ErrInvalid", err)
+	}
+	if strings.Contains(err.Error(), value) {
+		t.Fatalf("SetSecret error leaks value: %v", err)
+	}
+}
+
+func TestUpdateSchedulePatchKeepsOtherFields(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	f.app(t, f.org.ID, "default", "production", "p1")
+	expr := "0 * * * *"
+	sc, err := f.svc.CreateSchedule(ctx, owner, f.org.ID, "p1", runtime.ScheduleBody{Kind: "cron", Cron: &expr})
+	if err != nil {
+		t.Fatalf("CreateSchedule: %v", err)
+	}
+	off := false
+	got, err := f.svc.UpdateSchedule(ctx, owner, f.org.ID, "p1", sc.ID, SchedulePatch{Enabled: &off})
+	if err != nil {
+		t.Fatalf("UpdateSchedule enabled: %v", err)
+	}
+	if got.Kind != "cron" || got.Cron == nil || *got.Cron != expr || got.Enabled {
+		t.Fatalf("after enabled patch = %+v, want cron %q disabled", got, expr)
+	}
+	newExpr := "5 * * * *"
+	got, err = f.svc.UpdateSchedule(ctx, owner, f.org.ID, "p1", sc.ID, SchedulePatch{Cron: &newExpr})
+	if err != nil {
+		t.Fatalf("UpdateSchedule cron: %v", err)
+	}
+	if got.Kind != "cron" || got.Cron == nil || *got.Cron != newExpr || got.Enabled {
+		t.Fatalf("after cron patch = %+v, want cron %q still disabled", got, newExpr)
+	}
+	if _, err := f.svc.UpdateSchedule(ctx, owner, f.org.ID, "p1", "sch_missing", SchedulePatch{Enabled: &off}); !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("missing schedule err = %v, want ErrNotFound", err)
+	}
+}
+
 func TestQueueFullThrottled(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
