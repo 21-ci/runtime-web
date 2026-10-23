@@ -3,9 +3,10 @@ import { Command } from "cmdk";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import { Boxes, FolderOpen, FolderPlus, Plus, Settings } from "lucide-react";
 
+import { useIsInstanceAdmin } from "@/components/features/admin/gate";
 import { CreateProjectDialog } from "@/components/features/org/create-project-dialog";
 import { useApps, useOrgs, useProjects } from "@/hooks/orgs";
-import { SETTINGS_REGISTRY } from "./settings-registry";
+import { visibleSettings } from "./settings-registry";
 
 const ITEM = "flex cursor-pointer items-center gap-2 rounded-[6px] px-3 py-2 text-sm text-text aria-selected:bg-panel-2";
 const HEADING = "text-xs text-muted";
@@ -23,8 +24,9 @@ export function CommandMenu({ org }: { org: string }) {
 
   const role = orgs.data?.find((o) => o.slug === org)?.role;
   const canCreateProject = role === "owner" || role === "admin";
-  // Entries appear only for routes the router actually has.
-  const settings = SETTINGS_REGISTRY.filter((e) => e.path in router.routesByPath);
+  const isAdmin = useIsInstanceAdmin();
+  // Entries appear only for routes the router actually has; admin entries only for instance admins.
+  const settings = visibleSettings(router.routesByPath, isAdmin);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
