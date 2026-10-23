@@ -15,6 +15,10 @@ import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as OrgIndexRouteImport } from './routes/$org.index'
+import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminAuditRouteImport } from './routes/admin/audit'
+import { Route as AdminOrgsRouteImport } from './routes/admin/orgs'
+import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as LoginIndexRouteImport } from './routes/login.index'
 import { Route as LoginMfaRouteImport } from './routes/login.mfa'
@@ -51,6 +55,26 @@ const OrgIndexRoute = OrgIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => OrgRoute,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminAuditRoute = AdminAuditRouteImport.update({
+  id: '/admin/audit',
+  path: '/admin/audit',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminOrgsRoute = AdminOrgsRouteImport.update({
+  id: '/admin/orgs',
+  path: '/admin/orgs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminUsersRoute = AdminUsersRouteImport.update({
+  id: '/admin/users',
+  path: '/admin/users',
+  getParentRoute: () => rootRouteImport,
 } as any)
 const InviteTokenRoute = InviteTokenRouteImport.update({
   id: '/invite/$token',
@@ -89,9 +113,13 @@ export interface FileRoutesByFullPath {
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRouteWithChildren
   '/setup': typeof SetupRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/orgs': typeof AdminOrgsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/invite/$token': typeof InviteTokenRoute
   '/login/mfa': typeof LoginMfaRoute
   '/$org/': typeof OrgIndexRoute
+  '/admin/': typeof AdminIndexRoute
   '/login/': typeof LoginIndexRoute
   '/$org/apps/$app': typeof OrgAppsAppRoute
   '/$org/apps/new': typeof OrgAppsNewRoute
@@ -101,9 +129,13 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/change-password': typeof ChangePasswordRoute
   '/setup': typeof SetupRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/orgs': typeof AdminOrgsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/invite/$token': typeof InviteTokenRoute
   '/login/mfa': typeof LoginMfaRoute
   '/$org': typeof OrgIndexRoute
+  '/admin': typeof AdminIndexRoute
   '/login': typeof LoginIndexRoute
   '/$org/apps/$app': typeof OrgAppsAppRoute
   '/$org/apps/new': typeof OrgAppsNewRoute
@@ -116,9 +148,13 @@ export interface FileRoutesById {
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRouteWithChildren
   '/setup': typeof SetupRoute
+  '/admin/audit': typeof AdminAuditRoute
+  '/admin/orgs': typeof AdminOrgsRoute
+  '/admin/users': typeof AdminUsersRoute
   '/invite/$token': typeof InviteTokenRoute
   '/login/mfa': typeof LoginMfaRoute
   '/$org/': typeof OrgIndexRoute
+  '/admin/': typeof AdminIndexRoute
   '/login/': typeof LoginIndexRoute
   '/$org/apps/$app': typeof OrgAppsAppRoute
   '/$org/apps/new': typeof OrgAppsNewRoute
@@ -132,9 +168,13 @@ export interface FileRouteTypes {
     | '/change-password'
     | '/login'
     | '/setup'
+    | '/admin/audit'
+    | '/admin/orgs'
+    | '/admin/users'
     | '/invite/$token'
     | '/login/mfa'
     | '/$org/'
+    | '/admin/'
     | '/login/'
     | '/$org/apps/$app'
     | '/$org/apps/new'
@@ -144,9 +184,13 @@ export interface FileRouteTypes {
     | '/'
     | '/change-password'
     | '/setup'
+    | '/admin/audit'
+    | '/admin/orgs'
+    | '/admin/users'
     | '/invite/$token'
     | '/login/mfa'
     | '/$org'
+    | '/admin'
     | '/login'
     | '/$org/apps/$app'
     | '/$org/apps/new'
@@ -158,9 +202,13 @@ export interface FileRouteTypes {
     | '/change-password'
     | '/login'
     | '/setup'
+    | '/admin/audit'
+    | '/admin/orgs'
+    | '/admin/users'
     | '/invite/$token'
     | '/login/mfa'
     | '/$org/'
+    | '/admin/'
     | '/login/'
     | '/$org/apps/$app'
     | '/$org/apps/new'
@@ -173,7 +221,11 @@ export interface RootRouteChildren {
   ChangePasswordRoute: typeof ChangePasswordRoute
   LoginRoute: typeof LoginRouteWithChildren
   SetupRoute: typeof SetupRoute
+  AdminAuditRoute: typeof AdminAuditRoute
+  AdminOrgsRoute: typeof AdminOrgsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
   InviteTokenRoute: typeof InviteTokenRoute
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -219,6 +271,34 @@ declare module '@tanstack/react-router' {
       fullPath: '/$org/'
       preLoaderRoute: typeof OrgIndexRouteImport
       parentRoute: typeof OrgRoute
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/audit': {
+      id: '/admin/audit'
+      path: '/admin/audit'
+      fullPath: '/admin/audit'
+      preLoaderRoute: typeof AdminAuditRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/orgs': {
+      id: '/admin/orgs'
+      path: '/admin/orgs'
+      fullPath: '/admin/orgs'
+      preLoaderRoute: typeof AdminOrgsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/users': {
+      id: '/admin/users'
+      path: '/admin/users'
+      fullPath: '/admin/users'
+      preLoaderRoute: typeof AdminUsersRouteImport
+      parentRoute: typeof rootRouteImport
     }
     '/invite/$token': {
       id: '/invite/$token'
@@ -299,7 +379,11 @@ const rootRouteChildren: RootRouteChildren = {
   ChangePasswordRoute: ChangePasswordRoute,
   LoginRoute: LoginRouteWithChildren,
   SetupRoute: SetupRoute,
+  AdminAuditRoute: AdminAuditRoute,
+  AdminOrgsRoute: AdminOrgsRoute,
+  AdminUsersRoute: AdminUsersRoute,
   InviteTokenRoute: InviteTokenRoute,
+  AdminIndexRoute: AdminIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

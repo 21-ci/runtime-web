@@ -10,4 +10,7 @@ export const SETTINGS_REGISTRY: SettingsEntry[] = [
   { label: "Tokens", path: "/$org/settings/tokens" },
   { label: "Audit log", path: "/$org/settings/audit" },
   { label: "Account security", path: "/me/security" },
+  { label: "Admin: users", path: "/admin/users" },
+  { label: "Admin: organizations", path: "/admin/orgs" },
+  { label: "Admin: audit log", path: "/admin/audit" },
 ];

@@ -1,0 +1,141 @@
+import { ScrollText } from "lucide-react";
+import { useId, useState } from "react";
+
+import { QueryError } from "@/components/features/empty/query-error";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Skeleton } from "@/components/ui/skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+
+import { useAdminAudit, useAdminOrgs, useUserOptions, type AuditFilters } from "./admin-api";
+
+const selectClass =
+  "flex h-[38px] w-full min-w-0 rounded-[7px] border border-line-strong bg-surface px-3 text-text outline-none focus-visible:border-blue focus-visible:ring-2 focus-visible:ring-focus";
+
+// AuditPage is the instance-wide audit log. Filters go to the API (org slug, actor user id, action),
+// so each change reloads from the first page.
+export function AuditPage() {
+  const [filters, setFilters] = useState<AuditFilters>({ org: "", actor: "", action: "" });
+  const orgs = useAdminOrgs();
+  const users = useUserOptions();
+  const audit = useAdminAudit({ ...filters, action: filters.action.trim() });
+  const orgId = useId();
+  const actorId = useId();
+  const actionId = useId();
+  const items = audit.data?.pages.flatMap((p) => p.items) ?? [];
+
+  return (
+    <section aria-labelledby="audit-heading" className="flex flex-col gap-4">
+      <div className="flex flex-col gap-1">
+        <h2 id="audit-heading" className="text-lg font-semibold">
+          Audit log
+        </h2>
+        <p className="text-sm text-muted">Every instance-wide change, newest first.</p>
+      </div>
+
+      <form className="grid gap-3 sm:grid-cols-3" role="search" aria-label="Filter audit log" onSubmit={(e) => e.preventDefault()}>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={orgId}>Organization</Label>
+          <select
+            id={orgId}
+            className={selectClass}
+            value={filters.org}
+            onChange={(e) => setFilters((f) => ({ ...f, org: e.target.value }))}
+          >
+            <option value="">All organizations</option>
+            {(orgs.data ?? []).map((o) => (
+              <option key={o.slug} value={o.slug}>
+                {o.name} ({o.slug})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={actorId}>Actor</Label>
+          <select
+            id={actorId}
+            className={selectClass}
+            value={filters.actor}
+            onChange={(e) => setFilters((f) => ({ ...f, actor: e.target.value }))}
+          >
+            <option value="">Any actor</option>
+            {(users.data ?? []).map((u) => (
+              <option key={u.id} value={u.id}>
+                {u.name} ({u.email})
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <Label htmlFor={actionId}>Action</Label>
+          <Input
+            id={actionId}
+            placeholder="for example app.create"
+            value={filters.action}
+            onChange={(e) => setFilters((f) => ({ ...f, action: e.target.value }))}
+          />
+        </div>
+      </form>
+
+      {audit.isError ? (
+        <QueryError error={audit.error} onRetry={() => void audit.refetch()} notFoundTitle="Audit log not found" />
+      ) : audit.isPending ? (
+        <div className="flex flex-col gap-2" aria-busy="true">
+          <Skeleton className="h-12" />
+          <Skeleton className="h-12" />
+        </div>
+      ) : items.length === 0 ? (
+        <EmptyState
+          icon={ScrollText}
+          title="No entries match"
+          description="Clear a filter to see more of the log."
+        />
+      ) : (
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead>When</TableHead>
+              <TableHead>Actor</TableHead>
+              <TableHead>Organization</TableHead>
+              <TableHead>Action</TableHead>
+              <TableHead>Target</TableHead>
+              <TableHead>Detail</TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            {items.map((entry) => (
+              <TableRow key={entry.id}>
+                <TableCell className="whitespace-nowrap text-sm">{new Date(entry.at).toLocaleString()}</TableCell>
+                <TableCell className="text-sm">
+                  <span className="flex flex-wrap items-center gap-1">
+                    {entry.actor.name ?? entry.actor.email ?? entry.actor.user_id ?? "Unknown"}
+                    {entry.as_instance_admin ? <Badge variant="info">As instance admin</Badge> : null}
+                  </span>
+                </TableCell>
+                <TableCell className="text-sm">{entry.org?.slug ?? "Instance"}</TableCell>
+                <TableCell className="font-mono text-sm">{entry.action}</TableCell>
+                <TableCell className="break-all text-sm">{entry.target}</TableCell>
+                <TableCell>
+                  <pre className="max-w-xs overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs text-muted">
+                    {entry.detail === null || entry.detail === undefined ? "" : JSON.stringify(entry.detail)}
+                  </pre>
+                </TableCell>
+              </TableRow>
+            ))}
+          </TableBody>
+        </Table>
+      )}
+
+      {audit.hasNextPage ? (
+        <div>
+          <Button variant="secondary" onClick={() => void audit.fetchNextPage()} disabled={audit.isFetchingNextPage}>
+            Load more entries
+          </Button>
+        </div>
+      ) : null}
+    </section>
+  );
+}
