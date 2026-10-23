@@ -21,6 +21,8 @@ import { Route as LoginMfaRouteImport } from './routes/login.mfa'
 import { Route as OrgAppsAppRouteImport } from './routes/$org.apps.$app'
 import { Route as OrgAppsNewRouteImport } from './routes/$org.apps.new'
 import { Route as OrgProjectsPRouteImport } from './routes/$org.projects.$p'
+import { Route as OrgAppsAppLogsRouteImport } from './routes/$org.apps.$app.logs'
+import { Route as OrgAppsAppVersionsRouteImport } from './routes/$org.apps.$app.versions'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -82,6 +84,16 @@ const OrgProjectsPRoute = OrgProjectsPRouteImport.update({
   path: '/projects/$p',
   getParentRoute: () => OrgRoute,
 } as any)
+const OrgAppsAppLogsRoute = OrgAppsAppLogsRouteImport.update({
+  id: '/logs',
+  path: '/logs',
+  getParentRoute: () => OrgAppsAppRoute,
+} as any)
+const OrgAppsAppVersionsRoute = OrgAppsAppVersionsRouteImport.update({
+  id: '/versions',
+  path: '/versions',
+  getParentRoute: () => OrgAppsAppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -93,9 +105,11 @@ export interface FileRoutesByFullPath {
   '/login/mfa': typeof LoginMfaRoute
   '/$org/': typeof OrgIndexRoute
   '/login/': typeof LoginIndexRoute
-  '/$org/apps/$app': typeof OrgAppsAppRoute
+  '/$org/apps/$app': typeof OrgAppsAppRouteWithChildren
   '/$org/apps/new': typeof OrgAppsNewRoute
   '/$org/projects/$p': typeof OrgProjectsPRoute
+  '/$org/apps/$app/logs': typeof OrgAppsAppLogsRoute
+  '/$org/apps/$app/versions': typeof OrgAppsAppVersionsRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -105,9 +119,11 @@ export interface FileRoutesByTo {
   '/login/mfa': typeof LoginMfaRoute
   '/$org': typeof OrgIndexRoute
   '/login': typeof LoginIndexRoute
-  '/$org/apps/$app': typeof OrgAppsAppRoute
+  '/$org/apps/$app': typeof OrgAppsAppRouteWithChildren
   '/$org/apps/new': typeof OrgAppsNewRoute
   '/$org/projects/$p': typeof OrgProjectsPRoute
+  '/$org/apps/$app/logs': typeof OrgAppsAppLogsRoute
+  '/$org/apps/$app/versions': typeof OrgAppsAppVersionsRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -120,9 +136,11 @@ export interface FileRoutesById {
   '/login/mfa': typeof LoginMfaRoute
   '/$org/': typeof OrgIndexRoute
   '/login/': typeof LoginIndexRoute
-  '/$org/apps/$app': typeof OrgAppsAppRoute
+  '/$org/apps/$app': typeof OrgAppsAppRouteWithChildren
   '/$org/apps/new': typeof OrgAppsNewRoute
   '/$org/projects/$p': typeof OrgProjectsPRoute
+  '/$org/apps/$app/logs': typeof OrgAppsAppLogsRoute
+  '/$org/apps/$app/versions': typeof OrgAppsAppVersionsRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -139,6 +157,8 @@ export interface FileRouteTypes {
     | '/$org/apps/$app'
     | '/$org/apps/new'
     | '/$org/projects/$p'
+    | '/$org/apps/$app/logs'
+    | '/$org/apps/$app/versions'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -151,6 +171,8 @@ export interface FileRouteTypes {
     | '/$org/apps/$app'
     | '/$org/apps/new'
     | '/$org/projects/$p'
+    | '/$org/apps/$app/logs'
+    | '/$org/apps/$app/versions'
   id:
     | '__root__'
     | '/'
@@ -165,6 +187,8 @@ export interface FileRouteTypes {
     | '/$org/apps/$app'
     | '/$org/apps/new'
     | '/$org/projects/$p'
+    | '/$org/apps/$app/logs'
+    | '/$org/apps/$app/versions'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -262,19 +286,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgProjectsPRouteImport
       parentRoute: typeof OrgRoute
     }
+    '/$org/apps/$app/logs': {
+      id: '/$org/apps/$app/logs'
+      path: '/logs'
+      fullPath: '/$org/apps/$app/logs'
+      preLoaderRoute: typeof OrgAppsAppLogsRouteImport
+      parentRoute: typeof OrgAppsAppRoute
+    }
+    '/$org/apps/$app/versions': {
+      id: '/$org/apps/$app/versions'
+      path: '/versions'
+      fullPath: '/$org/apps/$app/versions'
+      preLoaderRoute: typeof OrgAppsAppVersionsRouteImport
+      parentRoute: typeof OrgAppsAppRoute
+    }
   }
 }
 
+interface OrgAppsAppRouteChildren {
+  OrgAppsAppLogsRoute: typeof OrgAppsAppLogsRoute
+  OrgAppsAppVersionsRoute: typeof OrgAppsAppVersionsRoute
+}
+
+const OrgAppsAppRouteChildren: OrgAppsAppRouteChildren = {
+  OrgAppsAppLogsRoute: OrgAppsAppLogsRoute,
+  OrgAppsAppVersionsRoute: OrgAppsAppVersionsRoute,
+}
+
+const OrgAppsAppRouteWithChildren = OrgAppsAppRoute._addFileChildren(
+  OrgAppsAppRouteChildren,
+)
+
 interface OrgRouteChildren {
   OrgIndexRoute: typeof OrgIndexRoute
-  OrgAppsAppRoute: typeof OrgAppsAppRoute
+  OrgAppsAppRoute: typeof OrgAppsAppRouteWithChildren
   OrgAppsNewRoute: typeof OrgAppsNewRoute
   OrgProjectsPRoute: typeof OrgProjectsPRoute
 }
 
 const OrgRouteChildren: OrgRouteChildren = {
   OrgIndexRoute: OrgIndexRoute,
-  OrgAppsAppRoute: OrgAppsAppRoute,
+  OrgAppsAppRoute: OrgAppsAppRouteWithChildren,
   OrgAppsNewRoute: OrgAppsNewRoute,
   OrgProjectsPRoute: OrgProjectsPRoute,
 }

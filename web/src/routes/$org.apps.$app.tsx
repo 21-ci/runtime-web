@@ -1,4 +1,4 @@
-import { Link, createFileRoute } from "@tanstack/react-router";
+import { Link, Outlet, createFileRoute } from "@tanstack/react-router";
 
 import { QueryError } from "@/components/features/empty/query-error";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -48,6 +48,15 @@ function AppPage() {
         <dt className="text-muted">Live version</dt>
         <dd>{a.live_version ?? "none"}</dd>
       </dl>
+      <nav aria-label="App sections" className="flex gap-3 text-sm">
+        <Link to="/$org/apps/$app/versions" params={{ org, app }} className="hover:underline">
+          Versions
+        </Link>
+        <Link to="/$org/apps/$app/logs" params={{ org, app }} className="hover:underline">
+          Logs
+        </Link>
+      </nav>
+      <Outlet />
     </div>
   );
 }
