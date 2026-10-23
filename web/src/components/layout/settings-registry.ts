@@ -13,4 +13,8 @@ export const SETTINGS_REGISTRY: SettingsEntry[] = [
   { label: "Admin: users", path: "/admin/users" },
   { label: "Admin: organizations", path: "/admin/orgs" },
   { label: "Admin: audit log", path: "/admin/audit" },
+  { label: "Admin: node", path: "/admin/node" },
+  { label: "Admin: cache", path: "/admin/cache" },
+  { label: "Admin: domains", path: "/admin/domains" },
+  { label: "Admin: instance settings", path: "/admin/settings" },
 ];

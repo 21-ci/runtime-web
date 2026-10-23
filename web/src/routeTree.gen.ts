@@ -17,7 +17,11 @@ import { Route as SetupRouteImport } from './routes/setup'
 import { Route as OrgIndexRouteImport } from './routes/$org.index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
 import { Route as AdminAuditRouteImport } from './routes/admin/audit'
+import { Route as AdminCacheRouteImport } from './routes/admin/cache'
+import { Route as AdminDomainsRouteImport } from './routes/admin/domains'
+import { Route as AdminNodeRouteImport } from './routes/admin/node'
 import { Route as AdminOrgsRouteImport } from './routes/admin/orgs'
+import { Route as AdminSettingsRouteImport } from './routes/admin/settings'
 import { Route as AdminUsersRouteImport } from './routes/admin/users'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as LoginIndexRouteImport } from './routes/login.index'
@@ -70,9 +74,29 @@ const AdminAuditRoute = AdminAuditRouteImport.update({
   path: '/admin/audit',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminCacheRoute = AdminCacheRouteImport.update({
+  id: '/admin/cache',
+  path: '/admin/cache',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminDomainsRoute = AdminDomainsRouteImport.update({
+  id: '/admin/domains',
+  path: '/admin/domains',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminNodeRoute = AdminNodeRouteImport.update({
+  id: '/admin/node',
+  path: '/admin/node',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const AdminOrgsRoute = AdminOrgsRouteImport.update({
   id: '/admin/orgs',
   path: '/admin/orgs',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminSettingsRoute = AdminSettingsRouteImport.update({
+  id: '/admin/settings',
+  path: '/admin/settings',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
@@ -138,7 +162,11 @@ export interface FileRoutesByFullPath {
   '/login': typeof LoginRouteWithChildren
   '/setup': typeof SetupRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/cache': typeof AdminCacheRoute
+  '/admin/domains': typeof AdminDomainsRoute
+  '/admin/node': typeof AdminNodeRoute
   '/admin/orgs': typeof AdminOrgsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/invite/$token': typeof InviteTokenRoute
   '/login/mfa': typeof LoginMfaRoute
@@ -158,7 +186,11 @@ export interface FileRoutesByTo {
   '/change-password': typeof ChangePasswordRoute
   '/setup': typeof SetupRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/cache': typeof AdminCacheRoute
+  '/admin/domains': typeof AdminDomainsRoute
+  '/admin/node': typeof AdminNodeRoute
   '/admin/orgs': typeof AdminOrgsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/invite/$token': typeof InviteTokenRoute
   '/login/mfa': typeof LoginMfaRoute
@@ -181,7 +213,11 @@ export interface FileRoutesById {
   '/login': typeof LoginRouteWithChildren
   '/setup': typeof SetupRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/cache': typeof AdminCacheRoute
+  '/admin/domains': typeof AdminDomainsRoute
+  '/admin/node': typeof AdminNodeRoute
   '/admin/orgs': typeof AdminOrgsRoute
+  '/admin/settings': typeof AdminSettingsRoute
   '/admin/users': typeof AdminUsersRoute
   '/invite/$token': typeof InviteTokenRoute
   '/login/mfa': typeof LoginMfaRoute
@@ -205,7 +241,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/admin/audit'
+    | '/admin/cache'
+    | '/admin/domains'
+    | '/admin/node'
     | '/admin/orgs'
+    | '/admin/settings'
     | '/admin/users'
     | '/invite/$token'
     | '/login/mfa'
@@ -225,7 +265,11 @@ export interface FileRouteTypes {
     | '/change-password'
     | '/setup'
     | '/admin/audit'
+    | '/admin/cache'
+    | '/admin/domains'
+    | '/admin/node'
     | '/admin/orgs'
+    | '/admin/settings'
     | '/admin/users'
     | '/invite/$token'
     | '/login/mfa'
@@ -247,7 +291,11 @@ export interface FileRouteTypes {
     | '/login'
     | '/setup'
     | '/admin/audit'
+    | '/admin/cache'
+    | '/admin/domains'
+    | '/admin/node'
     | '/admin/orgs'
+    | '/admin/settings'
     | '/admin/users'
     | '/invite/$token'
     | '/login/mfa'
@@ -270,7 +318,11 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRouteWithChildren
   SetupRoute: typeof SetupRoute
   AdminAuditRoute: typeof AdminAuditRoute
+  AdminCacheRoute: typeof AdminCacheRoute
+  AdminDomainsRoute: typeof AdminDomainsRoute
+  AdminNodeRoute: typeof AdminNodeRoute
   AdminOrgsRoute: typeof AdminOrgsRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
   AdminUsersRoute: typeof AdminUsersRoute
   InviteTokenRoute: typeof InviteTokenRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -334,11 +386,39 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminAuditRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/admin/cache': {
+      id: '/admin/cache'
+      path: '/admin/cache'
+      fullPath: '/admin/cache'
+      preLoaderRoute: typeof AdminCacheRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/domains': {
+      id: '/admin/domains'
+      path: '/admin/domains'
+      fullPath: '/admin/domains'
+      preLoaderRoute: typeof AdminDomainsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/node': {
+      id: '/admin/node'
+      path: '/admin/node'
+      fullPath: '/admin/node'
+      preLoaderRoute: typeof AdminNodeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/admin/orgs': {
       id: '/admin/orgs'
       path: '/admin/orgs'
       fullPath: '/admin/orgs'
       preLoaderRoute: typeof AdminOrgsRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/settings': {
+      id: '/admin/settings'
+      path: '/admin/settings'
+      fullPath: '/admin/settings'
+      preLoaderRoute: typeof AdminSettingsRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/users': {
@@ -474,7 +554,11 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRouteWithChildren,
   SetupRoute: SetupRoute,
   AdminAuditRoute: AdminAuditRoute,
+  AdminCacheRoute: AdminCacheRoute,
+  AdminDomainsRoute: AdminDomainsRoute,
+  AdminNodeRoute: AdminNodeRoute,
   AdminOrgsRoute: AdminOrgsRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
   AdminUsersRoute: AdminUsersRoute,
   InviteTokenRoute: InviteTokenRoute,
   AdminIndexRoute: AdminIndexRoute,
