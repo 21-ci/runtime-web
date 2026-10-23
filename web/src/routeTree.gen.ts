@@ -21,6 +21,8 @@ import { Route as LoginMfaRouteImport } from './routes/login.mfa'
 import { Route as OrgAppsAppRouteImport } from './routes/$org.apps.$app'
 import { Route as OrgAppsNewRouteImport } from './routes/$org.apps.new'
 import { Route as OrgProjectsPRouteImport } from './routes/$org.projects.$p'
+import { Route as OrgAppsAppIndexRouteImport } from './routes/$org.apps.$app.index'
+import { Route as OrgAppsAppTriggersRouteImport } from './routes/$org.apps.$app.triggers'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -82,6 +84,16 @@ const OrgProjectsPRoute = OrgProjectsPRouteImport.update({
   path: '/projects/$p',
   getParentRoute: () => OrgRoute,
 } as any)
+const OrgAppsAppIndexRoute = OrgAppsAppIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => OrgAppsAppRoute,
+} as any)
+const OrgAppsAppTriggersRoute = OrgAppsAppTriggersRouteImport.update({
+  id: '/triggers',
+  path: '/triggers',
+  getParentRoute: () => OrgAppsAppRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -93,9 +105,11 @@ export interface FileRoutesByFullPath {
   '/login/mfa': typeof LoginMfaRoute
   '/$org/': typeof OrgIndexRoute
   '/login/': typeof LoginIndexRoute
-  '/$org/apps/$app': typeof OrgAppsAppRoute
+  '/$org/apps/$app': typeof OrgAppsAppRouteWithChildren
   '/$org/apps/new': typeof OrgAppsNewRoute
   '/$org/projects/$p': typeof OrgProjectsPRoute
+  '/$org/apps/$app/triggers': typeof OrgAppsAppTriggersRoute
+  '/$org/apps/$app/': typeof OrgAppsAppIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -105,9 +119,10 @@ export interface FileRoutesByTo {
   '/login/mfa': typeof LoginMfaRoute
   '/$org': typeof OrgIndexRoute
   '/login': typeof LoginIndexRoute
-  '/$org/apps/$app': typeof OrgAppsAppRoute
   '/$org/apps/new': typeof OrgAppsNewRoute
   '/$org/projects/$p': typeof OrgProjectsPRoute
+  '/$org/apps/$app/triggers': typeof OrgAppsAppTriggersRoute
+  '/$org/apps/$app': typeof OrgAppsAppIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -120,9 +135,11 @@ export interface FileRoutesById {
   '/login/mfa': typeof LoginMfaRoute
   '/$org/': typeof OrgIndexRoute
   '/login/': typeof LoginIndexRoute
-  '/$org/apps/$app': typeof OrgAppsAppRoute
+  '/$org/apps/$app': typeof OrgAppsAppRouteWithChildren
   '/$org/apps/new': typeof OrgAppsNewRoute
   '/$org/projects/$p': typeof OrgProjectsPRoute
+  '/$org/apps/$app/triggers': typeof OrgAppsAppTriggersRoute
+  '/$org/apps/$app/': typeof OrgAppsAppIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -139,6 +156,8 @@ export interface FileRouteTypes {
     | '/$org/apps/$app'
     | '/$org/apps/new'
     | '/$org/projects/$p'
+    | '/$org/apps/$app/triggers'
+    | '/$org/apps/$app/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -148,9 +167,10 @@ export interface FileRouteTypes {
     | '/login/mfa'
     | '/$org'
     | '/login'
-    | '/$org/apps/$app'
     | '/$org/apps/new'
     | '/$org/projects/$p'
+    | '/$org/apps/$app/triggers'
+    | '/$org/apps/$app'
   id:
     | '__root__'
     | '/'
@@ -165,6 +185,8 @@ export interface FileRouteTypes {
     | '/$org/apps/$app'
     | '/$org/apps/new'
     | '/$org/projects/$p'
+    | '/$org/apps/$app/triggers'
+    | '/$org/apps/$app/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -262,19 +284,47 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgProjectsPRouteImport
       parentRoute: typeof OrgRoute
     }
+    '/$org/apps/$app/': {
+      id: '/$org/apps/$app/'
+      path: '/'
+      fullPath: '/$org/apps/$app/'
+      preLoaderRoute: typeof OrgAppsAppIndexRouteImport
+      parentRoute: typeof OrgAppsAppRoute
+    }
+    '/$org/apps/$app/triggers': {
+      id: '/$org/apps/$app/triggers'
+      path: '/triggers'
+      fullPath: '/$org/apps/$app/triggers'
+      preLoaderRoute: typeof OrgAppsAppTriggersRouteImport
+      parentRoute: typeof OrgAppsAppRoute
+    }
   }
 }
 
+interface OrgAppsAppRouteChildren {
+  OrgAppsAppTriggersRoute: typeof OrgAppsAppTriggersRoute
+  OrgAppsAppIndexRoute: typeof OrgAppsAppIndexRoute
+}
+
+const OrgAppsAppRouteChildren: OrgAppsAppRouteChildren = {
+  OrgAppsAppTriggersRoute: OrgAppsAppTriggersRoute,
+  OrgAppsAppIndexRoute: OrgAppsAppIndexRoute,
+}
+
+const OrgAppsAppRouteWithChildren = OrgAppsAppRoute._addFileChildren(
+  OrgAppsAppRouteChildren,
+)
+
 interface OrgRouteChildren {
   OrgIndexRoute: typeof OrgIndexRoute
-  OrgAppsAppRoute: typeof OrgAppsAppRoute
+  OrgAppsAppRoute: typeof OrgAppsAppRouteWithChildren
   OrgAppsNewRoute: typeof OrgAppsNewRoute
   OrgProjectsPRoute: typeof OrgProjectsPRoute
 }
 
 const OrgRouteChildren: OrgRouteChildren = {
   OrgIndexRoute: OrgIndexRoute,
-  OrgAppsAppRoute: OrgAppsAppRoute,
+  OrgAppsAppRoute: OrgAppsAppRouteWithChildren,
   OrgAppsNewRoute: OrgAppsNewRoute,
   OrgProjectsPRoute: OrgProjectsPRoute,
 }
