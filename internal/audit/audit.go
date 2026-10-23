@@ -49,9 +49,18 @@ type Filter struct {
 	Limit int
 }
 
+// Writer appends entries stamped by Now (time.Now when nil).
+type Writer struct {
+	Now func() time.Time
+}
+
 // Log appends one entry. An empty orgID records an instance-wide entry; detail is JSON-encoded
 // when non-nil.
-func Log(ctx context.Context, q *db.Queries, actor Actor, orgID, action, target string, detail any) error {
+func (w Writer) Log(ctx context.Context, q *db.Queries, actor Actor, orgID, action, target string, detail any) error {
+	now := w.Now
+	if now == nil {
+		now = time.Now
+	}
 	var d string
 	if detail != nil {
 		b, err := json.Marshal(detail)
@@ -62,7 +71,7 @@ func Log(ctx context.Context, q *db.Queries, actor Actor, orgID, action, target 
 	}
 	err := q.InsertAudit(ctx, db.InsertAuditParams{
 		ID:              store.NewID("aud_"),
-		At:              time.Now().UnixMilli(),
+		At:              now().UnixMilli(),
 		ActorUserID:     sql.NullString{String: actor.UserID, Valid: actor.UserID != ""},
 		AsInstanceAdmin: boolInt(actor.AsInstanceAdmin),
 		OrgID:           nullString(orgID),

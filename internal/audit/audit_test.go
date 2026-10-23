@@ -5,11 +5,15 @@ import (
 	"errors"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/21cloud/runtime-web/internal/apperr"
 	"github.com/21cloud/runtime-web/internal/store"
 	"github.com/21cloud/runtime-web/internal/store/db"
 )
+
+// testWriter stamps entries with a fixed clock.
+var testWriter = Writer{Now: func() time.Time { return time.UnixMilli(1_700_000_000_000) }}
 
 func newQueries(t *testing.T) (*db.Queries, string) {
 	t.Helper()
@@ -28,10 +32,22 @@ func newQueries(t *testing.T) (*db.Queries, string) {
 	return st.Q(), orgID
 }
 
+func TestAuditStampsInjectedClock(t *testing.T) {
+	q, _ := newQueries(t)
+	ctx := context.Background()
+	if err := testWriter.Log(ctx, q, Actor{UserID: "usr_1"}, "", "x.y", "t", nil); err != nil {
+		t.Fatalf("Log: %v", err)
+	}
+	got, _, err := List(ctx, q, Filter{})
+	if err != nil || len(got) != 1 || got[0].At != 1_700_000_000_000 {
+		t.Fatalf("entries = %+v err = %v, want At from injected clock", got, err)
+	}
+}
+
 func TestAuditWritten(t *testing.T) {
 	q, orgID := newQueries(t)
 	ctx := context.Background()
-	if err := Log(ctx, q, Actor{UserID: "usr_1"}, orgID, "org.rename", "org_x", map[string]string{"name": "New"}); err != nil {
+	if err := testWriter.Log(ctx, q, Actor{UserID: "usr_1"}, orgID, "org.rename", "org_x", map[string]string{"name": "New"}); err != nil {
 		t.Fatalf("Log: %v", err)
 	}
 	got, _, err := List(ctx, q, Filter{})
@@ -70,7 +86,7 @@ func TestAuditMarksInstanceAdmin(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			q, _ := newQueries(t)
 			ctx := context.Background()
-			if err := Log(ctx, q, tt.actor, "", "user.create", "usr_t", nil); err != nil {
+			if err := testWriter.Log(ctx, q, tt.actor, "", "user.create", "usr_t", nil); err != nil {
 				t.Fatalf("Log: %v", err)
 			}
 			got, _, err := List(ctx, q, Filter{})
@@ -92,7 +108,7 @@ func TestAuditListFilters(t *testing.T) {
 	ctx := context.Background()
 	must := func(actor, org, action string) {
 		t.Helper()
-		if err := Log(ctx, q, Actor{UserID: actor}, org, action, "t", nil); err != nil {
+		if err := testWriter.Log(ctx, q, Actor{UserID: actor}, org, action, "t", nil); err != nil {
 			t.Fatalf("Log: %v", err)
 		}
 	}
@@ -130,7 +146,7 @@ func TestAuditCursorPagesWithoutRepeats(t *testing.T) {
 	q, orgID := newQueries(t)
 	ctx := context.Background()
 	for i := 0; i < 5; i++ {
-		if err := Log(ctx, q, Actor{UserID: "usr_a"}, orgID, "x.y", "t", nil); err != nil {
+		if err := testWriter.Log(ctx, q, Actor{UserID: "usr_a"}, orgID, "x.y", "t", nil); err != nil {
 			t.Fatalf("Log: %v", err)
 		}
 	}

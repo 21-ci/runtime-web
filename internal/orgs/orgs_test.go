@@ -3,7 +3,9 @@ package orgs
 import (
 	"context"
 	"errors"
+	"io"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/21cloud/runtime-web/internal/apperr"
@@ -121,7 +123,7 @@ func TestCreateOrgProvisionsTenantAndKey(t *testing.T) {
 func TestCreateOrgCompensatesOnDBError(t *testing.T) {
 	f := newFixture(t)
 	before := f.tenantCount(t)
-	f.svc.hookInsert = func() error { return errors.New("disk full") }
+	f.svc.hookInsert = func(*db.Queries) error { return errors.New("disk full") }
 
 	_, err := f.svc.Create(context.Background(), cli, "acme", "Acme", f.owner)
 	if err == nil {
@@ -294,4 +296,73 @@ func contains(list []string, s string) bool {
 		}
 	}
 	return false
+}
+
+// failDeletes is a transport that fails every DELETE with a runtime 500 and passes other requests through.
+type failDeletes struct{}
+
+func (failDeletes) RoundTrip(r *http.Request) (*http.Response, error) {
+	if r.Method == http.MethodDelete {
+		return &http.Response{
+			StatusCode: http.StatusInternalServerError,
+			Header:     http.Header{"Content-Type": {"application/json"}},
+			Body:       io.NopCloser(strings.NewReader(`{"error":{"code":"internal","message":"boom"}}`)),
+			Request:    r,
+		}, nil
+	}
+	return http.DefaultTransport.RoundTrip(r)
+}
+
+func TestCreateOrgRejectsDisabledOwner(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	if _, err := f.st.Q().SetUserDisabled(ctx, db.SetUserDisabledParams{Disabled: 1, UpdatedAt: 2, ID: f.owner}); err != nil {
+		t.Fatalf("SetUserDisabled: %v", err)
+	}
+	_, err := f.svc.Create(ctx, cli, "acme", "Acme", f.owner)
+	if !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("err = %v, want ErrInvalid", err)
+	}
+	if n := f.tenantCount(t); n != 0 {
+		t.Errorf("tenants = %d, want 0", n)
+	}
+}
+
+func TestCreateOrgSlugRaceMapsToSlugTaken(t *testing.T) {
+	f := newFixture(t)
+	before := f.tenantCount(t)
+	// Simulate a concurrent create that commits the same slug between our check and insert.
+	f.svc.hookInsert = func(q *db.Queries) error {
+		return q.CreateOrg(context.Background(), db.CreateOrgParams{
+			ID: store.NewID("org_"), Slug: "acme", Name: "Racer", TenantID: "tnt_racer", CreatedAt: 1,
+		})
+	}
+	_, err := f.svc.Create(context.Background(), cli, "acme", "Acme", f.owner)
+	if code, ok := apperr.ConflictCode(err); !ok || code != "slug_taken" {
+		t.Fatalf("err = %v, want conflict slug_taken", err)
+	}
+	if after := f.tenantCount(t); after != before {
+		t.Errorf("tenants = %d, want %d (losing create must purge its tenant)", after, before)
+	}
+}
+
+func TestDeleteOrgRuntimeFailureAfterDBDelete(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	org := f.create(t, "acme")
+	f.svc.rt = runtime.New(f.fake.URL, &http.Client{Transport: failDeletes{}})
+
+	if err := f.svc.Delete(ctx, cli, org.ID); err == nil {
+		t.Fatal("Delete succeeded although the runtime tenant delete failed")
+	}
+	if _, err := f.svc.Get(ctx, org.ID); !errors.Is(err, apperr.ErrNotFound) {
+		t.Errorf("org row still present after DB delete: err = %v", err)
+	}
+	entries, _, err := audit.List(ctx, f.st.Q(), audit.Filter{Action: "org.delete.runtime_failed"})
+	if err != nil {
+		t.Fatalf("audit.List: %v", err)
+	}
+	if len(entries) != 1 || entries[0].Target != org.TenantID {
+		t.Fatalf("runtime_failed entries = %+v, want one with target %s", entries, org.TenantID)
+	}
 }

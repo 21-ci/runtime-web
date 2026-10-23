@@ -32,7 +32,7 @@ func newFixture(t *testing.T) *fixture {
 	}
 	t.Cleanup(func() { _ = st.Close() })
 	sess := &auth.Sessions{Q: st.Q()}
-	return &fixture{st: st, svc: New(st, plainHasher{}, sess), sess: sess}
+	return &fixture{st: st, svc: New(st, plainHasher{}), sess: sess}
 }
 
 var cli = audit.Actor{UserID: "cli"}
@@ -205,6 +205,30 @@ func TestAuditWritten(t *testing.T) {
 	}
 	if e, ok := seen["user.disable"]; !ok || e.ActorUserID != "usr_op" || !e.AsInstanceAdmin || !strings.Contains(e.Target, u.ID) {
 		t.Errorf("user.disable entry = %+v (present %v)", e, ok)
+	}
+}
+
+func TestWritesRollBackWithSessionRevoke(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	u := f.mustCreate(t, "eve@example.com", false)
+	cookie, _, err := f.sess.Create(ctx, u.ID, "10.0.0.1", "ua")
+	if err != nil {
+		t.Fatalf("Sessions.Create: %v", err)
+	}
+	f.svc.hookAfterWrite = func() error { return errors.New("boom") }
+	if err := f.svc.Disable(ctx, cli, u.ID); err == nil {
+		t.Fatal("Disable succeeded despite failing write")
+	}
+	if _, _, err := f.sess.Lookup(ctx, cookie); err != nil {
+		t.Errorf("session revoked although the disable tx rolled back: %v", err)
+	}
+	row, err := f.st.Q().GetUserByID(ctx, u.ID)
+	if err != nil {
+		t.Fatalf("GetUserByID: %v", err)
+	}
+	if row.Disabled != 0 {
+		t.Errorf("user disabled although the tx rolled back")
 	}
 }
 

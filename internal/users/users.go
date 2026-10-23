@@ -35,15 +35,25 @@ type User struct {
 
 // Service manages user accounts.
 type Service struct {
-	st       *store.Store
-	hasher   auth.Hasher
-	sessions *auth.Sessions
-	now      func() time.Time
+	st     *store.Store
+	hasher auth.Hasher
+	now    func() time.Time
+	// hookAfterWrite is a test seam run last in each write tx; an error rolls the tx back.
+	hookAfterWrite func() error
+}
+
+func (s *Service) log() audit.Writer { return audit.Writer{Now: s.now} }
+
+func (s *Service) afterWrite() error {
+	if s.hookAfterWrite != nil {
+		return s.hookAfterWrite()
+	}
+	return nil
 }
 
 // New returns a users Service.
-func New(st *store.Store, hasher auth.Hasher, sessions *auth.Sessions) *Service {
-	return &Service{st: st, hasher: hasher, sessions: sessions, now: time.Now}
+func New(st *store.Store, hasher auth.Hasher) *Service {
+	return &Service{st: st, hasher: hasher, now: time.Now}
 }
 
 // Create adds a user with a random temporary password that must be changed at first login. The
@@ -80,7 +90,7 @@ func (s *Service) Create(ctx context.Context, actor audit.Actor, email, name str
 		}); err != nil {
 			return err
 		}
-		return audit.Log(ctx, q, actor, "", "user.create", u.ID, map[string]any{"email": email, "admin": admin})
+		return s.log().Log(ctx, q, actor, "", "user.create", u.ID, map[string]any{"email": email, "admin": admin})
 	})
 	if err != nil {
 		return User{}, "", fmt.Errorf("users: create: %w", err)
@@ -117,12 +127,15 @@ func (s *Service) Disable(ctx context.Context, actor audit.Actor, userID string)
 		if _, err := q.SetUserDisabled(ctx, db.SetUserDisabledParams{Disabled: 1, UpdatedAt: s.now().UnixMilli(), ID: userID}); err != nil {
 			return err
 		}
-		return audit.Log(ctx, q, actor, "", "user.disable", userID, nil)
+		if _, err := q.DeleteSessionsForUser(ctx, userID); err != nil {
+			return err
+		}
+		if err := s.log().Log(ctx, q, actor, "", "user.disable", userID, nil); err != nil {
+			return err
+		}
+		return s.afterWrite()
 	})
 	if err != nil {
-		return fmt.Errorf("users: disable: %w", err)
-	}
-	if err := s.sessions.RevokeAllForUser(ctx, userID, ""); err != nil {
 		return fmt.Errorf("users: disable: %w", err)
 	}
 	return nil
@@ -143,7 +156,7 @@ func (s *Service) SetAdmin(ctx context.Context, actor audit.Actor, userID string
 		if _, err := q.SetUserAdmin(ctx, db.SetUserAdminParams{IsInstanceAdmin: boolInt(admin), UpdatedAt: s.now().UnixMilli(), ID: userID}); err != nil {
 			return err
 		}
-		return audit.Log(ctx, q, actor, "", "user.set_admin", userID, map[string]bool{"admin": admin})
+		return s.log().Log(ctx, q, actor, "", "user.set_admin", userID, map[string]bool{"admin": admin})
 	})
 	if err != nil {
 		return fmt.Errorf("users: set admin: %w", err)
@@ -171,12 +184,15 @@ func (s *Service) ResetPassword(ctx context.Context, actor audit.Actor, userID s
 		}); err != nil {
 			return err
 		}
-		return audit.Log(ctx, q, actor, "", "user.reset_password", userID, nil)
+		if _, err := q.DeleteSessionsForUser(ctx, userID); err != nil {
+			return err
+		}
+		if err := s.log().Log(ctx, q, actor, "", "user.reset_password", userID, nil); err != nil {
+			return err
+		}
+		return s.afterWrite()
 	})
 	if err != nil {
-		return "", fmt.Errorf("users: reset password: %w", err)
-	}
-	if err := s.sessions.RevokeAllForUser(ctx, userID, ""); err != nil {
 		return "", fmt.Errorf("users: reset password: %w", err)
 	}
 	return temp, nil
