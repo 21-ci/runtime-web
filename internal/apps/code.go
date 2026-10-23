@@ -22,11 +22,18 @@ var (
 	pollInterval = 200 * time.Millisecond
 )
 
-// LogLine is one build log entry from the runtime's SSE stream.
+// LogLine is one runtime log record as the web API sends it (build logs and the live log stream;
+// the runtime service_id is dropped).
 type LogLine struct {
-	Seq   int    `json:"seq"`
-	Level string `json:"level"`
-	Msg   string `json:"msg"`
+	Seq       int     `json:"seq"`
+	TS        int64   `json:"ts"`
+	Level     string  `json:"level"`
+	Version   *int64  `json:"version"`
+	TaskID    *string `json:"task_id"`
+	Trigger   *string `json:"trigger"`
+	Kind      string  `json:"kind"`
+	Msg       string  `json:"msg"`
+	Truncated bool    `json:"truncated"`
 }
 
 // Files returns the source of version (0 = live). Wasm comes back read-only with no files.

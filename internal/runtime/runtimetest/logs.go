@@ -94,6 +94,7 @@ func (f *Fake) follow(p principal, w http.ResponseWriter, r *http.Request) {
 			}
 		}
 		wake := s.notify
+		kick := f.kick
 		f.mu.Unlock()
 
 		for _, l := range pending {
@@ -106,6 +107,8 @@ func (f *Fake) follow(p principal, w http.ResponseWriter, r *http.Request) {
 		}
 		select {
 		case <-wake:
+		case <-kick:
+			return
 		case <-r.Context().Done():
 			return
 		case <-f.done:
@@ -152,4 +155,13 @@ func (f *Fake) EmitLog(svc, line string) {
 	s.logs = append(s.logs, logLine{Seq: s.logSeq, TS: nowMS(), Level: "info", ServiceID: s.id, Kind: "runtime", Msg: line})
 	close(s.notify)
 	s.notify = make(chan struct{})
+}
+
+// DropLogStreams ends every open follow stream with a clean EOF, as a runtime
+// restart would. New streams are not affected.
+func (f *Fake) DropLogStreams() {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	close(f.kick)
+	f.kick = make(chan struct{})
 }

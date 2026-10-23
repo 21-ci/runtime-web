@@ -54,6 +54,8 @@ type Fake struct {
 	projects map[string]*project
 	failNext *injected
 	streams  map[string]int
+	// kick is closed by DropLogStreams to end every open follow stream.
+	kick chan struct{}
 }
 
 type injected struct {
@@ -78,6 +80,7 @@ func NewServer(t *testing.T) *Fake {
 		hosts:    map[string]*hostEntry{},
 		projects: map[string]*project{},
 		streams:  map[string]int{},
+		kick:     make(chan struct{}),
 	}
 	mux := http.NewServeMux()
 	f.routes(mux)
