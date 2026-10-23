@@ -91,6 +91,28 @@ func TestRouting(t *testing.T) {
 	}
 }
 
+func TestResolveNormalizesTable(t *testing.T) {
+	up := Upstreams{Runtime: &url.URL{Host: "rt"}, Console: &url.URL{Host: "c"}}
+	r := &Routes{ConsoleHost: "LocalHost:8080", BaseDomain: "Apps.Example.com.", Hosts: map[string]HostRoute{"::1": {Slug: "x"}}}
+	tests := []struct {
+		host string
+		want *url.URL
+	}{
+		{"localhost:8080", up.Console},
+		{"localhost", up.Console},
+		{"a.apps.example.com:443", up.Runtime},
+		{"[::1]:80", up.Runtime},
+		{"other", nil},
+	}
+	for _, tt := range tests {
+		t.Run(tt.host, func(t *testing.T) {
+			if got := Resolve(r, up, tt.host); got != tt.want {
+				t.Fatalf("got %v", got)
+			}
+		})
+	}
+}
+
 func TestBaseDomainRejectsNested(t *testing.T) {
 	front, _, _ := setup(t, nil)
 	for _, h := range []string{"a.b.apps.example.com", "apps.example.com"} {

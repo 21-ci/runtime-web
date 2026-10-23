@@ -27,16 +27,12 @@ func Resolve(r *Routes, up Upstreams, host string) *url.URL {
 	if r == nil {
 		return nil
 	}
-	h := strings.ToLower(host)
-	if hh, _, err := net.SplitHostPort(h); err == nil {
-		h = hh
-	}
-	h = strings.TrimSuffix(h, ".")
+	h := normHost(host)
 	switch {
-	case r.ConsoleHost != "" && h == strings.ToLower(r.ConsoleHost):
+	case r.ConsoleHost != "" && h == normHost(r.ConsoleHost):
 		return up.Console
 	case r.BaseDomain != "":
-		if sub, ok := strings.CutSuffix(h, "."+strings.ToLower(r.BaseDomain)); ok && sub != "" && !strings.Contains(sub, ".") {
+		if sub, ok := strings.CutSuffix(h, "."+normHost(r.BaseDomain)); ok && sub != "" && !strings.Contains(sub, ".") {
 			return up.Runtime
 		}
 	}
@@ -67,4 +63,14 @@ func Handler(t *Table, up Upstreams) http.Handler {
 		}
 		rp.ServeHTTP(w, r.WithContext(context.WithValue(r.Context(), ctxKey{}, target)))
 	})
+}
+
+// normHost lowercases host and strips port, IPv6 brackets and a trailing dot.
+func normHost(host string) string {
+	h := strings.ToLower(strings.TrimSpace(host))
+	if hh, _, err := net.SplitHostPort(h); err == nil {
+		h = hh
+	}
+	h = strings.TrimPrefix(strings.TrimSuffix(h, "]"), "[")
+	return strings.TrimSuffix(h, ".")
 }

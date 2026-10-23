@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"io"
 	"log/slog"
 	"net/http"
 	"sync/atomic"
@@ -71,12 +72,14 @@ func (p *Poller) Poll(ctx context.Context) error {
 		return fmt.Errorf("router: fetch routes: status %d", res.StatusCode)
 	}
 	var r Routes
-	if err := json.NewDecoder(res.Body).Decode(&r); err != nil {
+	if err := json.NewDecoder(io.LimitReader(res.Body, 1<<20)).Decode(&r); err != nil {
 		return fmt.Errorf("router: decode routes: %w", err)
 	}
-	if r.Hosts == nil {
-		r.Hosts = map[string]HostRoute{}
+	hosts := make(map[string]HostRoute, len(r.Hosts))
+	for k, v := range r.Hosts {
+		hosts[normHost(k)] = v
 	}
+	r.Hosts = hosts
 	p.Table.Store(&r)
 	p.etag = res.Header.Get("ETag")
 	return nil
@@ -92,16 +95,30 @@ func (p *Poller) Run(ctx context.Context) {
 	if log == nil {
 		log = slog.Default()
 	}
-	tk := time.NewTicker(iv)
-	defer tk.Stop()
+	const maxBackoff = 60 * time.Second
+	wait, failing := iv, false
 	for {
-		if err := p.Poll(ctx); err != nil && ctx.Err() == nil {
-			log.Warn("route poll failed; keeping last table", "err", err)
+		err := p.Poll(ctx)
+		if ctx.Err() != nil {
+			return
+		}
+		switch {
+		case err != nil:
+			if !failing {
+				log.Warn("route poll failing; keeping last table", "err", err)
+			}
+			failing = true
+			wait = min(wait*2, maxBackoff)
+		default:
+			if failing {
+				log.Info("route poll recovered")
+			}
+			failing, wait = false, iv
 		}
 		select {
 		case <-ctx.Done():
 			return
-		case <-tk.C:
+		case <-time.After(wait):
 		}
 	}
 }

@@ -78,6 +78,8 @@ func run(log *slog.Logger) error {
 		Addr:              env("ROUTER_HTTP_ADDR", ":8081"),
 		Handler:           router.Handler(table, router.Upstreams{Runtime: runtime, Console: console}),
 		ReadHeaderTimeout: 10 * time.Second,
+		IdleTimeout:       120 * time.Second,
+		MaxHeaderBytes:    64 << 10,
 	}
 	go func() {
 		<-ctx.Done()
