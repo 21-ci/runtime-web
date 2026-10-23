@@ -37,6 +37,18 @@ func (q *Queries) CreateOrg(ctx context.Context, arg CreateOrgParams) error {
 	return err
 }
 
+const deleteOrg = `-- name: DeleteOrg :execrows
+DELETE FROM orgs WHERE id = ?1
+`
+
+func (q *Queries) DeleteOrg(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteOrg, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getOrgByID = `-- name: GetOrgByID :one
 SELECT id, slug, name, tenant_id, default_key_id, default_key_sealed, created_at FROM orgs WHERE id = ?1
 `
@@ -75,6 +87,41 @@ func (q *Queries) GetOrgBySlug(ctx context.Context, slug string) (Org, error) {
 	return i, err
 }
 
+const listOrgs = `-- name: ListOrgs :many
+SELECT id, slug, name, tenant_id, default_key_id, default_key_sealed, created_at FROM orgs ORDER BY created_at, id
+`
+
+func (q *Queries) ListOrgs(ctx context.Context) ([]Org, error) {
+	rows, err := q.db.QueryContext(ctx, listOrgs)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Org
+	for rows.Next() {
+		var i Org
+		if err := rows.Scan(
+			&i.ID,
+			&i.Slug,
+			&i.Name,
+			&i.TenantID,
+			&i.DefaultKeyID,
+			&i.DefaultKeySealed,
+			&i.CreatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listOrgsForUser = `-- name: ListOrgsForUser :many
 SELECT o.id, o.slug, o.name, o.tenant_id, o.default_key_id, o.default_key_sealed, o.created_at FROM orgs o JOIN members m ON m.org_id = o.id
 WHERE m.user_id = ?1 ORDER BY o.created_at, o.id
@@ -109,4 +156,21 @@ func (q *Queries) ListOrgsForUser(ctx context.Context, userID string) ([]Org, er
 		return nil, err
 	}
 	return items, nil
+}
+
+const updateOrgName = `-- name: UpdateOrgName :execrows
+UPDATE orgs SET name = ?1 WHERE id = ?2
+`
+
+type UpdateOrgNameParams struct {
+	Name string
+	ID   string
+}
+
+func (q *Queries) UpdateOrgName(ctx context.Context, arg UpdateOrgNameParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateOrgName, arg.Name, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }

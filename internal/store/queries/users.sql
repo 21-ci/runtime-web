@@ -29,3 +29,12 @@ WHERE NOT EXISTS (SELECT 1 FROM users);
 
 -- name: SetUserDisabled :execrows
 UPDATE users SET disabled = sqlc.arg(disabled), updated_at = sqlc.arg(updated_at) WHERE id = sqlc.arg(id);
+
+-- name: ListUsers :many
+SELECT * FROM users ORDER BY created_at, id;
+
+-- name: CountEnabledAdmins :one
+SELECT COUNT(*) FROM users WHERE is_instance_admin = 1 AND disabled = 0;
+
+-- name: SetUserAdmin :execrows
+UPDATE users SET is_instance_admin = sqlc.arg(is_instance_admin), updated_at = sqlc.arg(updated_at) WHERE id = sqlc.arg(id);

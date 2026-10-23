@@ -116,3 +116,60 @@ func (q *Queries) ListAuditByOrg(ctx context.Context, arg ListAuditByOrgParams) 
 	}
 	return items, nil
 }
+
+const listAuditFiltered = `-- name: ListAuditFiltered :many
+SELECT id, at, actor_user_id, as_instance_admin, org_id, "action", target, detail FROM audit
+WHERE (?1 IS NULL OR org_id = ?1)
+  AND (?2 IS NULL OR actor_user_id = ?2)
+  AND (?3 IS NULL OR action = ?3)
+  AND (?4 IS NULL OR at < ?4 OR (at = ?4 AND id < ?5))
+ORDER BY at DESC, id DESC LIMIT ?6
+`
+
+type ListAuditFilteredParams struct {
+	OrgID       interface{}
+	ActorUserID interface{}
+	Action      interface{}
+	BeforeAt    interface{}
+	BeforeID    sql.NullString
+	Limit       int64
+}
+
+func (q *Queries) ListAuditFiltered(ctx context.Context, arg ListAuditFilteredParams) ([]Audit, error) {
+	rows, err := q.db.QueryContext(ctx, listAuditFiltered,
+		arg.OrgID,
+		arg.ActorUserID,
+		arg.Action,
+		arg.BeforeAt,
+		arg.BeforeID,
+		arg.Limit,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Audit
+	for rows.Next() {
+		var i Audit
+		if err := rows.Scan(
+			&i.ID,
+			&i.At,
+			&i.ActorUserID,
+			&i.AsInstanceAdmin,
+			&i.OrgID,
+			&i.Action,
+			&i.Target,
+			&i.Detail,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}

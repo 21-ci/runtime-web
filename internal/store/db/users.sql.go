@@ -9,6 +9,17 @@ import (
 	"context"
 )
 
+const countEnabledAdmins = `-- name: CountEnabledAdmins :one
+SELECT COUNT(*) FROM users WHERE is_instance_admin = 1 AND disabled = 0
+`
+
+func (q *Queries) CountEnabledAdmins(ctx context.Context) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countEnabledAdmins)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
+}
+
 const countUsers = `-- name: CountUsers :one
 SELECT COUNT(*) FROM users
 `
@@ -166,6 +177,61 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const listUsers = `-- name: ListUsers :many
+SELECT id, email, name, password_hash, must_change_password, is_instance_admin, disabled, created_at, updated_at FROM users ORDER BY created_at, id
+`
+
+func (q *Queries) ListUsers(ctx context.Context) ([]User, error) {
+	rows, err := q.db.QueryContext(ctx, listUsers)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []User
+	for rows.Next() {
+		var i User
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.Name,
+			&i.PasswordHash,
+			&i.MustChangePassword,
+			&i.IsInstanceAdmin,
+			&i.Disabled,
+			&i.CreatedAt,
+			&i.UpdatedAt,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const setUserAdmin = `-- name: SetUserAdmin :execrows
+UPDATE users SET is_instance_admin = ?1, updated_at = ?2 WHERE id = ?3
+`
+
+type SetUserAdminParams struct {
+	IsInstanceAdmin int64
+	UpdatedAt       int64
+	ID              string
+}
+
+func (q *Queries) SetUserAdmin(ctx context.Context, arg SetUserAdminParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setUserAdmin, arg.IsInstanceAdmin, arg.UpdatedAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const setUserDisabled = `-- name: SetUserDisabled :execrows
