@@ -20,6 +20,7 @@ func (s *Server) registerAuthRoutes() {
 	s.route(http.MethodPost, "/api/auth/logout", "", s.logout)
 	s.route(http.MethodGet, "/api/me", "", s.me)
 	s.route(http.MethodPut, "/api/me/password", "", s.changePassword)
+	s.registerOAuthRoutes()
 }
 
 // userJSON is the User shape of api-web.md §2.
@@ -142,7 +143,11 @@ func (s *Server) authProviders(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	writeJSON(w, http.StatusOK, authConfigJSON{PasswordLoginDisabled: pol.PasswordLoginDisabled, Providers: []providerJSON{}})
+	providers, err := s.providerList(r)
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, authConfigJSON{PasswordLoginDisabled: pol.PasswordLoginDisabled, Providers: providers})
 	return nil
 }
 
