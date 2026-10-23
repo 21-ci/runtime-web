@@ -82,6 +82,8 @@ func mapError(err error) apiError {
 	var conflict apperr.Conflict
 
 	switch {
+	case errors.Is(err, errPayloadTooLarge):
+		return apiError{status: http.StatusRequestEntityTooLarge, code: "payload_too_large", message: "request body too large"}
 	case errors.As(err, &ve):
 		fields := ve.fields
 		if fields == nil {
@@ -194,10 +196,26 @@ func writeJSON(w http.ResponseWriter, status int, v any) {
 	}
 }
 
+// maxJSONBody is the body cap of every JSON route except PUT files.
+const maxJSONBody = 1 << 20
+
+// errPayloadTooLarge marks a request body over its cap; mapError sends 413 payload_too_large.
+var errPayloadTooLarge = errors.New("api: request body too large")
+
 // decodeJSON reads a JSON request body of at most 1 MiB into v.
 func decodeJSON(w http.ResponseWriter, r *http.Request, v any) error {
-	r.Body = http.MaxBytesReader(w, r.Body, 1<<20)
+	return decodeJSONLimit(w, r, v, maxJSONBody)
+}
+
+// decodeJSONLimit reads a JSON request body of at most limit bytes into v. A body over the cap is
+// errPayloadTooLarge; any other decode failure is a validation error.
+func decodeJSONLimit(w http.ResponseWriter, r *http.Request, v any, limit int64) error {
+	r.Body = http.MaxBytesReader(w, r.Body, limit)
 	if err := json.NewDecoder(r.Body).Decode(v); err != nil {
+		var mbe *http.MaxBytesError
+		if errors.As(err, &mbe) {
+			return errPayloadTooLarge
+		}
 		return &validationError{message: "request body must be a JSON object"}
 	}
 	return nil

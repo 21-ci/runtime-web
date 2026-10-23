@@ -76,6 +76,7 @@ func New(d Deps) *Server {
 	s.registerInviteRoutes()
 	s.registerStreamRoutes()
 	s.registerInternalRoutes()
+	s.registerAppRoutes()
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, _ *http.Request) {
 		writeAPIError(w, apiError{status: http.StatusNotFound, code: "not_found", message: "not found"})
 	})
