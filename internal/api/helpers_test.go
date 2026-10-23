@@ -24,6 +24,7 @@ import (
 	"github.com/21cloud/runtime-web/internal/audit"
 	"github.com/21cloud/runtime-web/internal/auth"
 	"github.com/21cloud/runtime-web/internal/authz"
+	"github.com/21cloud/runtime-web/internal/domains"
 	"github.com/21cloud/runtime-web/internal/invites"
 	"github.com/21cloud/runtime-web/internal/keys"
 	"github.com/21cloud/runtime-web/internal/orgs"
@@ -50,13 +51,19 @@ func (testHasher) Hash(p string) (string, error) { return "plain$" + p, nil }
 func (testHasher) Verify(hash, p string) bool    { return hash == "plain$"+p }
 
 type testEnv struct {
-	t    *testing.T
-	st   *store.Store
-	auth *auth.Service
-	srv  *Server
-	fake *runtimetest.Fake
-	orgs *orgs.Service
+	t       *testing.T
+	st      *store.Store
+	auth    *auth.Service
+	srv     *Server
+	fake    *runtimetest.Fake
+	orgs    *orgs.Service
+	appSvc  *apps.Service
+	domains *domains.Service
+	logs    *apps.LogHub
 }
+
+// testRouterSecret is the ROUTER_SHARED_SECRET of the test server.
+const testRouterSecret = "test-router-secret"
 
 func newTestEnv(t *testing.T) *testEnv {
 	t.Helper()
@@ -86,7 +93,15 @@ func newTestEnv(t *testing.T) *testEnv {
 		"index.html":    {Data: []byte("<!doctype html><title>app</title>")},
 		"assets/app.js": {Data: []byte("console.log(1)")},
 	}
+	logs := apps.NewLogHub(appSvc)
+	t.Cleanup(logs.Close)
+	domainSvc := domains.New(st, rt, root, appSvc, domains.Options{
+		BaseDomain: "apps.test", ConsoleHost: "console.test", RuntimeHost: "runtime.test", CNAMETarget: "console.test",
+	})
 	srv := New(Deps{
+		Logs:             logs,
+		Domains:          domainSvc,
+		RouterSecret:     testRouterSecret,
 		Auth:             authSvc,
 		Orgs:             orgSvc,
 		Users:            users.New(st, testHasher{}),
@@ -100,7 +115,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		RuntimePublicURL: testRuntimeURL,
 		SPA:              spa,
 	})
-	return &testEnv{t: t, st: st, auth: authSvc, srv: srv, fake: fake, orgs: orgSvc}
+	return &testEnv{t: t, st: st, auth: authSvc, srv: srv, fake: fake, orgs: orgSvc, appSvc: appSvc, domains: domainSvc, logs: logs}
 }
 
 // send issues a request with a JSON body (nil body for none) and the console

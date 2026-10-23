@@ -567,8 +567,8 @@ schedule count.
 
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
-| GET | `…/{app}/stats` | `app.read` | `?window=5m\|1h\|24h` (default `5m`) | `200 object` (runtime stats passthrough: counts, error rate, p50/p95/p99, `admission`) | `404` |
-| GET | `…/{app}/events` | `app.read` | `?cursor&limit` | `200 Page<{id: string; ts: number; kind: string; data: unknown}>` | `404` |
+| GET | `…/{app}/stats` | `app.logs.read` | `?window=5m\|1h\|24h` (default `5m`) | `200 object` (runtime stats passthrough: counts, error rate, p50/p95/p99, `admission`) | `404` |
+| GET | `…/{app}/events` | `app.logs.read` | `?cursor&limit` | `200 Page<{id: string; ts: number; kind: string; data: unknown}>` | `404` |
 | GET | `…/{app}/logs` | `app.logs.read` | SSE, see §8.6 | `text/event-stream` | `404`, `429 rate_limited` (org upstream cap) |
 | GET | `…/{app}/export` | `app.data.export` | | `200 application/vnd.sqlite3`, `Content-Disposition: attachment; filename="<app>.sqlite"` (streamed) | `403`, `404` |
 
@@ -606,7 +606,9 @@ The TXT record must stay. An active domain whose TXT is missing for 3 checks (6 
 `GET /api/orgs/{org}/apps/{app}/logs`
 
 - Request: `Accept: text/event-stream`. Optional `Last-Event-ID: <seq>` header (the browser's `EventSource`
-  sends it on reconnect), or `?last_event_id=<seq>` for the first connect. Optional `?level=debug|info|warn|error`.
+  sends it on reconnect), or `?last_event_id=<seq>` for the first connect. Optional `?level=debug|info|warn|error`
+  is a minimum severity: `warn` passes `warn` and `error` lines. It filters `log` events only; `gap` and `error`
+  events always pass. An unknown level is `422 invalid`.
 - Errors before the stream starts use the JSON envelope (`404`, `429 rate_limited`).
 - Response headers: `Content-Type: text/event-stream`, `Cache-Control: no-cache`, `X-Accel-Buffering: no`. The
   server write deadline is cleared for this route only.
