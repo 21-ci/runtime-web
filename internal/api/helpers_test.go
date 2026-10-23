@@ -58,6 +58,7 @@ type testEnv struct {
 	orgs    *orgs.Service
 	appSvc  *apps.Service
 	domains *domains.Service
+	logs    *apps.LogHub
 }
 
 // testRouterSecret is the ROUTER_SHARED_SECRET of the test server.
@@ -112,7 +113,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		RuntimePublicURL: testRuntimeURL,
 		SPA:              spa,
 	})
-	return &testEnv{t: t, st: st, auth: authSvc, srv: srv, fake: fake, orgs: orgSvc, appSvc: appSvc, domains: domainSvc}
+	return &testEnv{t: t, st: st, auth: authSvc, srv: srv, fake: fake, orgs: orgSvc, appSvc: appSvc, domains: domainSvc, logs: logs}
 }
 
 // send issues a request with a JSON body (nil body for none) and the console

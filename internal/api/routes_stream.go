@@ -3,9 +3,11 @@ package api
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/21cloud/runtime-web/internal/apps"
@@ -17,8 +19,8 @@ var logRank = map[string]int{"debug": 0, "info": 1, "warn": 2, "error": 3}
 
 // registerStreamRoutes registers the app log stream and the data export (api-web.md §8.4, §8.6).
 func (s *Server) registerStreamRoutes() {
-	s.orgRoute(http.MethodGet, "/api/orgs/{org}/apps/{app}/logs", authz.AppLogsRead, s.streamLogs)
-	s.orgRoute(http.MethodGet, "/api/orgs/{org}/apps/{app}/export", authz.AppDataExport, s.exportApp)
+	s.appRoute(http.MethodGet, "/api/orgs/{org}/apps/{app}/logs", authz.AppLogsRead, s.streamLogs)
+	s.appRoute(http.MethodGet, "/api/orgs/{org}/apps/{app}/export", authz.AppDataExport, s.exportApp)
 }
 
 // streamLogs serves the app's logs as server-sent events. Errors before the stream starts use the
@@ -34,6 +36,10 @@ func (s *Server) streamLogs(w http.ResponseWriter, r *http.Request, c orgCall) e
 		last = r.URL.Query().Get("last_event_id")
 	}
 	ch, cancel, err := s.deps.Logs.Subscribe(r.Context(), c.sub, c.org.ID, r.PathValue("app"), last)
+	if errors.Is(err, apps.ErrLogHubClosed) {
+		writeAPIError(w, apiError{status: http.StatusServiceUnavailable, code: "unavailable", message: "log streaming is shutting down"})
+		return nil
+	}
 	if err != nil {
 		return err
 	}
@@ -105,6 +111,21 @@ func writeSSE(w io.Writer, ev apps.LogEvent) error {
 	return err
 }
 
+// exportFilename returns "<app>.sqlite" with only [a-z0-9-] kept from app, so the quoted header value
+// is safe. An app name with nothing left is "app.sqlite".
+func exportFilename(app string) string {
+	var b strings.Builder
+	for _, r := range app {
+		if (r >= 'a' && r <= 'z') || (r >= '0' && r <= '9') || r == '-' {
+			b.WriteRune(r)
+		}
+	}
+	if b.Len() == 0 {
+		return "app.sqlite"
+	}
+	return b.String() + ".sqlite"
+}
+
 // exportApp streams a snapshot of the app's SQLite data (app.data.export).
 func (s *Server) exportApp(w http.ResponseWriter, r *http.Request, c orgCall) error {
 	app := r.PathValue("app")
@@ -115,7 +136,7 @@ func (s *Server) exportApp(w http.ResponseWriter, r *http.Request, c orgCall) er
 	defer func() { _ = body.Close() }()
 	h := w.Header()
 	h.Set("Content-Type", "application/vnd.sqlite3")
-	h.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s.sqlite"`, app))
+	h.Set("Content-Disposition", fmt.Sprintf(`attachment; filename="%s"`, exportFilename(app)))
 	w.WriteHeader(http.StatusOK)
 	if _, err := io.Copy(w, body); err != nil {
 		s.deps.Logger.Warn("api: export stream", "app", app, "err", err)

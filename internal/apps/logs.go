@@ -54,7 +54,11 @@ type LogHub struct {
 
 	mu      sync.Mutex
 	streams map[cacheKey]*logStream
+	shut    bool // set by Close; Subscribe then fails with ErrLogHubClosed
 }
+
+// ErrLogHubClosed is returned by Subscribe after Close (the server is shutting down).
+var ErrLogHubClosed = errors.New("apps: log hub closed")
 
 // NewLogHub returns a LogHub over svc. Close stops every upstream.
 func NewLogHub(svc *Service) *LogHub {
@@ -96,6 +100,10 @@ func (h *LogHub) Subscribe(ctx context.Context, sub authz.Subject, orgID, slug, 
 	}
 	k := cacheKey{orgID, slug}
 	h.mu.Lock()
+	if h.shut {
+		h.mu.Unlock()
+		return nil, nil, ErrLogHubClosed
+	}
 	st := h.streams[k]
 	if st != nil && st.svcID != app.SvcID {
 		// The slug now names another app: retire the old upstream.
@@ -125,6 +133,7 @@ func (h *LogHub) Subscribe(ctx context.Context, sub authz.Subject, orgID, slug, 
 // Close stops every upstream and closes every subscriber channel. It waits for the upstreams to exit.
 func (h *LogHub) Close() {
 	h.mu.Lock()
+	h.shut = true
 	var all []*logStream
 	for _, st := range h.streams {
 		all = append(all, st)

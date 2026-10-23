@@ -46,6 +46,23 @@ func (s *Server) orgRoute(method, pattern string, action authz.Action, h orgHand
 // project outside the caller's grants. A member without the action's role gets 403. {p}, when the
 // route has one, is the project slug the action applies to.
 func (s *Server) orgAccess(r *http.Request, action authz.Action) (orgCall, error) {
+	c, err := s.orgMember(r)
+	if err != nil {
+		return orgCall{}, err
+	}
+	proj := r.PathValue("p")
+	if !authz.Can(c.sub, action, proj) {
+		if !c.sub.InstanceAdmin && proj != "" && c.sub.ProjectRoles[proj] == "" {
+			return orgCall{}, fmt.Errorf("api: project %s: %w", proj, apperr.ErrNotFound)
+		}
+		return orgCall{}, fmt.Errorf("api: %s: %w", action, apperr.ErrForbidden)
+	}
+	return c, nil
+}
+
+// orgMember resolves {org} and the caller's subject and requires membership (or instance admin). A
+// non-member gets 404. It does not check an action.
+func (s *Server) orgMember(r *http.Request) (orgCall, error) {
 	ctx := r.Context()
 	p, ok := auth.FromContext(ctx)
 	if !ok {
@@ -61,13 +78,6 @@ func (s *Server) orgAccess(r *http.Request, action authz.Action) (orgCall, error
 	}
 	if !sub.InstanceAdmin && sub.OrgRole == "" {
 		return orgCall{}, fmt.Errorf("api: org %s: %w", org.Slug, apperr.ErrNotFound)
-	}
-	proj := r.PathValue("p")
-	if !authz.Can(sub, action, proj) {
-		if !sub.InstanceAdmin && proj != "" && sub.ProjectRoles[proj] == "" {
-			return orgCall{}, fmt.Errorf("api: project %s: %w", proj, apperr.ErrNotFound)
-		}
-		return orgCall{}, fmt.Errorf("api: %s: %w", action, apperr.ErrForbidden)
 	}
 	// Only an instance admin acting without a membership is recorded as acting as instance admin.
 	asAdmin := sub.InstanceAdmin && sub.OrgRole == ""

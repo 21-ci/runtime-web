@@ -11,6 +11,8 @@ import (
 	"time"
 
 	"github.com/21cloud/runtime-web/internal/apps"
+	"github.com/21cloud/runtime-web/internal/audit"
+	"github.com/21cloud/runtime-web/internal/authz"
 )
 
 // sseEvent is one block of an SSE stream.
@@ -173,6 +175,114 @@ func TestLevelAtLeast(t *testing.T) {
 			ev := apps.LogEvent{Event: tt.event, Data: json.RawMessage(tt.data)}
 			if got := keepLevel(ev, tt.min); got != tt.want {
 				t.Fatalf("keepLevel = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+// TestAppRouteGrants: a member with only a grant on project a sees apps in a and gets 404 for apps in b.
+// Export follows authz: a viewer is forbidden, an admin allowed.
+func TestAppRouteGrants(t *testing.T) {
+	e := newTestEnv(t)
+	ownerID := e.mkUser("owner@example.com", testPassword)
+	org := e.mkOrg("acme", ownerID)
+	ctx := context.Background()
+	owner, err := e.orgs.Subject(ctx, ownerID, org.ID)
+	if err != nil {
+		t.Fatalf("Subject: %v", err)
+	}
+	for _, p := range []string{"alpha", "beta"} {
+		if _, err := e.appSvc.CreateProject(ctx, owner, org.ID, p, "", []string{"production"}); err != nil {
+			t.Fatalf("CreateProject %s: %v", p, err)
+		}
+		if _, err := e.appSvc.Create(ctx, owner, org.ID, p, "production", "app-"+p, "http"); err != nil {
+			t.Fatalf("Create app-%s: %v", p, err)
+		}
+	}
+	viewerID := e.mkUser("viewer@example.com", testPassword)
+	adminID := e.mkUser("admin@example.com", testPassword)
+	e.addMember(org.ID, viewerID, "member")
+	e.addMember(org.ID, adminID, "member")
+	setter := authz.Subject{InstanceAdmin: true}
+	if err := e.orgs.SetGrant(ctx, audit.Actor{UserID: "cli"}, setter, org.ID, viewerID, "alpha", authz.RoleViewer); err != nil {
+		t.Fatalf("SetGrant viewer: %v", err)
+	}
+	if err := e.orgs.SetGrant(ctx, audit.Actor{UserID: "cli"}, setter, org.ID, adminID, "alpha", authz.RoleAdmin); err != nil {
+		t.Fatalf("SetGrant admin: %v", err)
+	}
+	viewerCookie, _ := e.session("viewer@example.com")
+	adminCookie, _ := e.session("admin@example.com")
+	ts := httptest.NewServer(e.srv)
+	t.Cleanup(ts.Close)
+
+	tests := []struct {
+		name   string
+		path   string
+		cookie string
+		want   int
+	}{
+		{"viewer streams logs of app in a", "/api/orgs/acme/apps/app-alpha/logs", viewerCookie, http.StatusOK},
+		{"viewer gets 404 for app in b", "/api/orgs/acme/apps/app-beta/logs", viewerCookie, http.StatusNotFound},
+		{"viewer export forbidden", "/api/orgs/acme/apps/app-alpha/export", viewerCookie, http.StatusForbidden},
+		{"admin export allowed", "/api/orgs/acme/apps/app-alpha/export", adminCookie, http.StatusOK},
+		{"admin gets 404 for app in b", "/api/orgs/acme/apps/app-beta/export", adminCookie, http.StatusNotFound},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			if strings.HasSuffix(tt.path, "/logs") {
+				if got := streamStatus(t, ts, tt.cookie, tt.path); got != tt.want {
+					t.Fatalf("status = %d, want %d", got, tt.want)
+				}
+				return
+			}
+			rec := e.send(http.MethodGet, tt.path, nil, withCookie(tt.cookie))
+			if rec.Code != tt.want {
+				t.Fatalf("status = %d, want %d; body %s", rec.Code, tt.want, rec.Body.String())
+			}
+		})
+	}
+}
+
+// streamStatus returns the status of a stream request, then drops the connection.
+func streamStatus(t *testing.T, ts *httptest.Server, cookie, path string) int {
+	t.Helper()
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, ts.URL+path, nil)
+	if err != nil {
+		t.Fatalf("new request: %v", err)
+	}
+	req.Header.Set("Accept", "text/event-stream")
+	req.AddCookie(&http.Cookie{Name: "rtw_session", Value: cookie})
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		t.Fatalf("GET %s: %v", path, err)
+	}
+	_ = resp.Body.Close()
+	return resp.StatusCode
+}
+
+func TestLogsAfterHubClosed(t *testing.T) {
+	e, ts, cookie, _ := streamEnv(t)
+	e.logs.Close()
+	resp := openLogs(t, ts, cookie, "", "")
+	if resp.StatusCode != http.StatusServiceUnavailable {
+		t.Fatalf("status after hub close = %d, want 503", resp.StatusCode)
+	}
+}
+
+func TestExportFilename(t *testing.T) {
+	tests := []struct{ app, want string }{
+		{"web", "web.sqlite"},
+		{"my-app-2", "my-app-2.sqlite"},
+		{`we"b;x`, "webx.sqlite"},
+		{"Ünï\r\n", "n.sqlite"},
+		{"***", "app.sqlite"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.app, func(t *testing.T) {
+			if got := exportFilename(tt.app); got != tt.want {
+				t.Fatalf("exportFilename(%q) = %q, want %q", tt.app, got, tt.want)
 			}
 		})
 	}
