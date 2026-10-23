@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"log/slog"
 	"os"
+	"os/signal"
+	"syscall"
 	"time"
 
 	"github.com/21cloud/runtime-web/internal/config"
@@ -33,6 +35,14 @@ func main() {
 	logger.Info("rtweb config loaded",
 		"version", version, "commit", commit, "date", date,
 		"listen", cfg.Listen, "dev", cfg.Dev)
+
+	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer stop()
+	if err := serve(ctx, cfg, logger); err != nil {
+		logger.Error("rtweb: serve failed", "err", err)
+		stop()
+		os.Exit(1)
+	}
 }
 
 // newLogger uses text output in dev and JSON otherwise, at the given LOG_LEVEL.
