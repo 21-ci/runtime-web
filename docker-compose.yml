@@ -1,0 +1,126 @@
+# Runtime Web stack: runtime-copy (node) + rtweb (console BFF) + rtrouter (host router).
+#
+#   cp .env.example .env
+#   docker compose up -d --build --wait     # waits for the runtime healthcheck
+#   open http://console.localhost:8080      # setup page on a clean volume
+#   docker compose down                     # keeps volumes; add -v to delete the data
+#
+# Only the router is published (127.0.0.1:${ROUTER_HTTP_PORT}). The runtime's public port is
+# published on loopback for direct app URLs (RUNTIME_PUBLIC_URL). The control API (8081) and
+# metrics (9090) stay on the compose network.
+#
+# TLS: ROUTER_TLS=off here (dev). CI exercises the ACME path with deploy/compose.pebble.yml.
+name: runtime-web
+
+services:
+  runtime:
+    # runtime-copy is read-only input: its Dockerfile builds the `rt` node image.
+    build:
+      context: ${RUNTIME_SRC:-../runtime-copy}
+      dockerfile: Dockerfile
+    image: runtime-copy:dev
+    init: true
+    restart: unless-stopped
+    environment:
+      RT_ROOT_TOKEN: "${RUNTIME_ROOT_TOKEN:?set RUNTIME_ROOT_TOKEN in .env}"
+      RT_MASTER_KEY: "${RUNTIME_MASTER_KEY:?set RUNTIME_MASTER_KEY in .env (64 hex chars)}"
+      # Overrides [routing] base_domain in deploy/runtime/rt.toml.
+      RT__ROUTING__BASE_DOMAIN: "${BASE_DOMAIN:?set BASE_DOMAIN in .env}"
+      RT_LOG: ${RT_LOG:-info}
+    volumes:
+      - ./deploy/runtime/rt.toml:/etc/rt/rt.toml:ro
+      - runtime-data:/data
+    ports:
+      - "127.0.0.1:${RUNTIME_PUBLIC_PORT:-8082}:8080"
+    networks:
+      web:
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "-o", "/dev/null", "http://127.0.0.1:9090/healthz"]
+      interval: 5s
+      timeout: 3s
+      retries: 60
+      start_period: 10s
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    stop_grace_period: 30s
+
+  rtweb:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: rtweb:dev
+    init: true
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      RUNTIME_URL: http://runtime:8081
+      RTWEB_LISTEN: ":8090"
+      RTWEB_DB: /data/rtweb.db
+      RTWEB_TRUSTED_PROXIES: "172.28.0.10/32"
+    depends_on:
+      runtime:
+        condition: service_healthy
+    volumes:
+      - rtweb-data:/data
+    networks:
+      web:
+    # No container healthcheck: the image is distroless (no shell, no curl). GET /healthz on the
+    # router host is the liveness check (see scripts/budget.sh and the e2e suite).
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+  rtrouter:
+    build:
+      context: .
+      dockerfile: Dockerfile.router
+    image: rtrouter:dev
+    init: true
+    restart: unless-stopped
+    environment:
+      ROUTER_TLS: ${ROUTER_TLS:-off}
+      ROUTER_SHARED_SECRET: "${ROUTER_SHARED_SECRET:?set ROUTER_SHARED_SECRET in .env}"
+      ROUTER_RTWEB_URL: http://rtweb:8090
+      # Upstream for base-domain apps and custom domains: the runtime's public port on the network.
+      RUNTIME_PUBLIC_URL: http://runtime:8080
+      ROUTER_HTTP_ADDR: ":8080"
+      ROUTER_HTTPS_ADDR: ":8443"
+      ROUTER_CERT_DIR: /data/certs
+      BASE_DOMAIN: "${BASE_DOMAIN:?set BASE_DOMAIN in .env}"
+      ACME_EMAIL: ${ACME_EMAIL:-}
+      ROUTER_ACME_CA: ${ROUTER_ACME_CA:-}
+      ROUTER_WILDCARD_CERT: ${ROUTER_WILDCARD_CERT:-}
+      ROUTER_WILDCARD_KEY: ${ROUTER_WILDCARD_KEY:-}
+    ports:
+      - "127.0.0.1:${ROUTER_HTTP_PORT:-8080}:8080"
+    volumes:
+      - router-data:/data
+    networks:
+      web:
+        ipv4_address: 172.28.0.10
+    depends_on:
+      - rtweb
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+networks:
+  web:
+    driver: bridge
+    ipam:
+      config:
+        - subnet: 172.28.0.0/24
+
+volumes:
+  runtime-data:
+  rtweb-data:
+  router-data:

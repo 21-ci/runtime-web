@@ -5,12 +5,12 @@ LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.dat
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build test vet vuln fmt fmt-check ci clean web web-test web-lint web-embed
+.PHONY: help build test vet vuln fmt fmt-check ci clean web web-test web-lint web-audit web-embed e2e budget docker compose-up compose-down
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
 
-build: ## Build the rtweb binary into bin/
+build: web-embed ## Build the rtweb binary into bin/ (embeds web/dist)
 	CGO_ENABLED=0 go build -trimpath -ldflags "$(LDFLAGS)" -o bin/rtweb ./cmd/rtweb
 
 test: ## Run Go tests
@@ -21,7 +21,7 @@ vet: ## Run go vet
 
 GOVULNCHECK ?= golang.org/x/vuln/cmd/govulncheck@v1.1.4
 
-vuln: ## Scan for reachable known vulnerabilities (govulncheck)
+vuln: web-audit ## Scan Go (govulncheck) and web (npm audit) for known vulnerabilities
 	go run $(GOVULNCHECK) ./...
 
 fmt: ## Format Go code
@@ -30,9 +30,9 @@ fmt: ## Format Go code
 fmt-check: ## Fail if any Go file is not gofmt-clean
 	@test -z "$$(gofmt -l .)" || { gofmt -l .; echo "gofmt: files above need formatting"; exit 1; }
 
-ci: fmt-check vet test vuln build ## Run the full Go CI chain
+ci: fmt-check vet test vuln web-test web-lint build e2e budget ## Run the full CI chain (needs docker for e2e)
 
-web: ## Install web deps and build the console (web/dist)
+web: ## Install web deps (npm ci) and build the console (web/dist)
 	cd web && npm ci && npm run build
 
 web-test: ## Run web tests (Vitest)
@@ -41,10 +41,29 @@ web-test: ## Run web tests (Vitest)
 web-lint: ## Lint and typecheck the web console (ESLint)
 	cd web && npm run lint
 
+web-audit: ## Install web deps and fail on high-severity npm advisories
+	cd web && npm ci && npm audit --audit-level=high
+
 web-embed: web ## Copy web/dist into internal/api/dist for go:embed
 	rm -rf internal/api/dist
 	mkdir -p internal/api
 	cp -R web/dist internal/api/dist
 
+budget: build ## Check binary size, idle RSS and web gzip budgets (docs/02 section 7)
+	scripts/budget.sh
+
+docker: ## Build the rtweb and rtrouter images (rtweb:dev, rtrouter:dev)
+	docker build -t rtweb:dev -f Dockerfile .
+	docker build -t rtrouter:dev -f Dockerfile.router .
+
+compose-up: ## Start runtime-copy + rtweb + rtrouter and wait until healthy
+	docker compose up -d --build --wait
+
+compose-down: ## Stop the compose stack (keeps volumes)
+	docker compose down
+
+e2e: compose-up ## Run the Playwright smoke suite against docker compose
+	cd e2e && npm ci && npx playwright install --with-deps chromium && npx playwright test
+
 clean: ## Remove build output
-	rm -rf bin
+	rm -rf bin e2e/test-results e2e/playwright-report

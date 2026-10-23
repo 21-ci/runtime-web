@@ -1,0 +1,58 @@
+# syntax=docker/dockerfile:1.7
+#
+# rtrouter: Host-based reverse proxy for the console, base-domain apps and verified custom domains.
+#
+#   make docker            # docker build -t rtrouter:dev -f Dockerfile.router .
+#
+# Two stages:
+#   build    golang:1.26.10-bookworm   CGO_ENABLED=0 static binary (module cache in a BuildKit cache)
+#   runtime  distroless/static         nonroot; certificates are stored under /data/certs
+
+# ---------------------------------------------------------------------------------------------
+# Stage 1: build
+# ---------------------------------------------------------------------------------------------
+FROM golang:1.26.10-bookworm AS build
+
+WORKDIR /src
+
+ARG VERSION=dev
+ARG COMMIT=none
+ARG DATE=unknown
+
+ENV CGO_ENABLED=0 \
+    GOFLAGS=-mod=readonly
+
+COPY go.mod go.sum ./
+RUN --mount=type=cache,target=/go/pkg/mod \
+    go mod download
+
+COPY . .
+
+RUN --mount=type=cache,target=/go/pkg/mod \
+    --mount=type=cache,target=/root/.cache/go-build \
+    go build -trimpath \
+      -ldflags "-s -w -X main.version=${VERSION} -X main.commit=${COMMIT} -X main.date=${DATE}" \
+      -o /out/rtrouter ./cmd/rtrouter
+
+# ---------------------------------------------------------------------------------------------
+# Stage 2: runtime
+# ---------------------------------------------------------------------------------------------
+FROM gcr.io/distroless/static-debian12:nonroot AS runtime
+
+LABEL org.opencontainers.image.title="Runtime Web router" \
+      org.opencontainers.image.description="Host router and ACME TLS terminator for 21 Cloud Runtime apps and the console"
+
+COPY --from=build /out/rtrouter /usr/local/bin/rtrouter
+
+# ROUTER_CERT_DIR defaults to /data/certs (certmagic storage). Keep it on a volume.
+ENV ROUTER_CERT_DIR=/data/certs \
+    ROUTER_HTTP_ADDR=:80 \
+    ROUTER_HTTPS_ADDR=:443
+VOLUME ["/data"]
+WORKDIR /data
+
+EXPOSE 80 443
+
+USER nonroot:nonroot
+STOPSIGNAL SIGTERM
+ENTRYPOINT ["/usr/local/bin/rtrouter"]
