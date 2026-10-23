@@ -292,7 +292,7 @@ func (s *Service) Add(ctx context.Context, sub authz.Subject, orgID, slug, host 
 	}
 	q := s.st.Q()
 	if _, err := q.ActiveDomainByHost(ctx, h); err == nil {
-		return Domain{}, fmt.Errorf("domains: add %s: %w", h, apperr.Conflict{Code: "host_taken"})
+		return Domain{}, fmt.Errorf("domains: add %s: %w", h, apperr.Conflict{Code: "host_taken", Public: true, Message: "This host is already in use."})
 	} else if !errors.Is(err, sql.ErrNoRows) {
 		return Domain{}, fmt.Errorf("domains: add %s: %w", h, err)
 	}
@@ -311,7 +311,7 @@ func (s *Service) Add(ctx context.Context, sub authz.Subject, orgID, slug, host 
 		return s.audit.Log(ctx, q, audit.Actor{UserID: sub.UserID, AsInstanceAdmin: sub.InstanceAdmin}, orgID, "domain.add", h, map[string]string{"app": app.Slug})
 	})
 	if isUnique(err) {
-		return Domain{}, fmt.Errorf("domains: add %s: %w", h, apperr.Conflict{Code: "host_taken", Message: "This org already has the domain."})
+		return Domain{}, fmt.Errorf("domains: add %s: %w", h, apperr.Conflict{Code: "host_taken", Public: true, Message: "This org already has the domain."})
 	}
 	if err != nil {
 		return Domain{}, fmt.Errorf("domains: add %s: %w", h, err)
@@ -348,6 +348,38 @@ func (s *Service) Remove(ctx context.Context, sub authz.Subject, orgID, id strin
 	}
 	if m != nil {
 		s.unmap(ctx, *m)
+	}
+	return nil
+}
+
+// RemoveApp removes every custom domain of the app whose runtime id is svcID, as Remove does for each
+// row. The caller must already have authorised deleting that app (apps.Service.Delete); the domains'
+// own role check is not repeated, so a developer who may delete an app may also remove its domains.
+func (s *Service) RemoveApp(ctx context.Context, sub authz.Subject, orgID, svcID string) error {
+	rows, err := s.st.Q().ListDomainsByService(ctx, db.ListDomainsByServiceParams{OrgID: orgID, ServiceID: svcID})
+	if err != nil {
+		return fmt.Errorf("domains: list for app %s: %w", svcID, err)
+	}
+	for _, d := range rows {
+		var m *db.PendingUnmap
+		err := s.st.Tx(ctx, func(q *db.Queries) error {
+			if _, err := q.DeleteDomain(ctx, d.ID); err != nil {
+				return fmt.Errorf("domains: delete %s: %w", d.Host, err)
+			}
+			if d.Status == StatusActive {
+				var err error
+				if m, err = s.markUnmap(ctx, q, d); err != nil {
+					return err
+				}
+			}
+			return s.audit.Log(ctx, q, audit.Actor{UserID: sub.UserID, AsInstanceAdmin: sub.InstanceAdmin}, orgID, "domain.remove", d.Host, nil)
+		})
+		if err != nil {
+			return err
+		}
+		if m != nil {
+			s.unmap(ctx, *m)
+		}
 	}
 	return nil
 }
