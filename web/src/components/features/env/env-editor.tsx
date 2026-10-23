@@ -38,7 +38,8 @@ export function parseEnvText(text: string): { env: Record<string, string> } | { 
 }
 
 // EnvEditor edits the app's plain environment variables as one complete map (PUT replaces it).
-export function EnvEditor({ org, app }: { org: string; app: string }) {
+// canWrite false (role lacks app.env.write) shows the variables read-only with no Save.
+export function EnvEditor({ org, app, canWrite = true }: { org: string; app: string; canWrite?: boolean }) {
   const qc = useQueryClient();
   const env = useQuery({
     queryKey: ["env", org, app],
@@ -89,6 +90,7 @@ export function EnvEditor({ org, app }: { org: string; app: string }) {
         id="env-text"
         value={text}
         onChange={(e) => setText(e.target.value)}
+        readOnly={!canWrite}
         spellCheck={false}
         rows={8}
         aria-invalid={error ? true : undefined}
@@ -100,11 +102,13 @@ export function EnvEditor({ org, app }: { org: string; app: string }) {
           {error}
         </p>
       ) : null}
-      <div>
-        <Button type="submit" disabled={save.isPending}>
-          Save variables
-        </Button>
-      </div>
+      {canWrite ? (
+        <div>
+          <Button type="submit" disabled={save.isPending}>
+            Save variables
+          </Button>
+        </div>
+      ) : null}
     </form>
   );
 }

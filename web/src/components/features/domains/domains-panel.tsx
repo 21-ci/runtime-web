@@ -129,7 +129,8 @@ function DnsRecord({ host, domain }: { host: string; domain: Domain }) {
 }
 
 // DomainsPanel manages custom hosts for one app: DNS instructions, status and certificate state.
-export function DomainsPanel({ org, app }: { org: string; app: string }) {
+// canWrite false (role lacks domains.manage) shows hosts and status only.
+export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: string; canWrite?: boolean }) {
   const domains = useDomains(org, app);
   const { add, verify, remove } = useDomainMutations(org, app);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -223,6 +224,7 @@ export function DomainsPanel({ org, app }: { org: string; app: string }) {
 
               <p className="text-sm text-muted">Keep the TXT record; removing it deactivates the domain.</p>
 
+              {canWrite ? (
               <div className="flex flex-wrap gap-2">
                 {d.status !== "active" ? (
                   <Button
@@ -246,11 +248,13 @@ export function DomainsPanel({ org, app }: { org: string; app: string }) {
                   Remove
                 </Button>
               </div>
+              ) : null}
             </li>
           ))}
         </ul>
       )}
 
+      {canWrite ? (
       <AuthForm errors={errors} onSubmit={onSubmit}>
         <FormField label="Domain" name="host" autoComplete="off" spellCheck={false} placeholder="www.example.com" error={errors.host} />
         <div>
@@ -259,6 +263,7 @@ export function DomainsPanel({ org, app }: { org: string; app: string }) {
           </Button>
         </div>
       </AuthForm>
+      ) : null}
 
       <Dialog open={pendingRemove !== null} onOpenChange={(open) => !open && setPendingRemove(null)}>
         <DialogContent>

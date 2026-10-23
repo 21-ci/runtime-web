@@ -19,6 +19,7 @@ export type Version = {
 
 export type AppDetail = {
   slug: string;
+  project: string;
   name: string | null;
   live_version: number | null;
   etag: string;

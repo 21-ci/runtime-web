@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type AppDetail, type Ingress, usePatchApp } from "./api";
 import { isCidr } from "./cidr";
-import { FieldError, FormAlert, REPLACE_NOTE, Section, fieldErrorsOf, unmappedErrors } from "./shared";
+import { FieldError, FormAlert, REPLACE_NOTE, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
 
 const METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"] as const;
 
@@ -173,9 +173,9 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
         <FormAlert messages={errors} />
         <p className="text-sm text-muted">{REPLACE_NOTE}</p>
         <div>
-          <Button type="submit" disabled={patch.isPending}>
+          <SaveButton disabled={patch.isPending}>
             Save ingress
-          </Button>
+          </SaveButton>
         </div>
       </form>
     </Section>

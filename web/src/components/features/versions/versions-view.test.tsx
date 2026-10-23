@@ -38,6 +38,10 @@ function setup(opts: { liveVersion: number; versions: V[]; files?: Record<string
     etag: '"etag-1"',
   };
   server.use(
+    // The caller is an org owner, so deploy controls (promote, rebuild) are shown.
+    http.get("/api/me", () => HttpResponse.json({ user: { id: "usr_1", instance_admin: false } })),
+    http.get("/api/orgs", () => HttpResponse.json({ items: [{ id: "org_1", slug: "acme", name: "Acme", created_at: 1, role: "owner" }] })),
+    http.get("/api/orgs/:org/projects", () => HttpResponse.json({ items: [] })),
     http.get("/api/orgs/:org/apps/:app", () => HttpResponse.json(app)),
     http.get("/api/orgs/:org/apps/:app/versions", () => HttpResponse.json({ items: opts.versions })),
     http.put("/api/orgs/:org/apps/:app/live", async ({ request }) => {

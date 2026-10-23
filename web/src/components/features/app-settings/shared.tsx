@@ -1,4 +1,6 @@
-import type { ReactNode } from "react";
+import { createContext, useContext, type ReactNode } from "react";
+
+import { Button } from "@/components/ui/button";
 
 import { ApiError } from "@/lib/api";
 
@@ -13,6 +15,19 @@ export function unmappedErrors(fields: Record<string, string>, shown: string[]):
   return Object.entries(fields)
     .filter(([path]) => !shown.includes(path))
     .map(([path, msg]) => `${path}: ${msg}`);
+}
+
+// WriteAccess is false when the caller's role cannot change app settings (app.update): every
+// section is then read-only and its Save button is not rendered.
+export const WriteAccess = createContext(true);
+
+export function SaveButton({ disabled, children }: { disabled?: boolean; children: ReactNode }) {
+  if (!useContext(WriteAccess)) return null;
+  return (
+    <Button type="submit" disabled={disabled}>
+      {children}
+    </Button>
+  );
 }
 
 export function Section({
@@ -36,7 +51,9 @@ export function Section({
         </h2>
         {description ? <p className="text-sm text-muted">{description}</p> : null}
       </header>
-      {children}
+      <fieldset disabled={!useContext(WriteAccess)} className="contents">
+        {children}
+      </fieldset>
     </section>
   );
 }

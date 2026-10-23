@@ -55,7 +55,7 @@ export function useCreateSchedule(org: string, app: string) {
 export function useUpdateSchedule(org: string, app: string) {
   const qc = useQueryClient();
   return useMutation({
-    meta: inline,
+    // The enable toggle has no inline error slot: failures use the global toast.
     mutationFn: ({ id, body }: { id: string; body: Partial<ScheduleBody> }) =>
       api.patch<Schedule>(`${appPath(org, app)}/schedules/${encodeURIComponent(id)}`, body),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["schedules", org, app] }),

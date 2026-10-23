@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { type AppAccess, type AppDetail, useCreateInvokeToken, usePatchApp } from "./api";
-import { FormAlert, Section, fieldErrorsOf, unmappedErrors } from "./shared";
+import { FormAlert, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
 
 const MODES: { value: AppAccess; label: string; help: string }[] = [
   { value: "public", label: "Public", help: "Anyone with the URL can call this app." },
@@ -82,9 +82,9 @@ export function AccessSection({ org, app }: { org: string; app: AppDetail }) {
 
         <FormAlert messages={errors} />
         <div>
-          <Button type="submit" disabled={patch.isPending}>
+          <SaveButton disabled={patch.isPending}>
             Save access
-          </Button>
+          </SaveButton>
         </div>
       </form>
     </Section>

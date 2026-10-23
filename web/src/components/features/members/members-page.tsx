@@ -17,7 +17,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api";
-import { handleApiError } from "@/lib/query";
+import { handleMutationError } from "@/lib/query";
 import type { OrgRole } from "@/lib/types";
 
 import { useMembers, useRemoveMember, useSetMemberRole, type Member } from "./hooks";
@@ -41,7 +41,7 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
         onSuccess: () => toast.success(`${m.user.name} is now ${ROLE_LABEL[next].toLowerCase()}.`),
         onError: (err) => {
           if (err instanceof ApiError && err.code === "last_owner") toast.error("An org needs at least one owner.");
-          else handleApiError(err);
+          else handleMutationError(err);
         },
       },
     );
@@ -57,7 +57,7 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
       },
       onError: (err) => {
         if (err instanceof ApiError && err.code === "last_owner") toast.error("An org needs at least one owner.");
-        else handleApiError(err);
+        else handleMutationError(err);
       },
     });
   }

@@ -54,6 +54,7 @@ export function useVersionState(org: string, app: string, version: number | null
 export function useSaveFiles(org: string, app: string) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { skipGlobalError: true }, // CodePage shows stale, build failures and other errors itself
     mutationFn: (v: { entry: string; files: Record<string, string>; etag: string }) =>
       api.put<{ version: Version; etag: string }>(
         `${appPath(org, app)}/files`,

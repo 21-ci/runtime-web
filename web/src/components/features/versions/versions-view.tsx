@@ -3,6 +3,7 @@ import { useState } from "react";
 import { QueryError } from "@/components/features/empty/query-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { useCan } from "@/hooks/authz";
 import {
   Dialog,
   DialogContent,
@@ -40,6 +41,7 @@ export function VersionsView({ org, app }: { org: string; app: string }) {
   const detail = useAppDetail(org, app);
   const promote = usePromote(org, app);
   const rebuild = useRebuild(org, app);
+  const deploy = useCan(org, detail.data?.project)("app.deploy") === true;
   const [promoteTarget, setPromoteTarget] = useState<Version | null>(null);
   const [logVersion, setLogVersion] = useState<number | null>(null);
   const [diffVersion, setDiffVersion] = useState<number | null>(null);
@@ -118,7 +120,7 @@ export function VersionsView({ org, app }: { org: string; app: string }) {
                           Diff
                         </Button>
                       ) : null}
-                      {v.build_state === "failed" ? (
+                      {deploy && v.build_state === "failed" ? (
                         <Button
                           variant="secondary"
                           aria-label={`Rebuild version ${v.version}`}
@@ -130,7 +132,7 @@ export function VersionsView({ org, app }: { org: string; app: string }) {
                           Rebuild
                         </Button>
                       ) : null}
-                      {!v.live ? (
+                      {deploy && !v.live ? (
                         <Button
                           variant="secondary"
                           aria-label={rollback ? `Roll back to version ${v.version}` : `Promote version ${v.version}`}

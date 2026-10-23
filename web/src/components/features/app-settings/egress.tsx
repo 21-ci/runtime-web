@@ -1,10 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { type AppDetail, usePatchApp } from "./api";
-import { FieldError, FormAlert, REPLACE_NOTE, Section, fieldErrorsOf, unmappedErrors } from "./shared";
+import { FieldError, FormAlert, REPLACE_NOTE, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
 
 // EgressSection edits the outbound policy block as JSON. The runtime owns its shape, so the form
 // checks only that the text is a JSON object and shows server field errors next to the box.
@@ -55,9 +54,9 @@ export function EgressSection({ org, app }: { org: string; app: AppDetail }) {
         <FormAlert messages={errors} />
         <p className="text-sm text-muted">{REPLACE_NOTE}</p>
         <div>
-          <Button type="submit" disabled={patch.isPending}>
+          <SaveButton disabled={patch.isPending}>
             Save egress
-          </Button>
+          </SaveButton>
         </div>
       </form>
     </Section>

@@ -1,11 +1,10 @@
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
-import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type AppDetail, usePatchApp } from "./api";
-import { FieldError, FormAlert, REPLACE_NOTE, Section, fieldErrorsOf, unmappedErrors } from "./shared";
+import { FieldError, FormAlert, REPLACE_NOTE, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
 
 const SHOWN = ["scaling.min_instances", "scaling.max_instances"];
 
@@ -77,9 +76,9 @@ export function ScalingSection({ org, app }: { org: string; app: AppDetail }) {
         <FormAlert messages={errors} />
         <p className="text-sm text-muted">{REPLACE_NOTE}</p>
         <div>
-          <Button type="submit" disabled={patch.isPending}>
+          <SaveButton disabled={patch.isPending}>
             Save scaling
-          </Button>
+          </SaveButton>
         </div>
       </form>
     </Section>

@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useCreateApp, useEnvironments, useProjects, type Template } from "@/hooks/orgs";
 import { ApiError } from "@/lib/api";
-import { handleApiError } from "@/lib/query";
+import { handleMutationError } from "@/lib/query";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -63,7 +63,7 @@ function NewAppPage() {
           }
           if (err.code === "slug_taken") setErrors({ slug: "This app name is taken on this runtime." });
           else if (Object.keys(err.fieldErrors()).length > 0) setErrors(err.fieldErrors());
-          else handleApiError(err);
+          else handleMutationError(err);
         },
       },
     );

@@ -21,6 +21,7 @@ export function useMembers(org: string) {
 export function useSetMemberRole(org: string) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { skipGlobalError: true }, // members-page shows last_owner, then handleMutationError
     mutationFn: ({ user, role }: { user: string; role: OrgRole }) =>
       api.patch<Member>(`/orgs/${encodeURIComponent(org)}/members/${encodeURIComponent(user)}`, { role }),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["members", org] }),
@@ -30,6 +31,7 @@ export function useSetMemberRole(org: string) {
 export function useRemoveMember(org: string) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { skipGlobalError: true }, // members-page shows last_owner, then handleMutationError
     mutationFn: (user: string) => api.del<void>(`/orgs/${encodeURIComponent(org)}/members/${encodeURIComponent(user)}`),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["members", org] }),
   });

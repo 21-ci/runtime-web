@@ -2,11 +2,10 @@ import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
 import { QueryError } from "@/components/features/empty/query-error";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApps } from "@/hooks/orgs";
 import { type AppDetail, usePatchApp } from "./api";
-import { FormAlert, REPLACE_NOTE, Section, fieldErrorsOf, unmappedErrors } from "./shared";
+import { FormAlert, REPLACE_NOTE, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
 
 // CallersSection picks which apps of this org may call this app (call.allowed_callers). The
 // picker lists the org's apps, minus this one.
@@ -60,9 +59,9 @@ export function CallersSection({ org, app }: { org: string; app: AppDetail }) {
           <FormAlert messages={errors} />
           <p className="text-sm text-muted">{REPLACE_NOTE}</p>
           <div>
-            <Button type="submit" disabled={patch.isPending}>
+            <SaveButton disabled={patch.isPending}>
               Save callers
-            </Button>
+            </SaveButton>
           </div>
         </form>
       )}

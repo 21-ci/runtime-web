@@ -23,7 +23,8 @@ const NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
 
 // SecretsPanel lists secret names and sets or replaces values. A value is sent once and never
 // read back, so the page never renders one.
-export function SecretsPanel({ org, app }: { org: string; app: string }) {
+// canWrite false (role lacks app.secrets.write) lists names only: no set, replace or delete.
+export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: string; canWrite?: boolean }) {
   const secrets = useSecrets(org, app);
   const save = useSaveSecret(org, app);
   const remove = useDeleteSecret(org, app);
@@ -96,12 +97,14 @@ export function SecretsPanel({ org, app }: { org: string; app: string }) {
           title="No secrets yet"
           description="Secrets hold API keys and passwords your app reads at run time."
           action={
+            canWrite ? (
             <Button
               variant="secondary"
               onClick={() => document.querySelector<HTMLInputElement>('input[name="name"]')?.focus()}
             >
               Add a secret
             </Button>
+            ) : undefined
           }
         />
       ) : (
@@ -111,20 +114,23 @@ export function SecretsPanel({ org, app }: { org: string; app: string }) {
               <span className="font-mono">{s.name}</span>
               <span className="flex items-center gap-3">
                 <span className="text-muted">Updated {new Date(s.updated_at).toLocaleDateString()}</span>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label={`Delete ${s.name}`}
-                  onClick={() => setPendingDelete(s)}
-                >
-                  <Trash2 className="size-4" aria-hidden />
-                </Button>
+                {canWrite ? (
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label={`Delete ${s.name}`}
+                    onClick={() => setPendingDelete(s)}
+                  >
+                    <Trash2 className="size-4" aria-hidden />
+                  </Button>
+                ) : null}
               </span>
             </li>
           ))}
         </ul>
       )}
 
+      {canWrite ? (
       <AuthForm errors={errors} onSubmit={onSubmit}>
         <FormField
           label="Name"
@@ -146,6 +152,7 @@ export function SecretsPanel({ org, app }: { org: string; app: string }) {
           </Button>
         </div>
       </AuthForm>
+      ) : null}
 
       <Dialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
         <DialogContent>
