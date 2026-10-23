@@ -5,7 +5,7 @@ LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.dat
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build test vet fmt fmt-check ci clean
+.PHONY: help build test vet fmt fmt-check ci clean web web-test web-lint
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -26,6 +26,15 @@ fmt-check: ## Fail if any Go file is not gofmt-clean
 	@test -z "$$(gofmt -l .)" || { gofmt -l .; echo "gofmt: files above need formatting"; exit 1; }
 
 ci: fmt-check vet test build ## Run the full Go CI chain
+
+web: ## Install web deps and build the console (web/dist)
+	cd web && npm ci && npm run build
+
+web-test: ## Run web tests (Vitest)
+	cd web && npm test
+
+web-lint: ## Lint and typecheck the web console (ESLint)
+	cd web && npm run lint
 
 clean: ## Remove build output
 	rm -rf bin

@@ -1,0 +1,97 @@
+import { readFileSync } from "node:fs";
+import { resolve } from "node:path";
+import { render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it } from "vitest";
+import { Badge } from "./badge";
+import { Button } from "./button";
+import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "./dialog";
+import { EmptyState } from "./empty-state";
+import { Input } from "./input";
+import { Label } from "./label";
+import { Progress } from "./progress";
+import { Skeleton } from "./skeleton";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "./table";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs";
+
+function Kit() {
+  return (
+    <div>
+      <Button>Create App</Button>
+      <Button variant="danger">Delete</Button>
+      <Input aria-label="App name" />
+      <Label htmlFor="x">Label</Label>
+      <Badge>running</Badge>
+      <Progress value={40} aria-label="usage" />
+      <Skeleton data-testid="skel" />
+      <EmptyState title="No apps" description="Create one to start." />
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableCell>billing</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
+      <Tabs defaultValue="a">
+        <TabsList>
+          <TabsTrigger value="a">Overview</TabsTrigger>
+        </TabsList>
+        <TabsContent value="a">overview body</TabsContent>
+      </Tabs>
+    </div>
+  );
+}
+
+describe("ui kit", () => {
+  it("ui kit renders in light and dark", () => {
+    const { unmount } = render(<Kit />);
+    expect(screen.getByRole("button", { name: "Create App" })).toBeInTheDocument();
+    expect(screen.getByText("No apps")).toBeInTheDocument();
+    unmount();
+
+    const { container } = render(
+      <div className="dark" data-testid="dark-root">
+        <Kit />
+      </div>,
+    );
+    expect(screen.getByTestId("dark-root")).toHaveClass("dark");
+    expect(screen.getByRole("button", { name: "Create App" })).toBeInTheDocument();
+    expect(container.querySelector("table")).not.toBeNull();
+  });
+
+  it("ui kit defines light and dark token sets in index.css", () => {
+    const css = readFileSync(resolve(__dirname, "../../index.css"), "utf8");
+    expect(css).toMatch(/:root\s*\{[^}]*--bg:/s);
+    expect(css).toMatch(/\.dark\s*\{[^}]*--bg:/s);
+  });
+
+  it("button focus ring visible", () => {
+    render(<Button>Save</Button>);
+    const button = screen.getByRole("button", { name: "Save" });
+    expect(button.className).toMatch(/focus-visible:ring-2/);
+    expect(button.className).toMatch(/focus-visible:outline-none/);
+  });
+
+  it("dialog opens from its trigger and shows title and description", async () => {
+    const user = userEvent.setup();
+    render(
+      <Dialog>
+        <DialogTrigger asChild>
+          <Button>Open</Button>
+        </DialogTrigger>
+        <DialogContent>
+          <DialogTitle>Rename app</DialogTitle>
+          <DialogDescription>Choose a new name.</DialogDescription>
+        </DialogContent>
+      </Dialog>,
+    );
+    await user.click(screen.getByRole("button", { name: "Open" }));
+    expect(await screen.findByRole("dialog", { name: "Rename app" })).toBeInTheDocument();
+    expect(screen.getByText("Choose a new name.")).toBeInTheDocument();
+  });
+});
