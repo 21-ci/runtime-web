@@ -141,7 +141,7 @@ func (s *Scoped) Events(ctx context.Context, svcID, cursor string) (Page[Event],
 // ExportData: GET /v1/services/{s}/data/export (SQLite snapshot stream).
 // The caller closes the body.
 func (s *Scoped) ExportData(ctx context.Context, svcID string) (io.ReadCloser, error) {
-	resp, err := s.send(ctx, req{method: http.MethodGet, path: svcPath(svcID) + "/data/export", header: map[string]string{"Accept": "application/vnd.sqlite3"}})
+	resp, err := s.send(ctx, req{method: http.MethodGet, path: svcPath(svcID) + "/data/export", header: map[string]string{"Accept": "application/vnd.sqlite3"}, stream: true})
 	if err != nil {
 		return nil, err
 	}

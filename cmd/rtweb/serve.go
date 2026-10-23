@@ -40,7 +40,8 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger, webVersi
 		ps, err := auth.NewOAuth(authSvc, cfg.PublicURL).Providers(ctx)
 		return err == nil && len(ps) > 0
 	}
-	rt := runtime.New(cfg.RuntimeURL, &http.Client{})
+	control, stream := runtime.HTTPClients()
+	rt := runtime.NewWithStream(cfg.RuntimeURL, control, stream)
 	root := runtime.RootCred{Token: cfg.RuntimeRootToken}
 	orgSvc := orgs.New(st, rt, root, sealer, cfg.RuntimeDefaultPlan)
 	appSvc := apps.New(rt, orgSvc, st)
