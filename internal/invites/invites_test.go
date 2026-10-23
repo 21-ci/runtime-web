@@ -11,6 +11,7 @@ import (
 
 	"github.com/21cloud/runtime-web/internal/apperr"
 	"github.com/21cloud/runtime-web/internal/audit"
+	"github.com/21cloud/runtime-web/internal/auth"
 	"github.com/21cloud/runtime-web/internal/store"
 	"github.com/21cloud/runtime-web/internal/store/db"
 )
@@ -23,9 +24,22 @@ type plainHasher struct{}
 func (plainHasher) Hash(p string) (string, error) { return "plain$" + p, nil }
 func (plainHasher) Verify(hash, p string) bool    { return hash == "plain$"+p }
 
+// fakeLogins records LoginUser calls and returns a fixed session cookie.
+type fakeLogins struct {
+	calls []string
+}
+
+func (f *fakeLogins) LoginUser(_ context.Context, userID, method, _, _ string) (auth.LoginResult, error) {
+	f.calls = append(f.calls, userID+"/"+method)
+	return auth.LoginResult{Cookie: "sess"}, nil
+}
+
+const testPassword = "correct horse battery"
+
 type fixture struct {
 	st                      *store.Store
 	svc                     *Service
+	logins                  *fakeLogins
 	now                     time.Time
 	acme                    string
 	adm                     audit.Actor // instance admin
@@ -40,8 +54,8 @@ func newFixture(t *testing.T) *fixture {
 		t.Fatalf("store.Open: %v", err)
 	}
 	t.Cleanup(func() { _ = st.Close() })
-	f := &fixture{st: st, now: time.UnixMilli(1_000_000_000_000)}
-	f.svc = New(st, plainHasher{}, testBase+"/")
+	f := &fixture{st: st, logins: &fakeLogins{}, now: time.UnixMilli(1_000_000_000_000)}
+	f.svc = New(st, plainHasher{}, f.logins, testBase+"/")
 	f.svc.now = func() time.Time { return f.now }
 
 	root := f.user(t, "root@example.com", "Root", true)
@@ -50,16 +64,10 @@ func newFixture(t *testing.T) *fixture {
 	f.orgAdmin = f.user(t, "admin@example.com", "Admin", false)
 	f.member = f.user(t, "member@example.com", "Member", false)
 
-	f.acme = store.NewID("org_")
-	if err := st.Q().CreateOrg(ctx, db.CreateOrgParams{
-		ID: f.acme, Slug: "acme", Name: "Acme", TenantID: "ten_acme",
-		DefaultKeyID: "key_acme", DefaultKeySealed: []byte{1}, CreatedAt: 1,
-	}); err != nil {
-		t.Fatalf("CreateOrg: %v", err)
-	}
-	f.addMember(t, f.owner, "owner")
-	f.addMember(t, f.orgAdmin, "admin")
-	f.addMember(t, f.member, "member")
+	f.acme = f.org(t, "acme")
+	f.addMember(t, f.acme, f.owner, "owner")
+	f.addMember(t, f.acme, f.orgAdmin, "admin")
+	f.addMember(t, f.acme, f.member, "member")
 	return f
 }
 
@@ -71,16 +79,28 @@ func (f *fixture) user(t *testing.T, email, name string, admin bool) string {
 		adminFlag = 1
 	}
 	if err := f.st.Q().CreateUser(context.Background(), db.CreateUserParams{
-		ID: id, Email: email, Name: name, IsInstanceAdmin: adminFlag, CreatedAt: 1, UpdatedAt: 1,
+		ID: id, Email: email, Name: name, PasswordHash: "plain$orig", IsInstanceAdmin: adminFlag, CreatedAt: 1, UpdatedAt: 1,
 	}); err != nil {
 		t.Fatalf("CreateUser(%s): %v", email, err)
 	}
 	return id
 }
 
-func (f *fixture) addMember(t *testing.T, userID, role string) {
+func (f *fixture) org(t *testing.T, slug string) string {
 	t.Helper()
-	if err := f.st.Q().AddMember(context.Background(), db.AddMemberParams{OrgID: f.acme, UserID: userID, Role: role}); err != nil {
+	id := store.NewID("org_")
+	if err := f.st.Q().CreateOrg(context.Background(), db.CreateOrgParams{
+		ID: id, Slug: slug, Name: strings.ToUpper(slug), TenantID: "ten_" + slug,
+		DefaultKeyID: "key_" + slug, DefaultKeySealed: []byte{1}, CreatedAt: 1,
+	}); err != nil {
+		t.Fatalf("CreateOrg(%s): %v", slug, err)
+	}
+	return id
+}
+
+func (f *fixture) addMember(t *testing.T, orgID, userID, role string) {
+	t.Helper()
+	if err := f.st.Q().AddMember(context.Background(), db.AddMemberParams{OrgID: orgID, UserID: userID, Role: role}); err != nil {
 		t.Fatalf("AddMember(%s): %v", role, err)
 	}
 }
@@ -139,18 +159,24 @@ func TestInviteAcceptCreatesUserAndMembership(t *testing.T) {
 		t.Errorf("expires_at = %d, want %d (7 days)", row.ExpiresAt, want)
 	}
 
-	u, err := f.svc.Accept(ctx, token, "New Person", "correct horse battery")
+	u, res, err := f.svc.Accept(ctx, token, "", "New Person", testPassword, "1.2.3.4", "ua")
 	if err != nil {
 		t.Fatalf("Accept: %v", err)
 	}
 	if u.Email != "new@example.com" || u.Name != "New Person" || u.MustChangePassword {
 		t.Errorf("user = %+v, want new@example.com / New Person / no forced change", u)
 	}
+	if res.Cookie != "sess" {
+		t.Errorf("session cookie = %q, want sess from LoginUser", res.Cookie)
+	}
+	if want := []string{u.ID + "/" + auth.MethodInvite}; len(f.logins.calls) != 1 || f.logins.calls[0] != want[0] {
+		t.Errorf("LoginUser calls = %v, want %v", f.logins.calls, want)
+	}
 	acct, err := f.st.Q().GetUserByID(ctx, u.ID)
 	if err != nil {
 		t.Fatalf("GetUserByID: %v", err)
 	}
-	if !(plainHasher{}).Verify(acct.PasswordHash, "correct horse battery") {
+	if !(plainHasher{}).Verify(acct.PasswordHash, testPassword) {
 		t.Errorf("password hash does not match the accepted password")
 	}
 	m, err := f.st.Q().GetMember(ctx, db.GetMemberParams{OrgID: f.acme, UserID: u.ID})
@@ -162,21 +188,57 @@ func TestInviteAcceptCreatesUserAndMembership(t *testing.T) {
 	}
 }
 
-func TestInviteAcceptExistingUserKeepsName(t *testing.T) {
+func TestAcceptExistingUserDoesNotChangePassword(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
 	existing := f.user(t, "exists@example.com", "Old Name", false)
 
-	_, link, err := f.svc.Create(ctx, f.adm, "exists@example.com", nil, nil)
+	_, link, err := f.svc.Create(ctx, f.adm, "exists@example.com", f.acmeID(), strPtr("member"))
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	u, err := f.svc.Accept(ctx, tokenOf(t, link), "Ignored", "correct horse battery")
+	u, res, err := f.svc.Accept(ctx, tokenOf(t, link), existing, "Ignored", "attacker password 123", "1.2.3.4", "ua")
 	if err != nil {
 		t.Fatalf("Accept: %v", err)
 	}
 	if u.ID != existing || u.Name != "Old Name" {
 		t.Errorf("user = %+v, want existing user %s with name kept", u, existing)
+	}
+	if res.Cookie != "" || len(f.logins.calls) != 0 {
+		t.Errorf("existing-user accept must not start a session: cookie %q, calls %v", res.Cookie, f.logins.calls)
+	}
+	acct, err := f.st.Q().GetUserByID(ctx, existing)
+	if err != nil {
+		t.Fatalf("GetUserByID: %v", err)
+	}
+	if acct.PasswordHash != "plain$orig" {
+		t.Errorf("password hash changed to %q, must stay unchanged", acct.PasswordHash)
+	}
+	if _, err := f.st.Q().GetMember(ctx, db.GetMemberParams{OrgID: f.acme, UserID: existing}); err != nil {
+		t.Errorf("membership not added: %v", err)
+	}
+}
+
+func TestAcceptExistingUserRequiresLogin(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	existing := f.user(t, "login@example.com", "Login", false)
+	other := f.user(t, "other@example.com", "Other", false)
+
+	_, link, err := f.svc.Create(ctx, f.adm, "login@example.com", f.acmeID(), strPtr("member"))
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	token := tokenOf(t, link)
+	for _, caller := range []string{"", other} {
+		_, _, err := f.svc.Accept(ctx, token, caller, "", testPassword, "1.2.3.4", "ua")
+		if code, ok := apperr.ForbiddenCode(err); !ok || code != "invite_login_required" {
+			t.Errorf("caller %q: err = %v, want Forbidden invite_login_required", caller, err)
+		}
+	}
+	// The failed attempts rolled back: the invite is still usable by the right account.
+	if _, _, err := f.svc.Accept(ctx, token, existing, "", testPassword, "1.2.3.4", "ua"); err != nil {
+		t.Fatalf("Accept by logged-in owner of the email: %v", err)
 	}
 }
 
@@ -188,7 +250,7 @@ func TestInviteExpired(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 	f.now = f.now.Add(7*24*time.Hour + time.Millisecond)
-	_, err = f.svc.Accept(ctx, tokenOf(t, link), "Late", "correct horse battery")
+	_, _, err = f.svc.Accept(ctx, tokenOf(t, link), "", "Late", testPassword, "1.2.3.4", "ua")
 	wantInviteInvalid(t, err)
 }
 
@@ -200,10 +262,10 @@ func TestInviteReuseRejected(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 	token := tokenOf(t, link)
-	if _, err := f.svc.Accept(ctx, token, "Once", "correct horse battery"); err != nil {
+	if _, _, err := f.svc.Accept(ctx, token, "", "Once", testPassword, "1.2.3.4", "ua"); err != nil {
 		t.Fatalf("first Accept: %v", err)
 	}
-	_, err = f.svc.Accept(ctx, token, "Once", "another long password")
+	_, _, err = f.svc.Accept(ctx, token, "", "Once", "another long password", "1.2.3.4", "ua")
 	wantInviteInvalid(t, err)
 }
 
@@ -214,21 +276,40 @@ func TestInviteRevoke(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	if err := f.svc.Revoke(ctx, f.adm, inv.ID); err != nil {
+	if err := f.svc.Revoke(ctx, f.adm, "", inv.ID); err != nil {
 		t.Fatalf("Revoke: %v", err)
 	}
-	_, err = f.svc.Accept(ctx, tokenOf(t, link), "Rev", "correct horse battery")
+	_, _, err = f.svc.Accept(ctx, tokenOf(t, link), "", "Rev", testPassword, "1.2.3.4", "ua")
 	wantInviteInvalid(t, err)
 
-	pending, err := f.svc.List(ctx, nil)
+	pending, err := f.svc.List(ctx, "")
 	if err != nil {
 		t.Fatalf("List: %v", err)
 	}
 	if len(pending) != 0 {
 		t.Errorf("List after revoke = %d items, want 0", len(pending))
 	}
-	if err := f.svc.Revoke(ctx, f.adm, inv.ID); !errors.Is(err, apperr.ErrNotFound) {
+	if err := f.svc.Revoke(ctx, f.adm, "", inv.ID); !errors.Is(err, apperr.ErrNotFound) {
 		t.Errorf("second Revoke err = %v, want ErrNotFound", err)
+	}
+}
+
+func TestRevokeOtherOrgInvite404(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	beta := f.org(t, "beta")
+	inv, _, err := f.svc.Create(ctx, f.adm, "scope@example.com", f.acmeID(), strPtr("member"))
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	if err := f.svc.Revoke(ctx, f.adm, beta, inv.ID); !errors.Is(err, apperr.ErrNotFound) {
+		t.Errorf("revoke via other org: err = %v, want ErrNotFound", err)
+	}
+	if err := f.svc.Revoke(ctx, f.actor(f.orgAdmin), beta, inv.ID); !errors.Is(err, apperr.ErrNotFound) {
+		t.Errorf("org admin revoke via other org: err = %v, want ErrNotFound", err)
+	}
+	if err := f.svc.Revoke(ctx, f.actor(f.orgAdmin), f.acme, inv.ID); err != nil {
+		t.Errorf("revoke via own org: %v", err)
 	}
 }
 
@@ -300,11 +381,11 @@ func TestInviteListPendingOnly(t *testing.T) {
 	if _, _, err := f.svc.Create(ctx, f.adm, "b@example.com", nil, nil); err != nil {
 		t.Fatalf("Create unbound invite: %v", err)
 	}
-	all, err := f.svc.List(ctx, nil)
+	all, err := f.svc.List(ctx, "")
 	if err != nil || len(all) != 2 {
-		t.Fatalf("List(nil) = %d items, err %v; want 2", len(all), err)
+		t.Fatalf("List(\"\") = %d items, err %v; want 2", len(all), err)
 	}
-	byOrg, err := f.svc.List(ctx, f.acmeID())
+	byOrg, err := f.svc.List(ctx, f.acme)
 	if err != nil || len(byOrg) != 1 || byOrg[0].Email != "a@example.com" {
 		t.Fatalf("List(acme) = %+v, err %v; want only a@example.com", byOrg, err)
 	}

@@ -1,6 +1,7 @@
 // Package invites issues expiring, single-use invite links and accepts them. An accepted invite
-// creates the user (or sets the password of the existing user with that email) and adds the
-// membership the invite is bound to. Login, MFA and policy checks run afterwards, on the normal login path.
+// for a new email creates the user with the chosen password and logs it in through the normal
+// LoginUser path (second-factor policy applies). An invite for an existing account never touches
+// its password: the caller must be that account, and Accept only adds the bound membership.
 package invites
 
 import (
@@ -49,17 +50,23 @@ type Invite struct {
 	ExpiresAt     int64
 }
 
+// Logins starts a session for an already-authenticated user; *auth.Service implements it.
+type Logins interface {
+	LoginUser(ctx context.Context, userID, method, ip, ua string) (auth.LoginResult, error)
+}
+
 // Service manages invites.
 type Service struct {
 	st        *store.Store
 	hasher    auth.Hasher
+	logins    Logins
 	publicURL string
 	now       func() time.Time
 }
 
 // New returns an invites Service. publicURL is the console base URL used to build invite links.
-func New(st *store.Store, hasher auth.Hasher, publicURL string) *Service {
-	return &Service{st: st, hasher: hasher, publicURL: strings.TrimRight(publicURL, "/"), now: time.Now}
+func New(st *store.Store, hasher auth.Hasher, logins Logins, publicURL string) *Service {
+	return &Service{st: st, hasher: hasher, logins: logins, publicURL: strings.TrimRight(publicURL, "/"), now: time.Now}
 }
 
 func (s *Service) log() audit.Writer { return audit.Writer{Now: s.now} }
@@ -134,11 +141,12 @@ func (s *Service) Create(ctx context.Context, actor audit.Actor, email string, o
 	return inv, s.publicURL + "/invite/" + token, nil
 }
 
-// List returns pending invites (unused, unrevoked, unexpired), oldest first. A nil orgID lists
-// every org and unbound invites. The caller checks the actor's access.
-func (s *Service) List(ctx context.Context, orgID *string) ([]Invite, error) {
+// List returns pending invites (unused, unrevoked, unexpired), oldest first. orgID "" lists every
+// org and unbound invites (instance scope); otherwise only that org's invites. Authorization is the
+// API layer's job: it must check invites.manage for the org, or instance.admin for "".
+func (s *Service) List(ctx context.Context, orgID string) ([]Invite, error) {
 	nowAt := s.now().UnixMilli()
-	if orgID == nil {
+	if orgID == "" {
 		rows, err := s.st.Q().ListPendingInvites(ctx, nowAt)
 		if err != nil {
 			return nil, fmt.Errorf("invites: list: %w", err)
@@ -150,7 +158,7 @@ func (s *Service) List(ctx context.Context, orgID *string) ([]Invite, error) {
 		return out, nil
 	}
 	rows, err := s.st.Q().ListPendingInvitesByOrg(ctx, db.ListPendingInvitesByOrgParams{
-		NowAt: nowAt, OrgID: sql.NullString{String: *orgID, Valid: true},
+		NowAt: nowAt, OrgID: sql.NullString{String: orgID, Valid: true},
 	})
 	if err != nil {
 		return nil, fmt.Errorf("invites: list: %w", err)
@@ -162,9 +170,11 @@ func (s *Service) List(ctx context.Context, orgID *string) ([]Invite, error) {
 	return out, nil
 }
 
-// Revoke cancels a pending invite. Unknown, settled, expired and invisible invites (the actor is not
-// a member of the bound org) return apperr.ErrNotFound; a known invite the actor may not manage returns ErrForbidden.
-func (s *Service) Revoke(ctx context.Context, actor audit.Actor, id string) error {
+// Revoke cancels a pending invite. orgID "" is instance scope (any invite, instance admin only);
+// otherwise the invite must belong to orgID, or the call returns ErrNotFound. Unknown, settled,
+// expired and invisible invites (the actor is not a member of the bound org) return apperr.ErrNotFound;
+// a known invite the actor may not manage returns ErrForbidden.
+func (s *Service) Revoke(ctx context.Context, actor audit.Actor, orgID, id string) error {
 	err := s.st.Tx(ctx, func(q *db.Queries) error {
 		row, err := q.GetInviteByID(ctx, id)
 		if errors.Is(err, sql.ErrNoRows) {
@@ -172,6 +182,9 @@ func (s *Service) Revoke(ctx context.Context, actor audit.Actor, id string) erro
 		}
 		if err != nil {
 			return err
+		}
+		if orgID != "" && (!row.OrgID.Valid || row.OrgID.String != orgID) {
+			return fmt.Errorf("invites: revoke %s: not in org %s: %w", id, orgID, apperr.ErrNotFound)
 		}
 		now := s.now().UnixMilli()
 		if row.UsedAt.Valid || row.RevokedAt.Valid || now >= row.ExpiresAt {
@@ -199,20 +212,22 @@ func (s *Service) Revoke(ctx context.Context, actor audit.Actor, id string) erro
 	return nil
 }
 
-// Accept redeems a token once. It creates the user with name, or, when an account with the invite's
-// email exists, sets that user's password and keeps its name. It then adds the bound membership. It
-// does not start a session: the user logs in next, and the MFA and policy checks run there.
-// Expired, used and revoked tokens return apperr.NotFound with code invite_invalid.
-func (s *Service) Accept(ctx context.Context, token, name, password string) (users.User, error) {
+// Accept redeems a token once. For a new email it creates the user with name and password, adds
+// the bound membership, then starts a session through Logins (MethodInvite; the second-factor
+// checks apply). For an existing account it never changes the password: callerID must be that
+// account (else Forbidden{invite_login_required}), and Accept only adds the membership and returns
+// no session. Expired, used and revoked tokens return apperr.NotFound with code invite_invalid.
+func (s *Service) Accept(ctx context.Context, token, callerID, name, password, ip, ua string) (users.User, auth.LoginResult, error) {
 	if err := auth.ValidatePassword(password); err != nil {
-		return users.User{}, fmt.Errorf("invites: accept: %w", err)
+		return users.User{}, auth.LoginResult{}, fmt.Errorf("invites: accept: %w", err)
 	}
 	hash, err := s.hasher.Hash(password)
 	if err != nil {
-		return users.User{}, fmt.Errorf("invites: accept: hash: %w", err)
+		return users.User{}, auth.LoginResult{}, fmt.Errorf("invites: accept: hash: %w", err)
 	}
 	name = strings.TrimSpace(name)
 	var out users.User
+	newUser := false
 	err = s.st.Tx(ctx, func(q *db.Queries) error {
 		row, err := q.GetInviteByTokenHash(ctx, hashToken(token))
 		if errors.Is(err, sql.ErrNoRows) {
@@ -232,6 +247,7 @@ func (s *Service) Accept(ctx context.Context, token, name, password string) (use
 			if name == "" {
 				return fmt.Errorf("invites: accept: name required: %w", apperr.ErrInvalid)
 			}
+			newUser = true
 			acct = db.User{ID: store.NewID("usr_"), Email: row.Email, Name: name, CreatedAt: nowMs}
 			if err := q.CreateUser(ctx, db.CreateUserParams{
 				ID: acct.ID, Email: acct.Email, Name: acct.Name, PasswordHash: hash,
@@ -242,13 +258,11 @@ func (s *Service) Accept(ctx context.Context, token, name, password string) (use
 		case err != nil:
 			return err
 		default:
+			if callerID == "" || callerID != acct.ID {
+				return fmt.Errorf("invites: accept: log in as %s first: %w", row.Email, apperr.Forbidden{Code: "invite_login_required"})
+			}
 			if acct.Disabled != 0 {
 				return fmt.Errorf("invites: accept: account disabled: %w", apperr.Forbidden{Code: "account_disabled"})
-			}
-			if _, err := q.UpdateUserPassword(ctx, db.UpdateUserPasswordParams{
-				PasswordHash: hash, MustChangePassword: 0, UpdatedAt: nowMs, ID: acct.ID,
-			}); err != nil {
-				return err
 			}
 		}
 		n, err := q.MarkInviteUsed(ctx, db.MarkInviteUsedParams{UsedAt: sql.NullInt64{Int64: nowMs, Valid: true}, ID: row.ID})
@@ -276,9 +290,16 @@ func (s *Service) Accept(ctx context.Context, token, name, password string) (use
 		return nil
 	})
 	if err != nil {
-		return users.User{}, fmt.Errorf("invites: accept: %w", err)
+		return users.User{}, auth.LoginResult{}, fmt.Errorf("invites: accept: %w", err)
 	}
-	return out, nil
+	if !newUser {
+		return out, auth.LoginResult{}, nil
+	}
+	res, err := s.logins.LoginUser(ctx, out.ID, auth.MethodInvite, ip, ua)
+	if err != nil {
+		return users.User{}, auth.LoginResult{}, fmt.Errorf("invites: accept: login: %w", err)
+	}
+	return out, res, nil
 }
 
 // authorize checks that actor may manage invites that grant role in orgID. An empty orgID means an
