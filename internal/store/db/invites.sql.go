@@ -40,6 +40,28 @@ func (q *Queries) CreateInvite(ctx context.Context, arg CreateInviteParams) erro
 	return err
 }
 
+const getInviteByID = `-- name: GetInviteByID :one
+SELECT id, email, org_id, role, token_hash, expires_at, used_at, revoked_at, created_by, created_at FROM invites WHERE id = ?1
+`
+
+func (q *Queries) GetInviteByID(ctx context.Context, id string) (Invite, error) {
+	row := q.db.QueryRowContext(ctx, getInviteByID, id)
+	var i Invite
+	err := row.Scan(
+		&i.ID,
+		&i.Email,
+		&i.OrgID,
+		&i.Role,
+		&i.TokenHash,
+		&i.ExpiresAt,
+		&i.UsedAt,
+		&i.RevokedAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+	)
+	return i, err
+}
+
 const getInviteByTokenHash = `-- name: GetInviteByTokenHash :one
 SELECT id, email, org_id, role, token_hash, expires_at, used_at, revoked_at, created_by, created_at FROM invites WHERE token_hash = ?1
 `
@@ -62,6 +84,125 @@ func (q *Queries) GetInviteByTokenHash(ctx context.Context, tokenHash string) (I
 	return i, err
 }
 
+const listPendingInvites = `-- name: ListPendingInvites :many
+SELECT i.id, i.email, i.org_id, i.role, i.expires_at, i.created_by, i.created_at,
+       u.name AS creator_name, o.slug AS org_slug, o.name AS org_name
+FROM invites i
+JOIN users u ON u.id = i.created_by
+LEFT JOIN orgs o ON o.id = i.org_id
+WHERE i.used_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > ?1
+ORDER BY i.created_at, i.id
+`
+
+type ListPendingInvitesRow struct {
+	ID          string
+	Email       string
+	OrgID       sql.NullString
+	Role        sql.NullString
+	ExpiresAt   int64
+	CreatedBy   string
+	CreatedAt   int64
+	CreatorName string
+	OrgSlug     sql.NullString
+	OrgName     sql.NullString
+}
+
+func (q *Queries) ListPendingInvites(ctx context.Context, nowAt int64) ([]ListPendingInvitesRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPendingInvites, nowAt)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPendingInvitesRow
+	for rows.Next() {
+		var i ListPendingInvitesRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.OrgID,
+			&i.Role,
+			&i.ExpiresAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.CreatorName,
+			&i.OrgSlug,
+			&i.OrgName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPendingInvitesByOrg = `-- name: ListPendingInvitesByOrg :many
+SELECT i.id, i.email, i.org_id, i.role, i.expires_at, i.created_by, i.created_at,
+       u.name AS creator_name, o.slug AS org_slug, o.name AS org_name
+FROM invites i
+JOIN users u ON u.id = i.created_by
+LEFT JOIN orgs o ON o.id = i.org_id
+WHERE i.used_at IS NULL AND i.revoked_at IS NULL AND i.expires_at > ?1 AND i.org_id = ?2
+ORDER BY i.created_at, i.id
+`
+
+type ListPendingInvitesByOrgParams struct {
+	NowAt int64
+	OrgID sql.NullString
+}
+
+type ListPendingInvitesByOrgRow struct {
+	ID          string
+	Email       string
+	OrgID       sql.NullString
+	Role        sql.NullString
+	ExpiresAt   int64
+	CreatedBy   string
+	CreatedAt   int64
+	CreatorName string
+	OrgSlug     sql.NullString
+	OrgName     sql.NullString
+}
+
+func (q *Queries) ListPendingInvitesByOrg(ctx context.Context, arg ListPendingInvitesByOrgParams) ([]ListPendingInvitesByOrgRow, error) {
+	rows, err := q.db.QueryContext(ctx, listPendingInvitesByOrg, arg.NowAt, arg.OrgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListPendingInvitesByOrgRow
+	for rows.Next() {
+		var i ListPendingInvitesByOrgRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.Email,
+			&i.OrgID,
+			&i.Role,
+			&i.ExpiresAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.CreatorName,
+			&i.OrgSlug,
+			&i.OrgName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const markInviteUsed = `-- name: MarkInviteUsed :execrows
 UPDATE invites SET used_at = ?1 WHERE id = ?2 AND used_at IS NULL AND revoked_at IS NULL
 `
@@ -73,6 +214,23 @@ type MarkInviteUsedParams struct {
 
 func (q *Queries) MarkInviteUsed(ctx context.Context, arg MarkInviteUsedParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, markInviteUsed, arg.UsedAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const revokeInvite = `-- name: RevokeInvite :execrows
+UPDATE invites SET revoked_at = ?1 WHERE id = ?2 AND used_at IS NULL AND revoked_at IS NULL
+`
+
+type RevokeInviteParams struct {
+	RevokedAt sql.NullInt64
+	ID        string
+}
+
+func (q *Queries) RevokeInvite(ctx context.Context, arg RevokeInviteParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, revokeInvite, arg.RevokedAt, arg.ID)
 	if err != nil {
 		return 0, err
 	}

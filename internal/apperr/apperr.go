@@ -41,6 +41,30 @@ func (f Forbidden) Is(target error) bool {
 	return target == ErrForbidden
 }
 
+// NotFound is a 404 with a specific snake_case code, such as invite_invalid. It matches
+// ErrNotFound with errors.Is.
+type NotFound struct {
+	Code string
+}
+
+func (n NotFound) Error() string {
+	return fmt.Sprintf("apperr: not found: %s", n.Code)
+}
+
+// Is reports whether target is ErrNotFound.
+func (n NotFound) Is(target error) bool {
+	return target == ErrNotFound
+}
+
+// NotFoundCode returns the code if err wraps a NotFound.
+func NotFoundCode(err error) (string, bool) {
+	var n NotFound
+	if errors.As(err, &n) {
+		return n.Code, true
+	}
+	return "", false
+}
+
 // ForbiddenCode returns the code if err wraps a Forbidden.
 func ForbiddenCode(err error) (string, bool) {
 	var f Forbidden
