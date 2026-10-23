@@ -1,0 +1,170 @@
+import { useState, type FormEvent } from "react";
+import { KeyRound, Trash2 } from "lucide-react";
+import { toast } from "sonner";
+
+import { AuthForm, FormField } from "@/components/auth/auth-form";
+import { QueryError } from "@/components/features/empty/query-error";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { EmptyState } from "@/components/ui/empty-state";
+import { Skeleton } from "@/components/ui/skeleton";
+import { ApiError } from "@/lib/api";
+
+import { useDeleteSecret, useSaveSecret, useSecrets, type SecretMeta } from "./hooks";
+
+const NAME_PATTERN = /^[A-Za-z_][A-Za-z0-9_]{0,127}$/;
+
+// SecretsPanel lists secret names and sets or replaces values. A value is sent once and never
+// read back, so the page never renders one.
+export function SecretsPanel({ org, app }: { org: string; app: string }) {
+  const secrets = useSecrets(org, app);
+  const save = useSaveSecret(org, app);
+  const remove = useDeleteSecret(org, app);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [pendingDelete, setPendingDelete] = useState<SecretMeta | null>(null);
+
+  function onSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const form = e.currentTarget;
+    const data = new FormData(form);
+    const name = String(data.get("name") ?? "").trim();
+    const value = String(data.get("value") ?? "");
+    const next: Record<string, string> = {};
+    if (!NAME_PATTERN.test(name)) next.name = "Use letters, digits and underscores, starting with a letter.";
+    if (value === "") next.value = "Enter a value.";
+    setErrors(next);
+    if (Object.keys(next).length > 0) return;
+    save.mutate(
+      { name, value },
+      {
+        onSuccess: () => {
+          form.reset();
+          toast.success(`Saved ${name}.`);
+        },
+        onError: (err) => {
+          if (err instanceof ApiError && err.code === "invalid") {
+            setErrors(err.fieldErrors());
+          } else if (!(err instanceof ApiError)) {
+            toast.error("Could not save the secret. Try again.");
+          }
+        },
+      },
+    );
+  }
+
+  function confirmDelete() {
+    if (!pendingDelete) return;
+    const name = pendingDelete.name;
+    remove.mutate(name, {
+      onSuccess: () => {
+        setPendingDelete(null);
+        toast.success(`Deleted ${name}.`);
+      },
+    });
+  }
+
+  return (
+    <section aria-labelledby="secrets-heading" className="flex flex-col gap-4">
+      <header>
+        <h2 id="secrets-heading" className="text-sm font-semibold">
+          Secrets
+        </h2>
+        <p className="text-sm text-muted">
+          Values are write-only. You can set or replace a secret, but nothing shows its value after saving.
+        </p>
+      </header>
+
+      {secrets.isError ? (
+        <QueryError
+          error={secrets.error}
+          onRetry={() => void secrets.refetch()}
+          notFoundTitle="App not found"
+          notFoundDescription="It may have been deleted or you lack access."
+        />
+      ) : secrets.isPending ? (
+        <Skeleton className="h-24 w-full" />
+      ) : secrets.data.length === 0 ? (
+        <EmptyState
+          icon={KeyRound}
+          title="No secrets yet"
+          description="Secrets hold API keys and passwords your app reads at run time."
+          action={
+            <Button
+              variant="secondary"
+              onClick={() => document.querySelector<HTMLInputElement>('input[name="name"]')?.focus()}
+            >
+              Add a secret
+            </Button>
+          }
+        />
+      ) : (
+        <ul aria-label="Secret names" className="divide-y divide-line rounded-[10px] border border-line bg-surface">
+          {secrets.data.map((s) => (
+            <li key={s.name} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+              <span className="font-mono">{s.name}</span>
+              <span className="flex items-center gap-3">
+                <span className="text-muted">Updated {new Date(s.updated_at).toLocaleDateString()}</span>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  aria-label={`Delete ${s.name}`}
+                  onClick={() => setPendingDelete(s)}
+                >
+                  <Trash2 className="size-4" aria-hidden />
+                </Button>
+              </span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      <AuthForm errors={errors} onSubmit={onSubmit}>
+        <FormField
+          label="Name"
+          name="name"
+          autoComplete="off"
+          spellCheck={false}
+          error={errors.name}
+        />
+        <FormField
+          label="Value"
+          name="value"
+          type="password"
+          autoComplete="new-password"
+          error={errors.value}
+        />
+        <div>
+          <Button type="submit" disabled={save.isPending}>
+            Save secret
+          </Button>
+        </div>
+      </AuthForm>
+
+      <Dialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Delete {pendingDelete?.name}?</DialogTitle>
+            <DialogDescription>
+              Apps that read this secret fail until you set it again. This cannot be undone.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button variant="secondary" onClick={() => setPendingDelete(null)}>
+              Cancel
+            </Button>
+            <Button variant="danger" onClick={confirmDelete} disabled={remove.isPending}>
+              Delete secret
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </section>
+  );
+}
