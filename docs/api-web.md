@@ -30,7 +30,7 @@ name.
 - **CSRF:** every non-GET/HEAD request with a session must send `X-CSRF-Token: <csrf>`. The value comes from the
   login, MFA and setup responses and from `GET /api/me` (`csrf`). Missing or wrong → `403 csrf_invalid`.
   Public routes without a session (`/api/setup`, `/api/auth/login`, `/api/auth/mfa`,
-  `/api/invites/{token}/accept`) skip CSRF.
+  `/api/invites/accept/{token}`) skip CSRF.
 - **Origin:** every unsafe method (POST, PUT, PATCH, DELETE), including the public ones, must carry an
   `Origin` header equal to `RTWEB_PUBLIC_URL`. Missing or foreign → `403 origin_invalid`. The internal
   router routes (§9) use a bearer secret instead and are exempt.
@@ -118,6 +118,25 @@ error of the user's app. It shows `409 stale` as a "changed elsewhere, reload" p
 Every route below may also return the cross-cutting errors: `401`, the `403` middleware codes, `429`, `502`
 and `503 busy` (for routes that call the runtime) and `500`. The per-route "Errors" column lists only the
 other codes.
+
+### 1.5.1 Error codes to add (Task 11a adds them to `apperr`)
+
+| Status | `code` | Where |
+|---|---|---|
+| 401 | `invalid_credentials` | login; wrong current password on password change, 2FA disable, recovery codes |
+| 401 | `invalid_code` | `/api/auth/mfa` wrong TOTP/recovery code |
+| 422 | `invalid_code` | `/api/me/totp/confirm`, `/api/me/totp/disable` wrong code |
+| 409 | `email_taken` | `POST /api/admin/users` |
+| 409 | `already_member` | `POST /api/orgs/{org}/members` |
+| 409 | `project_not_empty` | `DELETE /api/orgs/{org}/projects/{p}` with apps |
+| 404 | `invite_invalid` | invite accept (expired, used, revoked) |
+| redirect | `oauth_state_invalid` | OAuth callback: state/PKCE mismatch or expired |
+| redirect | `email_unverified` | OAuth callback: provider email not verified |
+| redirect | `no_account` | OAuth callback: no user with that email (none created) |
+| redirect | `account_disabled` | OAuth callback: user disabled |
+| redirect | `oauth_failed` | OAuth callback: provider/token exchange error |
+
+OAuth codes are sent as `/login?error=<code>`, not as a JSON body.
 
 ### 1.6 Pagination
 
@@ -281,11 +300,14 @@ The UI renders `otpauth_url` as a QR code and as copyable text.
 
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
-| GET | `/api/invites` | `instance.admin` without `?org=`; `invites.manage` with `?org=<slug>` | `?org` | `200 {items: Invite[]}` (pending only) | `404 not_found` (org not visible) |
-| POST | `/api/invites` | `instance.admin` without `org`; `invites.manage` on `org` (role `owner` also needs `members.owners`) | `InviteReq` | `201 {invite: Invite; link: string}` (link shown once) | `403 forbidden`, `404 not_found`, `422 invalid` |
-| DELETE | `/api/invites/{id}` | same rule as POST, for the invite's org | | `204` | `404 not_found` |
-| GET | `/api/invites/{token}` | public | | `200 {email: string; org_name: string \| null}` | `404 invite_invalid` |
-| POST | `/api/invites/{token}/accept` | public (Origin; the single-use token replaces CSRF) | `{name: string; password: string}` | `200 {email: string}`; no session is created, the user then logs in normally (MFA and policy apply) | `404 invite_invalid`, `422 invalid` |
+| GET | `/api/orgs/{org}/invites` | `invites.manage` | | `200 {items: Invite[]}` (pending only, this org) | `403`, `404` |
+| POST | `/api/orgs/{org}/invites` | `invites.manage` (role `owner` also needs `members.owners`) | `InviteReq` (`org` ignored; bound to `{org}`) | `201 {invite: Invite; link: string}` (link shown once) | `403`, `404`, `422 invalid` |
+| DELETE | `/api/orgs/{org}/invites/{id}` | `invites.manage` | | `204` | `404` (unknown, or invite of another org) |
+| GET | `/api/admin/invites` | `instance.admin` | `?org=<slug>` (optional filter) | `200 {items: Invite[]}` (pending only, all orgs) | |
+| POST | `/api/admin/invites` | `instance.admin` | `InviteReq` (`org` optional; unbound = no membership) | `201 {invite: Invite; link: string}` | `404` (org), `422 invalid` |
+| DELETE | `/api/admin/invites/{id}` | `instance.admin` | | `204` | `404` |
+| GET | `/api/invites/accept/{token}` | public | | `200 {email: string; org_name: string \| null}` | `404 invite_invalid` |
+| POST | `/api/invites/accept/{token}` | public (Origin; the single-use token replaces CSRF) | `{name: string; password: string}` | `200 {email: string}`; no session is created, the user then logs in normally (MFA and policy apply) | `404 invite_invalid`, `422 invalid` |
 
 ```ts
 type InviteReq = { email: string; org?: string /* org slug */; role?: OrgRole };
@@ -295,11 +317,10 @@ type Invite = {
   created_by: Pick<User, "id" | "name">;
   created_at: number; expires_at: number;   // 7 days
 };
-// link: `${RTWEB_PUBLIC_URL}/invite/<token>`
+// link: `${RTWEB_PUBLIC_URL}/invite/<token>` (page calls /api/invites/accept/<token>)
 ```
 
-`{id}` (`inv_…`) and `{token}` share the path segment. A value starting with `inv_` is an id; any other value
-is a token.
+Management uses the invite id (`inv_…`); the public accept page uses the token under `/api/invites/accept/`.
 
 ## 6. Instance admin (Task 11b, Task 9)
 
@@ -367,14 +388,14 @@ There is no plan field anywhere: every org uses `RUNTIME_DEFAULT_PLAN`.
 |---|---|---|---|---|---|
 | GET | `/api/orgs` | session | | `200 {items: Org[]}` (member orgs; all orgs for an instance admin) | |
 | GET | `/api/orgs/{org}` | `org.read` | | `200 Org` | `404` |
-| GET | `/api/orgs/{org}/members` | `members.manage` | | `200 {items: Member[]}` | `403`, `404` |
+| GET | `/api/orgs/{org}/members` | `org.read` (any member; mutations need `members.manage`) | | `200 {items: Member[]}` | `404` |
 | POST | `/api/orgs/{org}/members` | `members.manage` (+ `members.owners` for role `owner`) | `{user_id: string; role: OrgRole}` | `201 Member` | `403`, `404`, `409 already_member` |
 | PATCH | `/api/orgs/{org}/members/{user}` | `members.manage` (+ `members.owners` when the old or new role is `owner`) | `{role: OrgRole}` | `200 Member` | `403`, `404`, `409 last_owner` |
 | DELETE | `/api/orgs/{org}/members/{user}` | `members.manage` (+ `members.owners` for an owner) | | `204` (grants removed) | `403`, `404`, `409 last_owner` |
 | PUT | `/api/orgs/{org}/members/{user}/grants/{project}` | `grants.manage` on `{project}` | `{role: ProjectRole}` | `200 Member` | `403`, `404` |
 | DELETE | `/api/orgs/{org}/members/{user}/grants/{project}` | `grants.manage` on `{project}` | | `204` | `403`, `404` |
 | GET | `/api/orgs/{org}/tokens` | `tokens.manage` | | `200 {items: Token[]}` (never secrets, never the default key) | `403`, `404` |
-| POST | `/api/orgs/{org}/tokens` | `tokens.manage` | `TokenReq` | `201 {token: Token; secret: string}` (secret shown once) | `403` (scope beyond caller's reach), `404` (unknown app), `422 invalid` (unknown scope, past expiry) |
+| POST | `/api/orgs/{org}/tokens` | `tokens.manage` | `TokenReq` | `201 {token: Token; secret: string}` (secret shown once) | `403`, `404` (unknown app), `422 invalid` (unknown scope, past expiry) |
 | DELETE | `/api/orgs/{org}/tokens/{id}` | `tokens.manage` | | `204` | `404` |
 | POST | `/api/orgs/{org}/default-key/rotate` | `defaultkey.rotate` | | `204` (custom tokens keep working) | `403`, `404` |
 | GET | `/api/orgs/{org}/limits` | `org.read` | | `200 Limits` (read-only quota bar) | `404` |
@@ -390,7 +411,7 @@ There is no plan field anywhere: every org uses `RUNTIME_DEFAULT_PLAN`.
 ```ts
 type TokenReq = {
   name: string;
-  scopes: string[];          // ⊆ runtime tenant scopes and ⊆ the caller's reach
+  scopes: string[];          // ⊆ runtime tenant scopes (minus keys:write)
   apps?: string[];           // app slugs → runtime service_ids restriction (optional)
   expires_at?: number | null;
 };
@@ -410,6 +431,8 @@ type Limits = {              // runtime LimitsView passthrough (the plan name is
 };
 type Quota = { limit: number | null; used: number; remaining: number | null; period: string };
 ```
+
+Tokens are org-level only in v1: only org owners/admins (`tokens.manage`) create, list and revoke them. Project-scoped tokens (created by project admins): later.
 
 ## 8. Apps (Task 11c)
 
