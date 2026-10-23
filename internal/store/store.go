@@ -99,6 +99,12 @@ func (s *Store) Tx(ctx context.Context, fn func(*db.Queries) error) error {
 	return nil
 }
 
+// DB returns the underlying handle, for tooling and tests that need SQL
+// outside the generated queries.
+func (s *Store) DB() *sql.DB {
+	return s.sqlDB
+}
+
 // Close releases the database handle.
 func (s *Store) Close() error {
 	return s.sqlDB.Close()

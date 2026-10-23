@@ -53,7 +53,7 @@ func TestLoginNoUserEnumeration(t *testing.T) {
 		}
 	}
 	got, err := e.svc.Login(ctx, "A@Example.com", "password-123456", "1.2.3.4", "ua")
-	if err != nil || got.ID != u.ID {
+	if err != nil || got.User.ID != u.ID {
 		t.Fatalf("Login = %+v, %v", got, err)
 	}
 }

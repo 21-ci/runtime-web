@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/21cloud/runtime-web/internal/apperr"
+	"github.com/21cloud/runtime-web/internal/seal"
 	"github.com/21cloud/runtime-web/internal/store"
 	"github.com/21cloud/runtime-web/internal/store/db"
 )
@@ -26,6 +27,10 @@ type Service struct {
 	Sessions *Sessions
 	Events   *LoginEvents
 	Limiter  *Limiter
+	TOTP     *TOTP
+	// SSOConfigured reports whether an OAuth/OIDC provider is configured;
+	// nil means none. Policy.PasswordLoginDisabled requires one.
+	SSOConfigured func(context.Context) bool
 	// SetupToken is the token Setup requires (see NewSetupToken).
 	SetupToken string
 	Now        func() time.Time
@@ -34,17 +39,30 @@ type Service struct {
 	dummyHash string
 }
 
-// NewService wires a Service on st. dev selects the dev session cookie.
-func NewService(st *store.Store, h Hasher, setupToken string, dev bool) *Service {
+// NewService wires a Service on st. sl seals TOTP secrets; dev selects
+// the dev session cookie.
+func NewService(st *store.Store, h Hasher, sl *seal.Sealer, setupToken string, dev bool) *Service {
 	q := st.Q()
+	lim := &Limiter{Q: q}
 	return &Service{
 		Store:      st,
 		Hasher:     h,
 		Sessions:   &Sessions{Q: q, Dev: dev},
 		Events:     &LoginEvents{Q: q},
-		Limiter:    &Limiter{Q: q},
+		Limiter:    lim,
+		TOTP:       &TOTP{Q: q, Store: st, Sealer: sl, Hasher: h, Limiter: lim},
 		SetupToken: setupToken,
 	}
+}
+
+// LoginResult is a successful first factor. Cookie is a full session
+// (with CSRF) or, when MFARequired, an MFA-pending session that only
+// CompleteMFA accepts (CSRF empty).
+type LoginResult struct {
+	User        User
+	MFARequired bool
+	Cookie      string
+	CSRF        string
 }
 
 // SetNow replaces the clock of the service and its parts.
@@ -53,6 +71,7 @@ func (s *Service) SetNow(now func() time.Time) {
 	s.Sessions.Now = now
 	s.Events.Now = now
 	s.Limiter.Now = now
+	s.TOTP.Now = now
 }
 
 func (s *Service) now() time.Time {
@@ -83,15 +102,17 @@ func normalizeEmail(e string) string {
 
 // Login checks email and password. Unknown user, wrong password and
 // disabled user all return ErrInvalidCredentials; 10 failures per 15 min
-// per (ip, email) return apperr.ErrRateLimited. Every attempt is recorded.
-// It does not create a session.
-func (s *Service) Login(ctx context.Context, email, password, ip, ua string) (User, error) {
+// per (ip, email) return apperr.ErrRateLimited. When the policy disables
+// password login, users other than instance admins get a
+// password_login_disabled Forbidden. Every attempt is recorded. On success
+// it creates a session; users with TOTP get an MFA-pending one.
+func (s *Service) Login(ctx context.Context, email, password, ip, ua string) (LoginResult, error) {
 	email = normalizeEmail(email)
 	ev := LoginEvent{Email: email, IP: ip, UA: ua, Method: MethodPassword}
 
 	blocked, err := s.Limiter.Blocked(ctx, ip, email)
 	if err != nil {
-		return User{}, err
+		return LoginResult{}, err
 	}
 	if blocked {
 		if row, err := s.Store.Q().GetUserByEmail(ctx, email); err == nil {
@@ -99,35 +120,138 @@ func (s *Service) Login(ctx context.Context, email, password, ip, ua string) (Us
 		}
 		ev.Result = ResultRateLimited
 		if err := s.Events.Record(ctx, ev); err != nil {
-			return User{}, err
+			return LoginResult{}, err
 		}
-		return User{}, fmt.Errorf("auth: login: %w", apperr.ErrRateLimited)
+		return LoginResult{}, fmt.Errorf("auth: login: %w", apperr.ErrRateLimited)
 	}
 
 	row, err := s.Store.Q().GetUserByEmail(ctx, email)
 	switch {
 	case errors.Is(err, sql.ErrNoRows):
 		s.Hasher.Verify(s.dummy(), password)
-		return User{}, s.fail(ctx, ev, ResultBadPassword)
+		return LoginResult{}, s.fail(ctx, ev, ResultBadPassword)
 	case err != nil:
-		return User{}, fmt.Errorf("auth: get user: %w", err)
+		return LoginResult{}, fmt.Errorf("auth: get user: %w", err)
 	}
 	ev.UserID = row.ID
 	ok := s.Hasher.Verify(row.PasswordHash, password)
 	if !ok {
-		return User{}, s.fail(ctx, ev, ResultBadPassword)
+		return LoginResult{}, s.fail(ctx, ev, ResultBadPassword)
 	}
 	if row.Disabled != 0 {
-		return User{}, s.fail(ctx, ev, ResultDisabled)
+		return LoginResult{}, s.fail(ctx, ev, ResultDisabled)
 	}
 	if err := s.Limiter.Reset(ctx, ip, email); err != nil {
-		return User{}, err
+		return LoginResult{}, err
+	}
+	if row.IsInstanceAdmin == 0 {
+		pol, err := s.Policy(ctx)
+		if err != nil {
+			return LoginResult{}, err
+		}
+		if pol.PasswordLoginDisabled {
+			ev.Result = ResultSSOOnly
+			if err := s.Events.Record(ctx, ev); err != nil {
+				return LoginResult{}, err
+			}
+			return LoginResult{}, fmt.Errorf("auth: login: %w", apperr.Forbidden{Code: "password_login_disabled"})
+		}
+	}
+	return s.begin(ctx, userFromRow(row), ev)
+}
+
+// LoginUser starts a session for a user already authenticated another way
+// (method is MethodOAuth or MethodInvite). It applies the same disabled
+// and second-factor checks as Login.
+func (s *Service) LoginUser(ctx context.Context, userID, method, ip, ua string) (LoginResult, error) {
+	row, err := s.Store.Q().GetUserByID(ctx, userID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return LoginResult{}, ErrInvalidCredentials
+	}
+	if err != nil {
+		return LoginResult{}, fmt.Errorf("auth: get user: %w", err)
+	}
+	ev := LoginEvent{UserID: row.ID, Email: row.Email, IP: ip, UA: ua, Method: method}
+	if row.Disabled != 0 {
+		ev.Result = ResultDisabled
+		if err := s.Events.Record(ctx, ev); err != nil {
+			return LoginResult{}, err
+		}
+		return LoginResult{}, ErrInvalidCredentials
+	}
+	return s.begin(ctx, userFromRow(row), ev)
+}
+
+// begin records a successful first factor (mfa_pending or ok) and creates the session: an
+// MFA-pending one if u has confirmed TOTP, a full one otherwise.
+func (s *Service) begin(ctx context.Context, u User, ev LoginEvent) (LoginResult, error) {
+	on, err := s.TOTP.Enabled(ctx, u.ID)
+	if err != nil {
+		return LoginResult{}, err
+	}
+	ev.Result = ResultOK
+	if on {
+		ev.Result = ResultMFAPending
+	}
+	if err := s.Events.Record(ctx, ev); err != nil {
+		return LoginResult{}, err
+	}
+	if on {
+		cookie, err := s.Sessions.CreatePending(ctx, u.ID, ev.IP, ev.UA)
+		if err != nil {
+			return LoginResult{}, err
+		}
+		return LoginResult{User: u, MFARequired: true, Cookie: cookie}, nil
+	}
+	cookie, csrf, err := s.Sessions.Create(ctx, u.ID, ev.IP, ev.UA)
+	if err != nil {
+		return LoginResult{}, err
+	}
+	return LoginResult{User: u, Cookie: cookie, CSRF: csrf}, nil
+}
+
+// CompleteMFA swaps an MFA-pending session for a full one given a TOTP
+// code or a recovery code. Unknown, expired or full-session cookies are
+// ErrNoSession; bad codes are ErrInvalidCode; failures share the
+// second-factor limiter (apperr.ErrRateLimited).
+func (s *Service) CompleteMFA(ctx context.Context, pendingCookie, code string) (string, string, error) {
+	sess, u, err := s.Sessions.LookupPending(ctx, pendingCookie)
+	if err != nil {
+		return "", "", err
+	}
+	ev := LoginEvent{UserID: u.ID, Email: u.Email, IP: sess.IP, UA: sess.UA, Method: MethodPassword}
+	if validCodeShape(normalizeCode(code)) {
+		err = s.TOTP.Verify(ctx, u.ID, code)
+	} else {
+		err = s.TOTP.UseRecovery(ctx, u.ID, code)
+	}
+	if err != nil {
+		switch {
+		case errors.Is(err, apperr.ErrRateLimited):
+			ev.Result = ResultRateLimited
+		case errors.Is(err, ErrInvalidCode):
+			ev.Result = ResultBadTOTP
+		default:
+			return "", "", err
+		}
+		if rerr := s.Events.Record(ctx, ev); rerr != nil {
+			return "", "", rerr
+		}
+		return "", "", err
+	}
+	// Only the caller that deletes the pending row gets a session.
+	n, err := s.Store.Q().DeleteSession(ctx, sess.ID)
+	if err != nil {
+		return "", "", fmt.Errorf("auth: delete pending session: %w", err)
+	}
+	if n == 0 {
+		return "", "", ErrNoSession
 	}
 	ev.Result = ResultOK
 	if err := s.Events.Record(ctx, ev); err != nil {
-		return User{}, err
+		return "", "", err
 	}
-	return userFromRow(row), nil
+	return s.Sessions.Create(ctx, u.ID, sess.IP, sess.UA)
 }
 
 func (s *Service) fail(ctx context.Context, ev LoginEvent, result string) error {

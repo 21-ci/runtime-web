@@ -40,6 +40,42 @@ func (q *Queries) InsertAudit(ctx context.Context, arg InsertAuditParams) error 
 	return err
 }
 
+const listAudit = `-- name: ListAudit :many
+SELECT id, at, actor_user_id, as_instance_admin, org_id, "action", target, detail FROM audit ORDER BY at DESC, id DESC LIMIT ?1
+`
+
+func (q *Queries) ListAudit(ctx context.Context, limit int64) ([]Audit, error) {
+	rows, err := q.db.QueryContext(ctx, listAudit, limit)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Audit
+	for rows.Next() {
+		var i Audit
+		if err := rows.Scan(
+			&i.ID,
+			&i.At,
+			&i.ActorUserID,
+			&i.AsInstanceAdmin,
+			&i.OrgID,
+			&i.Action,
+			&i.Target,
+			&i.Detail,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const listAuditByOrg = `-- name: ListAuditByOrg :many
 SELECT id, at, actor_user_id, as_instance_admin, org_id, "action", target, detail FROM audit WHERE org_id = ?1 ORDER BY at DESC, id DESC LIMIT ?2
 `

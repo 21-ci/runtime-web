@@ -22,6 +22,9 @@ const (
 	ResultRateLimited = "rate_limited"
 	ResultDisabled    = "disabled"
 	ResultSSOOnly     = "sso_only"
+	// ResultMFAPending is a correct first factor awaiting its second;
+	// CompleteMFA records ok once the code is accepted.
+	ResultMFAPending = "mfa_pending"
 )
 
 // LoginEvent is one login attempt. UserID is empty for unknown users.

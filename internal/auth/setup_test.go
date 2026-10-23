@@ -22,7 +22,7 @@ func TestSetupOnlyOnce(t *testing.T) {
 		t.Fatal(err)
 	}
 	t.Cleanup(func() { _ = st.Close() })
-	svc := NewService(st, plainHasher{}, "tok", false)
+	svc := NewService(st, plainHasher{}, testSealer(), "tok", false)
 	if !svc.SetupNeeded(ctx) {
 		t.Fatal("SetupNeeded = false on empty db")
 	}
@@ -92,7 +92,7 @@ func TestSetupRequiresToken(t *testing.T) {
 	}
 
 	// An empty configured token never matches.
-	empty := NewService(e.st, plainHasher{}, "", false)
+	empty := NewService(e.st, plainHasher{}, testSealer(), "", false)
 	if _, err := empty.Setup(ctx, "", "root@example.com", "Root", "password-123456"); !errors.Is(err, apperr.ErrForbidden) {
 		t.Errorf("empty configured token: err = %v", err)
 	}

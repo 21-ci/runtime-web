@@ -19,3 +19,6 @@ SELECT * FROM sessions WHERE user_id = sqlc.arg(user_id) AND mfa_pending = 0 ORD
 
 -- name: DeleteSessionsForUserExcept :execrows
 DELETE FROM sessions WHERE user_id = sqlc.arg(user_id) AND id_hash <> sqlc.arg(except_id_hash);
+
+-- name: DeleteSessionsForUser :execrows
+DELETE FROM sessions WHERE user_id = sqlc.arg(user_id);

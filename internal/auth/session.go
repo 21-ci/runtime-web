@@ -21,6 +21,9 @@ const (
 	IdleTTL = 7 * 24 * time.Hour
 	// AbsoluteTTL is the hard session lifetime from creation.
 	AbsoluteTTL = 30 * 24 * time.Hour
+	// MFAPendingTTL is the lifetime of a session waiting for its second
+	// factor.
+	MFAPendingTTL = 5 * time.Minute
 	// touchEvery limits last_seen_at writes to one per interval.
 	touchEvery = time.Minute
 
@@ -61,6 +64,9 @@ type Session struct {
 	CreatedAt  time.Time
 	LastSeenAt time.Time
 	ExpiresAt  time.Time
+	// IP and UA are set by LookupPending only.
+	IP string
+	UA string
 }
 
 // SessionInfo is a session as listed to its owner. ID is public: the first
@@ -110,6 +116,17 @@ func hashCookie(v string) (string, bool) {
 
 // Create starts a session and returns the cookie value and CSRF token.
 func (s *Sessions) Create(ctx context.Context, userID, ip, ua string) (string, string, error) {
+	return s.create(ctx, userID, ip, ua, false)
+}
+
+// CreatePending starts an MFA-pending session that lives MFAPendingTTL and
+// is accepted only by LookupPending. It returns the cookie value.
+func (s *Sessions) CreatePending(ctx context.Context, userID, ip, ua string) (string, error) {
+	cookie, _, err := s.create(ctx, userID, ip, ua, true)
+	return cookie, err
+}
+
+func (s *Sessions) create(ctx context.Context, userID, ip, ua string, pending bool) (string, string, error) {
 	raw := make([]byte, 32)
 	if _, err := rand.Read(raw); err != nil {
 		return "", "", fmt.Errorf("auth: session id: %w", err)
@@ -121,20 +138,72 @@ func (s *Sessions) Create(ctx context.Context, userID, ip, ua string) (string, s
 	cookie := hex.EncodeToString(raw)
 	idHash, _ := hashCookie(cookie)
 	now := s.now()
+	ttl, mfa := AbsoluteTTL, int64(0)
+	if pending {
+		ttl, mfa = MFAPendingTTL, 1
+	}
 	err = s.Q.CreateSession(ctx, db.CreateSessionParams{
 		IDHash:     idHash,
 		UserID:     userID,
 		Csrf:       csrf,
+		MfaPending: mfa,
 		CreatedAt:  now.UnixMilli(),
 		LastSeenAt: now.UnixMilli(),
-		ExpiresAt:  now.Add(AbsoluteTTL).UnixMilli(),
+		ExpiresAt:  now.Add(ttl).UnixMilli(),
 		Ip:         ip,
 		UserAgent:  ua,
 	})
 	if err != nil {
 		return "", "", fmt.Errorf("auth: create session: %w", err)
 	}
+	if pending {
+		return cookie, "", nil
+	}
 	return cookie, csrf, nil
+}
+
+// LookupPending resolves an MFA-pending cookie to its session and user.
+// Full, expired and disabled-user sessions are ErrNoSession.
+func (s *Sessions) LookupPending(ctx context.Context, cookie string) (Session, User, error) {
+	idHash, ok := hashCookie(cookie)
+	if !ok {
+		return Session{}, User{}, ErrNoSession
+	}
+	row, err := s.Q.GetSession(ctx, idHash)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Session{}, User{}, ErrNoSession
+	}
+	if err != nil {
+		return Session{}, User{}, fmt.Errorf("auth: get session: %w", err)
+	}
+	if row.MfaPending == 0 {
+		return Session{}, User{}, ErrNoSession
+	}
+	if s.now().UnixMilli() >= row.ExpiresAt {
+		if _, err := s.Q.DeleteSession(ctx, idHash); err != nil {
+			return Session{}, User{}, fmt.Errorf("auth: delete expired session: %w", err)
+		}
+		return Session{}, User{}, ErrNoSession
+	}
+	urow, err := s.Q.GetUserByID(ctx, row.UserID)
+	if errors.Is(err, sql.ErrNoRows) {
+		return Session{}, User{}, ErrNoSession
+	}
+	if err != nil {
+		return Session{}, User{}, fmt.Errorf("auth: get session user: %w", err)
+	}
+	if urow.Disabled != 0 {
+		return Session{}, User{}, ErrNoSession
+	}
+	return Session{
+		ID:         row.IDHash,
+		UserID:     row.UserID,
+		CreatedAt:  time.UnixMilli(row.CreatedAt),
+		LastSeenAt: time.UnixMilli(row.LastSeenAt),
+		ExpiresAt:  time.UnixMilli(row.ExpiresAt),
+		IP:         row.Ip,
+		UA:         row.UserAgent,
+	}, userFromRow(urow), nil
 }
 
 // Lookup resolves a cookie value to its session and user, sliding the idle

@@ -30,13 +30,19 @@ func (l *Limiter) now() time.Time {
 
 // Blocked reports whether (ip, email) has used its failure budget.
 func (l *Limiter) Blocked(ctx context.Context, ip, email string) (bool, error) {
+	return l.blockedAt(ctx, ip, email, MaxLoginFailures)
+}
+
+// blockedAt reports whether (ip, email) has max or more failures in the
+// window.
+func (l *Limiter) blockedAt(ctx context.Context, ip, email string, max int64) (bool, error) {
 	n, err := l.Q.CountLoginFailuresSince(ctx, db.CountLoginFailuresSinceParams{
 		Ip: ip, Email: email, Since: l.now().Add(-LoginFailureWindow).UnixMilli(),
 	})
 	if err != nil {
 		return false, fmt.Errorf("auth: count login failures: %w", err)
 	}
-	return n >= MaxLoginFailures, nil
+	return n >= max, nil
 }
 
 // Fail records one failure for (ip, email) and prunes old rows.

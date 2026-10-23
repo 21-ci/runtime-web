@@ -4,3 +4,6 @@ VALUES (sqlc.arg(id), sqlc.arg(at), sqlc.arg(actor_user_id), sqlc.arg(as_instanc
 
 -- name: ListAuditByOrg :many
 SELECT * FROM audit WHERE org_id = sqlc.arg(org_id) ORDER BY at DESC, id DESC LIMIT sqlc.arg(limit);
+
+-- name: ListAudit :many
+SELECT * FROM audit ORDER BY at DESC, id DESC LIMIT sqlc.arg(limit);

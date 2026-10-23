@@ -27,6 +27,24 @@ func (q *Queries) ActivateUserTOTP(ctx context.Context, arg ActivateUserTOTPPara
 	return result.RowsAffected()
 }
 
+const advanceTOTPStep = `-- name: AdvanceTOTPStep :execrows
+UPDATE user_totp SET last_used_step = ?1
+WHERE user_id = ?2 AND last_used_step < ?1
+`
+
+type AdvanceTOTPStepParams struct {
+	Step   int64
+	UserID string
+}
+
+func (q *Queries) AdvanceTOTPStep(ctx context.Context, arg AdvanceTOTPStepParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, advanceTOTPStep, arg.Step, arg.UserID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const consumeRecoveryCode = `-- name: ConsumeRecoveryCode :execrows
 UPDATE recovery_codes SET used_at = ?1
 WHERE user_id = ?2 AND hash = ?3 AND used_at IS NULL
@@ -44,6 +62,17 @@ func (q *Queries) ConsumeRecoveryCode(ctx context.Context, arg ConsumeRecoveryCo
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const countUnusedRecoveryCodes = `-- name: CountUnusedRecoveryCodes :one
+SELECT COUNT(*) FROM recovery_codes WHERE user_id = ?1 AND used_at IS NULL
+`
+
+func (q *Queries) CountUnusedRecoveryCodes(ctx context.Context, userID string) (int64, error) {
+	row := q.db.QueryRowContext(ctx, countUnusedRecoveryCodes, userID)
+	var count int64
+	err := row.Scan(&count)
+	return count, err
 }
 
 const createRecoveryCode = `-- name: CreateRecoveryCode :exec
@@ -80,6 +109,42 @@ func (q *Queries) CreateUserTOTP(ctx context.Context, arg CreateUserTOTPParams) 
 		arg.LastUsedStep,
 	)
 	return err
+}
+
+const deletePendingUserTOTP = `-- name: DeletePendingUserTOTP :execrows
+DELETE FROM user_totp WHERE user_id = ?1 AND enabled_at IS NULL
+`
+
+func (q *Queries) DeletePendingUserTOTP(ctx context.Context, userID string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deletePendingUserTOTP, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteRecoveryCodes = `-- name: DeleteRecoveryCodes :execrows
+DELETE FROM recovery_codes WHERE user_id = ?1
+`
+
+func (q *Queries) DeleteRecoveryCodes(ctx context.Context, userID string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteRecoveryCodes, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const deleteUserTOTP = `-- name: DeleteUserTOTP :execrows
+DELETE FROM user_totp WHERE user_id = ?1
+`
+
+func (q *Queries) DeleteUserTOTP(ctx context.Context, userID string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteUserTOTP, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const getUserTOTP = `-- name: GetUserTOTP :one

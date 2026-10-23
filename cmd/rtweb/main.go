@@ -2,9 +2,11 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log/slog"
 	"os"
+	"time"
 
 	"github.com/21cloud/runtime-web/internal/config"
 )
@@ -17,6 +19,9 @@ var (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "admin" {
+		os.Exit(runAdmin(context.Background(), os.Args[2:], os.Getenv, time.Now, os.Stdout))
+	}
 	cfg, err := config.Load(os.Getenv)
 	if err != nil {
 		fmt.Fprintf(os.Stderr, "rtweb: %v\n", err)

@@ -7,6 +7,7 @@ import (
 	"testing"
 	"time"
 
+	"github.com/21cloud/runtime-web/internal/seal"
 	"github.com/21cloud/runtime-web/internal/store"
 	"github.com/21cloud/runtime-web/internal/store/db"
 )
@@ -72,7 +73,7 @@ func newEnv(t *testing.T, h Hasher) *env {
 	t.Helper()
 	st := newStore(t)
 	clock := newClock()
-	svc := NewService(st, h, "setup-token-for-tests", false)
+	svc := NewService(st, h, testSealer(), "setup-token-for-tests", false)
 	svc.SetNow(clock.Now)
 	return &env{st: st, clock: clock, svc: svc}
 }
@@ -100,4 +101,12 @@ func (e *env) mkSession(t *testing.T, userID string) (cookie, csrf string) {
 		t.Fatalf("Sessions.Create: %v", err)
 	}
 	return cookie, csrf
+}
+
+func testSealer() *seal.Sealer {
+	var key [32]byte
+	for i := range key {
+		key[i] = byte(i)
+	}
+	return seal.New(key)
 }

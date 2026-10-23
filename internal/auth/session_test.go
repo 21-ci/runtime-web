@@ -150,7 +150,7 @@ func TestPasswordChangeRevokesOtherSessions(t *testing.T) {
 		t.Errorf("session after reset: err = %v, want ErrNoSession", err)
 	}
 	got, err := e.svc.Login(ctx, u.Email, "temp-password-123", "1.1.1.1", "ua")
-	if err != nil || !got.MustChangePassword {
+	if err != nil || !got.User.MustChangePassword {
 		t.Errorf("Login after reset = %+v, %v; want MustChangePassword", got, err)
 	}
 }
