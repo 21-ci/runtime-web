@@ -5,17 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="color-scheme" content="light dark" />
     <title>Runtime Console</title>
-    <script>
-      // Apply the dark token set (.dark in index.css) before first paint when
-      // the OS prefers dark. This is the only place that follows the OS setting.
-      try {
-        if (window.matchMedia("(prefers-color-scheme: dark)").matches) {
-          document.documentElement.classList.add("dark");
-        }
-      } catch (e) {
-        /* matchMedia unavailable: stay light */
-      }
-    </script>
+    <script src="/theme-init.js"></script>
   </head>
   <body>
     <div id="root"></div>

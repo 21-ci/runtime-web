@@ -3,8 +3,8 @@
 /*
  * Design tokens, migrated from docs/ui-reference/src/index.css.
  * Light values live on :root; the .dark block is the single dark set. The
- * class is applied to <html> before first paint by the inline script in
- * index.html when the OS prefers dark.
+ * class is applied to <html> before first paint by public/theme-init.js
+ * when the OS prefers dark (external script: the server CSP forbids inline).
  * Filled controls pair a fill token with an --on-* text token; every pair is
  * checked for WCAG AA (4.5:1) in src/styles/contrast.test.ts.
  */
