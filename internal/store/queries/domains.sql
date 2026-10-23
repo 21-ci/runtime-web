@@ -42,3 +42,13 @@ SELECT d.id, d.org_id, d.project_slug, d.service_id, d.host, d.status, d.last_ch
        o.slug AS org_slug, o.name AS org_name
 FROM domains d JOIN orgs o ON o.id = d.org_id
 ORDER BY d.host;
+
+-- name: CreatePendingUnmap :exec
+INSERT INTO pending_unmaps (id, org_id, service_id, host, created_at)
+VALUES (sqlc.arg(id), sqlc.arg(org_id), sqlc.arg(service_id), sqlc.arg(host), sqlc.arg(created_at));
+
+-- name: ListPendingUnmaps :many
+SELECT * FROM pending_unmaps ORDER BY created_at;
+
+-- name: DeletePendingUnmap :exec
+DELETE FROM pending_unmaps WHERE id = sqlc.arg(id);

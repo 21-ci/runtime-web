@@ -98,6 +98,14 @@ type PendingKeyRevoke struct {
 	Attempts  int64
 }
 
+type PendingUnmap struct {
+	ID        string
+	OrgID     string
+	ServiceID string
+	Host      string
+	CreatedAt int64
+}
+
 type ProjectGrant struct {
 	OrgID       string
 	UserID      string

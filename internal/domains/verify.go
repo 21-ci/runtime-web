@@ -23,6 +23,9 @@ const (
 	maxTXTMisses   = 3
 	reconcileEvery = 5 * time.Minute
 	lookupTimeout  = 5 * time.Second
+
+	// runtimePending is the runtime status of an unverified tenant host claim.
+	runtimePending = "pending_verification"
 )
 
 // Resolver looks up TXT records. *net.Resolver implements it.
@@ -120,20 +123,15 @@ func (s *Service) nowMS() sql.NullInt64 {
 	return sql.NullInt64{Int64: s.opt.Now().UnixMilli(), Valid: true}
 }
 
-// activate marks d active (the unique index on active hosts decides races) and then maps the host on
-// the runtime with the root token. A lost race or a runtime 409 leaves d failed with host_taken.
+// activate maps the host on the runtime with the root token and only then marks d active, so
+// Routes never serves a host the runtime does not route. A host already active elsewhere, a runtime
+// 409, or a lost race on the unique index of active hosts leaves d failed with host_taken; after a
+// lost race the mapping just made is undone.
 func (s *Service) activate(ctx context.Context, d db.Domain, actor audit.Actor) error {
 	taken := fmt.Errorf("domains: activate %s: %w", d.Host, apperr.Conflict{Code: "host_taken"})
-	err := s.st.Tx(ctx, func(q *db.Queries) error {
-		_, err := q.ActivateDomain(ctx, db.ActivateDomainParams{At: s.nowMS(), ID: d.ID})
-		return err
-	})
-	if isUnique(err) {
+	if other, err := s.st.Q().ActiveDomainByHost(ctx, d.Host); err == nil && other.ID != d.ID {
 		s.setStatus(ctx, d, StatusFailed)
 		return taken
-	}
-	if err != nil {
-		return fmt.Errorf("domains: activate %s: %w", d.Host, err)
 	}
 	cli, err := s.rootFor(ctx, d.OrgID)
 	if err == nil {
@@ -144,8 +142,36 @@ func (s *Service) activate(ctx context.Context, d db.Domain, actor audit.Actor) 
 			s.setStatus(ctx, d, StatusFailed)
 			return taken
 		}
-		s.setStatus(ctx, d, d.Status)
 		return fmt.Errorf("domains: map %s: %w", d.Host, err)
+	}
+	if s.beforeActivate != nil {
+		s.beforeActivate()
+	}
+	var m *db.PendingUnmap
+	err = s.st.Tx(ctx, func(q *db.Queries) error {
+		_, err := q.ActivateDomain(ctx, db.ActivateDomainParams{At: s.nowMS(), ID: d.ID})
+		if err == nil {
+			return nil
+		}
+		if isUnique(err) {
+			if _, uerr := q.UpdateDomainStatus(ctx, db.UpdateDomainStatusParams{Status: StatusFailed, ID: d.ID}); uerr != nil {
+				return uerr
+			}
+		}
+		var merr error
+		if m, merr = s.markUnmap(ctx, q, d); merr != nil {
+			return merr
+		}
+		return err
+	})
+	if err != nil {
+		if m != nil {
+			s.unmap(ctx, *m)
+		}
+		if isUnique(err) {
+			return taken
+		}
+		return fmt.Errorf("domains: activate %s: %w", d.Host, err)
 	}
 	if err := s.audit.Log(ctx, s.st.Q(), actor, d.OrgID, "domain.verify", d.Host, map[string]string{"app": d.AppSlug}); err != nil {
 		s.log.Error("domains: audit verify", "host", d.Host, "err", err)
@@ -254,20 +280,39 @@ func (s *Service) checkActive(ctx context.Context, d db.Domain, now time.Time) {
 	if misses < maxTXTMisses {
 		return
 	}
-	// Drop the route first so the host stops serving even if the runtime call fails.
-	s.setStatus(ctx, d, StatusFailed)
-	if err := s.unmap(ctx, d); err != nil {
-		s.log.Error("domains: deactivate unmap", "host", d.Host, "err", err)
+	// Drop the route and record the pending runtime DELETE in one tx; reconcile retries a failed DELETE.
+	var m *db.PendingUnmap
+	err := s.st.Tx(ctx, func(q *db.Queries) error {
+		if _, err := q.UpdateDomainStatus(ctx, db.UpdateDomainStatusParams{Status: StatusFailed, ID: d.ID}); err != nil {
+			return err
+		}
+		var err error
+		m, err = s.markUnmap(ctx, q, d)
+		return err
+	})
+	if err != nil {
+		s.log.Error("domains: deactivate", "host", d.Host, "err", err)
+		return
 	}
+	s.unmap(ctx, *m)
 	if err := s.audit.Log(ctx, s.st.Q(), audit.Actor{}, d.OrgID, "domain.deactivate", d.Host, map[string]any{"txt_misses": misses}); err != nil {
 		s.log.Error("domains: audit deactivate", "host", d.Host, "err", err)
 	}
 	s.log.Info("domains: deactivated", "host", d.Host, "org", d.OrgID)
 }
 
-// reconcile re-PUTs active hosts that the runtime lost. Runtime hosts that are not active in the DB
-// are left alone and logged.
+// reconcile first retries pending runtime DELETEs (pending_unmaps), then re-PUTs active hosts the
+// runtime lost. An active DB host is re-PUT only when the runtime lacks it or holds it as
+// pending_verification (a root PUT makes it active); any other runtime status is logged and left
+// alone so an unknown state cannot cause a PUT loop. Runtime hosts not active in the DB are logged.
 func (s *Service) reconcile(ctx context.Context) {
+	unmaps, err := s.st.Q().ListPendingUnmaps(ctx)
+	if err != nil {
+		s.log.Error("domains: list pending unmaps", "err", err)
+	}
+	for _, m := range unmaps {
+		s.unmap(ctx, m)
+	}
 	active, err := s.st.Q().ListDomainsByStatus(ctx, StatusActive)
 	if err != nil {
 		s.log.Error("domains: reconcile list", "err", err)
@@ -290,14 +335,19 @@ func (s *Service) reconcile(ctx context.Context) {
 			s.log.Warn("domains: reconcile list hosts", "service", k.svc, "err", err)
 			continue
 		}
-		have := map[string]bool{}
+		have := map[string]string{}
 		for _, h := range hosts {
-			have[h.Host] = h.Status == StatusActive
+			have[h.Host] = h.Status
 		}
 		want := map[string]bool{}
 		for _, d := range ds {
 			want[d.Host] = true
-			if have[d.Host] {
+			st, ok := have[d.Host]
+			if st == StatusActive {
+				continue
+			}
+			if ok && st != runtimePending {
+				s.log.Warn("domains: runtime host in unexpected state", "host", d.Host, "status", st)
 				continue
 			}
 			if _, err := cli.PutHost(ctx, d.ServiceID, d.Host); err != nil {

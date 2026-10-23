@@ -129,6 +129,9 @@ type Service struct {
 	audit audit.Writer
 	log   *slog.Logger
 
+	// beforeActivate is a test seam run after the runtime PUT and before the row becomes active.
+	beforeActivate func()
+
 	mu            sync.Mutex
 	lastReconcile time.Time
 }
@@ -326,17 +329,37 @@ func (s *Service) Remove(ctx context.Context, sub authz.Subject, orgID, id strin
 	if err != nil {
 		return err
 	}
-	if d.Status == StatusActive {
-		if err := s.unmap(ctx, d); err != nil {
-			return err
-		}
-	}
-	return s.st.Tx(ctx, func(q *db.Queries) error {
+	// The row (and so the route) goes first, together with a pending_unmaps marker for an active
+	// host; the runtime DELETE follows and, if it fails, the checker retries it.
+	var m *db.PendingUnmap
+	err = s.st.Tx(ctx, func(q *db.Queries) error {
 		if _, err := q.DeleteDomain(ctx, d.ID); err != nil {
 			return fmt.Errorf("domains: delete %s: %w", d.Host, err)
 		}
+		if d.Status == StatusActive {
+			if m, err = s.markUnmap(ctx, q, d); err != nil {
+				return err
+			}
+		}
 		return s.audit.Log(ctx, q, audit.Actor{UserID: sub.UserID, AsInstanceAdmin: sub.InstanceAdmin}, orgID, "domain.remove", d.Host, nil)
 	})
+	if err != nil {
+		return err
+	}
+	if m != nil {
+		s.unmap(ctx, *m)
+	}
+	return nil
+}
+
+// markUnmap records that d's runtime mapping must be deleted.
+func (s *Service) markUnmap(ctx context.Context, q *db.Queries, d db.Domain) (*db.PendingUnmap, error) {
+	m := db.PendingUnmap{ID: store.NewID("unm_"), OrgID: d.OrgID, ServiceID: d.ServiceID, Host: d.Host, CreatedAt: s.opt.Now().UnixMilli()}
+	err := q.CreatePendingUnmap(ctx, db.CreatePendingUnmapParams{ID: m.ID, OrgID: m.OrgID, ServiceID: m.ServiceID, Host: m.Host, CreatedAt: m.CreatedAt})
+	if err != nil {
+		return nil, fmt.Errorf("domains: mark unmap %s: %w", d.Host, err)
+	}
+	return &m, nil
 }
 
 // Routes returns the route table (active domains only) and its ETag.
@@ -411,16 +434,38 @@ func (s *Service) rootFor(ctx context.Context, orgID string) (*runtime.Scoped, e
 	return s.rt.With(runtime.RootCred{Token: s.root.Token, Tenant: org.TenantID}), nil
 }
 
-// unmap deletes d's host on the runtime; an already missing host is fine.
-func (s *Service) unmap(ctx context.Context, d db.Domain) error {
-	cli, err := s.rootFor(ctx, d.OrgID)
+// unmap deletes m's host on the runtime (an already missing host is fine) and then clears the
+// marker. On failure the marker stays for reconcile to retry. It reports whether it succeeded.
+func (s *Service) unmap(ctx context.Context, m db.PendingUnmap) bool {
+	if a, err := s.st.Q().ActiveDomainByHost(ctx, m.Host); err == nil && a.ServiceID == m.ServiceID {
+		// The host was re-verified for the same app since; its mapping is wanted again.
+		s.clearUnmap(ctx, m)
+		return true
+	}
+	cli, err := s.rootFor(ctx, m.OrgID)
+	if errors.Is(err, sql.ErrNoRows) {
+		// The org (and its tenant) is gone; nothing left to unmap.
+		s.clearUnmap(ctx, m)
+		return true
+	}
+	if err == nil {
+		err = cli.DeleteHost(ctx, m.ServiceID, m.Host)
+		if runtimeStatus(err) == http.StatusNotFound {
+			err = nil
+		}
+	}
 	if err != nil {
-		return err
+		s.log.Warn("domains: unmap failed, will retry", "host", m.Host, "service", m.ServiceID, "err", err)
+		return false
 	}
-	if err := cli.DeleteHost(ctx, d.ServiceID, d.Host); err != nil && runtimeStatus(err) != http.StatusNotFound {
-		return fmt.Errorf("domains: unmap %s: %w", d.Host, err)
+	s.clearUnmap(ctx, m)
+	return true
+}
+
+func (s *Service) clearUnmap(ctx context.Context, m db.PendingUnmap) {
+	if err := s.st.Q().DeletePendingUnmap(ctx, m.ID); err != nil {
+		s.log.Error("domains: clear unmap", "host", m.Host, "err", err)
 	}
-	return nil
 }
 
 func runtimeStatus(err error) int {

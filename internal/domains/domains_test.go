@@ -65,6 +65,7 @@ type fixture struct {
 	dns  *fakeDNS
 	svc  *Service
 	now  time.Time
+	orgs *orgs.Service
 	orgA orgs.Org
 	orgB orgs.Org
 }
@@ -90,7 +91,7 @@ func newFixture(t *testing.T) *fixture {
 		key[i] = byte(i + 5)
 	}
 	o := orgs.New(st, rt, root, seal.New(key), testPlan)
-	f := &fixture{fake: fake, rt: rt, root: root, st: st, apps: apps.New(rt, o, st), dns: &fakeDNS{txt: map[string][]string{}}}
+	f := &fixture{orgs: o, fake: fake, rt: rt, root: root, st: st, apps: apps.New(rt, o, st), dns: &fakeDNS{txt: map[string][]string{}}}
 	f.now = time.UnixMilli(1_800_000_000_000)
 	f.svc = New(st, rt, root, f.apps, Options{
 		BaseDomain:  baseDomain,
@@ -509,5 +510,137 @@ func TestDevResolverOverride(t *testing.T) {
 	}
 	if _, ok := NewResolver(false, func(k string) string { return env[k] }).(DevResolver); ok {
 		t.Fatal("non-dev resolver honours the override")
+	}
+}
+
+func (f *fixture) pendingUnmaps(t *testing.T) int {
+	t.Helper()
+	ms, err := f.st.Q().ListPendingUnmaps(context.Background())
+	if err != nil {
+		t.Fatalf("ListPendingUnmaps: %v", err)
+	}
+	return len(ms)
+}
+
+func TestDeactivateUnmapRetried(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	v := f.app(t, f.orgA.ID, "shop")
+	f.app(t, f.orgB.ID, "rival")
+	d := f.add(t, f.orgA.ID, "shop", "shop.example.com")
+	f.dns.set("_rtweb.shop.example.com", d.TXTValue)
+	if _, err := f.svc.Verify(ctx, owner, f.orgA.ID, d.ID); err != nil {
+		t.Fatalf("Verify: %v", err)
+	}
+	f.dns.set("_rtweb.shop.example.com")
+	for range 2 {
+		f.now = f.now.Add(6 * time.Hour)
+		f.svc.CheckOnce(ctx)
+	}
+	f.now = f.now.Add(6 * time.Hour)
+	f.svc.lastReconcile = f.now // no reconcile in this pass
+	f.fake.FailNext(http.StatusInternalServerError, "internal", 0)
+	f.svc.CheckOnce(ctx)
+	if got := f.get(t, d.ID); got.Status != "failed" {
+		t.Fatalf("status = %s, want failed", got.Status)
+	}
+	if _, ok := f.runtimeHosts(t, v.Raw.ID)["shop.example.com"]; !ok || f.pendingUnmaps(t) != 1 {
+		t.Fatalf("want host still mapped with a pending unmap; unmaps=%d", f.pendingUnmaps(t))
+	}
+	// Meanwhile another org cannot take the host: the runtime still maps it.
+	b := f.add(t, f.orgB.ID, "rival", "shop.example.com")
+	f.dns.set("_rtweb.shop.example.com", b.TXTValue)
+	var c apperr.Conflict
+	if _, err := f.svc.Verify(ctx, owner, f.orgB.ID, b.ID); !errors.As(err, &c) || c.Code != "host_taken" {
+		t.Fatalf("Verify B before retry err = %v", err)
+	}
+
+	f.now = f.now.Add(reconcileEvery)
+	f.svc.CheckOnce(ctx)
+	if _, ok := f.runtimeHosts(t, v.Raw.ID)["shop.example.com"]; ok || f.pendingUnmaps(t) != 0 {
+		t.Fatalf("retry did not unmap; unmaps=%d", f.pendingUnmaps(t))
+	}
+	if got, err := f.svc.Verify(ctx, owner, f.orgB.ID, b.ID); err != nil || got.Status != "active" {
+		t.Fatalf("Verify B after retry = %+v, %v", got, err)
+	}
+}
+
+func TestRemoveUnmapRetried(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	v := f.app(t, f.orgA.ID, "shop")
+	d := f.add(t, f.orgA.ID, "shop", "shop.example.com")
+	f.dns.set("_rtweb.shop.example.com", d.TXTValue)
+	if _, err := f.svc.Verify(ctx, owner, f.orgA.ID, d.ID); err != nil {
+		t.Fatalf("Verify: %v", err)
+	}
+	f.fake.FailNext(http.StatusInternalServerError, "internal", 0)
+	if err := f.svc.Remove(ctx, owner, f.orgA.ID, d.ID); err != nil {
+		t.Fatalf("Remove: %v", err)
+	}
+	if r, _, _ := f.svc.Routes(ctx); len(r.Hosts) != 0 {
+		t.Fatalf("removed host still routed: %+v", r.Hosts)
+	}
+	if f.pendingUnmaps(t) != 1 {
+		t.Fatal("no pending unmap after failed DELETE")
+	}
+	f.svc.CheckOnce(ctx)
+	if _, ok := f.runtimeHosts(t, v.Raw.ID)["shop.example.com"]; ok || f.pendingUnmaps(t) != 0 {
+		t.Fatal("reconcile did not unmap removed host")
+	}
+}
+
+func TestActivateAfterRuntimePut(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	v := f.app(t, f.orgA.ID, "shop")
+	d := f.add(t, f.orgA.ID, "shop", "shop.example.com")
+	f.dns.set("_rtweb.shop.example.com", d.TXTValue)
+	called := false
+	f.svc.beforeActivate = func() {
+		called = true
+		if r, _, _ := f.svc.Routes(ctx); len(r.Hosts) != 0 {
+			t.Errorf("routed before activation: %+v", r.Hosts)
+		}
+		if !f.runtimeHosts(t, v.Raw.ID)["shop.example.com"] {
+			t.Error("runtime not mapped before activation")
+		}
+	}
+	// A failing runtime PUT leaves the domain pending and unrouted.
+	f.fake.FailNext(http.StatusInternalServerError, "internal", 0)
+	if _, err := f.svc.Verify(ctx, owner, f.orgA.ID, d.ID); err == nil {
+		t.Fatal("Verify with failing PUT succeeded")
+	}
+	if got := f.get(t, d.ID); got.Status != "pending" || called {
+		t.Fatalf("after failed PUT: %s called=%v", got.Status, called)
+	}
+	if got, err := f.svc.Verify(ctx, owner, f.orgA.ID, d.ID); err != nil || got.Status != "active" || !called {
+		t.Fatalf("Verify = %+v, %v, called=%v", got, err, called)
+	}
+}
+
+func TestReconcileRuntimeStatuses(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	v := f.app(t, f.orgA.ID, "shop")
+	d := f.add(t, f.orgA.ID, "shop", "shop.example.com")
+	f.dns.set("_rtweb.shop.example.com", d.TXTValue)
+	if _, err := f.svc.Verify(ctx, owner, f.orgA.ID, d.ID); err != nil {
+		t.Fatalf("Verify: %v", err)
+	}
+	// Replace the mapping with a tenant (pending_verification) claim.
+	if err := f.rt.With(f.root).DeleteHost(ctx, v.Raw.ID, "shop.example.com"); err != nil {
+		t.Fatalf("DeleteHost: %v", err)
+	}
+	key, err := f.orgs.DefaultCred(ctx, f.orgA.ID)
+	if err != nil {
+		t.Fatalf("DefaultCred: %v", err)
+	}
+	if h, err := f.rt.With(key).PutHost(ctx, v.Raw.ID, "shop.example.com"); err != nil || h.Status != "pending_verification" {
+		t.Fatalf("tenant PutHost = %+v, %v", h, err)
+	}
+	f.svc.CheckOnce(ctx)
+	if !f.runtimeHosts(t, v.Raw.ID)["shop.example.com"] {
+		t.Fatal("pending_verification host not re-PUT active")
 	}
 }

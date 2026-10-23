@@ -87,6 +87,30 @@ func (q *Queries) CreateDomain(ctx context.Context, arg CreateDomainParams) erro
 	return err
 }
 
+const createPendingUnmap = `-- name: CreatePendingUnmap :exec
+INSERT INTO pending_unmaps (id, org_id, service_id, host, created_at)
+VALUES (?1, ?2, ?3, ?4, ?5)
+`
+
+type CreatePendingUnmapParams struct {
+	ID        string
+	OrgID     string
+	ServiceID string
+	Host      string
+	CreatedAt int64
+}
+
+func (q *Queries) CreatePendingUnmap(ctx context.Context, arg CreatePendingUnmapParams) error {
+	_, err := q.db.ExecContext(ctx, createPendingUnmap,
+		arg.ID,
+		arg.OrgID,
+		arg.ServiceID,
+		arg.Host,
+		arg.CreatedAt,
+	)
+	return err
+}
+
 const deleteDomain = `-- name: DeleteDomain :execrows
 DELETE FROM domains WHERE id = ?1
 `
@@ -97,6 +121,15 @@ func (q *Queries) DeleteDomain(ctx context.Context, id string) (int64, error) {
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const deletePendingUnmap = `-- name: DeletePendingUnmap :exec
+DELETE FROM pending_unmaps WHERE id = ?1
+`
+
+func (q *Queries) DeletePendingUnmap(ctx context.Context, id string) error {
+	_, err := q.db.ExecContext(ctx, deletePendingUnmap, id)
+	return err
 }
 
 const getDomain = `-- name: GetDomain :one
@@ -332,6 +365,39 @@ func (q *Queries) ListDomainsByStatus(ctx context.Context, status string) ([]Dom
 			&i.CertError,
 			&i.CreatedAt,
 			&i.AppSlug,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
+const listPendingUnmaps = `-- name: ListPendingUnmaps :many
+SELECT id, org_id, service_id, host, created_at FROM pending_unmaps ORDER BY created_at
+`
+
+func (q *Queries) ListPendingUnmaps(ctx context.Context) ([]PendingUnmap, error) {
+	rows, err := q.db.QueryContext(ctx, listPendingUnmaps)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []PendingUnmap
+	for rows.Next() {
+		var i PendingUnmap
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrgID,
+			&i.ServiceID,
+			&i.Host,
+			&i.CreatedAt,
 		); err != nil {
 			return nil, err
 		}
