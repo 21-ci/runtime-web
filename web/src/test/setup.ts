@@ -1,8 +1,12 @@
 import "@testing-library/jest-dom/vitest";
-import { cleanup } from "@testing-library/react";
+import { cleanup, configure } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll } from "vitest";
 
 import { server } from "./msw";
+
+// Routes are code-split, so the first render of a route waits on a lazy chunk. The default 1 s
+// findBy timeout is too tight for that under parallel workers.
+configure({ asyncUtilTimeout: 4_000 });
 
 // jsdom gaps: sonner reads matchMedia for theme="system", and router scroll restoration calls scrollTo.
 if (!window.matchMedia) {
