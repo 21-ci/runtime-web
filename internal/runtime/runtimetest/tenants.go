@@ -11,6 +11,9 @@ import (
 	"github.com/21cloud/runtime-web/internal/runtime"
 )
 
+// maxSelfServiceKeys is the live self-service key cap per tenant.
+const maxSelfServiceKeys = 200
+
 // validScopes are the scopes a key may carry.
 var validScopes = map[string]bool{
 	"services:read": true, "services:write": true, "deploy": true, "invoke": true,
@@ -22,14 +25,19 @@ type tenant struct {
 	id, name, plan string
 	overrides      json.RawMessage
 	createdAt      int64
+	disabled       bool
 }
 
 func (t *tenant) view() runtime.Tenant {
-	return runtime.Tenant{ID: t.id, Name: t.name, Plan: t.plan, Overrides: t.overrides, CreatedAt: t.createdAt}
+	return runtime.Tenant{
+		ID: t.id, Name: t.name, Plan: t.plan, Overrides: t.overrides,
+		CreatedAt: t.createdAt, Disabled: t.disabled,
+	}
 }
 
 // apiKey is a tenant key. parent is the creator's id for keys minted through
-// POST /v1/keys; revoking a parent revokes its descendants.
+// POST /v1/keys; revoking a parent revokes its descendants. selfService marks
+// keys counted against the self-service cap.
 type apiKey struct {
 	id, tenantID, name, secret, parent string
 	scopes                             []string
@@ -37,12 +45,30 @@ type apiKey struct {
 	createdAt                          int64
 	expiresAt                          *time.Time
 	revoked                            bool
+	selfService                        bool
 }
 
 func (k *apiKey) hasScope(scope string) bool { return contains(k.scopes, scope) }
 
 func (k *apiKey) active(now time.Time) bool {
 	return !k.revoked && (k.expiresAt == nil || now.Before(*k.expiresAt))
+}
+
+// canManage reports whether p may see or revoke k: a key limited to some
+// services manages only keys limited to a subset of those.
+func (p principal) canManage(k *apiKey) bool {
+	if p.key == nil || len(p.key.serviceIDs) == 0 {
+		return true
+	}
+	if len(k.serviceIDs) == 0 {
+		return false
+	}
+	for _, id := range k.serviceIDs {
+		if !contains(p.key.serviceIDs, id) {
+			return false
+		}
+	}
+	return true
 }
 
 func (k *apiKey) view() runtime.Key {
@@ -66,12 +92,19 @@ func (k *apiKey) created() runtime.KeyCreated {
 }
 
 func (f *Fake) tenantRoutes(mux *http.ServeMux) {
+	f.route(mux, "GET /v1/tenants", operatorScope, f.listTenants)
 	f.route(mux, "POST /v1/tenants", operatorScope, f.createTenant)
+	f.route(mux, "GET /v1/tenants/{t}", operatorScope, f.getTenant)
+	f.route(mux, "PATCH /v1/tenants/{t}", operatorScope, f.patchTenant)
 	f.route(mux, "DELETE /v1/tenants/{t}", operatorScope, f.deleteTenant)
 	f.route(mux, "POST /v1/tenants/{t}/keys", operatorScope, f.createTenantKey)
 	f.route(mux, "DELETE /v1/tenants/{t}/keys/{key}", operatorScope, f.revokeTenantKey)
 	f.route(mux, "GET /v1/tenants/{t}/usage", "logs:read", f.tenantUsage)
+	f.route(mux, "GET /v1/plans", operatorScope, f.listPlans)
+	f.route(mux, "GET /v1/version", "", f.version)
+	f.route(mux, "GET /v1/keys", "keys:write", f.listOwnKeys)
 	f.route(mux, "POST /v1/keys", "keys:write", f.createOwnKey)
+	f.route(mux, "DELETE /v1/keys/{key}", "keys:write", f.revokeOwnKey)
 	f.route(mux, "GET /v1/me", "", f.me)
 	f.route(mux, "GET /v1/limits", "", f.limits)
 }
@@ -83,6 +116,81 @@ func (f *Fake) tenantFor(p principal, id string) (*tenant, *apiError) {
 		return nil, notFound()
 	}
 	return t, nil
+}
+
+func (f *Fake) listTenants(_ principal, w http.ResponseWriter, _ *http.Request) *apiError {
+	var ids []string
+	for id := range f.tenants {
+		ids = append(ids, id)
+	}
+	slices.Sort(ids)
+	items := []runtime.Tenant{}
+	for _, id := range ids {
+		items = append(items, f.tenants[id].view())
+	}
+	writeJSON(w, http.StatusOK, runtime.Page[runtime.Tenant]{Items: items})
+	return nil
+}
+
+func (f *Fake) getTenant(p principal, w http.ResponseWriter, r *http.Request) *apiError {
+	t, e := f.tenantFor(p, r.PathValue("t"))
+	if e != nil {
+		return e
+	}
+	writeJSON(w, http.StatusOK, t.view())
+	return nil
+}
+
+// patchTenant changes name, plan, overrides or disabled. A plan change applies
+// to the tenant's limits at once.
+func (f *Fake) patchTenant(p principal, w http.ResponseWriter, r *http.Request) *apiError {
+	t, e := f.tenantFor(p, r.PathValue("t"))
+	if e != nil {
+		return e
+	}
+	var in runtime.TenantPatch
+	if e := decode(r, &in); e != nil {
+		return e
+	}
+	if in.Name != nil {
+		if *in.Name == "" {
+			return invalid("name must not be empty")
+		}
+		t.name = *in.Name
+	}
+	if in.Plan != nil {
+		if _, ok := f.plans[*in.Plan]; !ok {
+			return invalid("unknown plan %q", *in.Plan)
+		}
+		t.plan = *in.Plan
+	}
+	if len(in.Overrides) > 0 {
+		t.overrides = in.Overrides
+	}
+	if in.Disabled != nil {
+		t.disabled = *in.Disabled
+	}
+	writeJSON(w, http.StatusOK, t.view())
+	return nil
+}
+
+func (f *Fake) listPlans(_ principal, w http.ResponseWriter, _ *http.Request) *apiError {
+	var names []string
+	for name := range f.plans {
+		names = append(names, name)
+	}
+	slices.Sort(names)
+	out := []runtime.Plan{}
+	for _, name := range names {
+		out = append(out, planView(name, f.plans[name]))
+	}
+	writeJSON(w, http.StatusOK, out)
+	return nil
+}
+
+func (f *Fake) version(_ principal, w http.ResponseWriter, _ *http.Request) *apiError {
+	writeJSON(w, http.StatusOK, runtime.VersionInfo{Version: fakeVersion, API: "1"})
+	return nil
 }
 
 func (f *Fake) createTenant(_ principal, w http.ResponseWriter, r *http.Request) *apiError {
@@ -98,6 +206,8 @@ func (f *Fake) createTenant(_ principal, w http.ResponseWriter, r *http.Request)
 	}
 	t := &tenant{id: newID("ten_"), name: in.Name, plan: in.Plan, overrides: in.Overrides, createdAt: nowMS()}
 	f.tenants[t.id] = t
+	def := newProject(t.id, "default", "default", []string{"production"})
+	f.projects[def.id] = def
 	writeJSON(w, http.StatusCreated, t.view())
 	return nil
 }
@@ -113,6 +223,11 @@ func (f *Fake) deleteTenant(p principal, w http.ResponseWriter, r *http.Request)
 	for _, s := range f.services {
 		if s.tenantID == t.id {
 			f.dropService(s)
+		}
+	}
+	for id, pr := range f.projects {
+		if pr.tenantID == t.id {
+			delete(f.projects, id)
 		}
 	}
 	for id, k := range f.keys {
@@ -142,7 +257,29 @@ func (f *Fake) createTenantKey(p principal, w http.ResponseWriter, r *http.Reque
 	return nil
 }
 
+// listOwnKeys lists the live keys of the caller's tenant that the caller may manage.
+func (f *Fake) listOwnKeys(p principal, w http.ResponseWriter, _ *http.Request) *apiError {
+	if p.tenant == "" {
+		return invalid("x-rt-tenant is required")
+	}
+	now := time.Now()
+	var ids []string
+	for id, k := range f.keys {
+		if k.tenantID == p.tenant && k.active(now) && p.canManage(k) {
+			ids = append(ids, id)
+		}
+	}
+	slices.Sort(ids)
+	items := []runtime.Key{}
+	for _, id := range ids {
+		items = append(items, f.keys[id].view())
+	}
+	writeJSON(w, http.StatusOK, items)
+	return nil
+}
+
 // createOwnKey is POST /v1/keys: a key with keys:write mints a narrower child key.
+// A tenant holds at most maxSelfServiceKeys live keys created this way.
 func (f *Fake) createOwnKey(p principal, w http.ResponseWriter, r *http.Request) *apiError {
 	if p.tenant == "" {
 		return invalid("x-rt-tenant is required")
@@ -151,11 +288,44 @@ func (f *Fake) createOwnKey(p principal, w http.ResponseWriter, r *http.Request)
 	if e := decode(r, &in); e != nil {
 		return e
 	}
+	now := time.Now()
+	live := 0
+	for _, k := range f.keys {
+		if k.tenantID == p.tenant && k.selfService && k.active(now) {
+			live++
+		}
+	}
+	if live >= maxSelfServiceKeys {
+		return forbidden("quota_exceeded", "tenant holds the maximum of live self-service keys", map[string]any{"quota": "keys"})
+	}
 	k, e := f.issueKey(p.tenant, in, p.key)
 	if e != nil {
 		return e
 	}
+	k.selfService = true
 	writeJSON(w, http.StatusCreated, k.created())
+	return nil
+}
+
+// revokeOwnKey is DELETE /v1/keys/{key}. Keys the caller cannot manage are
+// not found; a key holding a scope the caller lacks is refused with 403.
+func (f *Fake) revokeOwnKey(p principal, w http.ResponseWriter, r *http.Request) *apiError {
+	if p.tenant == "" {
+		return invalid("x-rt-tenant is required")
+	}
+	k := f.keys[r.PathValue("key")]
+	if k == nil || k.tenantID != p.tenant || k.revoked || !p.canManage(k) {
+		return notFound()
+	}
+	if p.key != nil {
+		for _, s := range k.scopes {
+			if !p.key.hasScope(s) {
+				return insufficientScope(map[string]any{"reason": "stronger_key", "scope": s})
+			}
+		}
+	}
+	f.revoke(k)
+	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
 

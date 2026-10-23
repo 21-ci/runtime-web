@@ -92,18 +92,16 @@ func TestFakeEagerBuildStates(t *testing.T) {
 
 	ok, err := cl.UploadVersion(ctx, svc.ID, strings.NewReader("export default 1"), "application/typescript", eager)
 	must(t, err)
-	if ok.BuildState != "building" {
-		t.Fatalf("eager upload state %q, want building", ok.BuildState)
-	}
-	ready, err := cl.GetVersion(ctx, svc.ID, ok.Version)
-	must(t, err)
-	if ready.BuildState != "ready" || ready.Failure != nil {
-		t.Fatalf("settled %+v, want ready", ready)
+	if ok.BuildState != "ready" || ok.Failure != nil {
+		t.Fatalf("eager upload %+v, want ready immediately", ok)
 	}
 
 	f.FailBuild(svc.ID, json.RawMessage(`[{"file":"main.ts","line":1,"col":8,"message":"unexpected token"}]`))
 	bad, err := cl.UploadVersion(ctx, svc.ID, strings.NewReader("export default {"), "application/typescript", eager)
 	must(t, err)
+	if bad.BuildState != "failed" {
+		t.Fatalf("armed eager upload state %q, want failed", bad.BuildState)
+	}
 	failed, err := cl.GetVersion(ctx, svc.ID, bad.Version)
 	must(t, err)
 	if failed.BuildState != "failed" || failed.Failure == nil || failed.Failure.Reason != "syntax" {

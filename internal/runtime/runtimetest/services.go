@@ -205,6 +205,13 @@ func (f *Fake) createService(p principal, w http.ResponseWriter, r *http.Request
 	if !envRE.MatchString(environment) {
 		return invalid("environment %q is not valid", environment)
 	}
+	pr := f.projectFor(p.tenant, orDefault(in.Project, "default"))
+	if pr == nil {
+		return invalid("project %q does not exist", orDefault(in.Project, "default"))
+	}
+	if !slices.Contains(pr.environments, environment) {
+		return invalid("environment %q is not in project %s (%s)", environment, pr.slug, strings.Join(pr.environments, ", "))
+	}
 	for _, s := range f.services {
 		if s.slug == in.Slug {
 			return conflict("slug_taken", "service slug is already in use on this node")
@@ -220,7 +227,7 @@ func (f *Fake) createService(p principal, w http.ResponseWriter, r *http.Request
 	s := &service{
 		id: newID("svc_"), tenantID: p.tenant, slug: in.Slug, runtime: in.Runtime,
 		name: in.Name, profile: in.Profile,
-		project: orDefault(in.Project, "default"), environment: environment, access: access,
+		project: pr.slug, environment: environment, access: access,
 		etag:   1,
 		limits: in.Limits, scaling: in.Scaling, triggers: in.Triggers,
 		ingress: in.Ingress, egress: in.Egress, call: in.Call, deno: in.Deno, wasm: in.Wasm,
@@ -278,14 +285,22 @@ func (f *Fake) patchService(p principal, w http.ResponseWriter, r *http.Request)
 	if e := decode(r, &in); e != nil {
 		return e
 	}
-	if in.Project != nil && *in.Project != s.project {
-		return invalid("project cannot change")
+	if in.Project != nil {
+		if pr := f.projectFor(s.tenantID, *in.Project); pr == nil || pr.slug != s.project {
+			return invalid("project cannot change")
+		}
 	}
 	if in.Access != nil && !validAccess(*in.Access) {
 		return invalid("access must be public, key or internal")
 	}
-	if in.Environment != nil && !envRE.MatchString(*in.Environment) {
-		return invalid("environment %q is not valid", *in.Environment)
+	if in.Environment != nil {
+		if !envRE.MatchString(*in.Environment) {
+			return invalid("environment %q is not valid", *in.Environment)
+		}
+		pr := f.projectFor(s.tenantID, s.project)
+		if !slices.Contains(pr.environments, *in.Environment) {
+			return invalid("environment %q is not in project %s (%s)", *in.Environment, pr.slug, strings.Join(pr.environments, ", "))
+		}
 	}
 	if err := checkTriggers(f.plans[f.tenants[s.tenantID].plan].Triggers, in.Triggers); err != nil {
 		return err
