@@ -18,9 +18,14 @@ import { Route as OrgIndexRouteImport } from './routes/$org.index'
 import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as LoginIndexRouteImport } from './routes/login.index'
 import { Route as LoginMfaRouteImport } from './routes/login.mfa'
+import { Route as MeSecurityRouteImport } from './routes/me.security'
 import { Route as OrgAppsAppRouteImport } from './routes/$org.apps.$app'
 import { Route as OrgAppsNewRouteImport } from './routes/$org.apps.new'
 import { Route as OrgProjectsPRouteImport } from './routes/$org.projects.$p'
+import { Route as OrgSettingsAuditRouteImport } from './routes/$org.settings.audit'
+import { Route as OrgSettingsGeneralRouteImport } from './routes/$org.settings.general'
+import { Route as OrgSettingsMembersRouteImport } from './routes/$org.settings.members'
+import { Route as OrgSettingsTokensRouteImport } from './routes/$org.settings.tokens'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -67,6 +72,11 @@ const LoginMfaRoute = LoginMfaRouteImport.update({
   path: '/mfa',
   getParentRoute: () => LoginRoute,
 } as any)
+const MeSecurityRoute = MeSecurityRouteImport.update({
+  id: '/me/security',
+  path: '/me/security',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const OrgAppsAppRoute = OrgAppsAppRouteImport.update({
   id: '/apps/$app',
   path: '/apps/$app',
@@ -82,6 +92,26 @@ const OrgProjectsPRoute = OrgProjectsPRouteImport.update({
   path: '/projects/$p',
   getParentRoute: () => OrgRoute,
 } as any)
+const OrgSettingsAuditRoute = OrgSettingsAuditRouteImport.update({
+  id: '/settings/audit',
+  path: '/settings/audit',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgSettingsGeneralRoute = OrgSettingsGeneralRouteImport.update({
+  id: '/settings/general',
+  path: '/settings/general',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgSettingsMembersRoute = OrgSettingsMembersRouteImport.update({
+  id: '/settings/members',
+  path: '/settings/members',
+  getParentRoute: () => OrgRoute,
+} as any)
+const OrgSettingsTokensRoute = OrgSettingsTokensRouteImport.update({
+  id: '/settings/tokens',
+  path: '/settings/tokens',
+  getParentRoute: () => OrgRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -91,11 +121,16 @@ export interface FileRoutesByFullPath {
   '/setup': typeof SetupRoute
   '/invite/$token': typeof InviteTokenRoute
   '/login/mfa': typeof LoginMfaRoute
+  '/me/security': typeof MeSecurityRoute
   '/$org/': typeof OrgIndexRoute
   '/login/': typeof LoginIndexRoute
   '/$org/apps/$app': typeof OrgAppsAppRoute
   '/$org/apps/new': typeof OrgAppsNewRoute
   '/$org/projects/$p': typeof OrgProjectsPRoute
+  '/$org/settings/audit': typeof OrgSettingsAuditRoute
+  '/$org/settings/general': typeof OrgSettingsGeneralRoute
+  '/$org/settings/members': typeof OrgSettingsMembersRoute
+  '/$org/settings/tokens': typeof OrgSettingsTokensRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -103,11 +138,16 @@ export interface FileRoutesByTo {
   '/setup': typeof SetupRoute
   '/invite/$token': typeof InviteTokenRoute
   '/login/mfa': typeof LoginMfaRoute
+  '/me/security': typeof MeSecurityRoute
   '/$org': typeof OrgIndexRoute
   '/login': typeof LoginIndexRoute
   '/$org/apps/$app': typeof OrgAppsAppRoute
   '/$org/apps/new': typeof OrgAppsNewRoute
   '/$org/projects/$p': typeof OrgProjectsPRoute
+  '/$org/settings/audit': typeof OrgSettingsAuditRoute
+  '/$org/settings/general': typeof OrgSettingsGeneralRoute
+  '/$org/settings/members': typeof OrgSettingsMembersRoute
+  '/$org/settings/tokens': typeof OrgSettingsTokensRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -118,11 +158,16 @@ export interface FileRoutesById {
   '/setup': typeof SetupRoute
   '/invite/$token': typeof InviteTokenRoute
   '/login/mfa': typeof LoginMfaRoute
+  '/me/security': typeof MeSecurityRoute
   '/$org/': typeof OrgIndexRoute
   '/login/': typeof LoginIndexRoute
   '/$org/apps/$app': typeof OrgAppsAppRoute
   '/$org/apps/new': typeof OrgAppsNewRoute
   '/$org/projects/$p': typeof OrgProjectsPRoute
+  '/$org/settings/audit': typeof OrgSettingsAuditRoute
+  '/$org/settings/general': typeof OrgSettingsGeneralRoute
+  '/$org/settings/members': typeof OrgSettingsMembersRoute
+  '/$org/settings/tokens': typeof OrgSettingsTokensRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -134,11 +179,16 @@ export interface FileRouteTypes {
     | '/setup'
     | '/invite/$token'
     | '/login/mfa'
+    | '/me/security'
     | '/$org/'
     | '/login/'
     | '/$org/apps/$app'
     | '/$org/apps/new'
     | '/$org/projects/$p'
+    | '/$org/settings/audit'
+    | '/$org/settings/general'
+    | '/$org/settings/members'
+    | '/$org/settings/tokens'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -146,11 +196,16 @@ export interface FileRouteTypes {
     | '/setup'
     | '/invite/$token'
     | '/login/mfa'
+    | '/me/security'
     | '/$org'
     | '/login'
     | '/$org/apps/$app'
     | '/$org/apps/new'
     | '/$org/projects/$p'
+    | '/$org/settings/audit'
+    | '/$org/settings/general'
+    | '/$org/settings/members'
+    | '/$org/settings/tokens'
   id:
     | '__root__'
     | '/'
@@ -160,11 +215,16 @@ export interface FileRouteTypes {
     | '/setup'
     | '/invite/$token'
     | '/login/mfa'
+    | '/me/security'
     | '/$org/'
     | '/login/'
     | '/$org/apps/$app'
     | '/$org/apps/new'
     | '/$org/projects/$p'
+    | '/$org/settings/audit'
+    | '/$org/settings/general'
+    | '/$org/settings/members'
+    | '/$org/settings/tokens'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -174,6 +234,7 @@ export interface RootRouteChildren {
   LoginRoute: typeof LoginRouteWithChildren
   SetupRoute: typeof SetupRoute
   InviteTokenRoute: typeof InviteTokenRoute
+  MeSecurityRoute: typeof MeSecurityRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -241,6 +302,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LoginMfaRouteImport
       parentRoute: typeof LoginRoute
     }
+    '/me/security': {
+      id: '/me/security'
+      path: '/me/security'
+      fullPath: '/me/security'
+      preLoaderRoute: typeof MeSecurityRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/$org/apps/$app': {
       id: '/$org/apps/$app'
       path: '/apps/$app'
@@ -262,6 +330,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgProjectsPRouteImport
       parentRoute: typeof OrgRoute
     }
+    '/$org/settings/audit': {
+      id: '/$org/settings/audit'
+      path: '/settings/audit'
+      fullPath: '/$org/settings/audit'
+      preLoaderRoute: typeof OrgSettingsAuditRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/settings/general': {
+      id: '/$org/settings/general'
+      path: '/settings/general'
+      fullPath: '/$org/settings/general'
+      preLoaderRoute: typeof OrgSettingsGeneralRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/settings/members': {
+      id: '/$org/settings/members'
+      path: '/settings/members'
+      fullPath: '/$org/settings/members'
+      preLoaderRoute: typeof OrgSettingsMembersRouteImport
+      parentRoute: typeof OrgRoute
+    }
+    '/$org/settings/tokens': {
+      id: '/$org/settings/tokens'
+      path: '/settings/tokens'
+      fullPath: '/$org/settings/tokens'
+      preLoaderRoute: typeof OrgSettingsTokensRouteImport
+      parentRoute: typeof OrgRoute
+    }
   }
 }
 
@@ -270,6 +366,10 @@ interface OrgRouteChildren {
   OrgAppsAppRoute: typeof OrgAppsAppRoute
   OrgAppsNewRoute: typeof OrgAppsNewRoute
   OrgProjectsPRoute: typeof OrgProjectsPRoute
+  OrgSettingsAuditRoute: typeof OrgSettingsAuditRoute
+  OrgSettingsGeneralRoute: typeof OrgSettingsGeneralRoute
+  OrgSettingsMembersRoute: typeof OrgSettingsMembersRoute
+  OrgSettingsTokensRoute: typeof OrgSettingsTokensRoute
 }
 
 const OrgRouteChildren: OrgRouteChildren = {
@@ -277,6 +377,10 @@ const OrgRouteChildren: OrgRouteChildren = {
   OrgAppsAppRoute: OrgAppsAppRoute,
   OrgAppsNewRoute: OrgAppsNewRoute,
   OrgProjectsPRoute: OrgProjectsPRoute,
+  OrgSettingsAuditRoute: OrgSettingsAuditRoute,
+  OrgSettingsGeneralRoute: OrgSettingsGeneralRoute,
+  OrgSettingsMembersRoute: OrgSettingsMembersRoute,
+  OrgSettingsTokensRoute: OrgSettingsTokensRoute,
 }
 
 const OrgRouteWithChildren = OrgRoute._addFileChildren(OrgRouteChildren)
@@ -300,6 +404,7 @@ const rootRouteChildren: RootRouteChildren = {
   LoginRoute: LoginRouteWithChildren,
   SetupRoute: SetupRoute,
   InviteTokenRoute: InviteTokenRoute,
+  MeSecurityRoute: MeSecurityRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
