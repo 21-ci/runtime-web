@@ -5,7 +5,7 @@ LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.dat
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build test vet fmt fmt-check ci clean web web-test web-lint
+.PHONY: help build test vet fmt fmt-check ci clean web web-test web-lint web-embed
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -35,6 +35,11 @@ web-test: ## Run web tests (Vitest)
 
 web-lint: ## Lint and typecheck the web console (ESLint)
 	cd web && npm run lint
+
+web-embed: web ## Copy web/dist into internal/api/dist for go:embed
+	rm -rf internal/api/dist
+	mkdir -p internal/api
+	cp -R web/dist internal/api/dist
 
 clean: ## Remove build output
 	rm -rf bin
