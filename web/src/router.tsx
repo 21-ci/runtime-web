@@ -1,6 +1,6 @@
 import { createRouter } from "@tanstack/react-router";
 
-import { setNavigator } from "@/lib/api";
+import { setNavigator, setOnSignedOut } from "@/lib/api";
 import { createQueryClient } from "@/lib/query";
 import { routeTree } from "@/routeTree.gen";
 
@@ -12,6 +12,7 @@ export const router = createRouter({
 });
 
 // API redirects (401, password change, MFA enrollment) go through the router, not window.location.
+setOnSignedOut(() => queryClient.clear());
 setNavigator((to) => {
   void router.navigate({ href: to });
 });

@@ -40,6 +40,13 @@ let navigator_: Navigator = (to) => {
   window.location.assign(to);
 };
 let csrf: string | null = null;
+let onSignedOut_: () => void = () => {};
+
+// setOnSignedOut registers what runs when a 401 sends the user to login (clear the query cache,
+// so the next user in this tab never sees the previous user's data). router.tsx and tests call it.
+export function setOnSignedOut(fn: () => void) {
+  onSignedOut_ = fn;
+}
 
 // setNavigator wires redirects (401, gates) to the router. Tests and main.tsx call it.
 export function setNavigator(fn: Navigator) {
@@ -66,6 +73,7 @@ function currentPath(): string {
 function onGate(code: string) {
   const here = window.location.pathname;
   if (code === "unauthenticated" && !PUBLIC_PREFIXES.some((p) => here.startsWith(p))) {
+    onSignedOut_();
     navigator_(`/login?next=${encodeURIComponent(currentPath())}`);
   } else if (code === "password_change_required" && here !== "/change-password") {
     navigator_("/change-password");

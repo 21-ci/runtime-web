@@ -171,4 +171,42 @@ describe("app shell", { timeout: 15_000 }, () => {
     await waitFor(() => expect(getCsrfToken()).toBeNull(), LOAD);
     await waitFor(() => expect(router.state.location.pathname).toBe("/login"), LOAD);
   });
+
+  it("logout clears the query cache so the next user never sees the previous org", async () => {
+    useShellHandlers();
+    setCsrfToken("csrf-token-1");
+    const router = renderAt("/acme");
+    await screen.findByRole("link", { name: "Web" }, LOAD);
+    await userEvent.click(screen.getByRole("button", { name: /account/i }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: /log out/i }, LOAD));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/login"), LOAD);
+
+    // User B signs in in the same tab; their data never arrives, so anything shown is cached.
+    const pending = () => new Promise<never>(() => {});
+    server.use(
+      http.get("/api/me", () => HttpResponse.json({ ...me, user: { ...me.user, id: "usr_2", email: "bob@example.test" } })),
+      http.get("/api/orgs", pending),
+      http.get("/api/orgs/:org/projects", pending),
+      http.get("/api/orgs/:org/apps", pending),
+    );
+    await router.navigate({ href: "/acme" });
+    await new Promise((r) => setTimeout(r, 300));
+    expect(screen.queryByRole("link", { name: "Web" })).toBeNull();
+    expect(screen.queryByText("Acme")).toBeNull();
+  });
+
+  it("a 401 redirect to login clears the query cache", async () => {
+    useShellHandlers();
+    const router = renderAt("/acme");
+    await screen.findByRole("link", { name: "Web" }, LOAD);
+    // The session expires: the next uncached fetch (org beta) answers 401.
+    server.use(http.get("/api/orgs/:org/projects", () => apiError(401, "unauthenticated")));
+    await router.navigate({ href: "/beta" });
+    await waitFor(() => expect(router.state.location.pathname).toBe("/login"), LOAD);
+    const pending = () => new Promise<never>(() => {});
+    server.use(http.get("/api/orgs", pending), http.get("/api/orgs/:org/projects", pending));
+    await router.navigate({ href: "/acme" });
+    await new Promise((r) => setTimeout(r, 300));
+    expect(screen.queryByRole("link", { name: "Web" })).toBeNull();
+  });
 });

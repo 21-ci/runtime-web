@@ -1,4 +1,4 @@
-import { useMutation, useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api, setCsrfToken } from "@/lib/api";
 import type { User } from "@/lib/types";
@@ -32,36 +32,54 @@ export function useSetupStatus() {
   });
 }
 
+// A new session starts from an empty cache: nothing from a previous user in this tab survives.
 export function useLogin() {
+  const qc = useQueryClient();
   return useMutation({
     meta: inline,
     mutationFn: (body: { email: string; password: string }) => api.post<LoginResp>("/auth/login", body),
     onSuccess: (data) => {
-      if (!data.mfa_required) setCsrfToken(data.csrf);
+      if (!data.mfa_required) {
+        qc.removeQueries();
+        setCsrfToken(data.csrf);
+      }
     },
   });
 }
 
 export function useMfa() {
+  const qc = useQueryClient();
   return useMutation({
     meta: inline,
     mutationFn: (body: { code: string }) => api.post<SessionResp>("/auth/mfa", body),
-    onSuccess: (data) => setCsrfToken(data.csrf),
+    onSuccess: (data) => {
+      qc.removeQueries();
+      setCsrfToken(data.csrf);
+    },
   });
 }
 
 export function useSetup() {
+  const qc = useQueryClient();
   return useMutation({
     meta: inline,
     mutationFn: (body: SetupReq) => api.post<SessionResp>("/setup", body),
-    onSuccess: (data) => setCsrfToken(data.csrf),
+    onSuccess: (data) => {
+      qc.removeQueries();
+      setCsrfToken(data.csrf);
+    },
   });
 }
 
+// useLogout clears the CSRF token and the whole query cache, even when the request fails.
 export function useLogout() {
+  const qc = useQueryClient();
   return useMutation({
     mutationFn: () => api.post<void>("/auth/logout"),
-    onSettled: () => setCsrfToken(null),
+    onSettled: () => {
+      setCsrfToken(null);
+      qc.removeQueries();
+    },
   });
 }
 

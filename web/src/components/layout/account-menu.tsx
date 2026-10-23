@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useLogout } from "@/hooks/auth";
 
-// AccountMenu holds sign-out. Logout clears the in-memory CSRF token (useLogout) even when the
+// AccountMenu holds sign-out. Logout clears the in-memory CSRF token and the query cache (useLogout) even when the
 // request fails, then sends the user to the login page.
 export function AccountMenu() {
   const logout = useLogout();
