@@ -7,6 +7,7 @@ import (
 
 	"github.com/21cloud/runtime-web/internal/apperr"
 	"github.com/21cloud/runtime-web/internal/authz"
+	"github.com/21cloud/runtime-web/internal/runtime"
 	"github.com/21cloud/runtime-web/internal/store"
 	"github.com/21cloud/runtime-web/internal/store/db"
 )
@@ -102,6 +103,9 @@ func TestGrantKeyedBySlug(t *testing.T) {
 	org := f.create(t, "acme")
 	owner := f.subject(t, f.owner, org.ID)
 	dev := f.user(t, "dev@example.com")
+	if _, err := f.rt.With(runtime.RootCred{Token: f.root.Token, Tenant: org.TenantID}).CreateProject(ctx, runtime.ProjectCreate{Slug: "web"}); err != nil {
+		t.Fatalf("CreateProject: %v", err)
+	}
 	if err := f.svc.AddMember(ctx, cli, owner, org.ID, dev, authz.RoleMember); err != nil {
 		t.Fatalf("AddMember: %v", err)
 	}
@@ -122,6 +126,9 @@ func TestGrantKeyedBySlug(t *testing.T) {
 	}
 	if err := f.svc.SetGrant(ctx, cli, s, org.ID, other, "api", authz.RoleViewer); !errors.Is(err, apperr.ErrForbidden) {
 		t.Fatalf("grant outside project: err = %v, want ErrForbidden", err)
+	}
+	if err := f.svc.SetGrant(ctx, cli, owner, org.ID, other, "nope", authz.RoleViewer); !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("unknown project: err = %v, want ErrNotFound", err)
 	}
 	if err := f.svc.SetGrant(ctx, cli, owner, org.ID, other, "web", "owner"); !errors.Is(err, apperr.ErrInvalid) {
 		t.Fatalf("bad role: err = %v, want ErrInvalid", err)

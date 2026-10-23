@@ -68,6 +68,8 @@ type Service struct {
 	now    func() time.Time
 	// beforeRevoke is a test seam run right before the runtime revoke of a rotated-out default key.
 	beforeRevoke func()
+	// beforeSwap is a test seam run after a rotation mints its key and before the swap tx.
+	beforeSwap func(runtime.KeyCreated)
 }
 
 // New returns a keys Service.
@@ -134,12 +136,18 @@ func (s *Service) CreateToken(ctx context.Context, actor audit.Actor, sub authz.
 		return Token{}, "", fmt.Errorf("keys: create token: creator %s: %w", actor.UserID, err)
 	}
 
+	scopesJSON, err := json.Marshal(scopes)
+	if err != nil {
+		return Token{}, "", fmt.Errorf("keys: create token: encode scopes: %w", err)
+	}
+	appsJSON, err := json.Marshal(apps)
+	if err != nil {
+		return Token{}, "", fmt.Errorf("keys: create token: encode apps: %w", err)
+	}
 	key, err := s.rt.With(s.root).CreateTenantKey(ctx, org.TenantID, in)
 	if err != nil {
 		return Token{}, "", fmt.Errorf("keys: create token: mint: %w", err)
 	}
-	scopesJSON, _ := json.Marshal(scopes)
-	appsJSON, _ := json.Marshal(apps)
 	tok := Token{
 		ID: store.NewID("tok_"), Name: req.Name, Scopes: scopes, Apps: apps,
 		CreatedBy: Creator{ID: creator.ID, Name: creator.Name}, CreatedAt: now.UnixMilli(),
@@ -267,15 +275,19 @@ func (s *Service) RotateDefault(ctx context.Context, actor audit.Actor, orgID st
 	if err != nil {
 		return fmt.Errorf("keys: rotate: mint: %w", err)
 	}
+	if s.beforeSwap != nil {
+		s.beforeSwap(key)
+	}
 	sealed, err := s.sealer.Seal([]byte(key.Secret))
 	if err == nil {
 		err = s.st.Tx(ctx, func(q *db.Queries) error {
-			n, err := q.UpdateOrgDefaultKey(ctx, db.UpdateOrgDefaultKeyParams{DefaultKeyID: key.ID, DefaultKeySealed: sealed, ID: orgID})
+			n, err := q.UpdateOrgDefaultKey(ctx, db.UpdateOrgDefaultKeyParams{DefaultKeyID: key.ID, DefaultKeySealed: sealed, ID: orgID, OldKeyID: row.DefaultKeyID})
 			if err != nil {
 				return err
 			}
 			if n == 0 {
-				return fmt.Errorf("keys: org %s: %w", orgID, apperr.ErrNotFound)
+				// Another rotation (or a delete) changed the org first; our minted key is revoked below.
+				return apperr.Conflict{Code: "rotation_in_progress"}
 			}
 			if err := q.AddPendingKeyRevoke(ctx, db.AddPendingKeyRevokeParams{KeyID: row.DefaultKeyID, TenantID: row.TenantID, CreatedAt: s.now().UnixMilli()}); err != nil {
 				return err

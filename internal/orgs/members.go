@@ -9,6 +9,7 @@ import (
 	"github.com/21cloud/runtime-web/internal/apperr"
 	"github.com/21cloud/runtime-web/internal/audit"
 	"github.com/21cloud/runtime-web/internal/authz"
+	"github.com/21cloud/runtime-web/internal/runtime"
 	"github.com/21cloud/runtime-web/internal/store/db"
 )
 
@@ -210,6 +211,9 @@ func (s *Service) SetGrant(ctx context.Context, actor audit.Actor, sub authz.Sub
 	if !authz.Can(sub, authz.GrantsManage, projectSlug) {
 		return fmt.Errorf("orgs: set grant: %w", apperr.ErrForbidden)
 	}
+	if err := s.projectExists(ctx, orgID, projectSlug); err != nil {
+		return err
+	}
 	err := s.st.Tx(ctx, func(q *db.Queries) error {
 		if _, err := q.GetMember(ctx, db.GetMemberParams{OrgID: orgID, UserID: userID}); errors.Is(err, sql.ErrNoRows) {
 			return fmt.Errorf("orgs: member %s: %w", userID, apperr.ErrNotFound)
@@ -255,7 +259,9 @@ func canManage(sub authz.Subject, owners bool) error {
 	return nil
 }
 
-// lastOwnerGuard refuses taking the owner role away from the only owner. Runs inside the mutating tx.
+// lastOwnerGuard refuses taking the owner role away from the only owner. It runs inside the mutating tx;
+// the count-then-write is safe because SQLite allows a single writer: a concurrent tx that read the same
+// count cannot also commit its write (it fails with SQLITE_BUSY instead of losing an owner).
 func lastOwnerGuard(ctx context.Context, q *db.Queries, orgID string) error {
 	n, err := q.CountOwners(ctx, orgID)
 	if err != nil {
@@ -263,6 +269,20 @@ func lastOwnerGuard(ctx context.Context, q *db.Queries, orgID string) error {
 	}
 	if n <= 1 {
 		return apperr.Conflict{Code: "last_owner"}
+	}
+	return nil
+}
+
+// projectExists checks projectSlug against the org's runtime tenant. Unknown → apperr.ErrNotFound.
+func (s *Service) projectExists(ctx context.Context, orgID, projectSlug string) error {
+	cred, err := s.DefaultCred(ctx, orgID)
+	if err != nil {
+		return err
+	}
+	if _, err := s.rt.With(cred).GetProject(ctx, projectSlug); runtime.IsNotFound(err) {
+		return fmt.Errorf("orgs: project %s: %w", projectSlug, apperr.ErrNotFound)
+	} else if err != nil {
+		return fmt.Errorf("orgs: project %s: %w", projectSlug, err)
 	}
 	return nil
 }

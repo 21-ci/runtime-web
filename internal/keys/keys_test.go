@@ -8,6 +8,7 @@ import (
 	"log/slog"
 	"net/http"
 	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -352,4 +353,68 @@ func TestTokenServiceRestriction(t *testing.T) {
 	if !errors.Is(err, apperr.ErrNotFound) {
 		t.Fatalf("unknown app: err = %v, want ErrNotFound", err)
 	}
+}
+
+func TestConcurrentRotateOneWins(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	old := f.defaultSecret(t)
+	var (
+		mu      sync.Mutex
+		minted  []string
+		arrived sync.WaitGroup
+	)
+	arrived.Add(2)
+	// Both rotations read the old key and mint before either swaps.
+	f.svc.beforeSwap = func(k runtime.KeyCreated) {
+		mu.Lock()
+		minted = append(minted, k.Secret)
+		mu.Unlock()
+		arrived.Done()
+		arrived.Wait()
+	}
+	errs := make([]error, 2)
+	var done sync.WaitGroup
+	for i := range errs {
+		done.Add(1)
+		go func() {
+			defer done.Done()
+			errs[i] = f.svc.RotateDefault(ctx, f.actor, f.org.ID)
+		}()
+	}
+	done.Wait()
+	f.svc.beforeSwap = nil
+
+	ok, lost := 0, 0
+	for _, err := range errs {
+		switch {
+		case err == nil:
+			ok++
+		case conflictCode(err) == "rotation_in_progress":
+			lost++
+		default:
+			t.Fatalf("RotateDefault: %v", err)
+		}
+	}
+	if ok != 1 || lost != 1 {
+		t.Fatalf("ok=%d conflict=%d, want 1 and 1 (errs %v)", ok, lost, errs)
+	}
+	cur := f.defaultSecret(t)
+	live := 0
+	for _, s := range append(minted, old) {
+		if f.works(t, runtime.TenantKeyCred{Secret: s}) {
+			live++
+			if s != cur {
+				t.Error("a live default key is not the stored one")
+			}
+		}
+	}
+	if live != 1 {
+		t.Fatalf("live default keys = %d, want 1", live)
+	}
+}
+
+func conflictCode(err error) string {
+	c, _ := apperr.ConflictCode(err)
+	return c
 }
