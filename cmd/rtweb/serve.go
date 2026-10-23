@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"os"
 	"time"
 
 	"github.com/21cloud/runtime-web/internal/admin"
@@ -12,6 +13,7 @@ import (
 	"github.com/21cloud/runtime-web/internal/apps"
 	"github.com/21cloud/runtime-web/internal/auth"
 	"github.com/21cloud/runtime-web/internal/config"
+	"github.com/21cloud/runtime-web/internal/domains"
 	"github.com/21cloud/runtime-web/internal/keys"
 	"github.com/21cloud/runtime-web/internal/orgs"
 	"github.com/21cloud/runtime-web/internal/runtime"
@@ -43,7 +45,10 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger, webVersi
 	keySvc := keys.New(st, rt, root, sealer, orgSvc, appSvc)
 	adminSvc := admin.New(st, rt, root, orgSvc)
 	usersSvc := users.New(st, auth.Argon2{})
+	logHub := apps.NewLogHub(appSvc)
+	domainSvc := domains.New(st, rt, root, appSvc, domains.OptionsFromConfig(cfg, os.Getenv))
 	go keySvc.RunRetrier(ctx)
+	go domainSvc.RunChecker(ctx)
 
 	srv := &http.Server{
 		Addr: cfg.Listen,
@@ -54,6 +59,9 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger, webVersi
 			Admin:            adminSvc,
 			Keys:             keySvc,
 			Apps:             appSvc,
+			Logs:             logHub,
+			Domains:          domainSvc,
+			RouterSecret:     cfg.RouterSharedSecret,
 			WebVersion:       webVersion,
 			Logger:           logger,
 			PublicURL:        cfg.PublicURL,
@@ -74,6 +82,8 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger, webVersi
 		return fmt.Errorf("rtweb: listen: %w", err)
 	case <-ctx.Done():
 	}
+	// Closing the hub ends every SSE stream, so Shutdown does not wait on them.
+	logHub.Close()
 	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	if err := srv.Shutdown(shutdownCtx); err != nil {

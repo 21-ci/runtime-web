@@ -14,6 +14,7 @@ import (
 	"github.com/21cloud/runtime-web/internal/admin"
 	"github.com/21cloud/runtime-web/internal/apps"
 	"github.com/21cloud/runtime-web/internal/auth"
+	"github.com/21cloud/runtime-web/internal/domains"
 	"github.com/21cloud/runtime-web/internal/keys"
 	"github.com/21cloud/runtime-web/internal/orgs"
 	"github.com/21cloud/runtime-web/internal/users"
@@ -21,13 +22,19 @@ import (
 
 // Deps are the services and settings the HTTP layer needs.
 type Deps struct {
-	Auth   *auth.Service
-	Orgs   *orgs.Service
-	Users  *users.Service
-	Admin  *admin.Service
-	Keys   *keys.Service
-	Apps   *apps.Service
-	Logger *slog.Logger
+	Auth  *auth.Service
+	Orgs  *orgs.Service
+	Users *users.Service
+	Admin *admin.Service
+	Keys  *keys.Service
+	Apps  *apps.Service
+	// Logs fans out app log streams. New creates one over Apps when nil.
+	Logs *apps.LogHub
+	// Domains serves the router's route table and certificate status.
+	Domains *domains.Service
+	// RouterSecret is ROUTER_SHARED_SECRET, the bearer token of the internal router routes.
+	RouterSecret string
+	Logger       *slog.Logger
 	// WebVersion is the console build version the node version route reports.
 	WebVersion string
 	// PublicURL is RTWEB_PUBLIC_URL; unsafe requests must send it as Origin.
@@ -44,6 +51,8 @@ type Server struct {
 	mux      *http.ServeMux
 	registry Registry
 	handler  http.Handler
+	// sseHeartbeat is the interval of the ": ping" comment on log streams (15 s; tests shorten it).
+	sseHeartbeat time.Duration
 }
 
 // New builds the server and registers every route.
@@ -54,15 +63,21 @@ func New(d Deps) *Server {
 	if d.SPA == nil {
 		d.SPA = embeddedSPA()
 	}
-	s := &Server{deps: d, mux: http.NewServeMux()}
+	if d.Logs == nil && d.Apps != nil {
+		d.Logs = apps.NewLogHub(d.Apps)
+	}
+	s := &Server{deps: d, mux: http.NewServeMux(), sseHeartbeat: 15 * time.Second}
 	s.registerAuthRoutes()
 	s.registerAdminRoutes()
 	s.registerOrgRoutes()
+	s.registerStreamRoutes()
+	s.registerInternalRoutes()
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, _ *http.Request) {
 		writeAPIError(w, apiError{status: http.StatusNotFound, code: "not_found", message: "not found"})
 	})
 	s.mux.Handle("/", newSPAHandler(d.SPA))
-	s.handler = s.recoverPanic(s.logRequests(auth.CheckOrigin(d.PublicURL)(s.securityHeaders(s.mux))))
+	plain := s.securityHeaders(s.mux)
+	s.handler = s.recoverPanic(s.logRequests(routerOriginExempt(auth.CheckOrigin(d.PublicURL)(plain), plain)))
 	return s
 }
 

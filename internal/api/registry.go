@@ -18,6 +18,9 @@ type RouteSpec struct {
 	Action authz.Action
 	// Public routes take no session.
 	Public bool
+	// Internal routes are for rtrouter: they take no session, CSRF or Origin check and are gated by
+	// the ROUTER_SHARED_SECRET bearer instead (api-web.md §9).
+	Internal bool
 }
 
 // Registry lists every route in registration order.
