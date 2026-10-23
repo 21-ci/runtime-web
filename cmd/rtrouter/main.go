@@ -1,5 +1,5 @@
 // Command rtrouter routes the console host and app/custom domains.
-// Task 12a: plain HTTP only (ROUTER_TLS=off); TLS arrives later.
+// ROUTER_TLS=off serves plain HTTP (dev); otherwise :443 TLS + :80 redirect/ACME.
 package main
 
 import (
@@ -45,9 +45,7 @@ func mustURL(k string) (*url.URL, error) {
 }
 
 func run(log *slog.Logger) error {
-	if strings.ToLower(env("ROUTER_TLS", "off")) != "off" {
-		return errors.New("rtrouter: TLS not implemented yet; set ROUTER_TLS=off")
-	}
+	tlsOn := strings.ToLower(env("ROUTER_TLS", "on")) != "off"
 	console, err := mustURL("ROUTER_RTWEB_URL")
 	if err != nil {
 		return err
@@ -74,21 +72,84 @@ func run(log *slog.Logger) error {
 	}
 	go p.Run(ctx)
 
-	srv := &http.Server{
-		Addr:              env("ROUTER_HTTP_ADDR", ":8081"),
-		Handler:           router.Handler(table, router.Upstreams{Runtime: runtime, Console: console}),
+	handler := router.Handler(table, router.Upstreams{Runtime: runtime, Console: console})
+	if !tlsOn {
+		return serve(ctx, log, newServer(env("ROUTER_HTTP_ADDR", ":8081"), handler), false)
+	}
+
+	consoleHost := os.Getenv("ROUTER_CONSOLE_HOST")
+	if consoleHost == "" {
+		if u, err := url.Parse(os.Getenv("RTWEB_PUBLIC_URL")); err == nil {
+			consoleHost = u.Hostname()
+		}
+	}
+	rep := &router.CertReporter{
+		URL:    console.JoinPath("/api/internal/router/cert-status").String(),
+		Secret: secret,
+		Table:  table,
+		Logger: log,
+	}
+	m, err := router.NewTLS(router.TLSOptions{
+		BaseDomain:      os.Getenv("BASE_DOMAIN"),
+		ConsoleHost:     consoleHost,
+		Email:           os.Getenv("ACME_EMAIL"),
+		CA:              os.Getenv("ROUTER_ACME_CA"),
+		StorageDir:      env("ROUTER_CERT_DIR", "/data/certs"),
+		WildcardCert:    os.Getenv("ROUTER_WILDCARD_CERT"),
+		WildcardKey:     os.Getenv("ROUTER_WILDCARD_KEY"),
+		DNSProvider:     os.Getenv("ROUTER_DNS_PROVIDER"),
+		CloudflareToken: os.Getenv("CLOUDFLARE_API_TOKEN"),
+		ConsoleCert:     os.Getenv("ROUTER_CONSOLE_CERT"),
+		ConsoleKey:      os.Getenv("ROUTER_CONSOLE_KEY"),
+		Table:           table,
+		Reporter:        rep,
+	})
+	if err != nil {
+		return err
+	}
+	rep.Lookup = m.CertNotAfter
+	if err := m.Start(ctx); err != nil {
+		return err
+	}
+	go rep.Run(ctx)
+
+	httpSrv := newServer(env("ROUTER_HTTP_ADDR", ":80"), m.HTTPHandler())
+	go func() {
+		if err := serve(ctx, log, httpSrv, false); err != nil {
+			log.Error("http listener failed", "err", err)
+			stop()
+		}
+	}()
+	httpsSrv := newServer(env("ROUTER_HTTPS_ADDR", ":443"), handler)
+	httpsSrv.TLSConfig = m.TLSConfig()
+	return serve(ctx, log, httpsSrv, true)
+}
+
+func newServer(addr string, h http.Handler) *http.Server {
+	return &http.Server{
+		Addr:              addr,
+		Handler:           h,
 		ReadHeaderTimeout: 10 * time.Second,
 		IdleTimeout:       120 * time.Second,
 		MaxHeaderBytes:    64 << 10,
 	}
+}
+
+func serve(ctx context.Context, log *slog.Logger, srv *http.Server, useTLS bool) error {
 	go func() {
 		<-ctx.Done()
 		sctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 		defer cancel()
 		_ = srv.Shutdown(sctx)
 	}()
-	log.Info("rtrouter listening", "addr", srv.Addr)
-	if err := srv.ListenAndServe(); err != nil && !errors.Is(err, http.ErrServerClosed) {
+	log.Info("rtrouter listening", "addr", srv.Addr, "tls", useTLS)
+	var err error
+	if useTLS {
+		err = srv.ListenAndServeTLS("", "")
+	} else {
+		err = srv.ListenAndServe()
+	}
+	if err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return err
 	}
 	return nil
