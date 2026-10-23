@@ -31,6 +31,48 @@ func (q *Queries) GetVersionAuthor(ctx context.Context, arg GetVersionAuthorPara
 	return i, err
 }
 
+const listVersionAuthors = `-- name: ListVersionAuthors :many
+SELECT va.version, va.user_id, u.name
+FROM version_authors va
+JOIN users u ON u.id = va.user_id
+WHERE va.org_id = ?1 AND va.service_id = ?2
+ORDER BY va.version
+`
+
+type ListVersionAuthorsParams struct {
+	OrgID     string
+	ServiceID string
+}
+
+type ListVersionAuthorsRow struct {
+	Version int64
+	UserID  string
+	Name    string
+}
+
+func (q *Queries) ListVersionAuthors(ctx context.Context, arg ListVersionAuthorsParams) ([]ListVersionAuthorsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listVersionAuthors, arg.OrgID, arg.ServiceID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListVersionAuthorsRow
+	for rows.Next() {
+		var i ListVersionAuthorsRow
+		if err := rows.Scan(&i.Version, &i.UserID, &i.Name); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
+}
+
 const upsertVersionAuthor = `-- name: UpsertVersionAuthor :exec
 INSERT INTO version_authors (org_id, service_id, version, user_id, created_at)
 VALUES (?1, ?2, ?3, ?4, ?5)
