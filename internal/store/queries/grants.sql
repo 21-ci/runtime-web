@@ -11,3 +11,6 @@ DELETE FROM project_grants WHERE org_id = sqlc.arg(org_id) AND user_id = sqlc.ar
 
 -- name: DeleteGrantsForUser :execrows
 DELETE FROM project_grants WHERE org_id = sqlc.arg(org_id) AND user_id = sqlc.arg(user_id);
+
+-- name: DeleteGrantsForProject :execrows
+DELETE FROM project_grants WHERE org_id = sqlc.arg(org_id) AND project_slug = sqlc.arg(project_slug);

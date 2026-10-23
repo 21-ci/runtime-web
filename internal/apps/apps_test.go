@@ -33,6 +33,7 @@ type fixture struct {
 	svc  *Service
 	org  orgs.Org
 	uid  string
+	st   *store.Store
 	// rec records requests sent to the fake.
 	rec *recorder
 }
@@ -92,7 +93,7 @@ func newFixture(t *testing.T) *fixture {
 		key[i] = byte(i + 3)
 	}
 	o := orgs.New(st, rt, root, seal.New(key), testPlan)
-	f := &fixture{fake: fake, rt: rt, root: root, orgs: o, svc: New(rt, o), rec: rec, uid: uid}
+	f := &fixture{fake: fake, rt: rt, root: root, orgs: o, svc: New(rt, o, st), rec: rec, uid: uid, st: st}
 	f.org = f.newOrg(t, "acme", uid)
 	return f
 }
@@ -284,7 +285,8 @@ func TestCreateAppUploadsTemplateV1(t *testing.T) {
 			if !strings.Contains(up.query, "compile=eager") || !strings.Contains(up.query, "activate=1") {
 				t.Fatalf("upload query = %q", up.query)
 			}
-			if string(up.body) != templates[tmpl] || len(up.body) == 0 {
+			want, _ := renderTemplate(tmpl, "a-"+tmpl)
+			if string(up.body) != want || len(up.body) == 0 || strings.Contains(want, slugPlaceholder) {
 				t.Fatalf("upload body is not the %s template", tmpl)
 			}
 			if strings.Contains(string(up.body), "rt:") {
@@ -492,4 +494,64 @@ func TestProjectsCRUD(t *testing.T) {
 	}
 	_, err = f.svc.ListEnvironments(ctx, owner, f.org.ID, "web")
 	wantErr(t, err, apperr.ErrNotFound)
+}
+
+func TestQueueTemplateTargetsOwnSlug(t *testing.T) {
+	f := newFixture(t)
+	f.app(t, f.org.ID, "default", "production", "jobs")
+	_, err := f.svc.Create(context.Background(), owner, f.org.ID, "default", "production", "worker", "queue")
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	up, _ := f.rec.last(http.MethodPost, "/versions")
+	body := string(up.body)
+	if !strings.Contains(body, `enqueue("worker",`) || strings.Contains(body, "{{") {
+		t.Fatalf("queue template not rendered with slug:\n%s", body)
+	}
+}
+
+func TestCreateRollsBackOnUploadFailure(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	f.svc.beforeUpload = func() { f.fake.FailNext(http.StatusTooManyRequests, "build_quota", 0) }
+	_, err := f.svc.Create(ctx, owner, f.org.ID, "default", "production", "hello", "http")
+	if err == nil || func() bool { _, ok := apperr.ConflictCode(err); return ok }() {
+		t.Fatalf("Create err = %v, want upload error", err)
+	}
+	if _, ok := f.rec.last(http.MethodDelete, ""); !ok {
+		t.Fatal("service not deleted after failed upload")
+	}
+	f.svc.beforeUpload = nil
+	if _, err := f.svc.Create(ctx, owner, f.org.ID, "default", "production", "hello", "http"); err != nil {
+		t.Fatalf("retry Create: %v", err)
+	}
+}
+
+func TestDeleteProjectRemovesGrants(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	f.project(t, f.org.ID, "web")
+	f.project(t, f.org.ID, "ops")
+	for _, p := range []string{"web", "ops"} {
+		if err := f.st.Q().UpsertGrant(ctx, db.UpsertGrantParams{OrgID: f.org.ID, UserID: f.uid, ProjectSlug: p, Role: authz.RoleViewer}); err != nil {
+			t.Fatalf("UpsertGrant: %v", err)
+		}
+	}
+	if err := f.svc.DeleteProject(ctx, owner, f.org.ID, "web"); err != nil {
+		t.Fatalf("DeleteProject: %v", err)
+	}
+	gs, err := f.st.Q().ListGrantsForUser(ctx, db.ListGrantsForUserParams{OrgID: f.org.ID, UserID: f.uid})
+	if err != nil || len(gs) != 1 || gs[0].ProjectSlug != "ops" {
+		t.Fatalf("grants = %+v, %v; want only ops", gs, err)
+	}
+}
+
+func TestRuntimeValidationIsInvalid(t *testing.T) {
+	f := newFixture(t)
+	_, err := f.svc.CreateProject(context.Background(), owner, f.org.ID, "web", "", []string{"Bad Env"})
+	wantErr(t, err, apperr.ErrInvalid)
+	var inv Invalid
+	if !errors.As(err, &inv) || inv.Err.Message == "" {
+		t.Fatalf("err = %v, want runtime message kept", err)
+	}
 }

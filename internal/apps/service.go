@@ -16,6 +16,7 @@ import (
 	"github.com/21cloud/runtime-web/internal/apperr"
 	"github.com/21cloud/runtime-web/internal/authz"
 	"github.com/21cloud/runtime-web/internal/runtime"
+	"github.com/21cloud/runtime-web/internal/store"
 )
 
 // resolveTTL is how long a resolved slug is cached.
@@ -30,7 +31,10 @@ type Creds interface {
 type Service struct {
 	rt    *runtime.Client
 	creds Creds
+	st    *store.Store
 	now   func() time.Time
+	// beforeUpload is a test seam run right before the template upload in Create.
+	beforeUpload func()
 
 	mu    sync.Mutex
 	cache map[cacheKey]cachedApp
@@ -44,8 +48,8 @@ type cachedApp struct {
 }
 
 // New returns an apps Service.
-func New(rt *runtime.Client, creds Creds) *Service {
-	return &Service{rt: rt, creds: creds, now: time.Now, cache: map[cacheKey]cachedApp{}}
+func New(rt *runtime.Client, creds Creds, st *store.Store) *Service {
+	return &Service{rt: rt, creds: creds, st: st, now: time.Now, cache: map[cacheKey]cachedApp{}}
 }
 
 // client returns a runtime client acting with orgID's default key.
@@ -89,6 +93,8 @@ func mapErr(op string, err error) error {
 		return fmt.Errorf("apps: %s: %w", op, apperr.ErrNotFound)
 	case http.StatusPreconditionFailed:
 		return fmt.Errorf("apps: %s: %w", op, apperr.Conflict{Code: "stale"})
+	case http.StatusBadRequest, http.StatusUnprocessableEntity:
+		return fmt.Errorf("apps: %s: %w", op, Invalid{Err: re})
 	case http.StatusConflict:
 		code := re.Code
 		if code == "project_slug_taken" {
@@ -98,3 +104,17 @@ func mapErr(op string, err error) error {
 	}
 	return fmt.Errorf("apps: %s: %w", op, err)
 }
+
+// Invalid is a runtime 400/422. It matches apperr.ErrInvalid and keeps the runtime error (code,
+// message, details) for the HTTP layer.
+type Invalid struct {
+	Err *runtime.Error
+}
+
+func (e Invalid) Error() string { return fmt.Sprintf("apperr: invalid: %s", e.Err.Message) }
+
+// Is reports whether target is apperr.ErrInvalid.
+func (e Invalid) Is(target error) bool { return target == apperr.ErrInvalid }
+
+// Unwrap exposes the runtime error.
+func (e Invalid) Unwrap() error { return e.Err }

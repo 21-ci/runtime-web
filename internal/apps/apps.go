@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"log/slog"
 	"net/netip"
 	"slices"
 	"strings"
@@ -193,7 +194,7 @@ func (s *Service) Create(ctx context.Context, sub authz.Subject, orgID, projectS
 	if err := authorize(sub, authz.AppCreate, authz.AppRead, projectSlug); err != nil {
 		return AppView{}, err
 	}
-	src, ok := templates[template]
+	src, ok := renderTemplate(template, slug)
 	if !ok {
 		return AppView{}, fmt.Errorf("apps: template %q: %w", template, apperr.ErrInvalid)
 	}
@@ -216,7 +217,15 @@ func (s *Service) Create(ctx context.Context, sub authz.Subject, orgID, projectS
 		return AppView{}, mapErr("create "+slug, err)
 	}
 	s.evict(orgID, slug)
+	if s.beforeUpload != nil {
+		s.beforeUpload()
+	}
 	if _, err := cli.UploadVersion(ctx, svc.ID, strings.NewReader(src), "application/typescript", runtime.UploadOpts{Activate: true, Compile: "eager"}); err != nil {
+		// Best effort: do not leave an empty app holding the slug.
+		if derr := cli.DeleteService(ctx, svc.ID, false); derr != nil {
+			slog.Error("apps: delete app after failed template upload", "org_id", orgID, "svc_id", svc.ID, "err", derr)
+		}
+		s.evict(orgID, slug)
 		return AppView{}, mapErr("upload template for "+slug, err)
 	}
 	svc, etag, err := cli.GetService(ctx, svc.ID)

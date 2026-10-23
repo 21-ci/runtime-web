@@ -27,6 +27,23 @@ func (q *Queries) DeleteGrant(ctx context.Context, arg DeleteGrantParams) (int64
 	return result.RowsAffected()
 }
 
+const deleteGrantsForProject = `-- name: DeleteGrantsForProject :execrows
+DELETE FROM project_grants WHERE org_id = ?1 AND project_slug = ?2
+`
+
+type DeleteGrantsForProjectParams struct {
+	OrgID       string
+	ProjectSlug string
+}
+
+func (q *Queries) DeleteGrantsForProject(ctx context.Context, arg DeleteGrantsForProjectParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteGrantsForProject, arg.OrgID, arg.ProjectSlug)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const deleteGrantsForUser = `-- name: DeleteGrantsForUser :execrows
 DELETE FROM project_grants WHERE org_id = ?1 AND user_id = ?2
 `

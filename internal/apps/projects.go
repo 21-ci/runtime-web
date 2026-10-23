@@ -7,6 +7,7 @@ import (
 	"github.com/21cloud/runtime-web/internal/apperr"
 	"github.com/21cloud/runtime-web/internal/authz"
 	"github.com/21cloud/runtime-web/internal/runtime"
+	"github.com/21cloud/runtime-web/internal/store/db"
 )
 
 // Project is a project as the caller sees it. Role is the caller's effective project role (org
@@ -124,6 +125,9 @@ func (s *Service) DeleteProject(ctx context.Context, sub authz.Subject, orgID, s
 	}
 	if err := cli.DeleteProject(ctx, slug); err != nil {
 		return mapErr("delete project "+slug, err)
+	}
+	if _, err := s.st.Q().DeleteGrantsForProject(ctx, db.DeleteGrantsForProjectParams{OrgID: orgID, ProjectSlug: slug}); err != nil {
+		return fmt.Errorf("apps: delete grants of %s: %w", slug, err)
 	}
 	return nil
 }

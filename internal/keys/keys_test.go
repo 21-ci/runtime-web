@@ -68,7 +68,7 @@ func newFixture(t *testing.T) *fixture {
 	}
 	return &fixture{
 		fake: fake, rt: rt, root: root, st: st, orgs: o, org: org, owner: sub, actor: actor,
-		svc: New(st, rt, root, sealer, o, apps.New(rt, o)),
+		svc: New(st, rt, root, sealer, o, apps.New(rt, o, st)),
 	}
 }
 

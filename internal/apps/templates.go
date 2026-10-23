@@ -1,5 +1,10 @@
 package apps
 
+import "strings"
+
+// slugPlaceholder is replaced by the app slug when a template is rendered.
+const slugPlaceholder = "{{SLUG}}"
+
 // templates are the starter sources uploaded as version 1 (application/typescript). Guest code uses
 // std:* modules only.
 var templates = map[string]string{
@@ -12,7 +17,7 @@ export default {
 };
 `,
 	"cron": `// Scheduled job: add a schedule (cron or every N seconds) in the app's Schedules tab.
-import * as kv from "std:kv";
+import { kv } from "std:kv";
 
 export default {
   async scheduled(_event: unknown): Promise<void> {
@@ -24,12 +29,12 @@ export default {
 };
 `,
 	"queue": `// Queue consumer: POST a JSON body to enqueue it; queue() receives batches.
-import * as queue from "std:queue";
+import { enqueue } from "std:queue";
 
 export default {
   async fetch(req: Request): Promise<Response> {
     if (req.method !== "POST") return Response.json({ ok: true });
-    await queue.send(await req.json());
+    await enqueue("{{SLUG}}", await req.json()); // this app's own queue
     return Response.json({ queued: true }, { status: 202 });
   },
   async queue(batch: { messages: { body: unknown }[] }): Promise<void> {
@@ -63,4 +68,13 @@ export default {
   },
 };
 `,
+}
+
+// renderTemplate returns the named template with the app slug filled in.
+func renderTemplate(name, slug string) (string, bool) {
+	src, ok := templates[name]
+	if !ok {
+		return "", false
+	}
+	return strings.ReplaceAll(src, slugPlaceholder, slug), true
 }
