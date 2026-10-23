@@ -50,7 +50,12 @@ export function setCsrfToken(token: string | null) {
   csrf = token;
 }
 
-export type RequestOptions = { ifMatch?: string };
+export function getCsrfToken(): string | null {
+  return csrf;
+}
+
+// skipGate: the call must not redirect on 401 or gate errors (used by the session bootstrap).
+export type RequestOptions = { ifMatch?: string; skipGate?: boolean };
 
 const PUBLIC_PREFIXES = ["/login", "/setup", "/invite/"];
 
@@ -111,7 +116,8 @@ async function request<T>(method: string, path: string, body?: unknown, opts?: R
     const err = await parseError(res);
     if (err.status === 503 && err.code === "busy") setRuntimeStatus("busy");
     if (err.status === 502 && err.code === "runtime_unavailable") setRuntimeStatus("unavailable");
-    onGate(err.code);
+    if (err.status === 401) csrf = null;
+    if (!opts?.skipGate) onGate(err.code);
     throw err;
   }
 
@@ -123,7 +129,7 @@ async function request<T>(method: string, path: string, body?: unknown, opts?: R
 export const api = {
   get: <T>(path: string, opts?: RequestOptions) => request<T>("GET", path, undefined, opts),
   post: <T>(path: string, body?: unknown, opts?: RequestOptions) => request<T>("POST", path, body ?? {}, opts),
-  put: <T>(path: string, body?: unknown, opts?: RequestOptions) => request<T>("PUT", path, body, opts),
-  patch: <T>(path: string, body?: unknown, opts?: RequestOptions) => request<T>("PATCH", path, body, opts),
+  put: <T>(path: string, body?: unknown, opts?: RequestOptions) => request<T>("PUT", path, body ?? {}, opts),
+  patch: <T>(path: string, body?: unknown, opts?: RequestOptions) => request<T>("PATCH", path, body ?? {}, opts),
   del: <T>(path: string, opts?: RequestOptions) => request<T>("DELETE", path, undefined, opts),
 };

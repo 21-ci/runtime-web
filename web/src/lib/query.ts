@@ -25,7 +25,9 @@ export function handleApiError(err: unknown) {
       toast.error("The app runtime is unreachable. Retry shortly.");
       break;
     case "stale":
-      toast.error("Changed elsewhere. Reload to see the latest version.");
+      toast.error("Changed elsewhere. Reload to see the latest version.", {
+        action: { label: "Reload", onClick: () => window.location.reload() },
+      });
       break;
     case "network":
       toast.error(err.message);

@@ -3,6 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
+import { api, setCsrfToken } from "@/lib/api";
 import { renderAt } from "@/test/render";
 import { apiError, server, testUser } from "@/test/msw";
 
@@ -11,6 +12,34 @@ function session() {
 }
 
 describe("auth pages", () => {
+  it("after a reload, a mutation sends the CSRF token from GET /api/me", async () => {
+    setCsrfToken(null); // fresh module state, as after a reload
+    server.use(
+      http.get("/api/me", () =>
+        HttpResponse.json({
+          user: testUser,
+          csrf: "csrf-reload",
+          orgs: [],
+          policy: { require_2fa: false, password_login_disabled: false },
+          mfa_enrollment_required: false,
+        }),
+      ),
+    );
+    let seen: string | null = null;
+    server.use(
+      http.post("/api/orgs/acme/projects", ({ request }) => {
+        seen = request.headers.get("X-CSRF-Token");
+        return new HttpResponse(null, { status: 204 });
+      }),
+    );
+    const router = renderAt("/login");
+    await router.load();
+
+    await api.post("/orgs/acme/projects", { slug: "web" });
+    expect(seen).toBe("csrf-reload");
+    setCsrfToken(null);
+  });
+
   it("login submits and redirects to next", async () => {
     server.use(http.post("/api/auth/login", session));
     const router = renderAt("/login?next=/orgs/acme/apps");

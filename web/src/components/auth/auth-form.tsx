@@ -14,11 +14,12 @@ function AuthForm({
   children: ReactNode;
 }) {
   const ref = useRef<HTMLFormElement>(null);
-  const key = Object.keys(errors).join("|");
+  // Focus follows the first error field only, so typing in later invalid fields does not steal focus.
+  const firstKey = Object.keys(errors)[0] ?? "";
 
   useEffect(() => {
-    if (key) ref.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
-  }, [key, errors]);
+    if (firstKey) ref.current?.querySelector<HTMLElement>('[aria-invalid="true"]')?.focus();
+  }, [firstKey]);
 
   return (
     <form ref={ref} noValidate onSubmit={onSubmit} className="flex flex-col gap-4">

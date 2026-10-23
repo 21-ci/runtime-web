@@ -7,6 +7,7 @@ export const handlers = [
     HttpResponse.json({ password_login_disabled: false, providers: [] }),
   ),
   http.get("/api/setup", () => HttpResponse.json({ needed: false })),
+  http.get("/api/me", () => HttpResponse.json({ error: { code: "unauthenticated", message: "signed out" } }, { status: 401 })),
 ];
 
 export const server = setupServer(...handlers);

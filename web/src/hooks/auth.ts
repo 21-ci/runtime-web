@@ -58,6 +58,13 @@ export function useSetup() {
   });
 }
 
+export function useLogout() {
+  return useMutation({
+    mutationFn: () => api.post<void>("/auth/logout"),
+    onSettled: () => setCsrfToken(null),
+  });
+}
+
 export function useChangePassword() {
   return useMutation({
     meta: inline,
