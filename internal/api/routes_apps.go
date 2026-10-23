@@ -2,7 +2,9 @@ package api
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
+	"net/netip"
 	"slices"
 	"strconv"
 	"strings"
@@ -243,8 +245,22 @@ func (s *Server) patchApp(w http.ResponseWriter, r *http.Request, c orgCall) err
 	if err := decodeJSON(w, r, &in); err != nil {
 		return err
 	}
+	fields := fieldErrors{}
 	if in.Access != nil && !slices.Contains(appAccessModes, *in.Access) {
-		return invalid(fieldErrors{"access": "must be public, key or internal"})
+		fields["access"] = "must be public, key or internal"
+	}
+	if in.Ingress != nil {
+		for i, c := range in.Ingress.IPAllow {
+			if _, err := netip.ParsePrefix(c); err != nil {
+				fields[fmt.Sprintf("ingress.ip_allow[%d]", i)] = "is not a valid CIDR"
+			}
+		}
+	}
+	if in.Scaling != nil {
+		validateScaling(in.Scaling, fields)
+	}
+	if len(fields) > 0 {
+		return invalid(fields)
 	}
 	patch := apps.AppPatch{Name: in.Name, Profile: in.Profile, Access: in.Access,
 		Scaling: in.Scaling, Egress: in.Egress, Limits: in.Limits}
@@ -272,7 +288,8 @@ func (s *Server) patchApp(w http.ResponseWriter, r *http.Request, c orgCall) err
 }
 
 // deleteApp deletes the app, then its custom domains. The app delete is authorised first, so a caller
-// who may not delete the app removes no domains.
+// who may not delete the app removes no domains. Once the app is gone the request succeeds even if the
+// domain cleanup fails: that is logged and audited, and the checker's orphan sweep finishes it.
 func (s *Server) deleteApp(w http.ResponseWriter, r *http.Request, c orgCall) error {
 	ctx := r.Context()
 	slug := r.PathValue("app")
@@ -283,15 +300,43 @@ func (s *Server) deleteApp(w http.ResponseWriter, r *http.Request, c orgCall) er
 	if err := s.deps.Apps.Delete(ctx, c.sub, c.org.ID, slug); err != nil {
 		return err
 	}
-	if err := s.deps.Domains.RemoveApp(ctx, c.sub, c.org.ID, app.SvcID); err != nil {
-		return err
-	}
 	if err := s.auditProject(ctx, c, "app.delete", slug, nil); err != nil {
 		return err
+	}
+	if err := s.deps.Domains.RemoveApp(ctx, c.sub, c.org.ID, app.SvcID); err != nil {
+		s.deps.Logger.Error("api: app delete: domain cleanup failed", "org", c.org.ID, "app", slug, "err", err)
+		if aerr := s.auditProject(ctx, c, "app.delete.domains_cleanup_failed", slug, map[string]string{"error": err.Error()}); aerr != nil {
+			return aerr
+		}
 	}
 	w.WriteHeader(http.StatusNoContent)
 	return nil
 }
+
+// validateScaling checks the scaling block's instance bounds: 0 <= min_instances <= max_instances and
+// max_instances >= 1, for the fields that are present.
+func validateScaling(raw json.RawMessage, fields fieldErrors) {
+	var sc struct {
+		Min *int `json:"min_instances"`
+		Max *int `json:"max_instances"`
+	}
+	if err := json.Unmarshal(raw, &sc); err != nil {
+		fields["scaling"] = "must be an object"
+		return
+	}
+	if sc.Min != nil && *sc.Min < 0 {
+		fields["scaling.min_instances"] = "must be 0 or more"
+	}
+	if sc.Max != nil && *sc.Max < 1 {
+		fields["scaling.max_instances"] = "must be 1 or more"
+	}
+	if sc.Min != nil && sc.Max != nil && *sc.Min >= 0 && *sc.Max >= 1 && *sc.Min > *sc.Max {
+		fields["scaling.min_instances"] = "must not exceed max_instances"
+	}
+}
+
+// maxFilesBody caps a PUT files body: it matches the 10 MiB unpack limit of the apps service.
+const maxFilesBody = 10 << 20
 
 // filesJSON is the Files shape of section 8.2 with the version number.
 type filesJSON struct {
@@ -341,7 +386,7 @@ type saveJSON struct {
 
 func (s *Server) putFiles(w http.ResponseWriter, r *http.Request, c orgCall) error {
 	var in filesBody
-	if err := decodeJSON(w, r, &in); err != nil {
+	if err := decodeJSONLimit(w, r, &in, maxFilesBody); err != nil {
 		return err
 	}
 	slug := r.PathValue("app")
@@ -374,6 +419,12 @@ type liveBody struct {
 	Version int `json:"version"`
 }
 
+// liveResponse is the PUT live response.
+type liveResponse struct {
+	LiveVersion int    `json:"live_version"`
+	ETag        string `json:"etag"`
+}
+
 func (s *Server) putLive(w http.ResponseWriter, r *http.Request, c orgCall) error {
 	var in liveBody
 	if err := decodeJSON(w, r, &in); err != nil {
@@ -391,7 +442,7 @@ func (s *Server) putLive(w http.ResponseWriter, r *http.Request, c orgCall) erro
 	if etag := quoteETag(v.ETag); etag != "" {
 		w.Header().Set("ETag", etag)
 	}
-	writeJSON(w, http.StatusOK, map[string]any{"live_version": v.Version, "etag": v.ETag})
+	writeJSON(w, http.StatusOK, liveResponse{LiveVersion: v.Version, ETag: v.ETag})
 	return nil
 }
 
@@ -641,7 +692,11 @@ func (s *Server) listDLQ(w http.ResponseWriter, r *http.Request, c orgCall) erro
 }
 
 func (s *Server) purgeDLQ(w http.ResponseWriter, r *http.Request, c orgCall) error {
-	if err := s.deps.Apps.PurgeDLQ(r.Context(), c.sub, c.org.ID, r.PathValue("app")); err != nil {
+	slug := r.PathValue("app")
+	if err := s.deps.Apps.PurgeDLQ(r.Context(), c.sub, c.org.ID, slug); err != nil {
+		return err
+	}
+	if err := s.auditProject(r.Context(), c, "app.dlq.purge", slug, nil); err != nil {
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -687,6 +742,9 @@ func (s *Server) addDomain(w http.ResponseWriter, r *http.Request, c orgCall) er
 func (s *Server) verifyDomain(w http.ResponseWriter, r *http.Request, c orgCall) error {
 	d, err := s.deps.Domains.Verify(r.Context(), c.sub, c.org.ID, r.PathValue("id"))
 	if err != nil {
+		return err
+	}
+	if err := s.auditProject(r.Context(), c, "domain.verify", d.Host, map[string]string{"status": d.Status}); err != nil {
 		return err
 	}
 	writeJSON(w, http.StatusOK, d)

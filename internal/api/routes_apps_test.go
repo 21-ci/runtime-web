@@ -5,11 +5,13 @@ import (
 	"database/sql"
 	"errors"
 	"net/http"
+	"strings"
 	"testing"
 
 	"github.com/21cloud/runtime-web/internal/authz"
 	"github.com/21cloud/runtime-web/internal/domains"
 	"github.com/21cloud/runtime-web/internal/runtime"
+	"github.com/21cloud/runtime-web/internal/store"
 )
 
 // appEnv is an owner with project web/production and an app shop created over HTTP.
@@ -209,6 +211,84 @@ func TestProjectOnlyViewerScopedToProject(t *testing.T) {
 	expectStatus(t, rec, http.StatusOK)
 	rec = a.send(http.MethodGet, a.appURL("news"), nil, withCookie(vcookie))
 	expectStatus(t, rec, http.StatusNotFound)
+}
+
+func TestPatchFieldErrors(t *testing.T) {
+	a := newAppEnv(t)
+	url := a.appURL("shop")
+	tests := []struct {
+		name  string
+		patch map[string]any
+		field string
+	}{
+		{"bad cidr", map[string]any{"ingress": map[string]any{"ip_allow": []string{"10.0.0.0/8", "nope"}}}, "ingress.ip_allow[1]"},
+		{"min above max", map[string]any{"scaling": map[string]int{"min_instances": 3, "max_instances": 2}}, "scaling.min_instances"},
+		{"max zero", map[string]any{"scaling": map[string]int{"max_instances": 0}}, "scaling.max_instances"},
+		{"min negative", map[string]any{"scaling": map[string]int{"min_instances": -1}}, "scaling.min_instances"},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := a.send(http.MethodPatch, url, tt.patch, withCookie(a.cookie), withCSRF(a.csrf), withIfMatch(a.etag))
+			expectStatus(t, rec, http.StatusUnprocessableEntity)
+			details, _ := decode(t, rec)["error"].(map[string]any)["details"].(map[string]any)
+			fields, _ := details["fields"].(map[string]any)
+			if _, ok := fields[tt.field]; !ok {
+				t.Fatalf("fields = %v, want key %s", fields, tt.field)
+			}
+		})
+	}
+}
+
+func TestBodyCaps(t *testing.T) {
+	a := newAppEnv(t)
+	big := strings.Repeat("a", 2<<20)
+	rec := a.send(http.MethodPatch, a.appURL("shop"), map[string]string{"name": big},
+		withCookie(a.cookie), withCSRF(a.csrf), withIfMatch(a.etag))
+	expectStatus(t, rec, http.StatusRequestEntityTooLarge)
+	if got := errCode(t, rec); got != "payload_too_large" {
+		t.Fatalf("code = %q, want payload_too_large", got)
+	}
+
+	// PUT files allows up to 10 MiB: a 2 MiB source must pass the cap.
+	files := map[string]string{"main.ts": big}
+	rec = a.send(http.MethodPut, a.appURL("shop")+"/files", map[string]any{"entry": "main.ts", "files": files},
+		withCookie(a.cookie), withCSRF(a.csrf), withIfMatch(a.etag))
+	if rec.Code == http.StatusRequestEntityTooLarge {
+		t.Fatalf("2 MiB files body rejected by cap")
+	}
+
+	huge := strings.Repeat("a", 11<<20)
+	rec = a.send(http.MethodPut, a.appURL("shop")+"/files", map[string]any{"entry": "main.ts", "files": map[string]string{"main.ts": huge}},
+		withCookie(a.cookie), withCSRF(a.csrf), withIfMatch(a.etag))
+	expectStatus(t, rec, http.StatusRequestEntityTooLarge)
+	if got := errCode(t, rec); got != "payload_too_large" {
+		t.Fatalf("code = %q, want payload_too_large", got)
+	}
+}
+
+func TestDeleteAppDomainCleanupFailureAudited(t *testing.T) {
+	a := newAppEnv(t)
+	ctx := context.Background()
+	closed, err := store.Open(ctx, ":memory:")
+	if err != nil {
+		t.Fatal(err)
+	}
+	_ = closed.Close()
+	rt := runtime.New(a.fake.URL, http.DefaultClient)
+	a.srv.deps.Domains = domains.New(closed, rt, runtime.RootCred{Token: a.fake.RootToken}, a.srv.deps.Apps, domains.Options{
+		BaseDomain: "apps.example.test", ConsoleHost: "console.example.test",
+		RuntimeHost: "runtime.example.test", CNAMETarget: "router.example.test",
+	})
+
+	rec := a.send(http.MethodDelete, a.appURL("shop"), nil, withCookie(a.cookie), withCSRF(a.csrf))
+	expectStatus(t, rec, http.StatusNoContent)
+
+	rec = a.send(http.MethodGet, "/api/orgs/"+a.org+"/audit?action=app.delete.domains_cleanup_failed", nil, withCookie(a.cookie))
+	expectStatus(t, rec, http.StatusOK)
+	items, _ := decode(t, rec)["items"].([]any)
+	if len(items) != 1 {
+		t.Fatalf("cleanup-failed audit rows = %d, want 1", len(items))
+	}
 }
 
 func TestPlanTriggersForbidden403(t *testing.T) {
