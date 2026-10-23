@@ -50,7 +50,9 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger, webVersi
 	usersSvc := users.New(st, auth.Argon2{})
 	invitesSvc := invites.New(st, auth.Argon2{}, authSvc, cfg.PublicURL)
 	logHub := apps.NewLogHub(appSvc)
-	domainSvc := domains.New(st, rt, root, appSvc, domains.OptionsFromConfig(cfg, os.Getenv))
+	domOpts := domains.OptionsFromConfig(cfg, os.Getenv)
+	devDNS, _ := domOpts.Resolver.(*domains.DevResolver) // non-nil only when RTWEB_DEV=1
+	domainSvc := domains.New(st, rt, root, appSvc, domOpts)
 	go keySvc.RunRetrier(ctx)
 	go domainSvc.RunChecker(ctx)
 
@@ -71,6 +73,7 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger, webVersi
 			Logger:           logger,
 			PublicURL:        cfg.PublicURL,
 			RuntimePublicURL: cfg.RuntimePublicURL,
+			DevDNS:           devDNS,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
 		// No WriteTimeout: log streams (SSE) are long-lived.

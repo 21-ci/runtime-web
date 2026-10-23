@@ -43,6 +43,9 @@ type Deps struct {
 	PublicURL string
 	// RuntimePublicURL is RUNTIME_PUBLIC_URL, the only allowed frame source.
 	RuntimePublicURL string
+	// DevDNS is the dev-mode TXT resolver (RTWEB_DEV=1 only). When set, instance admins can
+	// change overrides at runtime via PUT /api/admin/dev/dns-override (e2e). nil = no route.
+	DevDNS *domains.DevResolver
 	// SPA is the console build. nil serves the embedded build.
 	SPA fs.FS
 }
@@ -71,6 +74,7 @@ func New(d Deps) *Server {
 	s := &Server{deps: d, mux: http.NewServeMux(), sseHeartbeat: 15 * time.Second}
 	s.registerAuthRoutes()
 	s.registerAdminRoutes()
+	s.registerDevRoutes()
 	s.registerOrgRoutes()
 	s.registerAccountRoutes()
 	s.registerInviteRoutes()
