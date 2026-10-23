@@ -81,8 +81,12 @@ func member(sub authz.Subject) error {
 	return nil
 }
 
+// planLimitCodes are runtime 403 codes that mean the app's plan refuses the request.
+var planLimitCodes = map[string]bool{"trigger_not_allowed": true, "quota_exceeded": true}
+
 // mapErr turns runtime errors into apperr values: 404 → ErrNotFound, 412 → Conflict{stale},
-// 409 → Conflict{code}. Others are wrapped unchanged so the HTTP layer can pass them through.
+// 409 → Conflict{code}, plan refusals (403 trigger_not_allowed, quota_exceeded) → Forbidden{plan_limit}.
+// Others are wrapped unchanged so the HTTP layer can pass them through (429 keeps its Retry-After).
 func mapErr(op string, err error) error {
 	var re *runtime.Error
 	if !errors.As(err, &re) {
@@ -101,6 +105,10 @@ func mapErr(op string, err error) error {
 			code = "slug_taken"
 		}
 		return fmt.Errorf("apps: %s: %w", op, apperr.Conflict{Code: code})
+	case http.StatusForbidden:
+		if planLimitCodes[re.Code] {
+			return fmt.Errorf("apps: %s: %w", op, apperr.Forbidden{Code: "plan_limit"})
+		}
 	}
 	return fmt.Errorf("apps: %s: %w", op, err)
 }
