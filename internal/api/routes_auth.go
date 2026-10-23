@@ -2,7 +2,7 @@ package api
 
 import (
 	"errors"
-	"net"
+	"github.com/21cloud/runtime-web/internal/netx"
 	"net/http"
 	"strings"
 
@@ -58,15 +58,6 @@ func (s *Server) userJSON(r *http.Request, u auth.User) (userJSON, error) {
 	}, nil
 }
 
-// clientIP is the peer address; forwarded headers are not trusted.
-func clientIP(r *http.Request) string {
-	host, _, err := net.SplitHostPort(r.RemoteAddr)
-	if err != nil {
-		return r.RemoteAddr
-	}
-	return host
-}
-
 func (s *Server) healthz(w http.ResponseWriter, _ *http.Request) error {
 	writeJSON(w, http.StatusOK, map[string]bool{"ok": true})
 	return nil
@@ -99,7 +90,7 @@ func (s *Server) setup(w http.ResponseWriter, r *http.Request) error {
 		}
 		return err
 	}
-	cookie, csrf, err := s.deps.Auth.Sessions.Create(ctx, u.ID, clientIP(r), r.UserAgent())
+	cookie, csrf, err := s.deps.Auth.Sessions.Create(ctx, u.ID, s.clientIP(r), r.UserAgent())
 	if err != nil {
 		return err
 	}
@@ -167,7 +158,7 @@ func (s *Server) login(w http.ResponseWriter, r *http.Request) error {
 	if err := decodeJSON(w, r, &in); err != nil {
 		return err
 	}
-	res, err := s.deps.Auth.Login(r.Context(), in.Email, in.Password, clientIP(r), r.UserAgent())
+	res, err := s.deps.Auth.Login(r.Context(), in.Email, in.Password, s.clientIP(r), r.UserAgent())
 	if err != nil {
 		return err
 	}
@@ -314,4 +305,9 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) error {
 	}
 	w.WriteHeader(http.StatusNoContent)
 	return nil
+}
+
+// clientIP is the client address, honouring X-Forwarded-For only from trusted proxies.
+func (s *Server) clientIP(r *http.Request) string {
+	return netx.ClientIP(r, s.deps.Auth.TrustedProxies)
 }

@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"net/netip"
 	"strings"
 	"sync"
 	"time"
@@ -33,7 +34,9 @@ type Service struct {
 	SSOConfigured func(context.Context) bool
 	// SetupToken is the token Setup requires (see NewSetupToken).
 	SetupToken string
-	Now        func() time.Time
+	// TrustedProxies are the peers (RTWEB_TRUSTED_PROXIES) whose X-Forwarded-For is honoured.
+	TrustedProxies []netip.Prefix
+	Now            func() time.Time
 
 	dummyOnce sync.Once
 	dummyHash string

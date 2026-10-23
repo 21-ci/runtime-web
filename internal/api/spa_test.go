@@ -35,7 +35,7 @@ func TestSPAFallback(t *testing.T) {
 func TestSPAHasCSP(t *testing.T) {
 	e := newTestEnv(t)
 	rec := e.send(http.MethodGet, "/orgs/x", nil, noOrigin)
-	want := "default-src 'self'; frame-src " + testRuntimeURL + "; frame-ancestors 'none'"
+	want := "default-src 'self'; frame-src " + testRuntimeURL + "; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
 	if got := rec.Header().Get("Content-Security-Policy"); got != want {
 		t.Fatalf("CSP = %q, want %q", got, want)
 	}

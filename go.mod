@@ -2,6 +2,8 @@ module github.com/21cloud/runtime-web
 
 go 1.26.0
 
+toolchain go1.26.10
+
 require (
 	github.com/caddyserver/certmagic v0.25.0
 	github.com/libdns/cloudflare v0.2.1

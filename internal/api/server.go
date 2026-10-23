@@ -150,7 +150,7 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 	if o := originOf(s.deps.RuntimePublicURL); o != "" {
 		frame = o
 	}
-	csp := "default-src 'self'; frame-src " + frame + "; frame-ancestors 'none'"
+	csp := "default-src 'self'; frame-src " + frame + "; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("Content-Security-Policy", csp)

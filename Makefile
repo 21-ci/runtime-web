@@ -5,7 +5,7 @@ LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.dat
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build test vet fmt fmt-check ci clean web web-test web-lint web-embed
+.PHONY: help build test vet vuln fmt fmt-check ci clean web web-test web-lint web-embed
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -19,13 +19,18 @@ test: ## Run Go tests
 vet: ## Run go vet
 	go vet ./...
 
+GOVULNCHECK ?= golang.org/x/vuln/cmd/govulncheck@v1.1.4
+
+vuln: ## Scan for reachable known vulnerabilities (govulncheck)
+	go run $(GOVULNCHECK) ./...
+
 fmt: ## Format Go code
 	gofmt -w .
 
 fmt-check: ## Fail if any Go file is not gofmt-clean
 	@test -z "$$(gofmt -l .)" || { gofmt -l .; echo "gofmt: files above need formatting"; exit 1; }
 
-ci: fmt-check vet test build ## Run the full Go CI chain
+ci: fmt-check vet test vuln build ## Run the full Go CI chain
 
 web: ## Install web deps and build the console (web/dist)
 	cd web && npm ci && npm run build

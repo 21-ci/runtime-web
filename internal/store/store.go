@@ -57,6 +57,8 @@ func buildDSN(path string) (string, bool) {
 	pragmas.Add("_pragma", "journal_mode(WAL)")
 	pragmas.Add("_pragma", "foreign_keys(ON)")
 	pragmas.Add("_pragma", "busy_timeout(5000)")
+	// Write txs take the RESERVED lock at BEGIN so busy_timeout applies (no read-to-write upgrade SQLITE_BUSY).
+	pragmas.Add("_txlock", "immediate")
 
 	if path == ":memory:" {
 		return "file::memory:?" + pragmas.Encode(), true

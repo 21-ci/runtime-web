@@ -6,11 +6,13 @@ import (
 	"encoding/base64"
 	"encoding/json"
 	"errors"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"net/url"
 	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/21cloud/runtime-web/internal/apperr"
 	"github.com/21cloud/runtime-web/internal/store/db"
@@ -500,5 +502,28 @@ func TestSafeNext(t *testing.T) {
 				t.Fatalf("safeNext(%q) = %q, want %q", tt.in, got, tt.want)
 			}
 		})
+	}
+}
+
+func TestDiscoveryRejectsPrivateIssuer(t *testing.T) {
+	_, o, _ := newOAuthTest(t)
+	o.Dev = false
+	for _, iss := range []string{"https://127.0.0.1", "https://10.1.2.3:8443", "https://[::1]", "https://169.254.169.254", "https://localhost"} {
+		if _, err := o.discover(context.Background(), iss); !errors.Is(err, apperr.ErrInvalid) {
+			t.Errorf("%s: err = %v, want ErrInvalid", iss, err)
+		}
+	}
+}
+
+func TestDiscoveryCacheBounded(t *testing.T) {
+	now := time.Unix(1_700_000_000, 0)
+	for i := 0; i < 3*discoveryMax; i++ {
+		cacheDiscovery(fmt.Sprintf("https://idp%d.example", i), endpoints{}, now)
+	}
+	discoveryMu.Lock()
+	n := len(discoveryCache)
+	discoveryMu.Unlock()
+	if n > discoveryMax {
+		t.Fatalf("cache size %d > %d", n, discoveryMax)
 	}
 }

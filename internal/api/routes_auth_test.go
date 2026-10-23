@@ -3,6 +3,7 @@ package api
 import (
 	"context"
 	"net/http"
+	"net/netip"
 	"testing"
 	"time"
 )
@@ -189,5 +190,23 @@ func TestAuthProviders(t *testing.T) {
 	}
 	if _, ok := body["providers"].([]any); !ok {
 		t.Fatalf("providers must be an array: %v", body)
+	}
+}
+
+func TestLoginLimiterKeysOnForwardedIP(t *testing.T) {
+	e := newTestEnv(t)
+	e.auth.TrustedProxies = []netip.Prefix{netip.MustParsePrefix("192.0.2.0/24")}
+	e.mkUser("lim@example.com", "correct-horse-1")
+	from := func(ip string) func(*http.Request) {
+		return func(r *http.Request) { r.Header.Set("X-Forwarded-For", ip) }
+	}
+	for i := 0; i < 12; i++ {
+		e.send(http.MethodPost, "/api/auth/login", map[string]string{"email": "lim@example.com", "password": "wrong"}, from("198.51.100.1"))
+	}
+	if rec := e.send(http.MethodPost, "/api/auth/login", map[string]string{"email": "lim@example.com", "password": "correct-horse-1"}, from("198.51.100.1")); rec.Code == http.StatusOK {
+		t.Fatalf("attacker IP not limited: %d", rec.Code)
+	}
+	if rec := e.send(http.MethodPost, "/api/auth/login", map[string]string{"email": "lim@example.com", "password": "correct-horse-1"}, from("203.0.113.7")); rec.Code != http.StatusOK {
+		t.Fatalf("victim IP login = %d %s, want 200", rec.Code, rec.Body)
 	}
 }

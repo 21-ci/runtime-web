@@ -10,8 +10,11 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"github.com/21cloud/runtime-web/internal/netx"
 	"io"
+	"net"
 	"net/http"
+	"net/netip"
 	"net/url"
 	"strconv"
 	"strings"
@@ -47,6 +50,8 @@ const (
 	oauthHTTPTimeout  = 15 * time.Second
 	oauthSecretPrefix = "oauth."
 	discoveryTTL      = 10 * time.Minute
+	// discoveryMax bounds the shared discovery cache.
+	discoveryMax = 64
 )
 
 // discoveryCache holds OIDC endpoints per issuer, shared by all OAuth values
@@ -287,6 +292,9 @@ func (o *OAuth) discover(ctx context.Context, issuer string) (endpoints, error) 
 	if ok && now.Sub(c.at) < discoveryTTL {
 		return c.ep, nil
 	}
+	if err := o.requirePublicHost(ctx, issuer); err != nil {
+		return endpoints{}, err
+	}
 
 	var doc struct {
 		Issuer   string `json:"issuer"`
@@ -309,10 +317,60 @@ func (o *OAuth) discover(ctx context.Context, issuer string) (endpoints, error) 
 			return endpoints{}, fmt.Errorf("auth: oidc discovery endpoint: %w", err)
 		}
 	}
-	discoveryMu.Lock()
-	discoveryCache[issuer] = cachedEndpoints{ep: ep, at: now}
-	discoveryMu.Unlock()
+	cacheDiscovery(issuer, ep, now)
 	return ep, nil
+}
+
+// cacheDiscovery stores ep for issuer, evicting expired entries and then the
+// oldest one so the cache never exceeds discoveryMax.
+func cacheDiscovery(issuer string, ep endpoints, now time.Time) {
+	discoveryMu.Lock()
+	defer discoveryMu.Unlock()
+	if _, ok := discoveryCache[issuer]; !ok && len(discoveryCache) >= discoveryMax {
+		oldest := ""
+		for k, c := range discoveryCache {
+			if now.Sub(c.at) >= discoveryTTL {
+				delete(discoveryCache, k)
+				continue
+			}
+			if oldest == "" || c.at.Before(discoveryCache[oldest].at) {
+				oldest = k
+			}
+		}
+		if len(discoveryCache) >= discoveryMax {
+			delete(discoveryCache, oldest)
+		}
+	}
+	discoveryCache[issuer] = cachedEndpoints{ep: ep, at: now}
+}
+
+// requirePublicHost rejects an issuer whose host is or resolves to a
+// loopback, private, link-local or unspecified address (skipped in Dev).
+func (o *OAuth) requirePublicHost(ctx context.Context, issuer string) error {
+	if o.Dev {
+		return nil
+	}
+	u, err := url.Parse(issuer)
+	if err != nil {
+		return fmt.Errorf("auth: issuer %q: %w", issuer, apperr.ErrInvalid)
+	}
+	host := u.Hostname()
+	var addrs []netip.Addr
+	if a, err := netip.ParseAddr(host); err == nil {
+		addrs = []netip.Addr{a}
+	} else {
+		addrs, err = net.DefaultResolver.LookupNetIP(ctx, "ip", host)
+		if err != nil {
+			return fmt.Errorf("auth: issuer %q: resolve: %w", issuer, err)
+		}
+	}
+	for _, a := range addrs {
+		a = a.Unmap()
+		if a.IsLoopback() || a.IsPrivate() || a.IsLinkLocalUnicast() || a.IsLinkLocalMulticast() || a.IsUnspecified() || a.IsMulticast() {
+			return fmt.Errorf("auth: issuer %q resolves to non-public %s: %w", issuer, a, apperr.ErrInvalid)
+		}
+	}
+	return nil
 }
 
 func (o *OAuth) redirectURI(id string) string {
@@ -415,7 +473,7 @@ func (o *OAuth) Finish(ctx context.Context, w http.ResponseWriter, r *http.Reque
 		return loginError(code), nil
 	}
 
-	res, err := o.Service.LoginUser(ctx, userID, MethodOAuth, clientIPOf(r), r.UserAgent())
+	res, err := o.Service.LoginUser(ctx, userID, MethodOAuth, netx.ClientIP(r, o.Service.TrustedProxies), r.UserAgent())
 	if errors.Is(err, ErrInvalidCredentials) {
 		return loginError(OAuthErrAccountDisabled), nil
 	}
@@ -440,15 +498,6 @@ func decodeState(v string) (oauthState, bool) {
 	}
 	st.Next = safeNext(st.Next)
 	return st, true
-}
-
-// clientIPOf is the peer address, matching the api package.
-func clientIPOf(r *http.Request) string {
-	host := r.RemoteAddr
-	if i := strings.LastIndex(host, ":"); i >= 0 {
-		host = host[:i]
-	}
-	return strings.Trim(host, "[]")
 }
 
 // oauthIdentity is the verified identity a provider vouched for.

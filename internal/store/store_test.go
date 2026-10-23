@@ -6,8 +6,11 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"errors"
+	"path/filepath"
 	"strings"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/21cloud/runtime-web/internal/store/db"
 )
@@ -266,5 +269,56 @@ func TestInviteTokenStoredHashed(t *testing.T) {
 
 	if _, err := s.Q().GetInviteByTokenHash(ctx, raw); !errors.Is(err, sql.ErrNoRows) {
 		t.Errorf("lookup by raw token: err = %v, want sql.ErrNoRows", err)
+	}
+}
+
+func TestStoreConcurrentWriteTxNoBusy(t *testing.T) {
+	ctx := context.Background()
+	st, err := Open(ctx, filepath.Join(t.TempDir(), "busy.db"))
+	if err != nil {
+		t.Fatalf("Open: %v", err)
+	}
+	t.Cleanup(func() { _ = st.Close() })
+	if _, err := st.DB().ExecContext(ctx, "CREATE TABLE ctr (n INTEGER)"); err != nil {
+		t.Fatalf("create: %v", err)
+	}
+	if _, err := st.DB().ExecContext(ctx, "INSERT INTO ctr VALUES (0)"); err != nil {
+		t.Fatalf("insert: %v", err)
+	}
+	const workers = 16
+	var wg sync.WaitGroup
+	errs := make(chan error, workers)
+	for i := 0; i < workers; i++ {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			errs <- func() error {
+				tx, err := st.DB().BeginTx(ctx, nil)
+				if err != nil {
+					return err
+				}
+				defer func() { _ = tx.Rollback() }()
+				var n int
+				if err := tx.QueryRowContext(ctx, "SELECT n FROM ctr").Scan(&n); err != nil {
+					return err
+				}
+				time.Sleep(5 * time.Millisecond)
+				if _, err := tx.ExecContext(ctx, "UPDATE ctr SET n = ?", n+1); err != nil {
+					return err
+				}
+				return tx.Commit()
+			}()
+		}()
+	}
+	wg.Wait()
+	close(errs)
+	for err := range errs {
+		if err != nil {
+			t.Fatalf("tx: %v", err)
+		}
+	}
+	var n int
+	if err := st.DB().QueryRowContext(ctx, "SELECT n FROM ctr").Scan(&n); err != nil || n != workers {
+		t.Fatalf("n = %d (%v), want %d", n, err, workers)
 	}
 }

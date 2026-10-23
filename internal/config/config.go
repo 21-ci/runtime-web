@@ -2,10 +2,13 @@
 package config
 
 import (
+	"net/netip"
+
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
 	"fmt"
+	"github.com/21cloud/runtime-web/internal/netx"
 	"net/url"
 	"strings"
 
@@ -30,6 +33,8 @@ type Config struct {
 	SetupToken         string
 	LogLevel           string
 	Dev                bool
+	// TrustedProxies is RTWEB_TRUSTED_PROXIES (CIDR list); empty trusts no proxy.
+	TrustedProxies []netip.Prefix
 }
 
 // Load reads and validates the configuration using getenv.
@@ -78,6 +83,12 @@ func Load(getenv func(string) string) (Config, error) {
 		return Config{}, err
 	}
 	c.SecretKey = key
+
+	tp, err := netx.ParsePrefixes(getenv("RTWEB_TRUSTED_PROXIES"))
+	if err != nil {
+		return Config{}, fmt.Errorf("config: RTWEB_TRUSTED_PROXIES: %w", err)
+	}
+	c.TrustedProxies = tp
 
 	if err := checkSameSite(c); err != nil {
 		return Config{}, err

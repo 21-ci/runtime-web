@@ -8,6 +8,7 @@ import (
 	"fmt"
 	"net"
 	"net/http"
+	"net/url"
 	"os"
 	"slices"
 	"strings"
@@ -226,18 +227,27 @@ func (t *TLS) CertNotAfter(ctx context.Context, host string) (time.Time, bool) {
 
 // HTTPHandler serves ACME HTTP-01 challenges on :80 and 308-redirects the rest to https.
 func (t *TLS) HTTPHandler() http.Handler {
-	return RedirectHandler(t.issuer)
+	return RedirectHandler(t.issuer, t.opts.Table)
 }
 
 // RedirectHandler answers ACME HTTP-01 challenges via iss (may be nil) and
-// redirects all other requests to https, keeping path and query.
-func RedirectHandler(iss *certmagic.ACMEIssuer) http.Handler {
+// redirects requests for hosts known to tbl to https, keeping path and query.
+// Unknown hosts get 421 so a crafted Host cannot make an open redirect.
+func RedirectHandler(iss *certmagic.ACMEIssuer, tbl *Table) http.Handler {
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if strings.HasPrefix(r.URL.Path, "/.well-known/acme-challenge/") {
 			if iss != nil && iss.HandleHTTPChallenge(w, r) {
 				return
 			}
 			http.NotFound(w, r)
+			return
+		}
+		var routes *Routes
+		if tbl != nil {
+			routes = tbl.Load()
+		}
+		if Resolve(routes, known, r.Host) == nil {
+			http.Error(w, "misdirected request", http.StatusMisdirectedRequest)
 			return
 		}
 		host := r.Host
@@ -250,6 +260,9 @@ func RedirectHandler(iss *certmagic.ACMEIssuer) http.Handler {
 		http.Redirect(w, r, "https://"+host+r.URL.RequestURI(), http.StatusPermanentRedirect)
 	})
 }
+
+// known is a non-nil upstream set used only to ask Resolve whether a host is served.
+var known = Upstreams{Runtime: &url.URL{}, Console: &url.URL{}}
 
 // fileCert is a PEM cert/key pair reloaded when either file's mtime changes.
 type fileCert struct {

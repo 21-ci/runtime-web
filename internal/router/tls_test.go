@@ -149,7 +149,9 @@ func TestDNS01ConfigCloudflareOnly(t *testing.T) {
 }
 
 func TestHTTPRedirectsToHTTPS(t *testing.T) {
-	h := RedirectHandler(nil)
+	tb := &Table{}
+	tb.Store(&Routes{BaseDomain: "example.com"})
+	h := RedirectHandler(nil, tb)
 	rec := httptest.NewRecorder()
 	h.ServeHTTP(rec, httptest.NewRequest("GET", "http://shop.example.com:80/a/b?x=1&y=2", nil))
 	if rec.Code != http.StatusPermanentRedirect {
@@ -285,5 +287,33 @@ func TestOnDemandIssuesViaPebble(t *testing.T) {
 	}
 	if _, err := tls.Dial("tcp", ln.Addr().String(), &tls.Config{ServerName: "evil.example.org", InsecureSkipVerify: true}); err == nil {
 		t.Fatal("unknown host got a cert")
+	}
+}
+
+func TestRedirectUnknownHost421(t *testing.T) {
+	tb := &Table{}
+	tb.Store(&Routes{ConsoleHost: "console.example.net", BaseDomain: "apps.test",
+		Hosts: map[string]HostRoute{"shop.example.org": {}}})
+	h := RedirectHandler(nil, tb)
+	for host, want := range map[string]int{
+		"evil.example":        http.StatusMisdirectedRequest,
+		"a.b.apps.test":       http.StatusMisdirectedRequest,
+		"console.example.net": http.StatusPermanentRedirect,
+		"foo.apps.test":       http.StatusPermanentRedirect,
+		"shop.example.org":    http.StatusPermanentRedirect,
+	} {
+		rec := httptest.NewRecorder()
+		h.ServeHTTP(rec, httptest.NewRequest("GET", "http://"+host+"/x", nil))
+		if rec.Code != want {
+			t.Errorf("%s: code %d, want %d", host, rec.Code, want)
+		}
+		if want != http.StatusPermanentRedirect && rec.Header().Get("Location") != "" {
+			t.Errorf("%s: Location set", host)
+		}
+	}
+	rec := httptest.NewRecorder()
+	RedirectHandler(nil, nil).ServeHTTP(rec, httptest.NewRequest("GET", "http://x.test/", nil))
+	if rec.Code != http.StatusMisdirectedRequest {
+		t.Fatalf("nil table: code %d", rec.Code)
 	}
 }

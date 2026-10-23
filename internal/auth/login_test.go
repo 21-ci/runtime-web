@@ -131,3 +131,23 @@ func TestLoginEventsRecorded(t *testing.T) {
 		}
 	}
 }
+
+// A limiter or login-event write failure must deny the login, never allow it.
+func TestLoginFailsClosedOnStoreError(t *testing.T) {
+	ctx := context.Background()
+	for _, table := range []string{"login_failures", "login_events"} {
+		t.Run(table, func(t *testing.T) {
+			e := newEnv(t, plainHasher{})
+			e.mkUser(t, "a@example.com", "password-123456")
+			if _, err := e.st.DB().ExecContext(ctx, "DROP TABLE "+table); err != nil {
+				t.Fatal(err)
+			}
+			if _, err := e.svc.Login(ctx, "a@example.com", "wrong-password-1", "1.2.3.4", "ua"); err == nil || errors.Is(err, ErrInvalidCredentials) {
+				t.Fatalf("bad login err = %v, want a store error", err)
+			}
+			if _, err := e.svc.Login(ctx, "a@example.com", "password-123456", "1.2.3.4", "ua"); err == nil {
+				t.Fatal("good login succeeded with a broken limiter/audit store")
+			}
+		})
+	}
+}

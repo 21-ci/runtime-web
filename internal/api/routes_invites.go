@@ -210,7 +210,7 @@ func (s *Server) acceptInvite(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	res, err := s.deps.Invites.Accept(r.Context(), r.PathValue("token"), s.optionalCallerID(r),
-		in.Name, in.Password, clientIP(r), r.UserAgent())
+		in.Name, in.Password, s.clientIP(r), r.UserAgent())
 	if err != nil {
 		return err
 	}
