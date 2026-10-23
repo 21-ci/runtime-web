@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 
+import { AdminLayout } from "@/components/features/admin/admin-layout";
+import { requireInstanceAdmin } from "@/components/features/admin/gate";
 import {
   useAdminSettings,
   useSaveAdminSettings,
@@ -19,7 +21,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api";
 
 export const Route = createFileRoute("/admin/settings")({
-  component: AdminSettingsPage,
+  beforeLoad: ({ context }) => requireInstanceAdmin(context.queryClient),
+  component: AdminSettingsPageRoute,
 });
 
 const PROVIDER_LABEL: Record<ProviderId, string> = {
@@ -27,6 +30,14 @@ const PROVIDER_LABEL: Record<ProviderId, string> = {
   google: "Google",
   oidc: "OpenID Connect",
 };
+
+function AdminSettingsPageRoute() {
+  return (
+    <AdminLayout>
+      <AdminSettingsPage />
+    </AdminLayout>
+  );
+}
 
 function AdminSettingsPage() {
   const settings = useAdminSettings();

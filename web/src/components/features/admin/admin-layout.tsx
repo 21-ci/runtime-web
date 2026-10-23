@@ -27,6 +27,18 @@ export function AdminLayout({ children }: { children: ReactNode }) {
           <Link to="/admin/audit" className={tabClass} activeProps={{ "aria-current": "page" }}>
             Audit log
           </Link>
+          <Link to="/admin/node" className={tabClass} activeProps={{ "aria-current": "page" }}>
+            Node
+          </Link>
+          <Link to="/admin/cache" className={tabClass} activeProps={{ "aria-current": "page" }}>
+            Cache
+          </Link>
+          <Link to="/admin/domains" className={tabClass} activeProps={{ "aria-current": "page" }}>
+            Domains
+          </Link>
+          <Link to="/admin/settings" className={tabClass} activeProps={{ "aria-current": "page" }}>
+            Settings
+          </Link>
         </nav>
         <main id="main" className="flex min-w-0 flex-col gap-6">
           {children}

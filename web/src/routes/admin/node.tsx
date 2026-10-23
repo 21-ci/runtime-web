@@ -2,6 +2,8 @@ import { useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { toast } from "sonner";
 
+import { AdminLayout } from "@/components/features/admin/admin-layout";
+import { requireInstanceAdmin } from "@/components/features/admin/gate";
 import { KeyValueCard } from "@/components/features/admin/key-value-card";
 import {
   useDrainNode,
@@ -28,8 +30,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api";
 
 export const Route = createFileRoute("/admin/node")({
-  component: AdminNodePage,
+  beforeLoad: ({ context }) => requireInstanceAdmin(context.queryClient),
+  component: AdminNodePageRoute,
 });
+
+function AdminNodePageRoute() {
+  return (
+    <AdminLayout>
+      <AdminNodePage />
+    </AdminLayout>
+  );
+}
 
 function AdminNodePage() {
   const status = useNodeStatus();

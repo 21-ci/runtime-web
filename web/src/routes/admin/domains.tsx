@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { AdminLayout } from "@/components/features/admin/admin-layout";
+import { requireInstanceAdmin } from "@/components/features/admin/gate";
 import { QueryError } from "@/components/features/empty/query-error";
 import { useAdminDomains, type DomainRow } from "@/components/features/admin/use-admin";
 import { Badge } from "@/components/ui/badge";
@@ -7,7 +9,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const Route = createFileRoute("/admin/domains")({
-  component: AdminDomainsPage,
+  beforeLoad: ({ context }) => requireInstanceAdmin(context.queryClient),
+  component: AdminDomainsPageRoute,
 });
 
 const STATUS_VARIANT: Record<DomainRow["status"], "success" | "danger" | "info"> = {
@@ -25,6 +28,14 @@ const CERT_VARIANT: Record<DomainRow["cert_status"], "success" | "danger" | "inf
 
 // AdminDomainsPage lists custom domains across every org, so an instance admin can see certificate
 // trouble without opening each org.
+function AdminDomainsPageRoute() {
+  return (
+    <AdminLayout>
+      <AdminDomainsPage />
+    </AdminLayout>
+  );
+}
+
 function AdminDomainsPage() {
   const domains = useAdminDomains();
 
