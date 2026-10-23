@@ -100,7 +100,7 @@ type ErrorBody = {
 | 403 | `<code>` | `apperr.Forbidden{Code}`: `setup_token_invalid`, `password_login_disabled`, `plan_limit` |
 | 404 | `not_found` | `apperr.ErrNotFound`, runtime 404, unknown `/api/*` path |
 | 404 | `invite_invalid` | expired, used or revoked invite |
-| 409 | `<code>` | `apperr.Conflict{Code}`: `already_set_up`, `last_owner`, `last_admin`, `slug_taken`, `org_not_empty`, `host_taken`, `stale`, `version_not_ready`, `totp_already_enabled`, `totp_not_enabled`, `sso_not_configured` |
+| 409 | `<code>` | `apperr.Conflict{Code}`: `already_set_up`, `last_owner`, `last_admin`, `slug_taken`, `org_not_empty`, `host_taken`, `stale`, `version_not_ready`, `totp_already_enabled`, `totp_not_enabled` |
 | 409 | `stale` | runtime `412` (ETag mismatch) |
 | 422 | `invalid` | `apperr.ErrInvalid` (+ `details.fields`) |
 | 422 | `<runtime code>` | runtime 422 with its `code` and `details` |
@@ -126,6 +126,8 @@ other codes.
 | 401 | `invalid_credentials` | login; wrong current password on password change, 2FA disable, recovery codes |
 | 401 | `invalid_code` | `/api/auth/mfa` wrong TOTP/recovery code |
 | 422 | `invalid_code` | `/api/me/totp/confirm`, `/api/me/totp/disable` wrong code |
+
+Why 401 vs 422 for `invalid_code`: at `/api/auth/mfa` the code is the second factor, so a wrong one is a failed authentication (401). On `/api/me/totp/*` the caller is already signed in, so a wrong code is an invalid input field (422), not a lost session.
 | 409 | `email_taken` | `POST /api/admin/users` |
 | 409 | `already_member` | `POST /api/orgs/{org}/members` |
 | 409 | `project_not_empty` | `DELETE /api/orgs/{org}/projects/{p}` with apps |
@@ -219,13 +221,13 @@ type AuditEntry = {
 | POST | `/api/setup` | public (Origin) | `SetupReq` | `201 SessionResp` + session cookie | `403 setup_token_invalid`, `409 already_set_up`, `422 invalid` |
 | GET | `/api/auth/providers` | public | | `200 AuthConfig` | |
 | POST | `/api/auth/login` | public (Origin) | `LoginReq` | `200 LoginResp` + cookie (full or MFA-pending) | `401 invalid_credentials`, `403 password_login_disabled`, `429 rate_limited` |
-| POST | `/api/auth/mfa` | MFA-pending cookie (Origin) | `{code: string}` | `200 SessionResp` + full session cookie | `401 unauthenticated` (no/expired pending), `401 invalid_code`, `429 rate_limited` |
+| POST | `/api/auth/mfa` | MFA-pending session cookie; no CSRF (there is no token yet); Origin enforced | `{code: string}` | `200 SessionResp` + full session cookie | `401 unauthenticated` (no/expired pending), `401 invalid_code`, `429 rate_limited` |
 | POST | `/api/auth/logout` | session | | `204` + cookie cleared | |
 | GET | `/api/me` | session (gate-exempt) | | `200 Me` | |
 | PUT | `/api/me/password` | session (gate-exempt) | `{current_password: string; new_password: string}` | `204` (other sessions revoked) | `401 invalid_credentials` (wrong current), `422 invalid` (length < 12) |
 
 ```ts
-type SetupReq = { setup_token: string; email: string; name: string; password: string };
+type SetupReq = { setup_token?: string; /* see note */ email: string; name: string; password: string };
 type LoginReq = { email: string; password: string };
 type LoginResp =
   | { mfa_required: true }                                   // pending cookie set; go to /login/mfa
@@ -248,6 +250,7 @@ type Me = {
 ```
 
 Notes:
+- Setup token: `RTWEB_SETUP_TOKEN` when set. When it is unset, `rtweb` generates a random one-time token at startup (48 hex chars) and logs it once at `WARN` (`setup_token` attribute). Either way a token is always required: the server compares it in constant time, and a missing, empty or wrong token is `403 setup_token_invalid`, with no user created. The field is optional in the type only so a missing token reaches that 403 instead of a 422.
 - The login error never reveals whether the account exists: unknown user, wrong password and disabled user
   are all `401 invalid_credentials`.
 - `password_login_disabled` applies to everyone except instance admins (break-glass).
@@ -349,7 +352,7 @@ All routes require `instance.admin`. Every mutation is audited.
 | GET | `/api/admin/domains` | | `200 {items: (Domain & {org: {slug; name}})[]}` | |
 | GET | `/api/admin/audit` | `?org&actor&action&cursor&limit` | `200 Page<AuditEntry>` (instance-wide) | |
 | GET | `/api/admin/settings` | | `200 InstanceSettings` | |
-| PUT | `/api/admin/settings` | `Partial<InstanceSettingsWrite>` | `200 InstanceSettings` | `409 sso_not_configured` (enabling `password_login_disabled` with no provider), `422 invalid` |
+| PUT | `/api/admin/settings` | `Partial<InstanceSettingsWrite>` | `200 InstanceSettings` | `422 invalid` (`details.fields.password_login_disabled` when SSO-only is enabled with no OAuth/OIDC provider configured; `auth.SetPolicy` returns `Conflict{sso_not_configured}`, and the handler maps it to this 422) |
 
 ```ts
 type Usage = { app: string | null /* slug, null if deleted */; day: string; invocations: number;
