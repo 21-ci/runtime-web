@@ -7,6 +7,7 @@ package db
 
 import (
 	"context"
+	"database/sql"
 )
 
 const createDomain = `-- name: CreateDomain :exec
@@ -63,6 +64,60 @@ func (q *Queries) GetDomain(ctx context.Context, id string) (Domain, error) {
 		&i.CreatedAt,
 	)
 	return i, err
+}
+
+const listAllDomains = `-- name: ListAllDomains :many
+SELECT d.id, d.org_id, d.project_slug, d.service_id, d.host, d.status, d.last_checked_at, d.created_at,
+       o.slug AS org_slug, o.name AS org_name
+FROM domains d JOIN orgs o ON o.id = d.org_id
+ORDER BY d.host
+`
+
+type ListAllDomainsRow struct {
+	ID            string
+	OrgID         string
+	ProjectSlug   string
+	ServiceID     string
+	Host          string
+	Status        string
+	LastCheckedAt sql.NullInt64
+	CreatedAt     int64
+	OrgSlug       string
+	OrgName       string
+}
+
+func (q *Queries) ListAllDomains(ctx context.Context) ([]ListAllDomainsRow, error) {
+	rows, err := q.db.QueryContext(ctx, listAllDomains)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListAllDomainsRow
+	for rows.Next() {
+		var i ListAllDomainsRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrgID,
+			&i.ProjectSlug,
+			&i.ServiceID,
+			&i.Host,
+			&i.Status,
+			&i.LastCheckedAt,
+			&i.CreatedAt,
+			&i.OrgSlug,
+			&i.OrgName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listDomainsByOrg = `-- name: ListDomainsByOrg :many
