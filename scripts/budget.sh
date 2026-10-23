@@ -5,7 +5,8 @@
 #   bin/rtweb            <= 30 MiB                        (always checked; needs `make build`)
 #   idle RSS             <= 40 MiB                        (docker stats --no-stream of a running rtweb container)
 #   web first route      <= 250 KB gzip                   (index.html entry + its modulepreload/CSS)
-#   editor chunk         <= 900 KB gzip                   (chunks containing CodeMirror, plus TS workers)
+#   editor chunk         <= 900 KB gzip                   (chunks containing CodeMirror; excludes the lazy TS worker)
+#   TS worker            <= 1.5 MB gzip                   (lazy *worker* chunks, loaded on the editor page only)
 #
 # Env overrides: BIN, DIST, RSS_CONTAINER (default runtime-web-rtweb-1), REQUIRE_RSS=1 (fail when no
 # container is running instead of skipping), REQUIRE_EDITOR=1 (fail when no editor chunk exists).
@@ -22,6 +23,7 @@ MAX_BIN_BYTES=$((30 * 1024 * 1024))
 MAX_RSS_MIB=40
 MAX_FIRST_GZ_BYTES=$((250 * 1024))
 MAX_EDITOR_GZ_BYTES=$((900 * 1024))
+MAX_WORKER_GZ_BYTES=$((1536 * 1024))
 
 failed=0
 
@@ -48,9 +50,9 @@ if [ ! -f "$DIST/index.html" ]; then
   report FAIL "web dist" "missing: $DIST/index.html (run make web)"
   failed=1
 else
-  # Prints: first_route_bytes editor_bytes editor_files
+  # Prints: first_route_bytes editor_bytes editor_files worker_bytes worker_files
   measured=$(node "$ROOT/scripts/budget-measure.js" "$DIST")
-  read -r first_gz editor_gz editor_files <<<"$measured"
+  read -r first_gz editor_gz editor_files worker_gz worker_files <<<"$measured"
 
   if [ "$first_gz" -le "$MAX_FIRST_GZ_BYTES" ]; then
     report PASS "first-route JS gz" "$first_gz bytes <= $MAX_FIRST_GZ_BYTES (entry + modulepreload + css)"
@@ -70,6 +72,15 @@ else
     report PASS "editor chunk gz" "$editor_gz bytes <= $MAX_EDITOR_GZ_BYTES ($editor_files chunk(s))"
   else
     report FAIL "editor chunk gz" "$editor_gz bytes > $MAX_EDITOR_GZ_BYTES ($editor_files chunk(s))"
+    failed=1
+  fi
+
+  if [ "$worker_files" -eq 0 ]; then
+    report SKIP "TS worker gz" "no worker chunk in $DIST"
+  elif [ "$worker_gz" -le "$MAX_WORKER_GZ_BYTES" ]; then
+    report PASS "TS worker gz" "$worker_gz bytes <= $MAX_WORKER_GZ_BYTES ($worker_files chunk(s), lazy)"
+  else
+    report FAIL "TS worker gz" "$worker_gz bytes > $MAX_WORKER_GZ_BYTES ($worker_files chunk(s))"
     failed=1
   fi
 fi

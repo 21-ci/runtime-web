@@ -143,8 +143,8 @@ both, and every runtime call goes through `runtime.Client` with a `Credential` i
    Rotating the default key does not invalidate custom tokens.
 4. A verified custom domain serves the app through rtrouter, and an unverified one gets no certificate and no
    route.
-5. `rtweb` binary ≤ 30 MB, idle RSS ≤ 40 MB, web JS ≤ 250 KB gzip on the first route; the lazy editor chunk (with
-   the TS worker) ≤ 900 KB gzip.
+5. `rtweb` binary ≤ 30 MB, idle RSS ≤ 40 MB, web JS ≤ 250 KB gzip on the first route; the lazy editor chunk ≤ 900 KB
+   gzip, excluding the lazy TS worker, which has its own budget of ≤ 1.5 MB gzip (loaded on the editor page only).
 6. A user can enroll TOTP, then login requires a code; a used code is rejected; revoking a session logs it out; an
    expired or used invite link fails.
 7. Security review (Opus) has no open high findings, and the UI/UX review findings are triaged with every "must"

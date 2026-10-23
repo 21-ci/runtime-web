@@ -52,6 +52,7 @@ web-embed: web ## Copy web/dist into internal/api/dist for go:embed
 	cp -R web/dist internal/api/dist
 
 budget: build ## Check binary size, idle RSS and web gzip budgets (docs/02 section 7)
+	node --test scripts/budget-measure.test.js
 	scripts/budget.sh
 
 docker: ## Build the rtweb and rtrouter images (rtweb:dev, rtrouter:dev)
