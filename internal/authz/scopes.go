@@ -6,8 +6,20 @@ var (
 	adminScopes     = append(append([]string{}, developerScopes...), "secrets:write", "data:admin", "keys:write")
 )
 
-// ScopesFor returns the runtime key scopes for a project role (viewer, developer, admin), or nil for an
-// unknown role. The result is a fresh slice.
+// DefaultKeyScopes returns the scopes of an org's default runtime key: every tenant scope except
+// keys:write (D4). The result is a fresh slice.
+func DefaultKeyScopes() []string {
+	var s []string
+	for _, sc := range adminScopes {
+		if sc != "keys:write" {
+			s = append(s, sc)
+		}
+	}
+	return s
+}
+
+// ScopesFor returns the runtime key scopes for a role (viewer, developer, admin, owner; owner gets the
+// admin set), or nil for an unknown role. The result is a fresh slice.
 func ScopesFor(projectRole string) []string {
 	var s []string
 	switch projectRole {
@@ -15,7 +27,7 @@ func ScopesFor(projectRole string) []string {
 		s = viewerScopes
 	case RoleDeveloper:
 		s = developerScopes
-	case RoleAdmin:
+	case RoleAdmin, RoleOwner:
 		s = adminScopes
 	default:
 		return nil

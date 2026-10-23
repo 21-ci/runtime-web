@@ -102,6 +102,13 @@ func TestCrossOrgIsolation(t *testing.T) {
 	}
 }
 
+func TestDefaultKeyScopes(t *testing.T) {
+	want := []string{"services:read", "logs:read", "services:write", "deploy", "env:write", "queue:write", "invoke", "secrets:write", "data:admin"}
+	if got := DefaultKeyScopes(); !slices.Equal(got, want) {
+		t.Errorf("DefaultKeyScopes() = %v, want %v", got, want)
+	}
+}
+
 func TestScopesFor(t *testing.T) {
 	tests := []struct {
 		role string
@@ -110,7 +117,8 @@ func TestScopesFor(t *testing.T) {
 		{"viewer", []string{"services:read", "logs:read"}},
 		{"developer", []string{"services:read", "logs:read", "services:write", "deploy", "env:write", "queue:write", "invoke"}},
 		{"admin", []string{"services:read", "logs:read", "services:write", "deploy", "env:write", "queue:write", "invoke", "secrets:write", "data:admin", "keys:write"}},
-		{"owner", nil},
+		{"owner", []string{"services:read", "logs:read", "services:write", "deploy", "env:write", "queue:write", "invoke", "secrets:write", "data:admin", "keys:write"}},
+		{"member", nil},
 		{"", nil},
 	}
 	for _, tt := range tests {

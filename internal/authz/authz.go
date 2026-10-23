@@ -137,6 +137,8 @@ func Can(s Subject, a Action, projectSlug string) bool {
 			return false
 		}
 		return projectRank[s.ProjectRoles[projectSlug]] >= levelRank[lvl]
+	default:
+		// lvlInstance, lvlOwner, lvlOrgAdmin: plain members never hold org-level actions.
+		return false
 	}
-	return false
 }
