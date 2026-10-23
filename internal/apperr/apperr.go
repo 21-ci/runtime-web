@@ -20,6 +20,8 @@ var (
 // already_set_up or stale.
 type Conflict struct {
 	Code string
+	// Message is an optional user-facing explanation; empty uses the HTTP layer's default.
+	Message string
 }
 
 func (c Conflict) Error() string {

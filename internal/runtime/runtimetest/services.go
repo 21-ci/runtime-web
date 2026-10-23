@@ -93,8 +93,39 @@ func (s *service) view() runtime.Service {
 		LiveVersion: s.liveVersion, ETag: s.etagValue(), Access: s.access,
 		Limits: s.limits, Scaling: s.scaling, Triggers: s.triggers,
 		Ingress: s.ingress, Egress: s.egress, Call: s.call, Deno: s.deno, Wasm: s.wasm,
-		Status: st,
+		Status: st, Effective: s.effective(),
 	}
+}
+
+// fakeLimitDefaults are the profile values the fake reports in effective; fakePlanCaps clamp requests.
+var (
+	fakeLimitDefaults = map[string]int64{"cpu_ms": 1000, "wall_ms": 30000, "memory_mb": 128}
+	fakePlanCaps      = map[string]int64{"cpu_ms": 5000, "wall_ms": 60000, "memory_mb": 512}
+)
+
+// effective resolves each limit with its source: the service's request (clamped to the plan cap,
+// source "plan") or the profile default.
+func (s *service) effective() json.RawMessage {
+	var req map[string]int64
+	_ = json.Unmarshal(s.limits, &req)
+	type val struct {
+		Value  int64  `json:"value"`
+		Source string `json:"source"`
+	}
+	out := map[string]val{}
+	for k, def := range fakeLimitDefaults {
+		v, ok := req[k]
+		switch {
+		case !ok:
+			out[k] = val{def, "profile:balanced"}
+		case v > fakePlanCaps[k]:
+			out[k] = val{fakePlanCaps[k], "plan"}
+		default:
+			out[k] = val{v, "service"}
+		}
+	}
+	b, _ := json.Marshal(out)
+	return b
 }
 
 // addEvent appends an audit event; data nil records JSON null.

@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"github.com/21cloud/runtime-web/internal/apperr"
+	"github.com/21cloud/runtime-web/internal/apps"
 	"github.com/21cloud/runtime-web/internal/audit"
 	"github.com/21cloud/runtime-web/internal/authz"
 	"github.com/21cloud/runtime-web/internal/orgs"
@@ -67,7 +68,7 @@ func newFixture(t *testing.T) *fixture {
 	}
 	return &fixture{
 		fake: fake, rt: rt, root: root, st: st, orgs: o, org: org, owner: sub, actor: actor,
-		svc: New(st, rt, root, sealer, o),
+		svc: New(st, rt, root, sealer, o, apps.New(rt, o)),
 	}
 }
 

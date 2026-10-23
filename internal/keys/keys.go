@@ -16,6 +16,7 @@ import (
 	"time"
 
 	"github.com/21cloud/runtime-web/internal/apperr"
+	"github.com/21cloud/runtime-web/internal/apps"
 	"github.com/21cloud/runtime-web/internal/audit"
 	"github.com/21cloud/runtime-web/internal/authz"
 	"github.com/21cloud/runtime-web/internal/orgs"
@@ -65,6 +66,7 @@ type Service struct {
 	root   runtime.RootCred
 	sealer *seal.Sealer
 	orgs   *orgs.Service
+	apps   *apps.Service
 	now    func() time.Time
 	// beforeRevoke is a test seam run right before the runtime revoke of a rotated-out default key.
 	beforeRevoke func()
@@ -73,8 +75,8 @@ type Service struct {
 }
 
 // New returns a keys Service.
-func New(st *store.Store, rt *runtime.Client, root runtime.RootCred, sealer *seal.Sealer, o *orgs.Service) *Service {
-	return &Service{st: st, rt: rt, root: root, sealer: sealer, orgs: o, now: time.Now}
+func New(st *store.Store, rt *runtime.Client, root runtime.RootCred, sealer *seal.Sealer, o *orgs.Service, a *apps.Service) *Service {
+	return &Service{st: st, rt: rt, root: root, sealer: sealer, orgs: o, apps: a, now: time.Now}
 }
 
 func (s *Service) log() audit.Writer { return audit.Writer{Now: s.now} }
@@ -120,7 +122,7 @@ func (s *Service) CreateToken(ctx context.Context, actor audit.Actor, sub authz.
 	}
 	apps := []string{}
 	if len(req.Services) > 0 {
-		ids, err := s.resolveApps(ctx, org.TenantID, req.Services)
+		ids, err := s.resolveApps(ctx, orgID, req.Services)
 		if err != nil {
 			return Token{}, "", err
 		}
@@ -174,26 +176,17 @@ func (s *Service) CreateToken(ctx context.Context, actor audit.Actor, sub authz.
 	return tok, key.Secret, nil
 }
 
-// resolveApps maps app slugs to runtime service ids in tenantID. An unknown slug is apperr.ErrNotFound.
-func (s *Service) resolveApps(ctx context.Context, tenantID string, slugs []string) ([]string, error) {
-	cli := s.rt.With(runtime.RootCred{Token: s.root.Token, Tenant: tenantID})
+// resolveApps maps app slugs to runtime service ids through apps.Resolve. An unknown slug, or one held
+// by another tenant, is apperr.ErrNotFound.
+func (s *Service) resolveApps(ctx context.Context, orgID string, slugs []string) ([]string, error) {
 	var ids []string
 	for _, slug := range slugs {
-		page, err := cli.ListServices(ctx, runtime.ServiceFilter{Slug: slug})
+		app, err := s.apps.Resolve(ctx, orgID, slug)
 		if err != nil {
 			return nil, fmt.Errorf("keys: resolve app %s: %w", slug, err)
 		}
-		id := ""
-		for _, svc := range page.Items {
-			if svc.Slug == slug && svc.TenantID == tenantID {
-				id = svc.ID
-			}
-		}
-		if id == "" {
-			return nil, fmt.Errorf("keys: app %s: %w", slug, apperr.ErrNotFound)
-		}
-		if !slices.Contains(ids, id) {
-			ids = append(ids, id)
+		if !slices.Contains(ids, app.SvcID) {
+			ids = append(ids, app.SvcID)
 		}
 	}
 	return ids, nil
