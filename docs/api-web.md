@@ -315,7 +315,7 @@ The UI renders `otpauth_url` as a QR code and as copyable text.
 | POST | `/api/admin/invites` | `instance.admin` | `InviteReq` (`org` optional; unbound = no membership) | `201 {invite: Invite; link: string}` | `404` (org), `422 invalid` |
 | DELETE | `/api/admin/invites/{id}` | `instance.admin` | | `204` | `404` |
 | GET | `/api/invites/accept/{token}` | public | | `200 {email: string; org_name: string \| null}` | `404 invite_invalid` |
-| POST | `/api/invites/accept/{token}` | public (Origin; the single-use token replaces CSRF) | `{name: string; password: string}` | `200 {email: string}`; no session is created, the user then logs in normally (MFA and policy apply) | `404 invite_invalid`, `422 invalid` |
+| POST | `/api/invites/accept/{token}` | public (Origin; the single-use token replaces CSRF) | `{name: string; password: string}` for a new email; ignored for an existing account | New account: `200 {email, mfa_required, csrf?}` and sets the session cookie (`csrf` is absent while `mfa_required` is true; the 2FA policy applies). Existing account: `200 {email, mfa_required: false}`, no cookie, password unchanged, membership added. The caller must be signed in as that account. | `403 invite_login_required` (existing account, caller not that user), `403 account_disabled`, `404 invite_invalid`, `422 invalid` |
 
 ```ts
 type InviteReq = { email: string; org?: string /* org slug */; role?: OrgRole };
@@ -329,6 +329,7 @@ type Invite = {
 ```
 
 Management uses the invite id (`inv_…`); the public accept page uses the token under `/api/invites/accept/`.
+`GET /api/invites/accept/{token}` only previews (no side effects) and returns the same `404 invite_invalid` for expired, used, revoked and unknown tokens.
 
 ## 6. Instance admin (Task 11b, Task 9)
 

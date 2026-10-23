@@ -12,6 +12,7 @@ import (
 	"github.com/21cloud/runtime-web/internal/apps"
 	"github.com/21cloud/runtime-web/internal/auth"
 	"github.com/21cloud/runtime-web/internal/config"
+	"github.com/21cloud/runtime-web/internal/invites"
 	"github.com/21cloud/runtime-web/internal/keys"
 	"github.com/21cloud/runtime-web/internal/orgs"
 	"github.com/21cloud/runtime-web/internal/runtime"
@@ -43,6 +44,7 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger, webVersi
 	keySvc := keys.New(st, rt, root, sealer, orgSvc, appSvc)
 	adminSvc := admin.New(st, rt, root, orgSvc)
 	usersSvc := users.New(st, auth.Argon2{})
+	invitesSvc := invites.New(st, auth.Argon2{}, authSvc, cfg.PublicURL)
 	go keySvc.RunRetrier(ctx)
 
 	srv := &http.Server{
@@ -53,6 +55,7 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger, webVersi
 			Users:            usersSvc,
 			Admin:            adminSvc,
 			Keys:             keySvc,
+			Invites:          invitesSvc,
 			Apps:             appSvc,
 			WebVersion:       webVersion,
 			Logger:           logger,

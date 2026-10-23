@@ -14,6 +14,7 @@ import (
 	"github.com/21cloud/runtime-web/internal/admin"
 	"github.com/21cloud/runtime-web/internal/apps"
 	"github.com/21cloud/runtime-web/internal/auth"
+	"github.com/21cloud/runtime-web/internal/invites"
 	"github.com/21cloud/runtime-web/internal/keys"
 	"github.com/21cloud/runtime-web/internal/orgs"
 	"github.com/21cloud/runtime-web/internal/users"
@@ -21,13 +22,14 @@ import (
 
 // Deps are the services and settings the HTTP layer needs.
 type Deps struct {
-	Auth   *auth.Service
-	Orgs   *orgs.Service
-	Users  *users.Service
-	Admin  *admin.Service
-	Keys   *keys.Service
-	Apps   *apps.Service
-	Logger *slog.Logger
+	Auth    *auth.Service
+	Orgs    *orgs.Service
+	Users   *users.Service
+	Admin   *admin.Service
+	Keys    *keys.Service
+	Invites *invites.Service
+	Apps    *apps.Service
+	Logger  *slog.Logger
 	// WebVersion is the console build version the node version route reports.
 	WebVersion string
 	// PublicURL is RTWEB_PUBLIC_URL; unsafe requests must send it as Origin.
@@ -58,6 +60,8 @@ func New(d Deps) *Server {
 	s.registerAuthRoutes()
 	s.registerAdminRoutes()
 	s.registerOrgRoutes()
+	s.registerAccountRoutes()
+	s.registerInviteRoutes()
 	s.mux.HandleFunc("/api/", func(w http.ResponseWriter, _ *http.Request) {
 		writeAPIError(w, apiError{status: http.StatusNotFound, code: "not_found", message: "not found"})
 	})

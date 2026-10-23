@@ -61,6 +61,37 @@ type Accepted struct {
 	Session       auth.LoginResult
 }
 
+// Preview is what the public accept page shows for a pending token.
+type Preview struct {
+	Email   string
+	OrgName *string
+}
+
+// Preview looks up a pending invite by token without changing it. Expired, used, revoked and
+// unknown tokens all return the invite_invalid error.
+func (s *Service) Preview(ctx context.Context, token string) (Preview, error) {
+	row, err := s.st.Q().GetInviteByTokenHash(ctx, hashToken(token))
+	if errors.Is(err, sql.ErrNoRows) {
+		return Preview{}, invalidInvite()
+	}
+	if err != nil {
+		return Preview{}, fmt.Errorf("invites: preview: %w", err)
+	}
+	if row.UsedAt.Valid || row.RevokedAt.Valid || s.now().UnixMilli() >= row.ExpiresAt {
+		return Preview{}, invalidInvite()
+	}
+	out := Preview{Email: row.Email}
+	if row.OrgID.Valid {
+		org, err := s.st.Q().GetOrgByID(ctx, row.OrgID.String)
+		if err != nil {
+			return Preview{}, fmt.Errorf("invites: preview org: %w", err)
+		}
+		name := org.Name
+		out.OrgName = &name
+	}
+	return out, nil
+}
+
 // Logins starts a session for an already-authenticated user; *auth.Service implements it.
 type Logins interface {
 	LoginUser(ctx context.Context, userID, method, ip, ua string) (auth.LoginResult, error)

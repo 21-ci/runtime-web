@@ -24,6 +24,7 @@ import (
 	"github.com/21cloud/runtime-web/internal/audit"
 	"github.com/21cloud/runtime-web/internal/auth"
 	"github.com/21cloud/runtime-web/internal/authz"
+	"github.com/21cloud/runtime-web/internal/invites"
 	"github.com/21cloud/runtime-web/internal/keys"
 	"github.com/21cloud/runtime-web/internal/orgs"
 	"github.com/21cloud/runtime-web/internal/runtime"
@@ -91,6 +92,7 @@ func newTestEnv(t *testing.T) *testEnv {
 		Users:            users.New(st, testHasher{}),
 		Admin:            admin.New(st, rt, root, orgSvc),
 		Keys:             keys.New(st, rt, root, sealer, orgSvc, appSvc),
+		Invites:          invites.New(st, testHasher{}, authSvc, testPublicURL),
 		Apps:             appSvc,
 		WebVersion:       "test-web",
 		Logger:           slog.New(slog.NewTextHandler(io.Discard, nil)),
