@@ -22,7 +22,9 @@ import { useAppView, useCanDeploy, useFiles, useSaveFiles, useVersionState, type
 // CodeMirror and the TS worker live in this lazy chunk only.
 const CodeEditor = lazy(() => import("./cm-editor"));
 
-type Draft = { base: Files; files: Record<string, string> };
+// base: the loaded files the draft is built on. saved: the last snapshot saved from this draft
+// (the dirty baseline until the files query reloads).
+type Draft = { base: Files; files: Record<string, string>; saved?: Record<string, string> };
 
 export function CodePage({ org, app }: { org: string; app: string }) {
   const view = useAppView(org, app);
@@ -39,8 +41,10 @@ export function CodePage({ org, app }: { org: string; app: string }) {
   const version = useVersionState(org, app, savedVersion);
 
   const data = files.data;
-  const current = data ? (draft && draft.base === data ? draft.files : data.files) : null;
-  const dirty = !!data && current !== data.files;
+  const own = !!draft && draft.base === data;
+  const current = data ? (own ? draft.files : data.files) : null;
+  const baseline = own && draft.saved ? draft.saved : data?.files;
+  const dirty = !!data && current !== baseline;
   const readOnly = !data || data.read_only || data.kind === "wasm" || canDeploy !== true;
   const path = data ? (active && current && active in current ? active : data.entry) : "";
 
@@ -52,7 +56,8 @@ export function CodePage({ org, app }: { org: string; app: string }) {
       setFailure(null);
       try {
         const res = await save.mutateAsync({ entry: data.entry, files: current, etag: tag });
-        setDraft({ base: data, files: current });
+        // Only move the dirty baseline; keep edits typed while the save was in flight.
+        setDraft((d) => ({ base: data, files: d && d.base === data ? d.files : current, saved: current }));
         setSavedVersion(res.version.version);
         setPreviewKey((k) => k + 1);
         toast.success(`Saved version ${res.version.version}`);
@@ -95,7 +100,7 @@ export function CodePage({ org, app }: { org: string; app: string }) {
   const onChange = useCallback(
     (text: string) => {
       if (!data || !current || current[path] === text) return;
-      setDraft({ base: data, files: { ...current, [path]: text } });
+      setDraft((d) => ({ ...(d && d.base === data ? d : {}), base: data, files: { ...current, [path]: text } }));
     },
     [data, current, path],
   );

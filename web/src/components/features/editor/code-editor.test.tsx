@@ -1,6 +1,7 @@
 import { readdirSync, readFileSync, statSync } from "node:fs";
 import { join } from "node:path";
-import { fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { EditorView } from "@codemirror/view";
+import { act, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { delay, http, HttpResponse } from "msw";
 import { afterEach, describe, expect, it } from "vitest";
@@ -132,6 +133,34 @@ describe("code editor", { timeout: 15000 }, () => {
     expect(within(dialog).getByText(/changed elsewhere/i)).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: /reload/i })).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: /overwrite/i })).toBeInTheDocument();
+  });
+
+  it("keeps text typed while a save is in flight", async () => {
+    useShellHandlers();
+    useCodeHandlers();
+    let release!: () => void;
+    const gate = new Promise<void>((r) => (release = r));
+    server.use(
+      http.put(`${BASE}/files`, async () => {
+        await gate;
+        return HttpResponse.json({ version: version(2), etag: '"e2"' });
+      }),
+    );
+    const editor = await openEditor();
+    await screen.findByRole("button", { name: /save/i });
+    const cm = EditorView.findFromDOM(editor);
+    if (!cm) throw new Error("no EditorView");
+    act(() => cm.dispatch({ changes: { from: 0, insert: "// one\n" } }));
+    await screen.findByRole("button", { name: /save \*/i });
+    pressSave();
+    act(() => cm.dispatch({ changes: { from: 0, insert: "// two\n" } }));
+    release();
+    expect(await screen.findByText(/saved version 2/i)).toBeInTheDocument();
+    await new Promise((r) => setTimeout(r, 50));
+    expect(cm.state.doc.toString()).toContain("// two");
+    expect(cm.state.doc.toString()).toContain("// one");
+    // The text typed during the save is still unsaved.
+    expect(screen.getByRole("button", { name: /save \*/i })).toBeInTheDocument();
   });
 
   it("diagnostics from 422 shown inline", async () => {
