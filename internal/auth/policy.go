@@ -69,20 +69,28 @@ func (s *Service) SetPolicyWith(ctx context.Context, p Policy, inTx func(*db.Que
 		return fmt.Errorf("auth: set policy: %w", apperr.Conflict{Code: "sso_not_configured"})
 	}
 	return s.Store.Tx(ctx, func(q *db.Queries) error {
-		for key, on := range map[string]bool{settingRequire2FA: p.Require2FA, settingPasswordLoginDisabled: p.PasswordLoginDisabled} {
-			v := "0"
-			if on {
-				v = "1"
-			}
-			if err := q.UpsertSetting(ctx, db.UpsertSettingParams{Key: key, Value: []byte(v)}); err != nil {
-				return fmt.Errorf("auth: set setting %s: %w", key, err)
-			}
+		if err := writePolicy(ctx, q, p); err != nil {
+			return err
 		}
 		if inTx != nil {
 			return inTx(q)
 		}
 		return nil
 	})
+}
+
+// writePolicy stores p through q.
+func writePolicy(ctx context.Context, q *db.Queries, p Policy) error {
+	for key, on := range map[string]bool{settingRequire2FA: p.Require2FA, settingPasswordLoginDisabled: p.PasswordLoginDisabled} {
+		v := "0"
+		if on {
+			v = "1"
+		}
+		if err := q.UpsertSetting(ctx, db.UpsertSettingParams{Key: key, Value: []byte(v)}); err != nil {
+			return fmt.Errorf("auth: set setting %s: %w", key, err)
+		}
+	}
+	return nil
 }
 
 func pathAllowed(path string, allow []string) bool {

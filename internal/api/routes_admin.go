@@ -558,13 +558,11 @@ func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) error {
 		return err
 	}
 	changed := []string{}
+	var providers []auth.ProviderConfig
 	if in.Providers != nil {
-		o := s.oauth()
 		for _, p := range *in.Providers {
-			if err := o.SetProvider(ctx, auth.ProviderConfig{ID: p.ID, Enabled: p.Enabled, ClientID: p.ClientID,
-				ClientSecret: p.ClientSecret, Issuer: p.Issuer, Name: p.Name}); err != nil {
-				return err
-			}
+			providers = append(providers, auth.ProviderConfig{ID: p.ID, Enabled: p.Enabled, ClientID: p.ClientID,
+				ClientSecret: p.ClientSecret, Issuer: p.Issuer, Name: p.Name})
 			changed = append(changed, p.ID)
 		}
 	}
@@ -579,7 +577,8 @@ func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) error {
 		pol.PasswordLoginDisabled = *in.PasswordLoginDisabled
 	}
 	detail := map[string]any{"require_2fa": pol.Require2FA, "password_login_disabled": pol.PasswordLoginDisabled, "providers": changed}
-	err = s.deps.Auth.SetPolicyWith(ctx, pol, func(q *db.Queries) error {
+	// SaveSettings validates everything first, then writes providers, policy and audit in one tx.
+	err = s.oauth().SaveSettings(ctx, providers, pol, func(q *db.Queries) error {
 		return audit.Writer{}.Log(ctx, q, actor, "", "settings.update", "instance", detail)
 	})
 	if err != nil {

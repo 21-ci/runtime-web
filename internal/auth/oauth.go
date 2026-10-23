@@ -144,36 +144,11 @@ func knownProvider(id string) bool {
 
 // SetProvider stores a provider. An empty ClientSecret keeps the stored one.
 func (o *OAuth) SetProvider(ctx context.Context, p ProviderConfig) error {
-	if !knownProvider(p.ID) {
-		return fmt.Errorf("auth: oauth provider %q: %w", p.ID, apperr.ErrInvalid)
-	}
-	if p.ID == ProviderOIDC {
-		if err := o.requireURL(p.Issuer); err != nil {
-			return fmt.Errorf("auth: oauth issuer: %w", err)
-		}
-	}
-	raw, err := json.Marshal(storedProvider{Enabled: p.Enabled, ClientID: p.ClientID, Issuer: p.Issuer, Name: p.Name})
+	pp, err := o.prepareProvider(p)
 	if err != nil {
-		return fmt.Errorf("auth: oauth encode: %w", err)
+		return err
 	}
-	q := o.Service.Store.Q()
-	if err := q.UpsertSetting(ctx, db.UpsertSettingParams{Key: settingKey(p.ID), Value: raw}); err != nil {
-		return fmt.Errorf("auth: oauth save %s: %w", p.ID, err)
-	}
-	if p.ClientSecret == "" {
-		return nil
-	}
-	if o.Sealer == nil {
-		return fmt.Errorf("auth: oauth seal secret: no sealer")
-	}
-	sealed, err := o.Sealer.Seal([]byte(p.ClientSecret))
-	if err != nil {
-		return fmt.Errorf("auth: oauth seal secret: %w", err)
-	}
-	if err := q.UpsertSetting(ctx, db.UpsertSettingParams{Key: secretSettingKey(p.ID), Value: sealed, Sealed: 1}); err != nil {
-		return fmt.Errorf("auth: oauth save secret %s: %w", p.ID, err)
-	}
-	return nil
+	return pp.write(ctx, o.Service.Store.Q())
 }
 
 // Provider loads an enabled, fully configured provider with its secret.
