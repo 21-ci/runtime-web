@@ -9,6 +9,10 @@ import { CommandMenu } from "./command-menu";
 import { Sidebar } from "./sidebar";
 import { ThemeToggle } from "./theme-toggle";
 
+// SHORTCUT_LABEL names the palette key for the platform: ⌘K on Apple devices, Ctrl K elsewhere.
+const SHORTCUT_LABEL =
+  typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform) ? "⌘K" : "Ctrl K";
+
 // AppShell is the signed-in frame: a fixed sidebar from md up, a sheet below md, a topbar and the
 // page content. The skip link is the first focus stop and jumps past the navigation.
 export function AppShell({ org, children }: { org: string; children: ReactNode }) {
@@ -56,7 +60,7 @@ export function AppShell({ org, children }: { org: string; children: ReactNode }
             className="hidden sm:inline-flex"
           >
             <Search className="size-4" aria-hidden="true" /> Search
-            <kbd className="ml-2 rounded border border-line px-1 text-xs text-muted">⌘K</kbd>
+            <kbd className="ml-2 rounded border border-line px-1 text-xs text-muted">{SHORTCUT_LABEL}</kbd>
           </Button>
           <ThemeToggle />
           <AccountMenu />

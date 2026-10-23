@@ -1,3 +1,4 @@
+import { QueryError } from "@/components/features/empty/query-error";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLimits, type Limits, type Quota } from "@/hooks/orgs";
@@ -18,7 +19,13 @@ export function QuotaBar({ org }: { org: string }) {
   return (
     <section aria-label="Quota" className="rounded-[10px] border border-line bg-surface p-4">
       <h2 className="mb-3 text-sm font-semibold">Quota</h2>
-      {limits.isPending ? (
+      {limits.isError ? (
+        <QueryError
+          error={limits.error}
+          onRetry={() => void limits.refetch()}
+          notFoundTitle="Quota not available"
+        />
+      ) : limits.isPending ? (
         <div className="flex min-h-[180px] flex-col gap-3" aria-busy="true">
           <Skeleton className="h-4 w-full" />
           <Skeleton className="h-4 w-full" />

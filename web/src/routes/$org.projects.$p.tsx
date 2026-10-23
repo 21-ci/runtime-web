@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { NoApps } from "@/components/features/empty/no-apps";
+import { QueryError } from "@/components/features/empty/query-error";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApps, useEnvironments, useProjects } from "@/hooks/orgs";
@@ -16,11 +17,26 @@ function ProjectPage() {
   const apps = useApps(org, p);
   const project = projects.data?.find((x) => x.slug === p);
 
+  if (projects.isError) {
+    return (
+      <QueryError
+        error={projects.error}
+        onRetry={() => void projects.refetch()}
+        notFoundTitle="Project not found"
+        notFoundDescription="It may have been deleted or you lack access."
+      />
+    );
+  }
   if (projects.isPending) {
     return <Skeleton className="h-40 w-full" />;
   }
   if (!project) {
     return <EmptyState title="Project not found" description="It may have been deleted or you lack access." />;
+  }
+  if (apps.isError) {
+    return (
+      <QueryError error={apps.error} onRetry={() => void apps.refetch()} notFoundTitle="Apps not found" />
+    );
   }
 
   return (

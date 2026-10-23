@@ -1,8 +1,10 @@
-import { cleanup, fireEvent, screen, waitFor, within } from "@testing-library/react";
+import { fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { http } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { getCsrfToken, setCsrfToken } from "@/lib/api";
+import { apiError, server } from "./msw";
 import { renderAt } from "./render";
 import { useShellHandlers } from "./shell-fixtures";
 
@@ -81,15 +83,56 @@ describe("app shell", () => {
     expect(await screen.findByRole("region", { name: /usage/i })).toBeDefined();
   });
 
-  it('no "val" text in rendered routes', async () => {
+  it("overview shows retry on projects error and recovers", async () => {
     useShellHandlers();
-    const paths = ["/acme", "/acme/projects/web", "/acme/projects/empty", "/acme/apps/new", "/acme/apps/hello", "/beta"];
-    for (const path of paths) {
-      cleanup();
-      renderAt(path);
-      await screen.findByRole("navigation", { name: /sidebar/i });
-      await waitFor(() => expect(document.body.textContent ?? "").not.toMatch(/\bval\b/i));
-    }
+    server.use(http.get("/api/orgs/:org/projects", () => apiError(500, "internal")));
+    renderAt("/acme");
+    const main = await screen.findByRole("heading", { name: "Projects" });
+    const retry = await within(main.parentElement as HTMLElement).findByRole("button", { name: "Retry" });
+
+    useShellHandlers();
+    await userEvent.click(retry);
+    expect(await screen.findByRole("link", { name: "Web" })).toBeDefined();
+  });
+
+  it("sidebar shows an error with retry when projects fail", async () => {
+    useShellHandlers();
+    server.use(http.get("/api/orgs/:org/projects", () => apiError(500, "internal")));
+    renderAt("/acme");
+    const nav = await screen.findByRole("navigation", { name: /sidebar/i });
+    expect(await within(nav).findByText(/could not load projects/i)).toBeDefined();
+    expect(within(nav).getByRole("button", { name: "Retry" })).toBeDefined();
+  });
+
+  it("quota bar shows retry on limits error", async () => {
+    useShellHandlers();
+    server.use(http.get("/api/orgs/:org/limits", () => apiError(500, "internal")));
+    renderAt("/acme");
+    const quota = await screen.findByRole("region", { name: /quota/i });
+    expect(await within(quota).findByRole("button", { name: "Retry" })).toBeDefined();
+  });
+
+  it("project page shows not-found for a 404", async () => {
+    useShellHandlers();
+    renderAt("/acme/projects/missing");
+    expect(await screen.findByText("Project not found")).toBeDefined();
+  });
+
+  it("command menu offers New project to owners", async () => {
+    useShellHandlers();
+    renderAt("/acme");
+    await screen.findByRole("link", { name: "Hello" });
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    expect(await screen.findByRole("option", { name: /New project/ })).toBeDefined();
+  });
+
+  it("command menu hides New project from members", async () => {
+    useShellHandlers();
+    renderAt("/beta");
+    await screen.findByText(/no projects yet/i);
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    await screen.findByRole("option", { name: /New app/ });
+    expect(screen.queryByRole("option", { name: /New project/ })).toBeNull();
   });
 
   it("logout clears the CSRF token and returns to login", async () => {

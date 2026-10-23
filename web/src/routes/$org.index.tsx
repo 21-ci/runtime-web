@@ -1,6 +1,7 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { NoProjects } from "@/components/features/empty/no-projects";
+import { QueryError } from "@/components/features/empty/query-error";
 import { QuotaBar } from "@/components/features/org/quota-bar";
 import { UsageCard } from "@/components/features/org/usage-card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -25,7 +26,13 @@ function OrgOverview() {
           <h2 id="projects-heading" className="text-sm font-semibold">
             Projects
           </h2>
-          {projects.isPending ? (
+          {projects.isError ? (
+            <QueryError
+              error={projects.error}
+              onRetry={() => void projects.refetch()}
+              notFoundTitle="Organization not found"
+            />
+          ) : projects.isPending ? (
             <div className="grid min-h-[120px] gap-3 sm:grid-cols-2" aria-busy="true">
               <Skeleton className="h-24" />
               <Skeleton className="h-24" />

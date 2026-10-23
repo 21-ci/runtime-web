@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -13,11 +14,28 @@ import {
 import { AuthForm, FormField } from "@/components/auth/auth-form";
 import { useCreateProject } from "@/hooks/orgs";
 import { ApiError } from "@/lib/api";
+import { handleApiError } from "@/lib/query";
 
-// CreateProjectDialog creates a project with its environments. The default environments match the
-// runtime's own defaults; the list is editable as a comma-separated value.
-export function CreateProjectDialog({ org, trigger }: { org: string; trigger: ReactNode }) {
-  const [open, setOpen] = useState(false);
+// CreateProjectDialog creates a project with its environments. It is controlled when `open` is
+// passed (the ⌘K menu), otherwise it owns its state behind `trigger`. The default environments
+// match the runtime's own defaults; the list is editable as a comma-separated value.
+export function CreateProjectDialog({
+  org,
+  trigger,
+  open: controlledOpen,
+  onOpenChange,
+}: {
+  org: string;
+  trigger?: ReactNode;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
+}) {
+  const [localOpen, setLocalOpen] = useState(false);
+  const open = controlledOpen ?? localOpen;
+  const setOpen = (next: boolean) => {
+    setLocalOpen(next);
+    onOpenChange?.(next);
+  };
   const [errors, setErrors] = useState<Record<string, string>>({});
   const create = useCreateProject(org);
 
@@ -40,7 +58,13 @@ export function CreateProjectDialog({ org, trigger }: { org: string; trigger: Re
       {
         onSuccess: () => setOpen(false),
         onError: (err) => {
-          if (err instanceof ApiError) setErrors(err.fieldErrors());
+          if (!(err instanceof ApiError)) {
+            toast.error("Could not create the project. Try again.");
+            return;
+          }
+          const fields = err.fieldErrors();
+          if (Object.keys(fields).length > 0) setErrors(fields);
+          else handleApiError(err);
         },
       },
     );
@@ -48,7 +72,7 @@ export function CreateProjectDialog({ org, trigger }: { org: string; trigger: Re
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
-      <DialogTrigger asChild>{trigger}</DialogTrigger>
+      {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
       <DialogContent>
         <DialogHeader>
           <DialogTitle>New project</DialogTitle>

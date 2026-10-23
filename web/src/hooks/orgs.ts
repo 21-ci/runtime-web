@@ -94,6 +94,8 @@ export function useUsage(org: string, enabled: boolean) {
 export function useCreateProject(org: string) {
   const qc = useQueryClient();
   return useMutation({
+    // The form decides what to toast (field errors inline, others via handleApiError).
+    meta: { skipGlobalError: true },
     mutationFn: (body: { slug: string; name?: string; environments: string[] }) =>
       api.post<Project>(`/orgs/${enc(org)}/projects`, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["projects", org] }),
@@ -111,6 +113,7 @@ export type CreateAppInput = {
 export function useCreateApp(org: string) {
   const qc = useQueryClient();
   return useMutation({
+    meta: { skipGlobalError: true },
     mutationFn: (body: CreateAppInput) => api.post<AppSummary>(`/orgs/${enc(org)}/apps`, body),
     onSuccess: () => qc.invalidateQueries({ queryKey: ["apps", org] }),
   });

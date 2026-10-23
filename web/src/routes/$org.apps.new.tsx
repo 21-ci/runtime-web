@@ -7,7 +7,9 @@ import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { useCreateApp, useEnvironments, useProjects, type Template } from "@/hooks/orgs";
 import { ApiError } from "@/lib/api";
+import { handleApiError } from "@/lib/query";
 import { cn } from "@/lib/utils";
+import { toast } from "sonner";
 
 type NewAppSearch = { project?: string };
 
@@ -36,8 +38,6 @@ function NewAppPage() {
 
   const [template, setTemplate] = useState<Template>("http");
   const [errors, setErrors] = useState<Record<string, string>>({});
-  const [formError, setFormError] = useState<string | null>(null);
-
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const form = new FormData(e.currentTarget);
@@ -50,7 +50,6 @@ function NewAppPage() {
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
-    setFormError(null);
     create.mutate(
       { project, environment, slug, template, name: name || undefined },
       {
@@ -58,10 +57,13 @@ function NewAppPage() {
           void navigate({ to: "/$org/apps/$app", params: { org, app: app.slug } });
         },
         onError: (err) => {
-          if (err instanceof ApiError) {
-            if (err.code === "slug_taken") setErrors({ slug: "This app name is taken on this runtime." });
-            else setFormError(err.message);
+          if (!(err instanceof ApiError)) {
+            toast.error("Could not create the app. Try again.");
+            return;
           }
+          if (err.code === "slug_taken") setErrors({ slug: "This app name is taken on this runtime." });
+          else if (Object.keys(err.fieldErrors()).length > 0) setErrors(err.fieldErrors());
+          else handleApiError(err);
         },
       },
     );
@@ -94,6 +96,7 @@ function NewAppPage() {
                 </option>
               ))}
             </select>
+            {errors.project ? <p className="text-sm text-danger">{errors.project}</p> : null}
           </div>
 
           <div className="flex flex-col gap-1.5">
@@ -147,12 +150,6 @@ function NewAppPage() {
             })}
           </div>
         </fieldset>
-
-        {formError ? (
-          <p role="alert" className="text-sm text-danger">
-            {formError}
-          </p>
-        ) : null}
 
         <div className="flex justify-end">
           <Button type="submit" disabled={create.isPending || !project}>

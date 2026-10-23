@@ -1,5 +1,6 @@
 import { Link, createFileRoute } from "@tanstack/react-router";
 
+import { QueryError } from "@/components/features/empty/query-error";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApps } from "@/hooks/orgs";
@@ -13,6 +14,16 @@ function AppPage() {
   const { org, app } = Route.useParams();
   const apps = useApps(org);
 
+  if (apps.isError) {
+    return (
+      <QueryError
+        error={apps.error}
+        onRetry={() => void apps.refetch()}
+        notFoundTitle="App not found"
+        notFoundDescription="It may have been deleted or you lack access."
+      />
+    );
+  }
   if (apps.isPending) return <Skeleton className="h-32 w-full" />;
   const a = apps.data?.find((x) => x.slug === app);
   if (!a) {

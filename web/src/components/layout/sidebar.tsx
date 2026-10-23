@@ -1,9 +1,12 @@
 import { Link } from "@tanstack/react-router";
 import { LayoutDashboard } from "lucide-react";
 
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApps, useProjects } from "@/hooks/orgs";
 import { OrgSwitcher } from "./org-switcher";
+
+const LINK = "rounded-[6px] outline-none focus-visible:ring-2 focus-visible:ring-focus";
 
 // Sidebar lists projects, and under each project its apps. Used both in the fixed column (md+)
 // and inside the mobile sheet, so it takes no state of its own.
@@ -19,7 +22,7 @@ export function Sidebar({ org, onNavigate }: { org: string; onNavigate?: () => v
         params={{ org }}
         onClick={onNavigate}
         activeOptions={{ exact: true }}
-        className="flex items-center gap-2 rounded-[8px] px-2 py-1.5 text-text hover:bg-panel-2"
+        className={`flex items-center gap-2 px-2 py-1.5 text-text hover:bg-panel-2 ${LINK}`}
         activeProps={{ className: "bg-blue-pale font-semibold" }}
       >
         <LayoutDashboard className="size-4 text-muted" aria-hidden="true" />
@@ -33,6 +36,13 @@ export function Sidebar({ org, onNavigate }: { org: string; onNavigate?: () => v
             <Skeleton className="h-6 w-full" />
             <Skeleton className="h-6 w-3/4" />
           </div>
+        ) : projects.isError ? (
+          <div className="flex flex-col items-start gap-2 px-2 text-sm">
+            <p className="text-muted">Could not load projects.</p>
+            <Button variant="secondary" size="sm" onClick={() => void projects.refetch()}>
+              Retry
+            </Button>
+          </div>
         ) : null}
         {(projects.data ?? []).map((p) => {
           const own = (apps.data ?? []).filter((a) => a.project === p.slug);
@@ -42,7 +52,7 @@ export function Sidebar({ org, onNavigate }: { org: string; onNavigate?: () => v
                 to="/$org/projects/$p"
                 params={{ org, p: p.slug }}
                 onClick={onNavigate}
-                className="rounded-[8px] px-2 py-1.5 text-text hover:bg-panel-2"
+                className={`px-2 py-1.5 text-text hover:bg-panel-2 ${LINK}`}
                 activeProps={{ className: "bg-blue-pale font-semibold" }}
               >
                 {p.name}
@@ -54,7 +64,7 @@ export function Sidebar({ org, onNavigate }: { org: string; onNavigate?: () => v
                       to="/$org/apps/$app"
                       params={{ org, app: a.slug }}
                       onClick={onNavigate}
-                      className="block truncate rounded-[6px] px-2 py-1 text-sm text-muted hover:bg-panel-2 hover:text-text"
+                      className={`block truncate px-2 py-1 text-sm text-muted hover:bg-panel-2 hover:text-text ${LINK}`}
                       activeProps={{ className: "text-text font-medium" }}
                     >
                       {a.name ?? a.slug}
