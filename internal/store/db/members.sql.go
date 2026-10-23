@@ -35,6 +35,18 @@ func (q *Queries) CountOwners(ctx context.Context, orgID string) (int64, error) 
 	return count, err
 }
 
+const deleteMembershipsForUser = `-- name: DeleteMembershipsForUser :execrows
+DELETE FROM members WHERE user_id = ?1
+`
+
+func (q *Queries) DeleteMembershipsForUser(ctx context.Context, userID string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteMembershipsForUser, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getMember = `-- name: GetMember :one
 SELECT org_id, user_id, role FROM members WHERE org_id = ?1 AND user_id = ?2
 `

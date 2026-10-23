@@ -130,8 +130,7 @@ func TestAdminUserLifecycle(t *testing.T) {
 
 	rec = e.send(http.MethodDelete, "/api/admin/users/"+userID, nil, withCookie(cookie), withCSRF(csrf))
 	expectStatus(t, rec, http.StatusNoContent)
-	rec = e.send(http.MethodPatch, "/api/admin/users/"+userID, map[string]any{"name": "Gone"},
-		withCookie(cookie), withCSRF(csrf))
+	rec = e.send(http.MethodDelete, "/api/admin/users/usr_missing", nil, withCookie(cookie), withCSRF(csrf))
 	expectStatus(t, rec, http.StatusNotFound)
 }
 

@@ -91,8 +91,10 @@ func (s *Service) Update(ctx context.Context, actor audit.Actor, userID string, 
 	return out, nil
 }
 
-// Delete removes a user. Their memberships, grants and sessions go with them. The last enabled
-// instance admin cannot be deleted, and neither can the sole owner of an org.
+// Delete soft-deletes a user. The row stays, so tokens, invites, version authors and audit rows keep
+// their created_by and actor references. The email and name are replaced with an anonymous value,
+// the password and 2FA are cleared, sessions and identities are revoked, and memberships and grants
+// are removed. The last enabled instance admin and the sole owner of an org cannot be deleted.
 func (s *Service) Delete(ctx context.Context, actor audit.Actor, userID string) error {
 	err := s.st.Tx(ctx, func(q *db.Queries) error {
 		u, err := getUser(ctx, q, userID)
@@ -107,7 +109,31 @@ func (s *Service) Delete(ctx context.Context, actor audit.Actor, userID string) 
 		if err := guardSoleOwner(ctx, q, userID); err != nil {
 			return err
 		}
-		if _, err := q.DeleteUser(ctx, userID); err != nil {
+		if _, err := q.DeleteMembershipsForUser(ctx, userID); err != nil {
+			return err
+		}
+		if _, err := q.DeleteProjectGrantsForUser(ctx, userID); err != nil {
+			return err
+		}
+		if _, err := q.DeleteUserTOTP(ctx, userID); err != nil {
+			return err
+		}
+		if _, err := q.DeletePendingUserTOTP(ctx, userID); err != nil {
+			return err
+		}
+		if _, err := q.DeleteRecoveryCodes(ctx, userID); err != nil {
+			return err
+		}
+		if _, err := q.DeleteIdentitiesForUser(ctx, userID); err != nil {
+			return err
+		}
+		if _, err := q.DeleteSessionsForUser(ctx, userID); err != nil {
+			return err
+		}
+		anon := "deleted-" + userID + "@invalid"
+		if _, err := q.AnonymizeUser(ctx, db.AnonymizeUserParams{
+			Email: anon, Name: "Deleted user", UpdatedAt: s.now().UnixMilli(), ID: userID,
+		}); err != nil {
 			return err
 		}
 		if err := s.log().Log(ctx, q, actor, "", "user.delete", userID, nil); err != nil {

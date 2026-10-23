@@ -15,3 +15,6 @@ DELETE FROM members WHERE org_id = sqlc.arg(org_id) AND user_id = sqlc.arg(user_
 
 -- name: CountOwners :one
 SELECT COUNT(*) FROM members WHERE org_id = sqlc.arg(org_id) AND role = 'owner';
+
+-- name: DeleteMembershipsForUser :execrows
+DELETE FROM members WHERE user_id = sqlc.arg(user_id);

@@ -61,6 +61,18 @@ func (q *Queries) DeleteGrantsForUser(ctx context.Context, arg DeleteGrantsForUs
 	return result.RowsAffected()
 }
 
+const deleteProjectGrantsForUser = `-- name: DeleteProjectGrantsForUser :execrows
+DELETE FROM project_grants WHERE user_id = ?1
+`
+
+func (q *Queries) DeleteProjectGrantsForUser(ctx context.Context, userID string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteProjectGrantsForUser, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const listGrantsForUser = `-- name: ListGrantsForUser :many
 SELECT org_id, user_id, project_slug, role FROM project_grants WHERE org_id = ?1 AND user_id = ?2 ORDER BY project_slug
 `

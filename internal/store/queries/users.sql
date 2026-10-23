@@ -44,3 +44,10 @@ UPDATE users SET name = sqlc.arg(name), updated_at = sqlc.arg(updated_at) WHERE 
 
 -- name: DeleteUser :execrows
 DELETE FROM users WHERE id = sqlc.arg(id);
+
+-- name: AnonymizeUser :execrows
+UPDATE users SET email = sqlc.arg(email), name = sqlc.arg(name), password_hash = '', must_change_password = 0,
+    is_instance_admin = 0, disabled = 1, updated_at = sqlc.arg(updated_at) WHERE id = sqlc.arg(id);
+
+-- name: DeleteIdentitiesForUser :execrows
+DELETE FROM identities WHERE user_id = sqlc.arg(user_id);

@@ -71,6 +71,10 @@ func newTestEnv(t *testing.T) *testEnv {
 	}
 	sealer := seal.New(key)
 	authSvc := auth.NewService(st, testHasher{}, sealer, testSetupToken, true)
+	authSvc.SSOConfigured = func(ctx context.Context) bool {
+		ps, err := auth.NewOAuth(authSvc, testPublicURL).Providers(ctx)
+		return err == nil && len(ps) > 0
+	}
 	fake := runtimetest.NewServer(t)
 	fake.SetPlan(testPlan, runtimetest.FakePlan{MaxServices: 10, MaxSchedules: 3, Triggers: []string{"http"}})
 	rt := runtime.New(fake.URL, http.DefaultClient)

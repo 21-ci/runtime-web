@@ -3,14 +3,15 @@ package api
 import (
 	"context"
 	"encoding/json"
-	"fmt"
 	"net/http"
 	"strings"
 
 	"github.com/21cloud/runtime-web/internal/admin"
 	"github.com/21cloud/runtime-web/internal/audit"
+	"github.com/21cloud/runtime-web/internal/auth"
 	"github.com/21cloud/runtime-web/internal/authz"
 	"github.com/21cloud/runtime-web/internal/orgs"
+	"github.com/21cloud/runtime-web/internal/store/db"
 	"github.com/21cloud/runtime-web/internal/users"
 )
 
@@ -480,23 +481,43 @@ func (s *Server) listAdminAudit(w http.ResponseWriter, r *http.Request) error {
 	return s.writeAuditPage(w, r, orgID, r.URL.Query().Get("actor"))
 }
 
-// instanceSettingsJSON is the InstanceSettings shape of api-web.md §6. OAuth providers are configured
-// in Task 11e; until then the list is empty.
+// oauthProviderJSON is one OAuth provider of api-web.md §6. The client secret is write-only:
+// only client_secret_set is returned.
+type oauthProviderJSON struct {
+	ID              string `json:"id"`
+	Enabled         bool   `json:"enabled"`
+	ClientID        string `json:"client_id"`
+	ClientSecretSet bool   `json:"client_secret_set"`
+	Issuer          string `json:"issuer,omitempty"`
+	Name            string `json:"name,omitempty"`
+}
+
+// instanceSettingsJSON is the InstanceSettings shape of api-web.md §6.
 type instanceSettingsJSON struct {
-	PublicURL             string `json:"public_url"`
-	Require2FA            bool   `json:"require_2fa"`
-	PasswordLoginDisabled bool   `json:"password_login_disabled"`
-	Providers             []any  `json:"providers"`
+	PublicURL             string              `json:"public_url"`
+	Require2FA            bool                `json:"require_2fa"`
+	PasswordLoginDisabled bool                `json:"password_login_disabled"`
+	Providers             []oauthProviderJSON `json:"providers"`
 }
 
 func (s *Server) settingsView(r *http.Request) (instanceSettingsJSON, error) {
-	pol, err := s.deps.Auth.Policy(r.Context())
+	ctx := r.Context()
+	pol, err := s.deps.Auth.Policy(ctx)
 	if err != nil {
 		return instanceSettingsJSON{}, err
 	}
+	settings, err := s.oauth().Settings(ctx)
+	if err != nil {
+		return instanceSettingsJSON{}, err
+	}
+	providers := make([]oauthProviderJSON, 0, len(settings))
+	for _, ps := range settings {
+		providers = append(providers, oauthProviderJSON{ID: ps.ID, Enabled: ps.Enabled, ClientID: ps.ClientID,
+			ClientSecretSet: ps.SecretSet, Issuer: ps.Issuer, Name: ps.Name})
+	}
 	return instanceSettingsJSON{
 		PublicURL: s.deps.PublicURL, Require2FA: pol.Require2FA,
-		PasswordLoginDisabled: pol.PasswordLoginDisabled, Providers: []any{},
+		PasswordLoginDisabled: pol.PasswordLoginDisabled, Providers: providers,
 	}, nil
 }
 
@@ -509,18 +530,44 @@ func (s *Server) getSettings(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// settingsReq is InstanceSettingsWrite. Absent fields keep their stored value.
+// settingsReq is InstanceSettingsWrite. Absent fields keep their stored value. A provider entry
+// replaces that provider; an empty client_secret keeps the stored secret.
 type settingsReq struct {
 	Require2FA            *bool `json:"require_2fa"`
 	PasswordLoginDisabled *bool `json:"password_login_disabled"`
+	Providers             *[]struct {
+		ID           string `json:"id"`
+		Enabled      bool   `json:"enabled"`
+		ClientID     string `json:"client_id"`
+		ClientSecret string `json:"client_secret"`
+		Issuer       string `json:"issuer"`
+		Name         string `json:"name"`
+	} `json:"providers"`
 }
 
+// putSettings saves the providers, then the policy and its audit row in one transaction.
+// Password login cannot be disabled without an enabled provider (sso_not_configured, mapped to 422).
 func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) error {
 	var in settingsReq
 	if err := decodeJSON(w, r, &in); err != nil {
 		return err
 	}
 	ctx := r.Context()
+	actor, err := actorFor(r)
+	if err != nil {
+		return err
+	}
+	changed := []string{}
+	if in.Providers != nil {
+		o := s.oauth()
+		for _, p := range *in.Providers {
+			if err := o.SetProvider(ctx, auth.ProviderConfig{ID: p.ID, Enabled: p.Enabled, ClientID: p.ClientID,
+				ClientSecret: p.ClientSecret, Issuer: p.Issuer, Name: p.Name}); err != nil {
+				return err
+			}
+			changed = append(changed, p.ID)
+		}
+	}
 	pol, err := s.deps.Auth.Policy(ctx)
 	if err != nil {
 		return err
@@ -531,18 +578,12 @@ func (s *Server) putSettings(w http.ResponseWriter, r *http.Request) error {
 	if in.PasswordLoginDisabled != nil {
 		pol.PasswordLoginDisabled = *in.PasswordLoginDisabled
 	}
-	// SetPolicy returns sso_not_configured when password login is off without a provider; mapError
-	// turns that into the 422 of api-web.md §6.
-	if err := s.deps.Auth.SetPolicy(ctx, pol); err != nil {
-		return err
-	}
-	actor, err := actorFor(r)
+	detail := map[string]any{"require_2fa": pol.Require2FA, "password_login_disabled": pol.PasswordLoginDisabled, "providers": changed}
+	err = s.deps.Auth.SetPolicyWith(ctx, pol, func(q *db.Queries) error {
+		return audit.Writer{}.Log(ctx, q, actor, "", "settings.update", "instance", detail)
+	})
 	if err != nil {
 		return err
-	}
-	if err := (audit.Writer{}).Log(ctx, s.deps.Auth.Store.Q(), actor, "", "settings.update", "instance",
-		map[string]bool{"require_2fa": pol.Require2FA, "password_login_disabled": pol.PasswordLoginDisabled}); err != nil {
-		return fmt.Errorf("api: audit settings: %w", err)
 	}
 	v, err := s.settingsView(r)
 	if err != nil {

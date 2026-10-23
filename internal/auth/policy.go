@@ -59,6 +59,12 @@ func (s *Service) Policy(ctx context.Context) (Policy, error) {
 // SetPolicy stores p. Disabling password login without a configured
 // OAuth/OIDC provider is an sso_not_configured conflict.
 func (s *Service) SetPolicy(ctx context.Context, p Policy) error {
+	return s.SetPolicyWith(ctx, p, nil)
+}
+
+// SetPolicyWith stores p and runs inTx in the same transaction, so a caller's audit row commits or
+// rolls back with the change. A nil inTx does nothing extra.
+func (s *Service) SetPolicyWith(ctx context.Context, p Policy, inTx func(*db.Queries) error) error {
 	if p.PasswordLoginDisabled && (s.SSOConfigured == nil || !s.SSOConfigured(ctx)) {
 		return fmt.Errorf("auth: set policy: %w", apperr.Conflict{Code: "sso_not_configured"})
 	}
@@ -71,6 +77,9 @@ func (s *Service) SetPolicy(ctx context.Context, p Policy) error {
 			if err := q.UpsertSetting(ctx, db.UpsertSettingParams{Key: key, Value: []byte(v)}); err != nil {
 				return fmt.Errorf("auth: set setting %s: %w", key, err)
 			}
+		}
+		if inTx != nil {
+			return inTx(q)
 		}
 		return nil
 	})

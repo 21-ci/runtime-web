@@ -9,6 +9,31 @@ import (
 	"context"
 )
 
+const anonymizeUser = `-- name: AnonymizeUser :execrows
+UPDATE users SET email = ?1, name = ?2, password_hash = '', must_change_password = 0,
+    is_instance_admin = 0, disabled = 1, updated_at = ?3 WHERE id = ?4
+`
+
+type AnonymizeUserParams struct {
+	Email     string
+	Name      string
+	UpdatedAt int64
+	ID        string
+}
+
+func (q *Queries) AnonymizeUser(ctx context.Context, arg AnonymizeUserParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, anonymizeUser,
+		arg.Email,
+		arg.Name,
+		arg.UpdatedAt,
+		arg.ID,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const countEnabledAdmins = `-- name: CountEnabledAdmins :one
 SELECT COUNT(*) FROM users WHERE is_instance_admin = 1 AND disabled = 0
 `
@@ -113,6 +138,18 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 		arg.UpdatedAt,
 	)
 	return err
+}
+
+const deleteIdentitiesForUser = `-- name: DeleteIdentitiesForUser :execrows
+DELETE FROM identities WHERE user_id = ?1
+`
+
+func (q *Queries) DeleteIdentitiesForUser(ctx context.Context, userID string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteIdentitiesForUser, userID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const deleteUser = `-- name: DeleteUser :execrows

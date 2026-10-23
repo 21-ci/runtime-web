@@ -31,6 +31,11 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger, webVersi
 
 	sealer := seal.New(cfg.SecretKey)
 	authSvc := auth.NewService(st, auth.Argon2{}, sealer, auth.NewSetupToken(cfg), cfg.Dev)
+	// Password login may be disabled only while an enabled OAuth/OIDC provider exists (api-web.md §6).
+	authSvc.SSOConfigured = func(ctx context.Context) bool {
+		ps, err := auth.NewOAuth(authSvc, cfg.PublicURL).Providers(ctx)
+		return err == nil && len(ps) > 0
+	}
 	rt := runtime.New(cfg.RuntimeURL, &http.Client{})
 	root := runtime.RootCred{Token: cfg.RuntimeRootToken}
 	orgSvc := orgs.New(st, rt, root, sealer, cfg.RuntimeDefaultPlan)

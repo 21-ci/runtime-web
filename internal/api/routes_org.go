@@ -69,7 +69,9 @@ func (s *Server) orgAccess(r *http.Request, action authz.Action) (orgCall, error
 		}
 		return orgCall{}, fmt.Errorf("api: %s: %w", action, apperr.ErrForbidden)
 	}
-	return orgCall{org: org, sub: sub, actor: audit.Actor{UserID: p.User.ID, AsInstanceAdmin: sub.InstanceAdmin}}, nil
+	// Only an instance admin acting without a membership is recorded as acting as instance admin.
+	asAdmin := sub.InstanceAdmin && sub.OrgRole == ""
+	return orgCall{org: org, sub: sub, actor: audit.Actor{UserID: p.User.ID, AsInstanceAdmin: asAdmin}}, nil
 }
 
 // actorFor returns the audit actor for the signed-in caller.
@@ -463,21 +465,52 @@ type usageJSON struct {
 	StorageBytes int64   `json:"storage_bytes"`
 }
 
+// maxUsageSpanDays caps the ?from..?to usage window.
+const maxUsageSpanDays = 90
+
+// usageRange parses ?from and ?to (YYYY-MM-DD, inclusive). A missing bound defaults to today (to)
+// or to 89 days before to (from). from after to, or a window over maxUsageSpanDays, is a 422.
+func usageRange(r *http.Request, now time.Time) (string, string, error) {
+	q := r.URL.Query()
+	fields := fieldErrors{}
+	parse := func(name string) (time.Time, bool) {
+		raw := q.Get(name)
+		if raw == "" {
+			return time.Time{}, false
+		}
+		t, err := time.Parse("2006-01-02", raw)
+		if err != nil {
+			fields[name] = "must be a YYYY-MM-DD date"
+			return time.Time{}, false
+		}
+		return t, true
+	}
+	from, hasFrom := parse("from")
+	to, hasTo := parse("to")
+	if len(fields) > 0 {
+		return "", "", invalid(fields)
+	}
+	if !hasTo {
+		to = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, time.UTC)
+	}
+	if !hasFrom {
+		from = to.AddDate(0, 0, -(maxUsageSpanDays - 1))
+	}
+	if from.After(to) {
+		return "", "", invalid(fieldErrors{"from": "must not be after to"})
+	}
+	if to.Sub(from).Hours()/24 > maxUsageSpanDays-1 {
+		return "", "", invalid(fieldErrors{"to": fmt.Sprintf("range must be at most %d days", maxUsageSpanDays)})
+	}
+	return from.Format("2006-01-02"), to.Format("2006-01-02"), nil
+}
+
 // usageItems returns orgID's usage rows within ?from..?to (YYYY-MM-DD, inclusive), with service ids
 // mapped to app slugs.
 func (s *Server) usageItems(r *http.Request, sub authz.Subject, org orgs.Org) ([]usageJSON, error) {
-	from, to := r.URL.Query().Get("from"), r.URL.Query().Get("to")
-	fields := fieldErrors{}
-	for name, v := range map[string]string{"from": from, "to": to} {
-		if v == "" {
-			continue
-		}
-		if _, err := time.Parse("2006-01-02", v); err != nil {
-			fields[name] = "must be a YYYY-MM-DD date"
-		}
-	}
-	if len(fields) > 0 {
-		return nil, invalid(fields)
+	from, to, err := usageRange(r, time.Now().UTC())
+	if err != nil {
+		return nil, err
 	}
 	ctx := r.Context()
 	rows, err := s.deps.Admin.OrgUsage(ctx, sub, org.ID)
