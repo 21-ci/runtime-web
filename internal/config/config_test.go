@@ -14,12 +14,14 @@ func envOf(m map[string]string) func(string) string {
 
 func baseEnv() map[string]string {
 	return map[string]string{
-		"RUNTIME_URL":        "http://runtime.internal:8080",
-		"RUNTIME_PUBLIC_URL": "https://run.example.net",
-		"RTWEB_SECRET_KEY":   validKey,
-		"RTWEB_PUBLIC_URL":   "https://console.example.com",
-		"RTWEB_DEV":          "",
-		"BASE_DOMAIN":        "",
+		"RUNTIME_URL":          "http://runtime.internal:8080",
+		"RUNTIME_PUBLIC_URL":   "https://run.example.net",
+		"RTWEB_SECRET_KEY":     validKey,
+		"RTWEB_PUBLIC_URL":     "https://console.example.com",
+		"RUNTIME_ROOT_TOKEN":   "root-token",
+		"ROUTER_SHARED_SECRET": "router-secret",
+		"RTWEB_DEV":            "",
+		"BASE_DOMAIN":          "",
 	}
 }
 
@@ -49,6 +51,16 @@ func TestLoad(t *testing.T) {
 					t.Errorf("PublicURL = %q", c.PublicURL)
 				}
 			},
+		},
+		{
+			name:    "missing RUNTIME_ROOT_TOKEN names it",
+			env:     withEnv(map[string]string{"RUNTIME_ROOT_TOKEN": ""}),
+			wantErr: "RUNTIME_ROOT_TOKEN",
+		},
+		{
+			name:    "missing ROUTER_SHARED_SECRET names it",
+			env:     withEnv(map[string]string{"ROUTER_SHARED_SECRET": ""}),
+			wantErr: "ROUTER_SHARED_SECRET",
 		},
 		{
 			name:    "missing RUNTIME_URL names it",
@@ -101,6 +113,9 @@ func TestLoad(t *testing.T) {
 				if c.Listen != ":8090" {
 					t.Errorf("Listen = %q", c.Listen)
 				}
+				if c.LogLevel != "info" {
+					t.Errorf("LogLevel = %q", c.LogLevel)
+				}
 			},
 		},
 		{
@@ -139,6 +154,73 @@ func TestLoad(t *testing.T) {
 	}
 }
 
+// envExample mirrors the values shipped in .env.example.
+func envExample() map[string]string {
+	return map[string]string{
+		"RUNTIME_URL":          "http://runtime:8080",
+		"RUNTIME_PUBLIC_URL":   "https://run.example.net",
+		"RUNTIME_ROOT_TOKEN":   "dev-insecure-runtime-root",
+		"RUNTIME_DEFAULT_PLAN": "standard",
+		"RTWEB_PUBLIC_URL":     "http://localhost:8090",
+		"RTWEB_LISTEN":         ":8090",
+		"RTWEB_DB":             "./data/rtweb.db",
+		"RTWEB_DEV":            "1",
+		"RTWEB_SETUP_TOKEN":    "dev-insecure-setup",
+		"RTWEB_SECRET_KEY":     "dev-insecure-secret-key",
+		"ROUTER_SHARED_SECRET": "dev-insecure-router",
+		"BASE_DOMAIN":          "apps.example.net",
+		"ACME_EMAIL":           "ops@example.net",
+	}
+}
+
+func TestLoadEnvExampleAndDevLocal(t *testing.T) {
+	tests := []struct {
+		name    string
+		env     map[string]string
+		wantErr string
+	}{
+		{name: "shipped .env.example values with RTWEB_DEV=1", env: envExample()},
+		{
+			name: "dev local console 127.0.0.1 skips same-site check",
+			env: withEnv(map[string]string{
+				"RTWEB_DEV":          "1",
+				"RTWEB_PUBLIC_URL":   "http://127.0.0.1:8090",
+				"RUNTIME_PUBLIC_URL": "https://run.example.com",
+				"BASE_DOMAIN":        "example.com",
+			}),
+		},
+		{
+			name: "dev *.localhost console skips same-site check",
+			env: withEnv(map[string]string{
+				"RTWEB_DEV":        "1",
+				"RTWEB_PUBLIC_URL": "http://console.localhost:8090",
+				"BASE_DOMAIN":      "example.com",
+			}),
+		},
+		{
+			name: "non-dev localhost console is not skipped",
+			env: withEnv(map[string]string{
+				"RTWEB_PUBLIC_URL": "http://localhost:8090",
+			}),
+			wantErr: "RTWEB_PUBLIC_URL",
+		},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			_, err := Load(envOf(tt.env))
+			if tt.wantErr == "" {
+				if err != nil {
+					t.Fatalf("Load() error = %v, want nil", err)
+				}
+				return
+			}
+			if err == nil || !strings.Contains(err.Error(), tt.wantErr) {
+				t.Fatalf("Load() error = %v, want containing %q", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestLoadRejectsSameSite(t *testing.T) {
 	tests := []struct {
 		name    string
@@ -159,6 +241,38 @@ func TestLoadRejectsSameSite(t *testing.T) {
 				"RTWEB_PUBLIC_URL":   "https://console.example.com",
 				"RUNTIME_PUBLIC_URL": "https://apps.example.net",
 			}),
+		},
+		{
+			name: "uppercase and trailing dot normalized: Example.COM. rejected",
+			env: withEnv(map[string]string{
+				"RTWEB_PUBLIC_URL":   "https://console.example.com",
+				"RUNTIME_PUBLIC_URL": "https://RUN.Example.COM.",
+			}),
+			wantErr: "RUNTIME_PUBLIC_URL",
+		},
+		{
+			name: "BASE_DOMAIN with wildcard rejected",
+			env: withEnv(map[string]string{
+				"RTWEB_PUBLIC_URL": "https://console.x.com",
+				"BASE_DOMAIN":      "*.x.com",
+			}),
+			wantErr: "BASE_DOMAIN",
+		},
+		{
+			name: "BASE_DOMAIN with scheme rejected",
+			env: withEnv(map[string]string{
+				"RTWEB_PUBLIC_URL": "https://console.x.com",
+				"BASE_DOMAIN":      "https://x.com",
+			}),
+			wantErr: "BASE_DOMAIN",
+		},
+		{
+			name: "BASE_DOMAIN uppercase with trailing dot normalized to same site",
+			env: withEnv(map[string]string{
+				"RTWEB_PUBLIC_URL": "https://console.example.com",
+				"BASE_DOMAIN":      "Example.COM.",
+			}),
+			wantErr: "BASE_DOMAIN",
 		},
 		{
 			name: "same registrable domain as BASE_DOMAIN rejected",
