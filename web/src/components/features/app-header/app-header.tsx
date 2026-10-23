@@ -51,7 +51,7 @@ export function AppHeader({ org, app }: { org: string; app: AppSummary }) {
             params={{ org, app: app.slug }}
             activeOptions={{ exact: t.exact }}
             className="-mb-px border-b-2 border-transparent px-3 py-2 text-sm font-semibold text-muted hover:text-text focus-visible:ring-2 focus-visible:ring-focus"
-            activeProps={{ className: "border-blue text-text", "aria-current": "page" }}
+            activeProps={{ className: "border-accent text-text", "aria-current": "page" }}
           >
             {t.label}
           </Link>

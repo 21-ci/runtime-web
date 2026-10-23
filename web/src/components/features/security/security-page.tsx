@@ -38,7 +38,7 @@ export function SecurityPage() {
       </header>
 
       {me.data.mfa_enrollment_required ? (
-        <p role="alert" className="rounded-[8px] border border-line bg-panel p-3 text-sm">
+        <p role="alert" className="rounded-[6px] border border-line bg-panel p-3 text-sm">
           This instance requires two-factor authentication. Set it up to keep using Runtime Web.
         </p>
       ) : null}
@@ -200,7 +200,7 @@ function SessionsSection() {
       ) : sessions.isPending ? (
         <Skeleton className="h-24 w-full" />
       ) : (
-        <ul aria-label="Sessions" className="divide-y divide-line rounded-[10px] border border-line bg-surface">
+        <ul aria-label="Sessions" className="divide-y divide-line rounded-[6px] border border-line bg-surface">
           {sessions.data.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
               <span>

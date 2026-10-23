@@ -24,7 +24,7 @@ export function AppShell({ org, children }: { org: string; children: ReactNode }
     <div className="flex min-h-dvh bg-bg text-text">
       <a
         href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-[8px] focus:bg-surface focus:px-3 focus:py-2 focus:shadow-lg"
+        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-[6px] focus:bg-surface focus:px-3 focus:py-2 focus:shadow-[0_8px_24px_-12px_rgb(0_0_0_/0.35)]"
       >
         Skip to content
       </a>
@@ -34,7 +34,7 @@ export function AppShell({ org, children }: { org: string; children: ReactNode }
       </aside>
 
       <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b border-line bg-surface px-3 md:px-6">
+        <header className="sticky top-0 z-10 flex h-12 items-center gap-2 border-b border-line bg-surface px-3 md:px-6">
           <Dialog open={sheetOpen} onOpenChange={setSheetOpen}>
             <DialogTrigger asChild>
               <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation">
@@ -66,7 +66,7 @@ export function AppShell({ org, children }: { org: string; children: ReactNode }
           <AccountMenu />
         </header>
 
-        <main id="main" tabIndex={-1} className="flex-1 p-4 outline-none md:p-6">
+        <main id="main" tabIndex={-1} className="w-full max-w-[1280px] flex-1 p-4 outline-none md:px-8 md:py-6">
           {children}
         </main>
       </div>

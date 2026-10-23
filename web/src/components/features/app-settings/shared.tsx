@@ -44,7 +44,7 @@ export function Section({
   className?: string;
 }) {
   return (
-    <section aria-labelledby={`${id}-title`} className={`flex flex-col gap-3 rounded-[10px] border border-line bg-surface p-4 ${className}`}>
+    <section aria-labelledby={`${id}-title`} className={`flex flex-col gap-3 rounded-[6px] border border-line bg-surface p-4 ${className}`}>
       <header className="flex flex-col gap-1">
         <h2 id={`${id}-title`} className="text-base font-semibold text-text">
           {title}
@@ -61,7 +61,7 @@ export function Section({
 export function FormAlert({ messages }: { messages: string[] }) {
   if (messages.length === 0) return null;
   return (
-    <div role="alert" className="rounded-[7px] border border-danger bg-danger-soft p-3 text-sm text-text">
+    <div role="alert" className="rounded-[4px] border border-danger bg-danger-soft p-3 text-sm text-text">
       {messages.map((m) => (
         <p key={m}>{m}</p>
       ))}

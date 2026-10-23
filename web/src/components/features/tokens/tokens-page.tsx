@@ -214,7 +214,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
               <DialogTitle>Token {created.name} created</DialogTitle>
               <DialogDescription>Copy the secret now. You will not be able to see it again.</DialogDescription>
             </DialogHeader>
-            <div className="flex items-center gap-2 rounded-[8px] border border-line bg-panel p-3">
+            <div className="flex items-center gap-2 rounded-[6px] border border-line bg-panel p-3">
               <code className="min-w-0 flex-1 break-all font-mono text-sm">{created.secret}</code>
               <Button
                 variant="secondary"
@@ -250,7 +250,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
                         value={s}
                         checked={scopes.includes(s)}
                         onChange={() => toggle(scopes, s, setScopes)}
-                        className="size-4 accent-blue"
+                        className="size-4 accent-accent"
                       />
                       {s}
                     </label>
@@ -268,7 +268,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
                         value={a.slug}
                         checked={apps.includes(a.slug)}
                         onChange={() => toggle(apps, a.slug, setApps)}
-                        className="size-4 accent-blue"
+                        className="size-4 accent-accent"
                       />
                       {a.name ?? a.slug}
                     </label>
@@ -281,7 +281,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
                   id={expiryId}
                   name="expiry"
                   defaultValue="never"
-                  className="h-[34px] rounded-[8px] border border-line bg-surface px-2 text-sm"
+                  className="h-[34px] rounded-[6px] border border-line bg-surface px-2 text-sm"
                 >
                   {EXPIRY_OPTIONS.map((o) => (
                     <option key={o.value} value={o.value}>

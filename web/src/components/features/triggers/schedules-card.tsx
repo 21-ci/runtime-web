@@ -63,7 +63,7 @@ export function SchedulesCard({ org, app }: { org: string; app: string }) {
           action={<Button onClick={() => setAdding(true)}>Add schedule</Button>}
         />
       ) : (
-        <ul className="divide-y divide-line rounded-[10px] border border-line bg-surface">
+        <ul className="divide-y divide-line rounded-[6px] border border-line bg-surface">
           {schedules.data.map((s) => {
             const label = scheduleLabel(s);
             return (
@@ -188,7 +188,7 @@ function ScheduleDialog({ org, app, onClose }: { org: string; app: string; onClo
               id="schedule-kind"
               value={kind}
               onChange={(e) => setKind(e.target.value as "interval" | "cron")}
-              className="h-[38px] rounded-[7px] border border-line-strong bg-surface px-3 text-text"
+              className="h-[34px] rounded-[4px] border border-line-strong bg-surface px-3 text-text"
             >
               <option value="cron">Cron</option>
               <option value="interval">Interval</option>
@@ -235,7 +235,7 @@ function ScheduleDialog({ org, app, onClose }: { org: string; app: string; onClo
               rows={3}
               value={payloadText}
               onChange={(e) => setPayloadText(e.target.value)}
-              className="rounded-[7px] border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-blue focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+              className="rounded-[4px] border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
             />
           </div>
 

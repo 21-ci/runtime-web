@@ -88,7 +88,7 @@ function NewAppPage() {
                 setProjectChoice(e.target.value);
                 setEnvChoice("");
               }}
-              className="h-9 rounded-[8px] border border-line-strong bg-surface px-3 text-sm"
+              className="h-9 rounded-[6px] border border-line-strong bg-surface px-3 text-sm"
             >
               {(projects.data ?? []).map((p) => (
                 <option key={p.slug} value={p.slug}>
@@ -108,7 +108,7 @@ function NewAppPage() {
               value={environment}
               onChange={(e) => setEnvChoice(e.target.value)}
               aria-invalid={errors.environment ? true : undefined}
-              className="h-9 rounded-[8px] border border-line-strong bg-surface px-3 text-sm"
+              className="h-9 rounded-[6px] border border-line-strong bg-surface px-3 text-sm"
             >
               {(envs.data ?? []).map((e) => (
                 <option key={e} value={e}>
@@ -136,8 +136,8 @@ function NewAppPage() {
                   aria-checked={checked}
                   onClick={() => setTemplate(id)}
                   className={cn(
-                    "flex items-start gap-3 rounded-[10px] border bg-surface p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-focus",
-                    checked ? "border-blue ring-1 ring-blue" : "border-line hover:border-line-strong",
+                    "flex items-start gap-3 rounded-[6px] border bg-surface p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-focus",
+                    checked ? "border-accent ring-1 ring-accent" : "border-line hover:border-line-strong",
                   )}
                 >
                   <Icon className="mt-0.5 size-4 text-muted" aria-hidden="true" />

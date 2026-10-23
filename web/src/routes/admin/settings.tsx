@@ -182,7 +182,7 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
           const name = p.id === "oidc" ? (p.name || PROVIDER_LABEL.oidc) : PROVIDER_LABEL[p.id];
           const secretId = `${p.id}-client-secret`;
           return (
-            <fieldset key={p.id} className="flex flex-col gap-3 rounded-[10px] border border-line bg-surface p-4">
+            <fieldset key={p.id} className="flex flex-col gap-3 rounded-[6px] border border-line bg-surface p-4">
               <legend className="px-1 text-sm font-semibold">{name}</legend>
               <label className="flex items-center gap-2 text-sm">
                 <input

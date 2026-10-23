@@ -61,7 +61,7 @@ function ProjectPage() {
         ) : (apps.data ?? []).length === 0 ? (
           <NoApps org={org} project={p} />
         ) : (
-          <ul className="divide-y divide-line rounded-[10px] border border-line bg-surface">
+          <ul className="divide-y divide-line rounded-[6px] border border-line bg-surface">
             {(apps.data ?? []).map((a) => (
               <li key={a.slug}>
                 <Link

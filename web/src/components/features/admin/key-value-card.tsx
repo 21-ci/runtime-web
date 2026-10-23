@@ -23,7 +23,7 @@ export function KeyValueCard({
 }) {
   const headingId = `kv-${title.replace(/\s+/g, "-").toLowerCase()}`;
   return (
-    <section aria-labelledby={headingId} className="rounded-[10px] border border-line bg-surface p-4">
+    <section aria-labelledby={headingId} className="rounded-[6px] border border-line bg-surface p-4">
       <h2 id={headingId} className="mb-3 text-sm font-semibold">
         {title}
       </h2>

@@ -22,7 +22,7 @@ export function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () =
   }
 
   return (
-    <div className="flex flex-col gap-3 rounded-[10px] border border-line bg-panel p-4">
+    <div className="flex flex-col gap-3 rounded-[6px] border border-line bg-panel p-4">
       <div>
         <h3 className="text-sm font-semibold">Recovery codes</h3>
         <p className="text-sm text-muted">
@@ -130,7 +130,7 @@ export function EnrollTotp({ onDone }: { onDone?: () => void }) {
     <div className="flex flex-col gap-4">
       <p className="text-sm">Scan this QR code with your authenticator app, then enter the 6-digit code it shows.</p>
       {qr ? (
-        <img src={qr} alt="QR code for your authenticator app" width={192} height={192} className="rounded-[8px] bg-white p-2" />
+        <img src={qr} alt="QR code for your authenticator app" width={192} height={192} className="rounded-[6px] bg-white p-2" />
       ) : (
         <p className="text-sm text-muted">Preparing the QR code</p>
       )}

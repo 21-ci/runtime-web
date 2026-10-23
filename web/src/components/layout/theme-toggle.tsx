@@ -24,7 +24,7 @@ export function ThemeToggle() {
   }
 
   return (
-    <div role="radiogroup" aria-label="Theme" className="inline-flex rounded-[8px] border border-line bg-panel p-0.5">
+    <div role="radiogroup" aria-label="Theme" className="inline-flex rounded-[6px] border border-line bg-panel p-0.5">
       {OPTIONS.map(({ value, label, Icon }) => {
         const checked = theme === value;
         return (
@@ -45,7 +45,7 @@ export function ThemeToggle() {
               choose(OPTIONS[(i + step + OPTIONS.length) % OPTIONS.length].value);
             }}
             className={cn(
-              "grid size-7 place-items-center rounded-[6px] text-muted outline-none focus-visible:ring-2 focus-visible:ring-focus",
+              "grid size-7 place-items-center rounded-[4px] text-muted outline-none focus-visible:ring-2 focus-visible:ring-focus",
               checked && "bg-surface text-text shadow-sm",
             )}
           >

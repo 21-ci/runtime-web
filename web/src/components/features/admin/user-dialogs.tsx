@@ -19,7 +19,7 @@ import { errorMessage, useAdminOrgs, useCreateAdminInvite, useCreateAdminUser } 
 import { SecretOnce } from "./secret-once";
 
 const selectClass =
-  "flex h-[38px] w-full min-w-0 rounded-[7px] border border-line-strong bg-surface px-3 text-text outline-none focus-visible:border-blue focus-visible:ring-2 focus-visible:ring-focus";
+  "flex h-[38px] w-full min-w-0 rounded-[4px] border border-line-strong bg-surface px-3 text-text outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus";
 
 // CreateUserDialog creates an account with a temporary password. The password is shown once in the
 // same dialog; closing the dialog discards it.
@@ -90,7 +90,7 @@ export function CreateUserDialog({ open, onOpenChange }: { open: boolean; onOpen
             <FormField label="Email" name="email" type="email" autoComplete="off" error={errors.email} />
             <FormField label="Name" name="name" autoComplete="off" error={errors.name} />
             <label className="flex items-center gap-2 text-sm">
-              <input type="checkbox" name="instance_admin" className="size-4 accent-blue" />
+              <input type="checkbox" name="instance_admin" className="size-4 accent-accent" />
               Instance admin
             </label>
             <DialogFooter>

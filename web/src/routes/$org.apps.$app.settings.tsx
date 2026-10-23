@@ -59,13 +59,13 @@ function AppSettingsPage() {
         <CallersSection org={org} app={a} />
         <LimitsSection org={org} app={a} />
       </WriteAccess.Provider>
-      <section className="rounded-[10px] border border-line bg-surface p-4">
+      <section className="rounded-[6px] border border-line bg-surface p-4">
         <EnvEditor org={org} app={app} canWrite={can("app.env.write") === true} />
       </section>
-      <section className="rounded-[10px] border border-line bg-surface p-4">
+      <section className="rounded-[6px] border border-line bg-surface p-4">
         <SecretsPanel org={org} app={app} canWrite={can("app.secrets.write") === true} />
       </section>
-      <section className="rounded-[10px] border border-line bg-surface p-4">
+      <section className="rounded-[6px] border border-line bg-surface p-4">
         <DomainsPanel org={org} app={app} canWrite={can("domains.manage") === true} />
       </section>
       {can("app.delete") === true ? (

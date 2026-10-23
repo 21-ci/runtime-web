@@ -51,7 +51,7 @@ export function AccessSection({ org, app }: { org: string; app: AppDetail }) {
             id="access-mode"
             value={access}
             onChange={(e) => setAccess(e.target.value as AppAccess)}
-            className="h-[38px] w-full rounded-[7px] border border-line-strong bg-surface px-3 text-text focus-visible:border-blue focus-visible:ring-2 focus-visible:ring-focus"
+            className="h-[38px] w-full rounded-[4px] border border-line-strong bg-surface px-3 text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus"
           >
             {MODES.map((m) => (
               <option key={m.value} value={m.value}>
@@ -63,7 +63,7 @@ export function AccessSection({ org, app }: { org: string; app: AppDetail }) {
         </div>
 
         {access === "key" ? (
-          <div className="flex flex-col gap-2 rounded-[7px] border border-line p-3">
+          <div className="flex flex-col gap-2 rounded-[4px] border border-line p-3">
             <p className="text-sm text-text">Key mode needs an invoke token. Create one and give it to the caller.</p>
             {secret ? (
               <div className="flex flex-col gap-1">

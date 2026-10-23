@@ -95,7 +95,7 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
         rows={8}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? "env-error" : undefined}
-        className="w-full rounded-[8px] border border-line bg-surface p-3 font-mono text-sm text-text focus-visible:outline-2 focus-visible:outline-blue"
+        className="w-full rounded-[6px] border border-line bg-surface p-3 font-mono text-sm text-text focus-visible:outline-2 focus-visible:outline-accent"
       />
       {error ? (
         <p id="env-error" role="alert" className="text-sm text-danger">

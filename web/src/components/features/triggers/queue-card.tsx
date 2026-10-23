@@ -63,19 +63,19 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
         <Skeleton className="h-16 w-full" />
       ) : (
         <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div className="rounded-[10px] border border-line bg-surface p-3">
+          <div className="rounded-[6px] border border-line bg-surface p-3">
             <dt className="text-xs text-muted">Depth</dt>
             <dd className="font-semibold">{stats.data.depth}</dd>
           </div>
-          <div className="rounded-[10px] border border-line bg-surface p-3">
+          <div className="rounded-[6px] border border-line bg-surface p-3">
             <dt className="text-xs text-muted">In flight</dt>
             <dd className="font-semibold">{stats.data.in_flight}</dd>
           </div>
-          <div className="rounded-[10px] border border-line bg-surface p-3">
+          <div className="rounded-[6px] border border-line bg-surface p-3">
             <dt className="text-xs text-muted">Oldest</dt>
             <dd className="font-semibold">{Math.round(stats.data.oldest_age_ms / 1000)} s</dd>
           </div>
-          <div className="rounded-[10px] border border-line bg-surface p-3">
+          <div className="rounded-[6px] border border-line bg-surface p-3">
             <dt className="text-xs text-muted">Dead-lettered</dt>
             <dd className="font-semibold">{stats.data.dlq}</dd>
           </div>
@@ -90,7 +90,7 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
             rows={4}
             value={bodyText}
             onChange={(e) => setBodyText(e.target.value)}
-            className="rounded-[7px] border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-blue focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+            className="rounded-[4px] border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
           />
         </div>
         <div className="flex flex-col gap-1.5">

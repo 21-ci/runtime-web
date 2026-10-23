@@ -35,7 +35,7 @@ const theme = EditorView.theme({
   "&": { height: "100%", backgroundColor: "var(--color-panel)", color: "var(--color-text)", fontSize: "13px" },
   "&.cm-focused": { outline: "2px solid var(--color-focus)" },
   ".cm-gutters": { backgroundColor: "var(--color-panel-2)", color: "var(--color-muted)", border: "none" },
-  ".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "var(--color-blue-pale)" },
+  ".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "var(--color-accent-pale)" },
   ".cm-content": { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", caretColor: "var(--color-text)" },
 });
 

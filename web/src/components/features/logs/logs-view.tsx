@@ -60,7 +60,7 @@ export function LogsView({ org, app }: { org: string; app: string }) {
           aria-label="Minimum level"
           value={level}
           onChange={(e) => setLevel(e.target.value as LogLevel)}
-          className="h-[34px] rounded-[7px] border border-line bg-panel px-2 text-sm text-text"
+          className="h-[34px] rounded-[4px] border border-line bg-panel px-2 text-sm text-text"
         >
           <option value="">All levels</option>
           <option value="debug">Debug and up</option>
@@ -91,7 +91,7 @@ export function LogsView({ org, app }: { org: string; app: string }) {
       ) : (
         <ol
           aria-label="Log lines"
-          className="max-h-[60vh] overflow-auto rounded-[7px] border border-line bg-panel p-2 font-mono text-xs"
+          className="max-h-[60vh] overflow-auto rounded-[4px] border border-line bg-panel p-2 font-mono text-xs"
         >
           {visible.map((l) => (
             <LogRow key={l.seq} line={l} />
@@ -108,7 +108,7 @@ function LogRow({ line }: { line: LogLine }) {
       <time className="shrink-0 text-muted" dateTime={new Date(line.ts).toISOString()}>
         {new Date(line.ts).toLocaleTimeString()}
       </time>
-      <span className="shrink-0 uppercase text-muted">{line.level}</span>
+      <span className="shrink-0 text-muted">{line.level}</span>
       <span className="break-all">{line.msg}</span>
     </li>
   );

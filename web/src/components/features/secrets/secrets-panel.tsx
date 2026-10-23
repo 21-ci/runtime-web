@@ -108,7 +108,7 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
           }
         />
       ) : (
-        <ul aria-label="Secret names" className="divide-y divide-line rounded-[10px] border border-line bg-surface">
+        <ul aria-label="Secret names" className="divide-y divide-line rounded-[6px] border border-line bg-surface">
           {secrets.data.map((s) => (
             <li key={s.name} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
               <span className="font-mono">{s.name}</span>

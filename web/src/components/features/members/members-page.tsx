@@ -79,7 +79,7 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
         ) : members.data.length === 0 ? (
           <EmptyState icon={Users} title="No members" description="Invite a teammate to get started." />
         ) : (
-          <ul aria-label="Members" className="divide-y divide-line rounded-[10px] border border-line bg-surface">
+          <ul aria-label="Members" className="divide-y divide-line rounded-[6px] border border-line bg-surface">
             {members.data.map((m) => {
               // Admins cannot touch owner rows at all.
               const locked = !callerIsOwner && m.role === "owner";
@@ -104,7 +104,7 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
                           value={m.role}
                           disabled={setRole.isPending}
                           onChange={(e) => changeRole(m, e.target.value as OrgRole)}
-                          className="h-[34px] rounded-[8px] border border-line bg-surface px-2 text-sm"
+                          className="h-[34px] rounded-[6px] border border-line bg-surface px-2 text-sm"
                         >
                           {assignableRoles(role).map((r) => (
                             <option key={r} value={r}>

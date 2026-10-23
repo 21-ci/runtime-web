@@ -1,4 +1,9 @@
 @import "tailwindcss";
+@import "@fontsource/ibm-plex-sans/latin-400.css";
+@import "@fontsource/ibm-plex-sans/latin-500.css";
+@import "@fontsource/ibm-plex-sans/latin-600.css";
+@import "@fontsource/ibm-plex-mono/latin-400.css";
+@import "@fontsource/ibm-plex-mono/latin-500.css";
 
 /*
  * Design tokens, migrated from docs/ui-reference/src/index.css.
@@ -9,57 +14,59 @@
  * checked for WCAG AA (4.5:1) in src/styles/contrast.test.ts.
  */
 :root {
-  --bg: #ffffff;
-  --panel: #f7fafc;
-  --panel-2: #f1f5f9;
-  --surface: #ffffff;
-  --line: #e1e7ed;
-  --line-strong: #cfd8e3;
-  --text: #111827;
-  --muted: #627083;
-  --blue: #0369a1;
-  --blue-hover: #075985;
+  --bg: #eeefeb;
+  --panel: #e6e7e2;
+  --panel-2: #dcded8;
+  --surface: #f9f9f7;
+  --line: #d2d4cd;
+  --line-strong: #b4b8b0;
+  --text: #1b1e1c;
+  --muted: #555b56;
+  --accent: #8a560a;
+  --accent-hover: #6f4507;
   --on-primary: #ffffff;
-  --blue-soft: #bae2f8;
-  --blue-pale: #eaf7fe;
-  --navy: #1f2a44;
-  --green: #15803d;
+  --accent-soft: #f0dcb2;
+  --accent-pale: #f6ecd8;
+  --overlay: #1b1e1c;
+  --green: #2c6a3a;
   --on-success: #ffffff;
-  --danger: #d83a52;
-  --danger-text: #9f1239;
-  --danger-soft: #ffdbe0;
-  --focus: color-mix(in srgb, var(--blue) 45%, transparent);
-  --radius: 8px;
+  --danger: #b3261e;
+  --danger-text: #8c1d17;
+  --danger-soft: #f5d9d4;
+  --focus: color-mix(in srgb, var(--accent) 55%, transparent);
+  --radius: 4px;
 
   color-scheme: light;
-  font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   color: var(--text);
   background: var(--bg);
   font-size: 14px;
   font-synthesis: none;
+  font-feature-settings: "ss02", "tnum";
+  line-height: 1.45;
 }
 
 .dark {
-  --bg: #0b1120;
-  --panel: #111a2b;
-  --panel-2: #172238;
-  --surface: #0f1829;
-  --line: #22304a;
-  --line-strong: #33425f;
-  --text: #e6ebf3;
-  --muted: #94a3b8;
-  --blue: #38bdf8;
-  --blue-hover: #7dd3fc;
-  --on-primary: #0b1120;
-  --blue-soft: #123a52;
-  --blue-pale: #0f2a3d;
-  --navy: #0b1426;
-  --green: #3ddc84;
-  --on-success: #0b1120;
-  --danger: #f0647a;
-  --danger-text: #f0647a;
-  --danger-soft: #3d1420;
-  --focus: color-mix(in srgb, var(--blue) 55%, transparent);
+  --bg: #141614;
+  --panel: #1c1f1d;
+  --panel-2: #252926;
+  --surface: #181b19;
+  --line: #2e332f;
+  --line-strong: #434a45;
+  --text: #e5e6e1;
+  --muted: #9ba19a;
+  --accent: #e0a43a;
+  --accent-hover: #ecbb5f;
+  --on-primary: #1a1405;
+  --accent-soft: #4a3612;
+  --accent-pale: #2a2214;
+  --overlay: #000000;
+  --green: #74c08a;
+  --on-success: #0f1a12;
+  --danger: #ee8679;
+  --danger-text: #f3a69c;
+  --danger-soft: #45201b;
+  --focus: color-mix(in srgb, var(--accent) 60%, transparent);
 
   color-scheme: dark;
 }
@@ -73,12 +80,12 @@
   --color-line-strong: var(--line-strong);
   --color-text: var(--text);
   --color-muted: var(--muted);
-  --color-blue: var(--blue);
-  --color-blue-hover: var(--blue-hover);
+  --color-accent: var(--accent);
+  --color-accent-hover: var(--accent-hover);
   --color-on-primary: var(--on-primary);
-  --color-blue-soft: var(--blue-soft);
-  --color-blue-pale: var(--blue-pale);
-  --color-navy: var(--navy);
+  --color-accent-soft: var(--accent-soft);
+  --color-accent-pale: var(--accent-pale);
+  --color-overlay: var(--overlay);
   --color-green: var(--green);
   --color-on-success: var(--on-success);
   --color-danger: var(--danger);
@@ -86,7 +93,8 @@
   --color-danger-soft: var(--danger-soft);
   --color-focus: var(--focus);
   --radius-app: var(--radius);
-  --font-sans: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 * {
@@ -110,4 +118,26 @@ input,
 textarea,
 select {
   font: inherit;
+}
+
+code,
+kbd,
+samp,
+pre {
+  font-family: var(--font-mono);
+  font-size: 0.93em;
+}
+
+::selection {
+  background: var(--accent-soft);
+  color: var(--text);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    transition-duration: 0.01ms !important;
+    animation-duration: 0.01ms !important;
+  }
 }

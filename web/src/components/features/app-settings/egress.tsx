@@ -47,7 +47,7 @@ export function EgressSection({ org, app }: { org: string; app: AppDetail }) {
             onChange={(e) => setText(e.target.value)}
             rows={6}
             aria-describedby="egress-error"
-            className="rounded-[7px] border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-blue focus-visible:ring-2 focus-visible:ring-focus"
+            className="rounded-[4px] border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus"
           />
           <FieldError id="egress-error" message={fieldError} />
         </div>

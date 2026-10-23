@@ -17,7 +17,7 @@ const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 min-w-[180px] overflow-hidden rounded-[9px] border border-line bg-surface p-1 text-text shadow-lg",
+        "z-50 min-w-[180px] overflow-hidden rounded-[6px] border border-line bg-surface p-1 text-text shadow-[0_8px_24px_-12px_rgb(0_0_0_/0.35)]",
         className,
       )}
       {...props}
@@ -33,7 +33,7 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex min-h-8 cursor-pointer select-none items-center gap-2 rounded-[6px] px-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-panel-2",
+      "relative flex min-h-8 cursor-pointer select-none items-center gap-2 rounded-[4px] px-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-panel-2",
       destructive && "text-danger",
       className,
     )}
@@ -49,7 +49,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex min-h-8 cursor-pointer select-none items-center gap-2 rounded-[6px] py-1 pl-7 pr-2 text-sm outline-none data-[highlighted]:bg-panel-2",
+      "relative flex min-h-8 cursor-pointer select-none items-center gap-2 rounded-[4px] py-1 pl-7 pr-2 text-sm outline-none data-[highlighted]:bg-panel-2",
       className,
     )}
     {...props}

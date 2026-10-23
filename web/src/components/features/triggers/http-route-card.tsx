@@ -64,7 +64,7 @@ export function HttpRouteCard({ org, app, view }: { org: string; app: string; vi
             value={access}
             onChange={(e) => setAccess(e.target.value as AppView["access"])}
             aria-describedby="http-access-hint"
-            className="h-[38px] rounded-[7px] border border-line-strong bg-surface px-3 text-text"
+            className="h-[34px] rounded-[4px] border border-line-strong bg-surface px-3 text-text"
           >
             {ACCESS.map((a) => (
               <option key={a.value} value={a.value}>
@@ -101,7 +101,7 @@ export function HttpRouteCard({ org, app, view }: { org: string; app: string; vi
             value={prefixes}
             onChange={(e) => setPrefixes(e.target.value)}
             placeholder="/api"
-            className="rounded-[7px] border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-blue focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+            className="rounded-[4px] border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
           />
           <p className="text-sm text-muted">The IP allow-list and rate limit are kept as they are.</p>
         </div>

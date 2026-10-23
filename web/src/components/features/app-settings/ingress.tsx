@@ -164,7 +164,7 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
             value={rateLimit}
             onChange={(e) => setRateLimit(e.target.value)}
             rows={4}
-            className="rounded-[7px] border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-blue focus-visible:ring-2 focus-visible:ring-focus"
+            className="rounded-[4px] border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus"
             aria-describedby="rate-limit-error"
           />
           <FieldError id="rate-limit-error" message={fields["ingress.rate_limit"]} />

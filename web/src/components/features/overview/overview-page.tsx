@@ -52,7 +52,7 @@ export function OverviewPage({ org, app }: { org: string; app: string }) {
         ) : (
           <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
             {TILES.map((t) => (
-              <div key={t.key} className="rounded-[10px] border border-line bg-surface p-3">
+              <div key={t.key} className="rounded-[6px] border border-line bg-surface p-3">
                 <dt className="text-xs text-muted">{t.label}</dt>
                 <dd className="text-lg font-semibold">{formatTile(t.key, stats.data[t.key], t.suffix)}</dd>
               </div>

@@ -97,7 +97,7 @@ function CopyButton({ label, value }: { label: string; value: string }) {
 
 function DnsRecord({ host, domain }: { host: string; domain: Domain }) {
   return (
-    <div className="flex flex-col gap-3 rounded-[8px] border border-line bg-panel p-3 text-sm">
+    <div className="flex flex-col gap-3 rounded-[6px] border border-line bg-panel p-3 text-sm">
       <p>
         Add these DNS records for <span className="font-mono">{host}</span>.
       </p>
@@ -197,7 +197,7 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
       ) : (
         <ul className="flex flex-col gap-3">
           {domains.data.map((d) => (
-            <li key={d.id} className="flex flex-col gap-3 rounded-[10px] border border-line bg-surface p-4">
+            <li key={d.id} className="flex flex-col gap-3 rounded-[6px] border border-line bg-surface p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-mono text-sm font-medium">{d.host}</span>
                 <div className="flex flex-wrap items-center gap-2">

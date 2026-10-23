@@ -7,7 +7,7 @@ function AuthShell({ title, children }: { title: string; children: ReactNode }) 
     <main className="flex min-h-dvh items-center justify-center p-4">
       <div className="w-full max-w-sm">
         <h1 className="mb-6 text-center text-xl font-semibold text-text">{title}</h1>
-        <div className="min-h-[360px] rounded-[10px] border border-line bg-surface p-6">{children}</div>
+        <div className="min-h-[360px] rounded-[6px] border border-line bg-surface p-6">{children}</div>
       </div>
     </main>
   );

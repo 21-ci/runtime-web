@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { useAdminAudit, useAdminOrgs, useUserOptions, type AuditFilters } from "./admin-api";
 
 const selectClass =
-  "flex h-[38px] w-full min-w-0 rounded-[7px] border border-line-strong bg-surface px-3 text-text outline-none focus-visible:border-blue focus-visible:ring-2 focus-visible:ring-focus";
+  "flex h-[38px] w-full min-w-0 rounded-[4px] border border-line-strong bg-surface px-3 text-text outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus";
 
 // AuditPage is the instance-wide audit log. Filters go to the API (org slug, actor user id, action),
 // so each change reloads from the first page.

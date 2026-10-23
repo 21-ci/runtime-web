@@ -8,7 +8,7 @@ import { CreateProjectDialog } from "@/components/features/org/create-project-di
 import { useApps, useOrgs, useProjects } from "@/hooks/orgs";
 import { visibleSettings } from "./settings-registry";
 
-const ITEM = "flex cursor-pointer items-center gap-2 rounded-[6px] px-3 py-2 text-sm text-text aria-selected:bg-panel-2";
+const ITEM = "flex cursor-pointer items-center gap-2 rounded-[4px] px-3 py-2 text-sm text-text aria-selected:bg-panel-2";
 const HEADING = "text-xs text-muted";
 
 // CommandMenu is the ⌘K / Ctrl+K palette: apps, projects, settings and actions. Opening is global;
@@ -50,7 +50,7 @@ export function CommandMenu({ org }: { org: string }) {
         open={open}
         onOpenChange={setOpen}
         label="Command menu"
-        className="fixed left-1/2 top-[15vh] z-50 w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-[12px] border border-line bg-surface text-text shadow-lg"
+        className="fixed left-1/2 top-[15vh] z-50 w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-[6px] border border-line bg-surface text-text shadow-[0_8px_24px_-12px_rgb(0_0_0_/0.35)]"
       >
         <Command.Input
           placeholder="Search apps, projects and actions"

@@ -51,7 +51,7 @@ function AdminDomainsPage() {
       ) : (domains.data ?? []).length === 0 ? (
         <p className="text-sm text-muted">No custom domains yet.</p>
       ) : (
-        <div className="overflow-x-auto rounded-[10px] border border-line bg-surface">
+        <div className="overflow-x-auto rounded-[6px] border border-line bg-surface">
           <Table>
             <caption className="sr-only">Custom domains across all orgs</caption>
             <TableHeader>

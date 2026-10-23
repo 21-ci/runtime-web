@@ -56,7 +56,7 @@ function AdminNodePage() {
         <KeyValueCard title="Scheduler" query={scheduler} />
       </div>
 
-      <section aria-labelledby="node-config-heading" className="rounded-[10px] border border-line bg-surface p-4">
+      <section aria-labelledby="node-config-heading" className="rounded-[6px] border border-line bg-surface p-4">
         <h2 id="node-config-heading" className="mb-3 text-sm font-semibold">
           Configuration
         </h2>
@@ -157,7 +157,7 @@ function NodeConfigForm({ initial }: { initial: NodeConfig }) {
           value={rateLimit}
           onChange={(e) => setRateLimit(e.target.value)}
           aria-invalid={errors.rate_limit ? true : undefined}
-          className="rounded-[8px] border border-line-strong bg-surface p-2 font-mono text-sm"
+          className="rounded-[6px] border border-line-strong bg-surface p-2 font-mono text-sm"
         />
         {errors.rate_limit ? <p className="text-sm text-danger">{errors.rate_limit}</p> : null}
       </div>
@@ -194,7 +194,7 @@ function DrainSection() {
   }
 
   return (
-    <section aria-labelledby="drain-heading" className="rounded-[10px] border border-line bg-surface p-4">
+    <section aria-labelledby="drain-heading" className="rounded-[6px] border border-line bg-surface p-4">
       <h2 id="drain-heading" className="mb-1 text-sm font-semibold">
         Drain
       </h2>

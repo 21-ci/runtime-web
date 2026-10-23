@@ -14,7 +14,7 @@ function UsageCardBody({ org }: { org: string }) {
   const total = rows.reduce((sum, r) => sum + r.invocations, 0);
 
   return (
-    <section aria-label="Usage" className="rounded-[10px] border border-line bg-surface p-4">
+    <section aria-label="Usage" className="rounded-[6px] border border-line bg-surface p-4">
       <h2 className="mb-3 text-sm font-semibold">Usage today</h2>
       {usage.isPending ? (
         <Skeleton className="h-16 w-full" />
