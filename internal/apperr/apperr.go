@@ -22,6 +22,9 @@ type Conflict struct {
 	Code string
 	// Message is an optional user-facing explanation; empty uses the HTTP layer's default.
 	Message string
+	// Public marks Message as safe to show to clients. Without it the HTTP
+	// layer ignores Message and shows the code instead.
+	Public bool
 }
 
 func (c Conflict) Error() string {

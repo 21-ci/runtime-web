@@ -46,6 +46,10 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 			RuntimePublicURL: cfg.RuntimePublicURL,
 		}),
 		ReadHeaderTimeout: 10 * time.Second,
+		// No WriteTimeout: log streams (SSE) are long-lived.
+		ReadTimeout:    60 * time.Second,
+		IdleTimeout:    120 * time.Second,
+		MaxHeaderBytes: 64 << 10,
 	}
 	errc := make(chan error, 1)
 	go func() { errc <- srv.ListenAndServe() }()

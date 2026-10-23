@@ -170,6 +170,30 @@ func TestAdminRouteRequiresInstanceAdmin(t *testing.T) {
 	}
 }
 
+// TestCSRFBeforeAdminCheck: a cross-site POST from a non-admin without the CSRF
+// token must get csrf_invalid, not forbidden.
+func TestCSRFBeforeAdminCheck(t *testing.T) {
+	e := newTestEnv(t)
+	e.mkUser("member@example.test", testPassword)
+	e.srv.route(http.MethodPost, "/api/test/admin-write", authz.InstanceAdmin, func(w http.ResponseWriter, _ *http.Request) error {
+		w.WriteHeader(http.StatusNoContent)
+		return nil
+	})
+	cookie, csrf := e.login("member@example.test", testPassword)
+
+	rec := e.send(http.MethodPost, "/api/test/admin-write", nil, withCookie(cookie))
+	expectStatus(t, rec, http.StatusForbidden)
+	if code := errCode(t, rec); code != "csrf_invalid" {
+		t.Fatalf("code = %q, want csrf_invalid", code)
+	}
+
+	rec = e.send(http.MethodPost, "/api/test/admin-write", nil, withCookie(cookie), withCSRF(csrf))
+	expectStatus(t, rec, http.StatusForbidden)
+	if code := errCode(t, rec); code != "forbidden" {
+		t.Fatalf("code = %q, want forbidden", code)
+	}
+}
+
 func TestRegistryListsRoutes(t *testing.T) {
 	e := newTestEnv(t)
 	want := map[string]bool{

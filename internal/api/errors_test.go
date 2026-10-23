@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 	"time"
 
@@ -113,6 +114,31 @@ func TestErrorMappingTable(t *testing.T) {
 			}
 			if http.StatusOK == rec.Code {
 				t.Fatal("error mapped to 200")
+			}
+		})
+	}
+}
+
+// TestConflictMessageNotLeaked: only a Conflict marked Public shows its message.
+func TestConflictMessageNotLeaked(t *testing.T) {
+	tests := []struct {
+		name string
+		err  error
+		want string
+	}{
+		{"unsafe message replaced by code", apperr.Conflict{Code: "slug_taken", Message: "db at /var/lib/rtweb.db locked"}, "slug taken"},
+		{"public message kept", apperr.Conflict{Code: "slug_taken", Message: "That name is taken.", Public: true}, "That name is taken."},
+	}
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			rec := httptest.NewRecorder()
+			writeAPIError(rec, mapError(tt.err))
+			msg := decode(t, rec)["error"].(map[string]any)["message"]
+			if msg != tt.want {
+				t.Fatalf("message = %q, want %q", msg, tt.want)
+			}
+			if strings.Contains(rec.Body.String(), "/var/lib") {
+				t.Fatalf("unsafe message leaked: %s", rec.Body.String())
 			}
 		})
 	}

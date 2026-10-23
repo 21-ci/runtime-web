@@ -118,9 +118,12 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 	if o := originOf(s.deps.RuntimePublicURL); o != "" {
 		frame = o
 	}
-	csp := "default-src 'self'; frame-src " + frame
+	csp := "default-src 'self'; frame-src " + frame + "; frame-ancestors 'none'"
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		w.Header().Set("Content-Security-Policy", csp)
+		h := w.Header()
+		h.Set("Content-Security-Policy", csp)
+		h.Set("X-Content-Type-Options", "nosniff")
+		h.Set("Referrer-Policy", "same-origin")
 		next.ServeHTTP(w, r)
 	})
 }

@@ -69,8 +69,8 @@ func TestSetupValidationFields(t *testing.T) {
 		t.Fatalf("code = %v, want invalid", env["code"])
 	}
 	fields := env["details"].(map[string]any)["fields"].(map[string]any)
-	if _, ok := fields["password"]; !ok {
-		t.Fatalf("fields = %v, want password", fields)
+	if got := fields["password"]; got != "password shorter than 12 characters" {
+		t.Fatalf("fields[password] = %q, want the policy reason", got)
 	}
 }
 
@@ -159,8 +159,8 @@ func TestMeAndPasswordChange(t *testing.T) {
 		map[string]string{"current_password": testPassword, "new_password": "short"}, mods...)
 	expectStatus(t, rec, http.StatusUnprocessableEntity)
 	fields := decode(t, rec)["error"].(map[string]any)["details"].(map[string]any)["fields"].(map[string]any)
-	if _, ok := fields["new_password"]; !ok {
-		t.Fatalf("fields = %v, want new_password", fields)
+	if got := fields["new_password"]; got != "password shorter than 12 characters" {
+		t.Fatalf("fields[new_password] = %q, want the policy reason", got)
 	}
 
 	rec = e.send(http.MethodPut, "/api/me/password",

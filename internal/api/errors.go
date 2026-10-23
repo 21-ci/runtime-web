@@ -101,9 +101,9 @@ func mapError(err error) apiError {
 				message: "password login cannot be disabled without an SSO provider",
 				details: map[string]any{"fields": fieldErrors{"password_login_disabled": "requires a configured SSO provider"}}}
 		}
-		msg := conflict.Message
-		if msg == "" {
-			msg = humanize(conflict.Code)
+		msg := humanize(conflict.Code)
+		if conflict.Public && conflict.Message != "" {
+			msg = conflict.Message
 		}
 		return apiError{status: http.StatusConflict, code: conflict.Code, message: msg}
 	}
@@ -171,6 +171,13 @@ func rawDetails(raw json.RawMessage) any {
 		return nil
 	}
 	return raw
+}
+
+// passwordReason returns the policy reason of a ValidatePassword error,
+// without the package prefix and the sentinel suffix.
+func passwordReason(err error) string {
+	s := strings.TrimPrefix(err.Error(), "auth: ")
+	return strings.TrimSuffix(s, ": "+apperr.ErrInvalid.Error())
 }
 
 // humanize turns a snake_case code into a readable message.

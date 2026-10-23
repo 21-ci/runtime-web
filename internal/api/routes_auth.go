@@ -121,7 +121,7 @@ func setupFields(in setupReq) fieldErrors {
 		fields["name"] = "required"
 	}
 	if err := auth.ValidatePassword(in.Password); err != nil {
-		fields["password"] = "must be at least 12 characters"
+		fields["password"] = passwordReason(err)
 	}
 	return fields
 }
@@ -195,7 +195,7 @@ func (s *Server) completeMFA(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return auth.ErrNoSession
 	}
-	cookie, _, err := s.deps.Auth.CompleteMFA(r.Context(), c.Value, in.Code)
+	cookie, csrf, err := s.deps.Auth.CompleteMFA(r.Context(), c.Value, in.Code)
 	if err != nil {
 		if errors.Is(err, auth.ErrInvalidCode) {
 			writeAPIError(w, apiError{status: http.StatusUnauthorized, code: "invalid_code", message: "invalid code"})
@@ -203,7 +203,7 @@ func (s *Server) completeMFA(w http.ResponseWriter, r *http.Request) error {
 		}
 		return err
 	}
-	sess, u, err := sessions.Lookup(r.Context(), cookie)
+	_, u, err := sessions.Lookup(r.Context(), cookie)
 	if err != nil {
 		return err
 	}
@@ -212,7 +212,7 @@ func (s *Server) completeMFA(w http.ResponseWriter, r *http.Request) error {
 	if err != nil {
 		return err
 	}
-	writeJSON(w, http.StatusOK, sessionJSON{User: uj, CSRF: sess.CSRF})
+	writeJSON(w, http.StatusOK, sessionJSON{User: uj, CSRF: csrf})
 	return nil
 }
 
@@ -303,7 +303,7 @@ func (s *Server) changePassword(w http.ResponseWriter, r *http.Request) error {
 	err := s.deps.Auth.ChangePassword(r.Context(), p.User.ID, p.SessionID, in.CurrentPassword, in.NewPassword)
 	if err != nil {
 		if errors.Is(err, apperr.ErrInvalid) {
-			return invalid(fieldErrors{"new_password": "must be at least 12 characters"})
+			return invalid(fieldErrors{"new_password": passwordReason(auth.ValidatePassword(in.NewPassword))})
 		}
 		return err
 	}

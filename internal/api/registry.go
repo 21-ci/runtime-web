@@ -58,14 +58,16 @@ var (
 )
 
 // sessionChain runs, in order: session load (rejects MFA-pending cookies),
-// password-change gate, 2FA-enrolment gate, instance-admin check, CSRF.
+// password-change gate, 2FA-enrolment gate, CSRF, instance-admin check. CSRF
+// comes before the authz check so a cross-site request gets csrf_invalid.
 func (s *Server) sessionChain(action authz.Action) func(http.Handler) http.Handler {
 	sessions := s.deps.Auth.Sessions
 	return func(next http.Handler) http.Handler {
-		h := auth.RequireCSRF(next)
+		h := next
 		if action == authz.InstanceAdmin {
 			h = auth.RequireInstanceAdmin(h)
 		}
+		h = auth.RequireCSRF(h)
 		h = s.deps.Auth.RequireMFAEnrolled(mfaGateExempt...)(h)
 		h = auth.RequirePasswordChanged(passwordGateExempt...)(h)
 		return sessions.RequireSession(h)

@@ -212,7 +212,7 @@ func (s *Service) Create(ctx context.Context, sub authz.Subject, orgID, projectS
 	svc, err := cli.CreateService(ctx, runtime.ServiceCreate{Slug: slug, Runtime: "deno", Project: &projectSlug, Environment: &environment})
 	if err != nil {
 		if code, ok := runtimeConflict(err); ok && code == "slug_taken" {
-			return AppView{}, fmt.Errorf("apps: create %s: %w", slug, apperr.Conflict{Code: "slug_taken", Message: SlugTakenMessage})
+			return AppView{}, fmt.Errorf("apps: create %s: %w", slug, apperr.Conflict{Code: "slug_taken", Message: SlugTakenMessage, Public: true})
 		}
 		return AppView{}, mapErr("create "+slug, err)
 	}
