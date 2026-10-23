@@ -110,9 +110,9 @@ func (f *Fake) deleteTenant(p principal, w http.ResponseWriter, r *http.Request)
 	if !truthy(r.URL.Query().Get("purge")) && f.countServices(t.id) > 0 {
 		return conflict("tenant_not_empty", "tenant still owns services")
 	}
-	for id, s := range f.services {
+	for _, s := range f.services {
 		if s.tenantID == t.id {
-			delete(f.services, id)
+			f.dropService(s)
 		}
 	}
 	for id, k := range f.keys {

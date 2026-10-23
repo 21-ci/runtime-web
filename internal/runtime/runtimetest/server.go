@@ -50,6 +50,7 @@ type Fake struct {
 	tenants  map[string]*tenant
 	keys     map[string]*apiKey
 	services map[string]*service
+	hosts    map[string]*hostEntry
 	failNext *injected
 	streams  map[string]int
 }
@@ -73,6 +74,7 @@ func NewServer(t *testing.T) *Fake {
 		tenants:  map[string]*tenant{},
 		keys:     map[string]*apiKey{},
 		services: map[string]*service{},
+		hosts:    map[string]*hostEntry{},
 		streams:  map[string]int{},
 	}
 	mux := http.NewServeMux()
@@ -102,6 +104,9 @@ func (f *Fake) SetPlan(name string, p FakePlan) {
 func (f *Fake) routes(mux *http.ServeMux) {
 	f.tenantRoutes(mux)
 	f.serviceRoutes(mux)
+	f.versionRoutes(mux)
+	f.hostRoutes(mux)
+	f.logRoutes(mux)
 }
 
 func (f *Fake) withFailure(next http.Handler) http.Handler {
