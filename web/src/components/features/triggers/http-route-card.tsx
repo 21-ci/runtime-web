@@ -106,8 +106,8 @@ export function HttpRouteCard({ org, app, view }: { org: string; app: string; vi
           <p className="text-sm text-muted">The IP allow-list and rate limit are kept as they are.</p>
         </div>
 
-        <Button type="submit" className="self-start" disabled={patch.isPending}>
-          {patch.isPending ? "Saving..." : "Save HTTP route"}
+        <Button type="submit" variant="default" className="self-start" disabled={patch.isPending}>
+          {patch.isPending ? "Saving…" : "Save HTTP route"}
         </Button>
       </form>
     </section>

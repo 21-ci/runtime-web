@@ -125,7 +125,7 @@ function LoginPage() {
               {formError}
             </p>
           ) : null}
-          <Button type="submit" disabled={login.isPending}>
+          <Button type="submit" variant="default" disabled={login.isPending}>
             {login.isPending ? "Signing in…" : "Sign in"}
           </Button>
         </AuthForm>

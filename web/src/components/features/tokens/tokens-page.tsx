@@ -205,7 +205,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button>New token</Button>
+        <Button variant="default">New token</Button>
       </DialogTrigger>
       <DialogContent>
         {created ? (
@@ -291,7 +291,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
                 </select>
               </div>
               <DialogFooter>
-                <Button type="submit" disabled={create.isPending}>
+                <Button type="submit" variant="default" disabled={create.isPending}>
                   Create token
                 </Button>
               </DialogFooter>

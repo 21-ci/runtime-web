@@ -90,7 +90,7 @@ function SetupPage() {
                 {formError}
               </p>
             ) : null}
-            <Button type="submit" disabled={setup.isPending}>
+            <Button type="submit" variant="default" disabled={setup.isPending}>
               {setup.isPending ? "Creating…" : "Create admin"}
             </Button>
           </AuthForm>

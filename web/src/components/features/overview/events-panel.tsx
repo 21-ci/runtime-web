@@ -48,7 +48,7 @@ export function EventsPanel({ org, app }: { org: string; app: string }) {
           disabled={events.isFetchingNextPage}
           onClick={() => void events.fetchNextPage()}
         >
-          {events.isFetchingNextPage ? "Loading..." : "Load more"}
+          {events.isFetchingNextPage ? "Loading…" : "Load more"}
         </Button>
       ) : null}
     </section>

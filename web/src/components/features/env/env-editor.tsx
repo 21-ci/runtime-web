@@ -104,7 +104,7 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
       ) : null}
       {canWrite ? (
         <div>
-          <Button type="submit" disabled={save.isPending}>
+          <Button type="submit" variant="default" disabled={save.isPending}>
             Save variables
           </Button>
         </div>

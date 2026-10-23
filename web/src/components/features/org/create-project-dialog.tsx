@@ -89,7 +89,7 @@ export function CreateProjectDialog({
             error={errors.environments}
           />
           <DialogFooter>
-            <Button type="submit" disabled={create.isPending}>
+            <Button type="submit" variant="default" disabled={create.isPending}>
               Create project
             </Button>
           </DialogFooter>

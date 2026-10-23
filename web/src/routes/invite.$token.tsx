@@ -110,7 +110,7 @@ function InvitePage() {
               {formError}
             </p>
           ) : null}
-          <Button type="submit" disabled={accept.isPending}>
+          <Button type="submit" variant="default" disabled={accept.isPending}>
             {accept.isPending ? "Accepting…" : "Accept invite"}
           </Button>
         </AuthForm>

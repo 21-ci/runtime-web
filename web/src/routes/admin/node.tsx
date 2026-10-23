@@ -163,7 +163,7 @@ function NodeConfigForm({ initial }: { initial: NodeConfig }) {
       </div>
 
       <div>
-        <Button type="submit" disabled={save.isPending}>
+        <Button type="submit" variant="default" disabled={save.isPending}>
           Save configuration
         </Button>
       </div>

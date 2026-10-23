@@ -94,7 +94,7 @@ export function CreateUserDialog({ open, onOpenChange }: { open: boolean; onOpen
               Instance admin
             </label>
             <DialogFooter>
-              <Button type="submit" disabled={create.isPending}>
+              <Button type="submit" variant="default" disabled={create.isPending}>
                 Create user
               </Button>
             </DialogFooter>
@@ -178,7 +178,7 @@ export function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChan
               <option value="owner">Owner</option>
             </SelectField>
             <DialogFooter>
-              <Button type="submit" disabled={create.isPending}>
+              <Button type="submit" variant="default" disabled={create.isPending}>
                 Create invite link
               </Button>
             </DialogFooter>

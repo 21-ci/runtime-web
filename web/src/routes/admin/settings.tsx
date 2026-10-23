@@ -247,7 +247,7 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
       </section>
 
       <div>
-        <Button type="submit" disabled={save.isPending}>
+        <Button type="submit" variant="default" disabled={save.isPending}>
           Save settings
         </Button>
       </div>

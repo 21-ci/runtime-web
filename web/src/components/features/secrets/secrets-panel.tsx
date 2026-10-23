@@ -147,7 +147,7 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
           error={errors.value}
         />
         <div>
-          <Button type="submit" disabled={save.isPending}>
+          <Button type="submit" variant="default" disabled={save.isPending}>
             Save secret
           </Button>
         </div>

@@ -72,7 +72,7 @@ function ChangePasswordPage() {
             {formError}
           </p>
         ) : null}
-        <Button type="submit" disabled={change.isPending}>
+        <Button type="submit" variant="default" disabled={change.isPending}>
           {change.isPending ? "Saving…" : "Change password"}
         </Button>
       </AuthForm>

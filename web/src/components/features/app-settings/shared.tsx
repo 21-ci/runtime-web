@@ -24,7 +24,7 @@ export const WriteAccess = createContext(true);
 export function SaveButton({ disabled, children }: { disabled?: boolean; children: ReactNode }) {
   if (!useContext(WriteAccess)) return null;
   return (
-    <Button type="submit" disabled={disabled}>
+    <Button type="submit" variant="default" disabled={disabled}>
       {children}
     </Button>
   );

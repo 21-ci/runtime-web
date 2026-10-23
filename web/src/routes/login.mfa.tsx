@@ -79,7 +79,7 @@ function MfaPage() {
             {error}
           </p>
         ) : null}
-        <Button type="submit" disabled={mfa.isPending}>
+        <Button type="submit" variant="default" disabled={mfa.isPending}>
           {mfa.isPending ? "Verifying…" : "Verify"}
         </Button>
       </AuthForm>

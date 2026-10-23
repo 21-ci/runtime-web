@@ -146,7 +146,7 @@ export function EnrollTotp({ onDone }: { onDone?: () => void }) {
           error={error ?? undefined}
         />
         <div>
-          <Button type="submit" disabled={confirm.isPending}>
+          <Button type="submit" variant="default" disabled={confirm.isPending}>
             Turn on 2FA
           </Button>
         </div>

@@ -258,7 +258,7 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
       <AuthForm errors={errors} onSubmit={onSubmit}>
         <FormField label="Domain" name="host" autoComplete="off" spellCheck={false} placeholder="www.example.com" error={errors.host} />
         <div>
-          <Button type="submit" disabled={add.isPending}>
+          <Button type="submit" variant="default" disabled={add.isPending}>
             Add domain
           </Button>
         </div>

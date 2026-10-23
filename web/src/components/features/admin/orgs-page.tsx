@@ -55,7 +55,7 @@ export function OrgsPage() {
           Organizations
         </h2>
         <div className="ml-auto">
-          <Button onClick={() => setCreateOpen(true)}>New organization</Button>
+          <Button variant="default" onClick={() => setCreateOpen(true)}>New organization</Button>
         </div>
       </div>
 
@@ -71,7 +71,7 @@ export function OrgsPage() {
           icon={Building2}
           title="No organizations yet"
           description="Create an organization and pick its owner from the users."
-          action={<Button onClick={() => setCreateOpen(true)}>New organization</Button>}
+          action={<Button variant="default" onClick={() => setCreateOpen(true)}>New organization</Button>}
         />
       ) : (
         <Table>
@@ -221,7 +221,7 @@ function CreateOrgDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
             ))}
           </SelectField>
           <DialogFooter>
-            <Button type="submit" disabled={create.isPending}>
+            <Button type="submit" variant="default" disabled={create.isPending}>
               Create organization
             </Button>
           </DialogFooter>
@@ -264,7 +264,7 @@ function RenameOrgDialog({ org, onClose }: { org: AdminOrg; onClose: () => void 
         <AuthForm errors={error ? { name: error } : {}} onSubmit={onSubmit}>
           <FormField label="Name" name="name" defaultValue={org.name} autoComplete="off" error={error} />
           <DialogFooter>
-            <Button type="submit" disabled={rename.isPending}>
+            <Button type="submit" variant="default" disabled={rename.isPending}>
               Save name
             </Button>
           </DialogFooter>

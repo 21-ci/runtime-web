@@ -152,7 +152,7 @@ function NewAppPage() {
         </fieldset>
 
         <div className="flex justify-end">
-          <Button type="submit" disabled={create.isPending || !project}>
+          <Button type="submit" variant="default" disabled={create.isPending || !project}>
             Create app
           </Button>
         </div>

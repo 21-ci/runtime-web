@@ -151,7 +151,7 @@ function InviteForm({ org, role }: { org: string; role: OrgRole }) {
           </select>
         </div>
         <div>
-          <Button type="submit" disabled={create.isPending}>
+          <Button type="submit" variant="default" disabled={create.isPending}>
             Create invite
           </Button>
         </div>

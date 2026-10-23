@@ -259,8 +259,8 @@ function ScheduleDialog({ org, app, onClose }: { org: string; app: string; onClo
                 Retry
               </Button>
             ) : null}
-            <Button type="submit" disabled={create.isPending}>
-              {create.isPending ? "Saving..." : "Create schedule"}
+            <Button type="submit" variant="default" disabled={create.isPending}>
+              {create.isPending ? "Saving…" : "Create schedule"}
             </Button>
           </DialogFooter>
         </form>

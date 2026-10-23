@@ -109,7 +109,7 @@ export function UsersPage() {
           <Button variant="secondary" onClick={() => setInviteOpen(true)}>
             Create invite link
           </Button>
-          <Button onClick={() => setCreateOpen(true)}>New user</Button>
+          <Button variant="default" onClick={() => setCreateOpen(true)}>New user</Button>
         </div>
       </div>
 
@@ -140,7 +140,7 @@ export function UsersPage() {
           description={search ? "Try another name or email." : "Create the first user or send an invite link."}
           action={
             search ? undefined : (
-              <Button onClick={() => setCreateOpen(true)}>New user</Button>
+              <Button variant="default" onClick={() => setCreateOpen(true)}>New user</Button>
             )
           }
         />

@@ -120,8 +120,8 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
             ) : null}
           </div>
         ) : null}
-        <Button type="submit" className="self-start" disabled={enqueue.isPending}>
-          {enqueue.isPending ? "Sending..." : "Enqueue test message"}
+        <Button type="submit" variant="default" className="self-start" disabled={enqueue.isPending}>
+          {enqueue.isPending ? "Sending…" : "Enqueue test message"}
         </Button>
       </form>
     </section>
