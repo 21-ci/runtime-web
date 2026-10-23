@@ -50,10 +50,10 @@ func newFixture(t *testing.T) *fixture {
 	for i := range key {
 		key[i] = byte(i + 1)
 	}
-	os := orgs.New(st, rt, root, seal.New(key), "standard")
+	oc := orgs.New(st, rt, root, seal.New(key), "standard")
 	return &fixture{
-		t: t, ctx: ctx, fake: fake, st: st, orgs: os,
-		svc:   New(st, rt, root, os),
+		t: t, ctx: ctx, fake: fake, st: st, orgs: oc,
+		svc:   New(st, rt, root, oc),
 		admin: authz.Subject{UserID: store.NewID("usr_"), InstanceAdmin: true},
 		owner: owner,
 	}
@@ -122,20 +122,70 @@ func TestSetNodeConfigAudited(t *testing.T) {
 	if !contains(got.PendingRestart, "rate_limit") {
 		t.Fatalf("pending_restart = %v, want rate_limit", got.PendingRestart)
 	}
-	entries, _, err := audit.List(f.ctx, f.st.Q(), audit.Filter{Action: "node.config.update"})
+	entries := f.auditRows(t, "node.config.update")
+	if len(entries) != 2 {
+		t.Fatalf("audit entries = %d, want intent and outcome", len(entries))
+	}
+	for _, e := range entries {
+		if e.ActorUserID != f.admin.UserID || !e.AsInstanceAdmin || e.OrgID != nil {
+			t.Fatalf("audit entry = %+v, want instance-wide entry by admin", e)
+		}
+		if !strings.Contains(e.Detail, `"default_profile":"fast"`) {
+			t.Fatalf("audit detail = %s, want default_profile", e.Detail)
+		}
+	}
+	if got := statuses(entries); got != "applied,pending" {
+		t.Fatalf("statuses = %s, want applied,pending", got)
+	}
+}
+
+func TestSetNodeConfigRuntimeFailureAudited(t *testing.T) {
+	f := newFixture(t)
+	f.fake.FailNext(http.StatusUnprocessableEntity, "invalid", 0)
+	profile := "fast"
+	if _, err := f.svc.SetNodeConfig(f.ctx, f.admin, NodeConfigPatch{DefaultProfile: &profile}); err == nil {
+		t.Fatal("SetNodeConfig: want runtime error")
+	}
+	entries := f.auditRows(t, "node.config.update")
+	if got := statuses(entries); got != "failed,pending" {
+		t.Fatalf("statuses = %s, want failed,pending", got)
+	}
+	if !strings.Contains(entries[0].Detail, `"error_code":"invalid"`) {
+		t.Fatalf("failed detail = %s, want error_code invalid", entries[0].Detail)
+	}
+}
+
+func TestDrainRuntimeFailureAudited(t *testing.T) {
+	f := newFixture(t)
+	f.fake.FailNext(http.StatusConflict, "busy", 0)
+	if err := f.svc.Drain(f.ctx, f.admin); err == nil {
+		t.Fatal("Drain: want runtime error")
+	}
+	if got := statuses(f.auditRows(t, "node.drain")); got != "failed,pending" {
+		t.Fatalf("statuses = %s, want failed,pending", got)
+	}
+}
+
+func (f *fixture) auditRows(t *testing.T, action string) []audit.Entry {
+	t.Helper()
+	entries, _, err := audit.List(f.ctx, f.st.Q(), audit.Filter{Action: action})
 	if err != nil {
 		t.Fatalf("audit.List: %v", err)
 	}
-	if len(entries) != 1 {
-		t.Fatalf("audit entries = %d, want 1", len(entries))
+	return entries
+}
+
+// statuses lists the status of each row, newest first, from the audit detail JSON.
+func statuses(entries []audit.Entry) string {
+	var out []string
+	for _, e := range entries {
+		var d struct {
+			Status string `json:"status"`
+		}
+		_ = json.Unmarshal([]byte(e.Detail), &d)
+		out = append(out, d.Status)
 	}
-	e := entries[0]
-	if e.ActorUserID != f.admin.UserID || !e.AsInstanceAdmin || e.OrgID != nil {
-		t.Fatalf("audit entry = %+v, want instance-wide entry by admin", e)
-	}
-	if !strings.Contains(e.Detail, `"default_profile":"fast"`) {
-		t.Fatalf("audit detail = %s, want default_profile", e.Detail)
-	}
+	return strings.Join(out, ",")
 }
 
 func TestSetNodeConfigRejectsOtherFields(t *testing.T) {
@@ -149,6 +199,9 @@ func TestSetNodeConfigRejectsOtherFields(t *testing.T) {
 		{"unknown field", `{"default_profile":"fast","mode":"drain"}`, true},
 		{"deliberately disallowed field", `{"v8_sandbox":false}`, true},
 		{"empty patch", `{}`, true},
+		{"null rate limit is absent", `{"rate_limit":null}`, true},
+		{"trailing data", `{"default_profile":"fast"} {}`, true},
+		{"trailing garbage", `{"default_profile":"fast"}x`, true},
 	}
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
@@ -175,12 +228,8 @@ func TestDrainAudited(t *testing.T) {
 	if err := f.svc.Drain(f.ctx, f.admin); err != nil {
 		t.Fatalf("Drain: %v", err)
 	}
-	entries, _, err := audit.List(f.ctx, f.st.Q(), audit.Filter{Action: "node.drain"})
-	if err != nil {
-		t.Fatalf("audit.List: %v", err)
-	}
-	if len(entries) != 1 {
-		t.Fatalf("audit entries = %d, want 1", len(entries))
+	if got := statuses(f.auditRows(t, "node.drain")); got != "applied,pending" {
+		t.Fatalf("statuses = %s, want applied,pending", got)
 	}
 }
 

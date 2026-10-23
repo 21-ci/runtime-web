@@ -4,10 +4,13 @@
 package admin
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
+	"log/slog"
 	"time"
 
 	"github.com/21cloud/runtime-web/internal/apperr"
@@ -78,8 +81,11 @@ func DecodeNodeConfigPatch(r io.Reader) (NodeConfigPatch, error) {
 	if err := dec.Decode(&w); err != nil {
 		return NodeConfigPatch{}, fmt.Errorf("admin: node config: %w: %v", apperr.ErrInvalid, err)
 	}
+	if _, err := dec.Token(); !errors.Is(err, io.EOF) {
+		return NodeConfigPatch{}, fmt.Errorf("admin: node config: trailing data: %w", apperr.ErrInvalid)
+	}
 	p := NodeConfigPatch{DegradationMode: w.DegradationMode, DefaultProfile: w.DefaultProfile}
-	if len(w.RateLimit) > 0 {
+	if rl := bytes.TrimSpace(w.RateLimit); len(rl) > 0 && !bytes.Equal(rl, []byte("null")) {
 		rl := RateLimit(w.RateLimit)
 		p.RateLimit = &rl
 	}
@@ -121,8 +127,10 @@ func (s *Service) NodeConfig(ctx context.Context, sub authz.Subject) (json.RawMe
 	return out, nil
 }
 
-// SetNodeConfig applies patch to the runtime node config and audits the change. An empty patch is
-// apperr.ErrInvalid.
+// SetNodeConfig applies patch to the runtime node config. It writes a pending audit row before the
+// runtime call and an applied or failed row after it. A failed intent write aborts before the runtime
+// is touched. A failed outcome write is logged at ERROR and the runtime result is still returned.
+// An empty patch is apperr.ErrInvalid.
 func (s *Service) SetNodeConfig(ctx context.Context, sub authz.Subject, p NodeConfigPatch) (runtime.NodeConfigApplied, error) {
 	if err := requireInstanceAdmin(sub); err != nil {
 		return runtime.NodeConfigApplied{}, err
@@ -130,24 +138,31 @@ func (s *Service) SetNodeConfig(ctx context.Context, sub authz.Subject, p NodeCo
 	if p.DegradationMode == nil && p.DefaultProfile == nil && p.RateLimit == nil {
 		return runtime.NodeConfigApplied{}, fmt.Errorf("admin: set node config: no fields: %w", apperr.ErrInvalid)
 	}
-	in := runtime.NodeConfigUpdate{DegradationMode: p.DegradationMode, DefaultProfile: p.DefaultProfile}
-	if p.RateLimit != nil {
-		in.RateLimit = *p.RateLimit
-	}
-	out, err := s.rt.With(s.root).PutNodeConfig(ctx, in)
-	if err != nil {
-		return runtime.NodeConfigApplied{}, fmt.Errorf("admin: set node config: %w", err)
-	}
-	detail := map[string]any{"applied": out.Applied, "pending_restart": out.PendingRestart}
+	detail := map[string]any{}
 	if p.DegradationMode != nil {
 		detail["degradation_mode"] = *p.DegradationMode
 	}
 	if p.DefaultProfile != nil {
 		detail["default_profile"] = *p.DefaultProfile
 	}
-	if err := s.audit(ctx, sub, "", "node.config.update", "node", detail); err != nil {
-		return out, err
+	if p.RateLimit != nil {
+		detail["rate_limit"] = true
 	}
+	if err := s.intent(ctx, sub, actNodeConfig, detail); err != nil {
+		return runtime.NodeConfigApplied{}, err
+	}
+	in := runtime.NodeConfigUpdate{DegradationMode: p.DegradationMode, DefaultProfile: p.DefaultProfile}
+	if p.RateLimit != nil {
+		in.RateLimit = *p.RateLimit
+	}
+	out, err := s.rt.With(s.root).PutNodeConfig(ctx, in)
+	if err != nil {
+		s.outcome(ctx, sub, actNodeConfig, detail, "failed", failCode(err))
+		return runtime.NodeConfigApplied{}, fmt.Errorf("admin: set node config: %w", err)
+	}
+	detail["applied"] = out.Applied
+	detail["pending_restart"] = out.PendingRestart
+	s.outcome(ctx, sub, actNodeConfig, detail, "applied", "")
 	return out, nil
 }
 
@@ -175,16 +190,22 @@ func (s *Service) Cache(ctx context.Context, sub authz.Subject) (json.RawMessage
 	return out, nil
 }
 
-// Drain asks the runtime node to drain and audits the request. The caller must already have
-// confirmed it (the API requires body {confirm: "drain"}).
+// Drain asks the runtime node to drain. It is audited with an intent row before and an outcome row
+// after the call, as SetNodeConfig is. The caller must already have confirmed it (the API requires
+// body {confirm: "drain"}).
 func (s *Service) Drain(ctx context.Context, sub authz.Subject) error {
 	if err := requireInstanceAdmin(sub); err != nil {
 		return err
 	}
+	if err := s.intent(ctx, sub, actDrain, nil); err != nil {
+		return err
+	}
 	if err := s.rt.With(s.root).DrainNode(ctx); err != nil {
+		s.outcome(ctx, sub, actDrain, nil, "failed", failCode(err))
 		return fmt.Errorf("admin: drain: %w", err)
 	}
-	return s.audit(ctx, sub, "", "node.drain", "node", nil)
+	s.outcome(ctx, sub, actDrain, nil, "applied", "")
+	return nil
 }
 
 // Version returns the runtime version.
@@ -228,8 +249,8 @@ func (s *Service) OrgUsage(ctx context.Context, sub authz.Subject, orgID string)
 		return nil, fmt.Errorf("admin: org usage: %w", err)
 	}
 	if own.InstanceAdmin {
-		if err := s.audit(ctx, own, orgID, "org.usage.read", orgID, nil); err != nil {
-			return nil, err
+		if err := s.record(ctx, own, "org.usage.read", nil, "applied", ""); err != nil {
+			return nil, fmt.Errorf("admin: audit org usage read: %w", err)
 		}
 	}
 	return out, nil
@@ -259,14 +280,49 @@ func (s *Service) Domains(ctx context.Context, sub authz.Subject) ([]DomainView,
 	return out, nil
 }
 
-// audit records a mutation or an instance-admin read. An empty orgID writes an instance-wide entry.
-func (s *Service) audit(ctx context.Context, sub authz.Subject, orgID, action, target string, detail any) error {
-	actor := audit.Actor{UserID: sub.UserID, AsInstanceAdmin: sub.InstanceAdmin}
-	err := s.st.Tx(ctx, func(q *db.Queries) error {
-		return s.log.Log(ctx, q, actor, orgID, action, target, detail)
-	})
-	if err != nil {
-		return fmt.Errorf("admin: audit %s: %w", action, err)
+const (
+	actNodeConfig = "node.config.update"
+	actDrain      = "node.drain"
+)
+
+// intent writes the pending audit row for a mutation. Its failure aborts the mutation.
+func (s *Service) intent(ctx context.Context, sub authz.Subject, action string, detail map[string]any) error {
+	if err := s.record(ctx, sub, action, detail, "pending", ""); err != nil {
+		return fmt.Errorf("admin: audit intent %s: %w", action, err)
 	}
 	return nil
+}
+
+// outcome writes the applied or failed audit row. A failure is logged at ERROR: the runtime change has
+// already happened, so the caller still gets the runtime result.
+func (s *Service) outcome(ctx context.Context, sub authz.Subject, action string, detail map[string]any, status, code string) {
+	if err := s.record(ctx, sub, action, detail, status, code); err != nil {
+		slog.Error("admin: audit outcome write failed; runtime change already applied",
+			"action", action, "status", status, "err", err)
+	}
+}
+
+// record appends one audit row, instance-wide, with status and optional error code in its detail.
+func (s *Service) record(ctx context.Context, sub authz.Subject, action string, detail map[string]any, status, code string) error {
+	d := make(map[string]any, len(detail)+2)
+	for k, v := range detail {
+		d[k] = v
+	}
+	d["status"] = status
+	if code != "" {
+		d["error_code"] = code
+	}
+	actor := audit.Actor{UserID: sub.UserID, AsInstanceAdmin: sub.InstanceAdmin}
+	return s.st.Tx(ctx, func(q *db.Queries) error {
+		return s.log.Log(ctx, q, actor, "", action, "node", d)
+	})
+}
+
+// failCode is the runtime error code when there is one, else "internal".
+func failCode(err error) string {
+	var e *runtime.Error
+	if errors.As(err, &e) && e.Code != "" {
+		return e.Code
+	}
+	return "internal"
 }
