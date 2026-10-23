@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"net/url"
+	"sync/atomic"
 	"testing"
 
 	"github.com/21cloud/runtime-web/internal/apperr"
@@ -32,18 +33,20 @@ type fakeIDP struct {
 	ghUserID  int64
 	ghEmails  []ghEmail
 	challenge string
+	// discoveryIssuer overrides the issuer in the discovery document.
+	discoveryIssuer string
 }
 
 func newFakeIDP(t *testing.T) *fakeIDP {
 	t.Helper()
 	f := &fakeIDP{sub: "sub-123", email: "alice@example.com", verified: true, ghUserID: 4242}
 	mux := http.NewServeMux()
-	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, _ *http.Request) {
-		writeTestJSON(w, map[string]string{
-			"authorization_endpoint": f.srv.URL + "/authorize",
-			"token_endpoint":         f.srv.URL + "/token",
-			"userinfo_endpoint":      f.srv.URL + "/userinfo",
-		})
+	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
+		issuer := f.srv.URL
+		if f.discoveryIssuer != "" {
+			issuer = f.discoveryIssuer
+		}
+		discoveryHandler(issuer, f.srv.URL+"/token", f.srv.URL+"/authorize", f.srv.URL+"/userinfo")(w, r)
 	})
 	mux.HandleFunc("/token", f.token)
 	mux.HandleFunc("/login/oauth/access_token", f.token)
@@ -71,6 +74,18 @@ func newFakeIDP(t *testing.T) *fakeIDP {
 	f.srv = httptest.NewServer(mux)
 	t.Cleanup(f.srv.Close)
 	return f
+}
+
+// discoveryHandler serves a discovery document for issuer and token endpoint.
+func discoveryHandler(issuer, token, auth, userinfo string) http.HandlerFunc {
+	return func(w http.ResponseWriter, _ *http.Request) {
+		writeTestJSON(w, map[string]string{
+			"issuer":                 issuer,
+			"authorization_endpoint": auth,
+			"token_endpoint":         token,
+			"userinfo_endpoint":      userinfo,
+		})
+	}
 }
 
 func (f *fakeIDP) token(w http.ResponseWriter, r *http.Request) {
@@ -108,6 +123,7 @@ func newOAuthTest(t *testing.T) (*env, *OAuth, *fakeIDP) {
 	e := newEnv(t, plainHasher{})
 	f := newFakeIDP(t)
 	o := NewOAuth(e.svc, "https://console.example.test")
+	o.Dev = true // the fake IdP is plain http
 	o.GitHubWeb = f.srv.URL
 	o.GitHubAPI = f.srv.URL
 	o.GoogleIssuer = f.srv.URL
@@ -374,6 +390,99 @@ func TestOAuthClientSecretSealed(t *testing.T) {
 	}
 	if len(infos) != 1 || infos[0].ID != ProviderOIDC || infos[0].Name != "Acme SSO" {
 		t.Fatalf("providers = %+v", infos)
+	}
+}
+
+func TestOIDCIssuerRequiresHTTPS(t *testing.T) {
+	e := newEnv(t, plainHasher{})
+	o := NewOAuth(e.svc, "https://console.example.test")
+	o.Dev = false
+	err := o.SetProvider(context.Background(), ProviderConfig{
+		ID: ProviderOIDC, Enabled: true, ClientID: "cid", ClientSecret: "s", Issuer: "http://idp.example.test",
+	})
+	if !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("err = %v, want ErrInvalid for http issuer", err)
+	}
+}
+
+func TestOIDCDiscoveryEndpointsRequireHTTPS(t *testing.T) {
+	var srv *httptest.Server
+	mux := http.NewServeMux()
+	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
+		discoveryHandler(srv.URL, "http://idp.example.test/token", srv.URL+"/authorize", srv.URL+"/userinfo")(w, r)
+	})
+	srv = httptest.NewTLSServer(mux)
+	t.Cleanup(srv.Close)
+
+	e := newEnv(t, plainHasher{})
+	o := NewOAuth(e.svc, "https://console.example.test")
+	o.Dev = false
+	o.HTTP = srv.Client()
+	if err := o.SetProvider(context.Background(), ProviderConfig{
+		ID: ProviderOIDC, Enabled: true, ClientID: "cid", ClientSecret: "s", Issuer: srv.URL,
+	}); err != nil {
+		t.Fatalf("SetProvider: %v", err)
+	}
+	if _, err := o.Start(context.Background(), httptest.NewRecorder(), ProviderOIDC, "/"); err == nil {
+		t.Fatal("Start accepted an http token_endpoint from discovery")
+	}
+}
+
+func TestOIDCDiscoveryIssuerMismatch(t *testing.T) {
+	e, o, f := newOAuthTest(t)
+	_ = e
+	f.discoveryIssuer = "https://evil.example.test"
+	if _, err := o.Start(context.Background(), httptest.NewRecorder(), ProviderOIDC, "/"); err == nil {
+		t.Fatal("Start accepted a discovery document with a different issuer")
+	}
+}
+
+func TestDiscoveryCached(t *testing.T) {
+	var hits atomic.Int32
+	var srv *httptest.Server
+	mux := http.NewServeMux()
+	mux.HandleFunc("/.well-known/openid-configuration", func(w http.ResponseWriter, r *http.Request) {
+		hits.Add(1)
+		discoveryHandler(srv.URL, srv.URL+"/token", srv.URL+"/authorize", srv.URL+"/userinfo")(w, r)
+	})
+	srv = httptest.NewServer(mux)
+	t.Cleanup(srv.Close)
+
+	e := newEnv(t, plainHasher{})
+	o := NewOAuth(e.svc, "https://console.example.test")
+	o.Dev = true
+	if err := o.SetProvider(context.Background(), ProviderConfig{
+		ID: ProviderOIDC, Enabled: true, ClientID: "cid", ClientSecret: "s", Issuer: srv.URL,
+	}); err != nil {
+		t.Fatalf("SetProvider: %v", err)
+	}
+	for i := 0; i < 2; i++ {
+		if _, err := o.Start(context.Background(), httptest.NewRecorder(), ProviderOIDC, "/"); err != nil {
+			t.Fatalf("Start %d: %v", i, err)
+		}
+	}
+	if n := hits.Load(); n != 1 {
+		t.Fatalf("discovery hits = %d, want 1 (cached)", n)
+	}
+}
+
+func TestOAuthLinkedIdentityDisabledUser(t *testing.T) {
+	e, o, f := newOAuthTest(t)
+	u := e.mkUser(t, "alice@example.com", "pw")
+	state, cookies := startFlow(t, o, f, ProviderOIDC, "/")
+	if dest, _ := finishFlow(t, o, ProviderOIDC, state, cookies, "good-code"); dest != "/" {
+		t.Fatalf("first link dest = %q, want /", dest)
+	}
+	if err := e.svc.SetDisabled(context.Background(), u.ID, true); err != nil {
+		t.Fatalf("SetDisabled: %v", err)
+	}
+	state, cookies = startFlow(t, o, f, ProviderOIDC, "/")
+	dest, rec := finishFlow(t, o, ProviderOIDC, state, cookies, "good-code")
+	if dest != "/login?error=account_disabled" {
+		t.Fatalf("dest = %q, want account_disabled", dest)
+	}
+	if hasSessionCookie(e, rec) {
+		t.Fatal("session cookie set for linked disabled user")
 	}
 }
 

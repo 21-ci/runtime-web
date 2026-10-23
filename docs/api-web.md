@@ -268,6 +268,11 @@ Notes:
 `oauth_state_invalid`, `email_unverified`, `no_account` (no user has that verified email; **no user is
 created**), `account_disabled`, `oauth_failed`.
 
+Security notes: `id_token` and `nonce` are intentionally not used. Identity comes from the userinfo endpoint
+(or GitHub's `/user` and `/user/emails`) over TLS, with a confidential client (`client_secret`) and PKCE (S256).
+OIDC issuers must be `https` (`http` only in dev); discovery must report the configured issuer and all
+endpoints must be `https`. Discovery is cached per issuer for 10 minutes.
+
 ## 5. Account security, invites (Task 11f)
 
 ### 5.1 `/api/me/*`

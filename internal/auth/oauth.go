@@ -15,6 +15,7 @@ import (
 	"net/url"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/21cloud/runtime-web/internal/apperr"
@@ -45,7 +46,20 @@ const (
 	oauthCookieDev    = "rtw_oauth"
 	oauthHTTPTimeout  = 15 * time.Second
 	oauthSecretPrefix = "oauth."
+	discoveryTTL      = 10 * time.Minute
 )
+
+// discoveryCache holds OIDC endpoints per issuer, shared by all OAuth values
+// (the api layer builds one per request).
+var (
+	discoveryMu    sync.Mutex
+	discoveryCache = map[string]cachedEndpoints{}
+)
+
+type cachedEndpoints struct {
+	ep endpoints
+	at time.Time
+}
 
 // ProviderConfig is one login provider as stored in settings. ClientSecret
 // is write-only: it is sealed at rest and only SetProvider accepts it.
@@ -132,6 +146,11 @@ func knownProvider(id string) bool {
 func (o *OAuth) SetProvider(ctx context.Context, p ProviderConfig) error {
 	if !knownProvider(p.ID) {
 		return fmt.Errorf("auth: oauth provider %q: %w", p.ID, apperr.ErrInvalid)
+	}
+	if p.ID == ProviderOIDC {
+		if err := o.requireURL(p.Issuer); err != nil {
+			return fmt.Errorf("auth: oauth issuer: %w", err)
+		}
 	}
 	raw, err := json.Marshal(storedProvider{Enabled: p.Enabled, ClientID: p.ClientID, Issuer: p.Issuer, Name: p.Name})
 	if err != nil {
@@ -266,20 +285,59 @@ func (o *OAuth) endpointsFor(ctx context.Context, cfg ProviderConfig) (endpoints
 	}
 }
 
-// discover reads the OIDC discovery document of issuer.
+// requireURL accepts an absolute https URL; plain http only in Dev.
+func (o *OAuth) requireURL(raw string) error {
+	u, err := url.Parse(raw)
+	if err != nil || u.Host == "" {
+		return fmt.Errorf("auth: url %q: %w", raw, apperr.ErrInvalid)
+	}
+	if u.Scheme == "https" || (o.Dev && u.Scheme == "http") {
+		return nil
+	}
+	return fmt.Errorf("auth: url %q must be https: %w", raw, apperr.ErrInvalid)
+}
+
+// discover reads the OIDC discovery document of issuer. The document's
+// issuer must equal issuer and every endpoint must be https (http in Dev).
+// Successful lookups are cached for discoveryTTL per issuer.
 func (o *OAuth) discover(ctx context.Context, issuer string) (endpoints, error) {
+	issuer = strings.TrimRight(issuer, "/")
+	if err := o.requireURL(issuer); err != nil {
+		return endpoints{}, err
+	}
+	now := o.now()
+	discoveryMu.Lock()
+	c, ok := discoveryCache[issuer]
+	discoveryMu.Unlock()
+	if ok && now.Sub(c.at) < discoveryTTL {
+		return c.ep, nil
+	}
+
 	var doc struct {
+		Issuer   string `json:"issuer"`
 		Auth     string `json:"authorization_endpoint"`
 		Token    string `json:"token_endpoint"`
 		UserInfo string `json:"userinfo_endpoint"`
 	}
-	if err := o.getJSON(ctx, strings.TrimRight(issuer, "/")+"/.well-known/openid-configuration", "", &doc); err != nil {
+	if err := o.getJSON(ctx, issuer+"/.well-known/openid-configuration", "", &doc); err != nil {
 		return endpoints{}, fmt.Errorf("auth: oidc discovery: %w", err)
+	}
+	if strings.TrimRight(doc.Issuer, "/") != issuer {
+		return endpoints{}, fmt.Errorf("auth: oidc discovery: issuer mismatch: %w", apperr.ErrInvalid)
 	}
 	if doc.Auth == "" || doc.Token == "" || doc.UserInfo == "" {
 		return endpoints{}, fmt.Errorf("auth: oidc discovery: incomplete document")
 	}
-	return endpoints{auth: doc.Auth, token: doc.Token, userinfo: doc.UserInfo}, nil
+	ep := endpoints{auth: doc.Auth, token: doc.Token, userinfo: doc.UserInfo}
+	for _, u := range []string{ep.auth, ep.token, ep.userinfo} {
+		if err := o.requireURL(u); err != nil {
+			return endpoints{}, fmt.Errorf("auth: oidc discovery endpoint: %w", err)
+		}
+	}
+	discoveryMu.Lock()
+	discoveryCache[issuer] = cachedEndpoints{ep: ep, at: now}
+	discoveryMu.Unlock()
+	return ep, nil
 }
 
 func (o *OAuth) redirectURI(id string) string {
@@ -426,6 +484,10 @@ type oauthIdentity struct {
 
 // identify exchanges code and reads the user's verified identity. A
 // non-empty code is the login error to show; provider faults are oauth_failed.
+//
+// id_token and nonce are intentionally not used: the identity comes from the
+// userinfo endpoint over TLS, with a confidential client (client_secret) and
+// PKCE binding the code to this browser.
 func (o *OAuth) identify(ctx context.Context, cfg ProviderConfig, code, verifier string) (oauthIdentity, string) {
 	ep, err := o.endpointsFor(ctx, cfg)
 	if err != nil {
