@@ -94,6 +94,10 @@ func (s *Service) CreateProject(ctx context.Context, sub authz.Subject, orgID, s
 	if err != nil {
 		return Project{}, mapErr("create project "+slug, err)
 	}
+	// Grants left by a failed DeleteProject cleanup must not re-activate on slug reuse.
+	if _, err := s.st.Q().DeleteGrantsForProject(ctx, db.DeleteGrantsForProjectParams{OrgID: orgID, ProjectSlug: slug}); err != nil {
+		return Project{}, fmt.Errorf("apps: purge stale grants of %s: %w", slug, err)
+	}
 	return projectFrom(sub, p), nil
 }
 
