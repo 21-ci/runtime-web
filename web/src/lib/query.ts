@@ -3,6 +3,11 @@ import { toast } from "sonner";
 
 import { ApiError } from "./api";
 
+// page wraps the reload so tests can observe the stale toast's Reload action.
+export const page = {
+  reload: () => window.location.reload(),
+};
+
 // handleApiError maps shared API errors to toasts. Form-level errors (422, 401 invalid_credentials)
 // stay inline in the page and are not toasted here.
 export function handleApiError(err: unknown) {
@@ -26,7 +31,7 @@ export function handleApiError(err: unknown) {
       break;
     case "stale":
       toast.error("Changed elsewhere. Reload to see the latest version.", {
-        action: { label: "Reload", onClick: () => window.location.reload() },
+        action: { label: "Reload", onClick: () => page.reload() },
       });
       break;
     case "network":
