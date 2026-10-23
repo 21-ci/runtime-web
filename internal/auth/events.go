@@ -29,6 +29,7 @@ const (
 
 // LoginEvent is one login attempt. UserID is empty for unknown users.
 type LoginEvent struct {
+	ID     string
 	UserID string
 	Email  string
 	IP     string
@@ -78,7 +79,7 @@ func (l *LoginEvents) ListForUser(ctx context.Context, userID string, limit int)
 	out := make([]LoginEvent, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, LoginEvent{
-			UserID: r.UserID.String, Email: r.Email, IP: r.Ip, UA: r.Ua,
+			ID: r.ID, UserID: r.UserID.String, Email: r.Email, IP: r.Ip, UA: r.Ua,
 			Method: r.Method, Result: r.Result, At: time.UnixMilli(r.At),
 		})
 	}

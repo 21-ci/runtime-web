@@ -11,10 +11,18 @@ import (
 // sessionOnlyRoutes are non-public routes that take a session but no authz.Action: the caller
 // sees only their own data.
 var sessionOnlyRoutes = map[string]bool{
-	"POST /api/auth/logout": true,
-	"GET /api/me":           true,
-	"PUT /api/me/password":  true,
-	"GET /api/orgs":         true,
+	"POST /api/auth/logout":               true,
+	"GET /api/me":                         true,
+	"GET /api/me/sessions":                true,
+	"DELETE /api/me/sessions/{id}":        true,
+	"POST /api/me/sessions/revoke-others": true,
+	"POST /api/me/totp/enroll":            true,
+	"POST /api/me/totp/confirm":           true,
+	"POST /api/me/totp/disable":           true,
+	"POST /api/me/recovery-codes":         true,
+	"GET /api/me/logins":                  true,
+	"PUT /api/me/password":                true,
+	"GET /api/orgs":                       true,
 }
 
 func TestEveryRouteChecksAuthz(t *testing.T) {
