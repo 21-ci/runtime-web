@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/21cloud/runtime-web/internal/admin"
 	"github.com/21cloud/runtime-web/internal/api"
 	"github.com/21cloud/runtime-web/internal/apps"
 	"github.com/21cloud/runtime-web/internal/auth"
@@ -16,11 +17,12 @@ import (
 	"github.com/21cloud/runtime-web/internal/runtime"
 	"github.com/21cloud/runtime-web/internal/seal"
 	"github.com/21cloud/runtime-web/internal/store"
+	"github.com/21cloud/runtime-web/internal/users"
 )
 
 // serve wires the services, starts the key retrier and the HTTP server, and
 // returns once ctx is done and the server has shut down.
-func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
+func serve(ctx context.Context, cfg config.Config, logger *slog.Logger, webVersion string) error {
 	st, err := store.Open(ctx, cfg.DBPath)
 	if err != nil {
 		return fmt.Errorf("rtweb: open store: %w", err)
@@ -34,6 +36,8 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 	orgSvc := orgs.New(st, rt, root, sealer, cfg.RuntimeDefaultPlan)
 	appSvc := apps.New(rt, orgSvc, st)
 	keySvc := keys.New(st, rt, root, sealer, orgSvc, appSvc)
+	adminSvc := admin.New(st, rt, root, orgSvc)
+	usersSvc := users.New(st, auth.Argon2{})
 	go keySvc.RunRetrier(ctx)
 
 	srv := &http.Server{
@@ -41,6 +45,11 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger) error {
 		Handler: api.New(api.Deps{
 			Auth:             authSvc,
 			Orgs:             orgSvc,
+			Users:            usersSvc,
+			Admin:            adminSvc,
+			Keys:             keySvc,
+			Apps:             appSvc,
+			WebVersion:       webVersion,
 			Logger:           logger,
 			PublicURL:        cfg.PublicURL,
 			RuntimePublicURL: cfg.RuntimePublicURL,

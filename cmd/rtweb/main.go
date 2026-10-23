@@ -38,7 +38,7 @@ func main() {
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
-	if err := serve(ctx, cfg, logger); err != nil {
+	if err := serve(ctx, cfg, logger, version); err != nil {
 		logger.Error("rtweb: serve failed", "err", err)
 		stop()
 		os.Exit(1)

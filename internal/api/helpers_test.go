@@ -19,15 +19,23 @@ import (
 	"testing/fstest"
 	"time"
 
+	"github.com/21cloud/runtime-web/internal/admin"
+	"github.com/21cloud/runtime-web/internal/apps"
+	"github.com/21cloud/runtime-web/internal/audit"
 	"github.com/21cloud/runtime-web/internal/auth"
+	"github.com/21cloud/runtime-web/internal/authz"
+	"github.com/21cloud/runtime-web/internal/keys"
 	"github.com/21cloud/runtime-web/internal/orgs"
 	"github.com/21cloud/runtime-web/internal/runtime"
+	"github.com/21cloud/runtime-web/internal/runtime/runtimetest"
 	"github.com/21cloud/runtime-web/internal/seal"
 	"github.com/21cloud/runtime-web/internal/store"
 	"github.com/21cloud/runtime-web/internal/store/db"
+	"github.com/21cloud/runtime-web/internal/users"
 )
 
 const (
+	testPlan       = "standard"
 	testPublicURL  = "https://console.example.test"
 	testRuntimeURL = "https://runtime.example.test"
 	testSetupToken = "setup-token-for-tests"
@@ -45,6 +53,8 @@ type testEnv struct {
 	st   *store.Store
 	auth *auth.Service
 	srv  *Server
+	fake *runtimetest.Fake
+	orgs *orgs.Service
 }
 
 func newTestEnv(t *testing.T) *testEnv {
@@ -61,7 +71,12 @@ func newTestEnv(t *testing.T) *testEnv {
 	}
 	sealer := seal.New(key)
 	authSvc := auth.NewService(st, testHasher{}, sealer, testSetupToken, true)
-	orgSvc := orgs.New(st, nil, runtime.RootCred{}, sealer, "standard")
+	fake := runtimetest.NewServer(t)
+	fake.SetPlan(testPlan, runtimetest.FakePlan{MaxServices: 10, MaxSchedules: 3, Triggers: []string{"http"}})
+	rt := runtime.New(fake.URL, http.DefaultClient)
+	root := runtime.RootCred{Token: fake.RootToken}
+	orgSvc := orgs.New(st, rt, root, sealer, testPlan)
+	appSvc := apps.New(rt, orgSvc, st)
 	spa := fstest.MapFS{
 		"index.html":    {Data: []byte("<!doctype html><title>app</title>")},
 		"assets/app.js": {Data: []byte("console.log(1)")},
@@ -69,12 +84,17 @@ func newTestEnv(t *testing.T) *testEnv {
 	srv := New(Deps{
 		Auth:             authSvc,
 		Orgs:             orgSvc,
+		Users:            users.New(st, testHasher{}),
+		Admin:            admin.New(st, rt, root, orgSvc),
+		Keys:             keys.New(st, rt, root, sealer, orgSvc, appSvc),
+		Apps:             appSvc,
+		WebVersion:       "test-web",
 		Logger:           slog.New(slog.NewTextHandler(io.Discard, nil)),
 		PublicURL:        testPublicURL,
 		RuntimePublicURL: testRuntimeURL,
 		SPA:              spa,
 	})
-	return &testEnv{t: t, st: st, auth: authSvc, srv: srv}
+	return &testEnv{t: t, st: st, auth: authSvc, srv: srv, fake: fake, orgs: orgSvc}
 }
 
 // send issues a request with a JSON body (nil body for none) and the console
@@ -201,4 +221,46 @@ func totpAt(t *testing.T, otpauth string, at time.Time) string {
 	off := sum[len(sum)-1] & 0x0f
 	v := binary.BigEndian.Uint32(sum[off:off+4]) & 0x7fffffff
 	return fmt.Sprintf("%06d", v%1_000_000)
+}
+
+// mkAdmin creates an enabled instance admin and returns the user id.
+func (e *testEnv) mkAdmin(email string) string {
+	e.t.Helper()
+	hash, err := testHasher{}.Hash(testPassword)
+	if err != nil {
+		e.t.Fatal(err)
+	}
+	id := store.NewID("usr_")
+	err = e.st.Q().CreateUser(context.Background(), db.CreateUserParams{
+		ID: id, Email: email, Name: "Admin", PasswordHash: hash, IsInstanceAdmin: 1, CreatedAt: 1, UpdatedAt: 1,
+	})
+	if err != nil {
+		e.t.Fatalf("CreateUser: %v", err)
+	}
+	return id
+}
+
+// mkOrg creates an org owned by ownerID through the service and returns it.
+func (e *testEnv) mkOrg(slug, ownerID string) orgs.Org {
+	e.t.Helper()
+	org, err := e.orgs.Create(context.Background(), audit.Actor{UserID: "cli"}, slug, "Org "+slug, ownerID)
+	if err != nil {
+		e.t.Fatalf("orgs.Create(%s): %v", slug, err)
+	}
+	return org
+}
+
+// addMember adds userID to orgID with role through the service.
+func (e *testEnv) addMember(orgID, userID, role string) {
+	e.t.Helper()
+	sub := authz.Subject{InstanceAdmin: true}
+	if err := e.orgs.AddMember(context.Background(), audit.Actor{UserID: "cli"}, sub, orgID, userID, role); err != nil {
+		e.t.Fatalf("AddMember: %v", err)
+	}
+}
+
+// session signs in and returns the session cookie and CSRF token for email.
+func (e *testEnv) session(email string) (string, string) {
+	e.t.Helper()
+	return e.login(email, testPassword)
 }

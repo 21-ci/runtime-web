@@ -115,6 +115,18 @@ func (q *Queries) CreateUser(ctx context.Context, arg CreateUserParams) error {
 	return err
 }
 
+const deleteUser = `-- name: DeleteUser :execrows
+DELETE FROM users WHERE id = ?1
+`
+
+func (q *Queries) DeleteUser(ctx context.Context, id string) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteUser, id)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getIdentity = `-- name: GetIdentity :one
 SELECT id, user_id, provider, subject, email FROM identities WHERE provider = ?1 AND subject = ?2
 `
@@ -246,6 +258,24 @@ type SetUserDisabledParams struct {
 
 func (q *Queries) SetUserDisabled(ctx context.Context, arg SetUserDisabledParams) (int64, error) {
 	result, err := q.db.ExecContext(ctx, setUserDisabled, arg.Disabled, arg.UpdatedAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
+const updateUserName = `-- name: UpdateUserName :execrows
+UPDATE users SET name = ?1, updated_at = ?2 WHERE id = ?3
+`
+
+type UpdateUserNameParams struct {
+	Name      string
+	UpdatedAt int64
+	ID        string
+}
+
+func (q *Queries) UpdateUserName(ctx context.Context, arg UpdateUserNameParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateUserName, arg.Name, arg.UpdatedAt, arg.ID)
 	if err != nil {
 		return 0, err
 	}

@@ -38,3 +38,9 @@ SELECT COUNT(*) FROM users WHERE is_instance_admin = 1 AND disabled = 0;
 
 -- name: SetUserAdmin :execrows
 UPDATE users SET is_instance_admin = sqlc.arg(is_instance_admin), updated_at = sqlc.arg(updated_at) WHERE id = sqlc.arg(id);
+
+-- name: UpdateUserName :execrows
+UPDATE users SET name = sqlc.arg(name), updated_at = sqlc.arg(updated_at) WHERE id = sqlc.arg(id);
+
+-- name: DeleteUser :execrows
+DELETE FROM users WHERE id = sqlc.arg(id);
