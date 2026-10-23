@@ -6,4 +6,13 @@ VALUES (sqlc.arg(id), sqlc.arg(at), sqlc.arg(user_id), sqlc.arg(email), sqlc.arg
 INSERT INTO login_failures (ip, email, at) VALUES (sqlc.arg(ip), sqlc.arg(email), sqlc.arg(at));
 
 -- name: CountLoginFailuresSince :one
-SELECT COUNT(*) FROM login_failures WHERE ip = sqlc.arg(ip) AND at >= sqlc.arg(since);
+SELECT COUNT(*) FROM login_failures WHERE ip = sqlc.arg(ip) AND email = sqlc.arg(email) AND at >= sqlc.arg(since);
+
+-- name: DeleteLoginFailures :exec
+DELETE FROM login_failures WHERE ip = sqlc.arg(ip) AND email = sqlc.arg(email);
+
+-- name: DeleteLoginFailuresBefore :execrows
+DELETE FROM login_failures WHERE at < sqlc.arg(before);
+
+-- name: ListLoginEventsForUser :many
+SELECT * FROM login_events WHERE user_id = sqlc.arg(user_id) ORDER BY at DESC, id DESC LIMIT sqlc.arg(lim);

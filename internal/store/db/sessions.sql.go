@@ -65,6 +65,23 @@ func (q *Queries) DeleteSession(ctx context.Context, idHash string) (int64, erro
 	return result.RowsAffected()
 }
 
+const deleteSessionsForUserExcept = `-- name: DeleteSessionsForUserExcept :execrows
+DELETE FROM sessions WHERE user_id = ?1 AND id_hash <> ?2
+`
+
+type DeleteSessionsForUserExceptParams struct {
+	UserID       string
+	ExceptIDHash string
+}
+
+func (q *Queries) DeleteSessionsForUserExcept(ctx context.Context, arg DeleteSessionsForUserExceptParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteSessionsForUserExcept, arg.UserID, arg.ExceptIDHash)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const getSession = `-- name: GetSession :one
 SELECT id_hash, user_id, csrf, mfa_pending, created_at, last_seen_at, expires_at, ip, user_agent FROM sessions WHERE id_hash = ?1
 `
@@ -84,6 +101,43 @@ func (q *Queries) GetSession(ctx context.Context, idHash string) (Session, error
 		&i.UserAgent,
 	)
 	return i, err
+}
+
+const listSessionsForUser = `-- name: ListSessionsForUser :many
+SELECT id_hash, user_id, csrf, mfa_pending, created_at, last_seen_at, expires_at, ip, user_agent FROM sessions WHERE user_id = ?1 AND mfa_pending = 0 ORDER BY created_at DESC, id_hash
+`
+
+func (q *Queries) ListSessionsForUser(ctx context.Context, userID string) ([]Session, error) {
+	rows, err := q.db.QueryContext(ctx, listSessionsForUser, userID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []Session
+	for rows.Next() {
+		var i Session
+		if err := rows.Scan(
+			&i.IDHash,
+			&i.UserID,
+			&i.Csrf,
+			&i.MfaPending,
+			&i.CreatedAt,
+			&i.LastSeenAt,
+			&i.ExpiresAt,
+			&i.Ip,
+			&i.UserAgent,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const touchSession = `-- name: TouchSession :execrows

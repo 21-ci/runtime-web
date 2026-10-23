@@ -20,6 +20,34 @@ func (q *Queries) CountUsers(ctx context.Context) (int64, error) {
 	return count, err
 }
 
+const createFirstUser = `-- name: CreateFirstUser :execrows
+INSERT INTO users (id, email, name, password_hash, must_change_password, is_instance_admin, disabled, created_at, updated_at)
+SELECT ?1, ?2, ?3, ?4, 0, 1, 0, ?5, ?5
+WHERE NOT EXISTS (SELECT 1 FROM users)
+`
+
+type CreateFirstUserParams struct {
+	ID           string
+	Email        string
+	Name         string
+	PasswordHash string
+	CreatedAt    int64
+}
+
+func (q *Queries) CreateFirstUser(ctx context.Context, arg CreateFirstUserParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, createFirstUser,
+		arg.ID,
+		arg.Email,
+		arg.Name,
+		arg.PasswordHash,
+		arg.CreatedAt,
+	)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const createIdentity = `-- name: CreateIdentity :exec
 INSERT INTO identities (id, user_id, provider, subject, email)
 VALUES (?1, ?2, ?3, ?4, ?5)
@@ -138,6 +166,24 @@ func (q *Queries) GetUserByID(ctx context.Context, id string) (User, error) {
 		&i.UpdatedAt,
 	)
 	return i, err
+}
+
+const setUserDisabled = `-- name: SetUserDisabled :execrows
+UPDATE users SET disabled = ?1, updated_at = ?2 WHERE id = ?3
+`
+
+type SetUserDisabledParams struct {
+	Disabled  int64
+	UpdatedAt int64
+	ID        string
+}
+
+func (q *Queries) SetUserDisabled(ctx context.Context, arg SetUserDisabledParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, setUserDisabled, arg.Disabled, arg.UpdatedAt, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const updateUserPassword = `-- name: UpdateUserPassword :execrows

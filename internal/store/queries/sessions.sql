@@ -13,3 +13,9 @@ DELETE FROM sessions WHERE id_hash = sqlc.arg(id_hash);
 
 -- name: DeleteExpiredSessions :execrows
 DELETE FROM sessions WHERE expires_at < sqlc.arg(now);
+
+-- name: ListSessionsForUser :many
+SELECT * FROM sessions WHERE user_id = sqlc.arg(user_id) AND mfa_pending = 0 ORDER BY created_at DESC, id_hash;
+
+-- name: DeleteSessionsForUserExcept :execrows
+DELETE FROM sessions WHERE user_id = sqlc.arg(user_id) AND id_hash <> sqlc.arg(except_id_hash);

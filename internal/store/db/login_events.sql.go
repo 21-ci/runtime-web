@@ -11,19 +11,46 @@ import (
 )
 
 const countLoginFailuresSince = `-- name: CountLoginFailuresSince :one
-SELECT COUNT(*) FROM login_failures WHERE ip = ?1 AND at >= ?2
+SELECT COUNT(*) FROM login_failures WHERE ip = ?1 AND email = ?2 AND at >= ?3
 `
 
 type CountLoginFailuresSinceParams struct {
 	Ip    string
+	Email string
 	Since int64
 }
 
 func (q *Queries) CountLoginFailuresSince(ctx context.Context, arg CountLoginFailuresSinceParams) (int64, error) {
-	row := q.db.QueryRowContext(ctx, countLoginFailuresSince, arg.Ip, arg.Since)
+	row := q.db.QueryRowContext(ctx, countLoginFailuresSince, arg.Ip, arg.Email, arg.Since)
 	var count int64
 	err := row.Scan(&count)
 	return count, err
+}
+
+const deleteLoginFailures = `-- name: DeleteLoginFailures :exec
+DELETE FROM login_failures WHERE ip = ?1 AND email = ?2
+`
+
+type DeleteLoginFailuresParams struct {
+	Ip    string
+	Email string
+}
+
+func (q *Queries) DeleteLoginFailures(ctx context.Context, arg DeleteLoginFailuresParams) error {
+	_, err := q.db.ExecContext(ctx, deleteLoginFailures, arg.Ip, arg.Email)
+	return err
+}
+
+const deleteLoginFailuresBefore = `-- name: DeleteLoginFailuresBefore :execrows
+DELETE FROM login_failures WHERE at < ?1
+`
+
+func (q *Queries) DeleteLoginFailuresBefore(ctx context.Context, before int64) (int64, error) {
+	result, err := q.db.ExecContext(ctx, deleteLoginFailuresBefore, before)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
 }
 
 const insertLoginEvent = `-- name: InsertLoginEvent :exec
@@ -69,4 +96,45 @@ type InsertLoginFailureParams struct {
 func (q *Queries) InsertLoginFailure(ctx context.Context, arg InsertLoginFailureParams) error {
 	_, err := q.db.ExecContext(ctx, insertLoginFailure, arg.Ip, arg.Email, arg.At)
 	return err
+}
+
+const listLoginEventsForUser = `-- name: ListLoginEventsForUser :many
+SELECT id, at, user_id, email, ip, ua, method, result FROM login_events WHERE user_id = ?1 ORDER BY at DESC, id DESC LIMIT ?2
+`
+
+type ListLoginEventsForUserParams struct {
+	UserID sql.NullString
+	Lim    int64
+}
+
+func (q *Queries) ListLoginEventsForUser(ctx context.Context, arg ListLoginEventsForUserParams) ([]LoginEvent, error) {
+	rows, err := q.db.QueryContext(ctx, listLoginEventsForUser, arg.UserID, arg.Lim)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []LoginEvent
+	for rows.Next() {
+		var i LoginEvent
+		if err := rows.Scan(
+			&i.ID,
+			&i.At,
+			&i.UserID,
+			&i.Email,
+			&i.Ip,
+			&i.Ua,
+			&i.Method,
+			&i.Result,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
