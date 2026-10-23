@@ -27,8 +27,8 @@ func (q *Queries) AddPendingKeyRevoke(ctx context.Context, arg AddPendingKeyRevo
 }
 
 const createToken = `-- name: CreateToken :exec
-INSERT INTO tokens (id, org_id, runtime_key_id, name, scopes, expires_at, created_by, created_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
+INSERT INTO tokens (id, org_id, runtime_key_id, name, scopes, apps, expires_at, created_by, created_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
 `
 
 type CreateTokenParams struct {
@@ -37,6 +37,7 @@ type CreateTokenParams struct {
 	RuntimeKeyID string
 	Name         string
 	Scopes       string
+	Apps         string
 	ExpiresAt    sql.NullInt64
 	CreatedBy    string
 	CreatedAt    int64
@@ -49,6 +50,7 @@ func (q *Queries) CreateToken(ctx context.Context, arg CreateTokenParams) error 
 		arg.RuntimeKeyID,
 		arg.Name,
 		arg.Scopes,
+		arg.Apps,
 		arg.ExpiresAt,
 		arg.CreatedBy,
 		arg.CreatedAt,
@@ -68,6 +70,33 @@ func (q *Queries) DeletePendingKeyRevoke(ctx context.Context, keyID string) (int
 	return result.RowsAffected()
 }
 
+const getToken = `-- name: GetToken :one
+SELECT id, org_id, runtime_key_id, name, scopes, expires_at, created_by, created_at, revoked_at, apps FROM tokens WHERE id = ?1 AND org_id = ?2
+`
+
+type GetTokenParams struct {
+	ID    string
+	OrgID string
+}
+
+func (q *Queries) GetToken(ctx context.Context, arg GetTokenParams) (Token, error) {
+	row := q.db.QueryRowContext(ctx, getToken, arg.ID, arg.OrgID)
+	var i Token
+	err := row.Scan(
+		&i.ID,
+		&i.OrgID,
+		&i.RuntimeKeyID,
+		&i.Name,
+		&i.Scopes,
+		&i.ExpiresAt,
+		&i.CreatedBy,
+		&i.CreatedAt,
+		&i.RevokedAt,
+		&i.Apps,
+	)
+	return i, err
+}
+
 const incPendingKeyRevokeAttempts = `-- name: IncPendingKeyRevokeAttempts :execrows
 UPDATE pending_key_revokes SET attempts = attempts + 1 WHERE key_id = ?1
 `
@@ -78,6 +107,60 @@ func (q *Queries) IncPendingKeyRevokeAttempts(ctx context.Context, keyID string)
 		return 0, err
 	}
 	return result.RowsAffected()
+}
+
+const listLiveTokensByOrg = `-- name: ListLiveTokensByOrg :many
+SELECT t.id, t.org_id, t.runtime_key_id, t.name, t.scopes, t.expires_at, t.created_by, t.created_at, t.revoked_at, t.apps, u.name AS creator_name FROM tokens t JOIN users u ON u.id = t.created_by
+WHERE t.org_id = ?1 AND t.revoked_at IS NULL ORDER BY t.created_at, t.id
+`
+
+type ListLiveTokensByOrgRow struct {
+	ID           string
+	OrgID        string
+	RuntimeKeyID string
+	Name         string
+	Scopes       string
+	ExpiresAt    sql.NullInt64
+	CreatedBy    string
+	CreatedAt    int64
+	RevokedAt    sql.NullInt64
+	Apps         string
+	CreatorName  string
+}
+
+func (q *Queries) ListLiveTokensByOrg(ctx context.Context, orgID string) ([]ListLiveTokensByOrgRow, error) {
+	rows, err := q.db.QueryContext(ctx, listLiveTokensByOrg, orgID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+	var items []ListLiveTokensByOrgRow
+	for rows.Next() {
+		var i ListLiveTokensByOrgRow
+		if err := rows.Scan(
+			&i.ID,
+			&i.OrgID,
+			&i.RuntimeKeyID,
+			&i.Name,
+			&i.Scopes,
+			&i.ExpiresAt,
+			&i.CreatedBy,
+			&i.CreatedAt,
+			&i.RevokedAt,
+			&i.Apps,
+			&i.CreatorName,
+		); err != nil {
+			return nil, err
+		}
+		items = append(items, i)
+	}
+	if err := rows.Close(); err != nil {
+		return nil, err
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return items, nil
 }
 
 const listPendingKeyRevokes = `-- name: ListPendingKeyRevokes :many
@@ -113,7 +196,7 @@ func (q *Queries) ListPendingKeyRevokes(ctx context.Context, limit int64) ([]Pen
 }
 
 const listTokensByOrg = `-- name: ListTokensByOrg :many
-SELECT id, org_id, runtime_key_id, name, scopes, expires_at, created_by, created_at, revoked_at FROM tokens WHERE org_id = ?1 ORDER BY created_at, id
+SELECT id, org_id, runtime_key_id, name, scopes, expires_at, created_by, created_at, revoked_at, apps FROM tokens WHERE org_id = ?1 ORDER BY created_at, id
 `
 
 func (q *Queries) ListTokensByOrg(ctx context.Context, orgID string) ([]Token, error) {
@@ -135,6 +218,7 @@ func (q *Queries) ListTokensByOrg(ctx context.Context, orgID string) ([]Token, e
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.RevokedAt,
+			&i.Apps,
 		); err != nil {
 			return nil, err
 		}

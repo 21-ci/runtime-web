@@ -158,6 +158,24 @@ func (q *Queries) ListOrgsForUser(ctx context.Context, userID string) ([]Org, er
 	return items, nil
 }
 
+const updateOrgDefaultKey = `-- name: UpdateOrgDefaultKey :execrows
+UPDATE orgs SET default_key_id = ?1, default_key_sealed = ?2 WHERE id = ?3
+`
+
+type UpdateOrgDefaultKeyParams struct {
+	DefaultKeyID     string
+	DefaultKeySealed []byte
+	ID               string
+}
+
+func (q *Queries) UpdateOrgDefaultKey(ctx context.Context, arg UpdateOrgDefaultKeyParams) (int64, error) {
+	result, err := q.db.ExecContext(ctx, updateOrgDefaultKey, arg.DefaultKeyID, arg.DefaultKeySealed, arg.ID)
+	if err != nil {
+		return 0, err
+	}
+	return result.RowsAffected()
+}
+
 const updateOrgName = `-- name: UpdateOrgName :execrows
 UPDATE orgs SET name = ?1 WHERE id = ?2
 `

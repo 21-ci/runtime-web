@@ -138,6 +138,7 @@ type Token struct {
 	CreatedBy    string
 	CreatedAt    int64
 	RevokedAt    sql.NullInt64
+	Apps         string
 }
 
 type User struct {

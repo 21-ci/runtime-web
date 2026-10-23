@@ -20,3 +20,6 @@ UPDATE orgs SET name = sqlc.arg(name) WHERE id = sqlc.arg(id);
 
 -- name: DeleteOrg :execrows
 DELETE FROM orgs WHERE id = sqlc.arg(id);
+
+-- name: UpdateOrgDefaultKey :execrows
+UPDATE orgs SET default_key_id = sqlc.arg(default_key_id), default_key_sealed = sqlc.arg(default_key_sealed) WHERE id = sqlc.arg(id);
