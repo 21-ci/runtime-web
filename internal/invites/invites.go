@@ -50,6 +50,17 @@ type Invite struct {
 	ExpiresAt     int64
 }
 
+// Accepted is the outcome of Accept. Existing is true for an existing account (no session, no
+// password change); Session is set only for a new account. Role and AlreadyMember describe the
+// bound membership (Role is "" for unbound invites).
+type Accepted struct {
+	User          users.User
+	Existing      bool
+	Role          string
+	AlreadyMember bool
+	Session       auth.LoginResult
+}
+
 // Logins starts a session for an already-authenticated user; *auth.Service implements it.
 type Logins interface {
 	LoginUser(ctx context.Context, userID, method, ip, ua string) (auth.LoginResult, error)
@@ -212,23 +223,18 @@ func (s *Service) Revoke(ctx context.Context, actor audit.Actor, orgID, id strin
 	return nil
 }
 
-// Accept redeems a token once. For a new email it creates the user with name and password, adds
-// the bound membership, then starts a session through Logins (MethodInvite; the second-factor
-// checks apply). For an existing account it never changes the password: callerID must be that
-// account (else Forbidden{invite_login_required}), and Accept only adds the membership and returns
-// no session. Expired, used and revoked tokens return apperr.NotFound with code invite_invalid.
-func (s *Service) Accept(ctx context.Context, token, callerID, name, password, ip, ua string) (users.User, auth.LoginResult, error) {
-	if err := auth.ValidatePassword(password); err != nil {
-		return users.User{}, auth.LoginResult{}, fmt.Errorf("invites: accept: %w", err)
-	}
-	hash, err := s.hasher.Hash(password)
-	if err != nil {
-		return users.User{}, auth.LoginResult{}, fmt.Errorf("invites: accept: hash: %w", err)
-	}
+// Accept redeems a token once. Checks run in this order: token validity (expired, used, revoked →
+// invite_invalid); for an existing account, disabled (account_disabled), then callerID must equal
+// that account (else Forbidden{invite_login_required}); then, for a new email, name and password
+// fields (ErrInvalid). A new email creates the user with the chosen password and the bound
+// membership, then starts a session through Logins (MethodInvite; second-factor checks apply).
+// An existing account is never given a new password: name and password are ignored, Accept adds
+// the bound membership, and no session is returned. The result carries Existing so the caller can
+// tell the two cases apart for a valid token holder.
+func (s *Service) Accept(ctx context.Context, token, callerID, name, password, ip, ua string) (Accepted, error) {
 	name = strings.TrimSpace(name)
-	var out users.User
-	newUser := false
-	err = s.st.Tx(ctx, func(q *db.Queries) error {
+	var out Accepted
+	err := s.st.Tx(ctx, func(q *db.Queries) error {
 		row, err := q.GetInviteByTokenHash(ctx, hashToken(token))
 		if errors.Is(err, sql.ErrNoRows) {
 			return invalidInvite()
@@ -244,10 +250,16 @@ func (s *Service) Accept(ctx context.Context, token, callerID, name, password, i
 		acct, err := q.GetUserByEmail(ctx, row.Email)
 		switch {
 		case errors.Is(err, sql.ErrNoRows):
+			if err := auth.ValidatePassword(password); err != nil {
+				return fmt.Errorf("invites: accept: %w", err)
+			}
+			hash, err := s.hasher.Hash(password)
+			if err != nil {
+				return fmt.Errorf("invites: accept: hash: %w", err)
+			}
 			if name == "" {
 				return fmt.Errorf("invites: accept: name required: %w", apperr.ErrInvalid)
 			}
-			newUser = true
 			acct = db.User{ID: store.NewID("usr_"), Email: row.Email, Name: name, CreatedAt: nowMs}
 			if err := q.CreateUser(ctx, db.CreateUserParams{
 				ID: acct.ID, Email: acct.Email, Name: acct.Name, PasswordHash: hash,
@@ -255,15 +267,17 @@ func (s *Service) Accept(ctx context.Context, token, callerID, name, password, i
 			}); err != nil {
 				return err
 			}
+			out.Existing = false
 		case err != nil:
 			return err
 		default:
-			if callerID == "" || callerID != acct.ID {
-				return fmt.Errorf("invites: accept: log in as %s first: %w", row.Email, apperr.Forbidden{Code: "invite_login_required"})
-			}
 			if acct.Disabled != 0 {
 				return fmt.Errorf("invites: accept: account disabled: %w", apperr.Forbidden{Code: "account_disabled"})
 			}
+			if callerID == "" || callerID != acct.ID {
+				return fmt.Errorf("invites: accept: log in as %s first: %w", row.Email, apperr.Forbidden{Code: "invite_login_required"})
+			}
+			out.Existing = true
 		}
 		n, err := q.MarkInviteUsed(ctx, db.MarkInviteUsedParams{UsedAt: sql.NullInt64{Int64: nowMs, Valid: true}, ID: row.ID})
 		if err != nil {
@@ -273,33 +287,42 @@ func (s *Service) Accept(ctx context.Context, token, callerID, name, password, i
 			return invalidInvite()
 		}
 		orgAudit := ""
+		detail := map[string]any{"email": row.Email, "existing": out.Existing}
 		if row.OrgID.Valid {
 			orgAudit = row.OrgID.String
-			if err := addMembership(ctx, q, row.OrgID.String, acct.ID, roleOf(row.Role)); err != nil {
+			m, err := addMembership(ctx, q, row.OrgID.String, acct.ID, roleOf(row.Role))
+			if err != nil {
 				return err
+			}
+			out.AlreadyMember = m.AlreadyMember
+			out.Role = m.Role
+			if m.AlreadyMember {
+				detail["membership"] = "already_member"
+				detail["kept_role"] = m.Role
 			}
 		}
 		actor := audit.Actor{UserID: acct.ID}
-		if err := s.log().Log(ctx, q, actor, orgAudit, "invite.accept", row.ID, map[string]string{"email": row.Email}); err != nil {
+		if err := s.log().Log(ctx, q, actor, orgAudit, "invite.accept", row.ID, detail); err != nil {
 			return err
 		}
-		out = users.User{
+		out.User = users.User{
 			ID: acct.ID, Email: acct.Email, Name: acct.Name, IsInstanceAdmin: acct.IsInstanceAdmin != 0,
 			Disabled: acct.Disabled != 0, MustChangePassword: false, CreatedAt: acct.CreatedAt,
 		}
 		return nil
 	})
 	if err != nil {
-		return users.User{}, auth.LoginResult{}, fmt.Errorf("invites: accept: %w", err)
+		return Accepted{}, fmt.Errorf("invites: accept: %w", err)
 	}
-	if !newUser {
-		return out, auth.LoginResult{}, nil
+	if out.Existing {
+		return out, nil
 	}
-	res, err := s.logins.LoginUser(ctx, out.ID, auth.MethodInvite, ip, ua)
+	res, err := s.logins.LoginUser(ctx, out.User.ID, auth.MethodInvite, ip, ua)
 	if err != nil {
-		return users.User{}, auth.LoginResult{}, fmt.Errorf("invites: accept: login: %w", err)
+		return Accepted{}, fmt.Errorf("invites: accept: login: %w", err)
 	}
-	return out, res, nil
+	out.Session = res
+	return out, nil
 }
 
 // authorize checks that actor may manage invites that grant role in orgID. An empty orgID means an
@@ -329,15 +352,25 @@ func authorize(ctx context.Context, q *db.Queries, actor audit.Actor, orgID, rol
 	return nil
 }
 
-func addMembership(ctx context.Context, q *db.Queries, orgID, userID, role string) error {
-	_, err := q.GetMember(ctx, db.GetMemberParams{OrgID: orgID, UserID: userID})
+// membership is the outcome of addMembership: the role the user holds now, and whether it was
+// already there (in which case the existing role is kept, not the invite's).
+type membership struct {
+	Role          string
+	AlreadyMember bool
+}
+
+func addMembership(ctx context.Context, q *db.Queries, orgID, userID, role string) (membership, error) {
+	m, err := q.GetMember(ctx, db.GetMemberParams{OrgID: orgID, UserID: userID})
 	if err == nil {
-		return nil
+		return membership{Role: m.Role, AlreadyMember: true}, nil
 	}
 	if !errors.Is(err, sql.ErrNoRows) {
-		return err
+		return membership{}, err
 	}
-	return q.AddMember(ctx, db.AddMemberParams{OrgID: orgID, UserID: userID, Role: role})
+	if err := q.AddMember(ctx, db.AddMemberParams{OrgID: orgID, UserID: userID, Role: role}); err != nil {
+		return membership{}, err
+	}
+	return membership{Role: role}, nil
 }
 
 func invalidInvite() error {

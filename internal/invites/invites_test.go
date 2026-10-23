@@ -5,7 +5,10 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"errors"
+	"path/filepath"
 	"strings"
+	"sync"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -48,8 +51,14 @@ type fixture struct {
 
 func newFixture(t *testing.T) *fixture {
 	t.Helper()
+	return newFixtureWith(t, ":memory:")
+}
+
+// newFixtureWith opens the store at path (":memory:" or a file, for concurrency tests).
+func newFixtureWith(t *testing.T, path string) *fixture {
+	t.Helper()
 	ctx := context.Background()
-	st, err := store.Open(ctx, ":memory:")
+	st, err := store.Open(ctx, path)
 	if err != nil {
 		t.Fatalf("store.Open: %v", err)
 	}
@@ -159,9 +168,13 @@ func TestInviteAcceptCreatesUserAndMembership(t *testing.T) {
 		t.Errorf("expires_at = %d, want %d (7 days)", row.ExpiresAt, want)
 	}
 
-	u, res, err := f.svc.Accept(ctx, token, "", "New Person", testPassword, "1.2.3.4", "ua")
+	acc, err := f.svc.Accept(ctx, token, "", "New Person", testPassword, "1.2.3.4", "ua")
 	if err != nil {
 		t.Fatalf("Accept: %v", err)
+	}
+	u, res := acc.User, acc.Session
+	if acc.Existing {
+		t.Errorf("Existing = true for a new account")
 	}
 	if u.Email != "new@example.com" || u.Name != "New Person" || u.MustChangePassword {
 		t.Errorf("user = %+v, want new@example.com / New Person / no forced change", u)
@@ -197,9 +210,13 @@ func TestAcceptExistingUserDoesNotChangePassword(t *testing.T) {
 	if err != nil {
 		t.Fatalf("Create: %v", err)
 	}
-	u, res, err := f.svc.Accept(ctx, tokenOf(t, link), existing, "Ignored", "attacker password 123", "1.2.3.4", "ua")
+	acc, err := f.svc.Accept(ctx, tokenOf(t, link), existing, "Ignored", "attacker password 123", "1.2.3.4", "ua")
 	if err != nil {
 		t.Fatalf("Accept: %v", err)
+	}
+	u, res := acc.User, acc.Session
+	if !acc.Existing || acc.Role != "member" || acc.AlreadyMember {
+		t.Errorf("accept result = %+v, want Existing, role member, not already a member", acc)
 	}
 	if u.ID != existing || u.Name != "Old Name" {
 		t.Errorf("user = %+v, want existing user %s with name kept", u, existing)
@@ -231,14 +248,95 @@ func TestAcceptExistingUserRequiresLogin(t *testing.T) {
 	}
 	token := tokenOf(t, link)
 	for _, caller := range []string{"", other} {
-		_, _, err := f.svc.Accept(ctx, token, caller, "", testPassword, "1.2.3.4", "ua")
+		_, err := f.svc.Accept(ctx, token, caller, "", testPassword, "1.2.3.4", "ua")
 		if code, ok := apperr.ForbiddenCode(err); !ok || code != "invite_login_required" {
 			t.Errorf("caller %q: err = %v, want Forbidden invite_login_required", caller, err)
 		}
 	}
 	// The failed attempts rolled back: the invite is still usable by the right account.
-	if _, _, err := f.svc.Accept(ctx, token, existing, "", testPassword, "1.2.3.4", "ua"); err != nil {
+	if _, err := f.svc.Accept(ctx, token, existing, "", testPassword, "1.2.3.4", "ua"); err != nil {
 		t.Fatalf("Accept by logged-in owner of the email: %v", err)
+	}
+}
+
+func TestAcceptExistingSignedInEmptyPasswordSucceeds(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	existing := f.user(t, "signed@example.com", "Signed", false)
+	_, link, err := f.svc.Create(ctx, f.adm, "signed@example.com", f.acmeID(), strPtr("admin"))
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	acc, err := f.svc.Accept(ctx, tokenOf(t, link), existing, "", "", "1.2.3.4", "ua")
+	if err != nil {
+		t.Fatalf("Accept with empty password: %v", err)
+	}
+	if !acc.Existing || acc.Role != "admin" {
+		t.Errorf("result = %+v, want Existing with role admin", acc)
+	}
+	acct, err := f.st.Q().GetUserByID(ctx, existing)
+	if err != nil {
+		t.Fatalf("GetUserByID: %v", err)
+	}
+	if acct.PasswordHash != "plain$orig" {
+		t.Errorf("password hash changed to %q, must stay unchanged", acct.PasswordHash)
+	}
+}
+
+func TestAcceptAlreadyMemberKeepsRole(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	_, link, err := f.svc.Create(ctx, f.adm, "member@example.com", f.acmeID(), strPtr("admin"))
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	acc, err := f.svc.Accept(ctx, tokenOf(t, link), f.member, "", "", "1.2.3.4", "ua")
+	if err != nil {
+		t.Fatalf("Accept: %v", err)
+	}
+	if !acc.AlreadyMember || acc.Role != "member" {
+		t.Errorf("result = %+v, want AlreadyMember with kept role member", acc)
+	}
+	m, err := f.st.Q().GetMember(ctx, db.GetMemberParams{OrgID: f.acme, UserID: f.member})
+	if err != nil || m.Role != "member" {
+		t.Errorf("membership role = %v/%v, want member kept", m.Role, err)
+	}
+}
+
+func TestConcurrentAcceptOnlyOneSucceeds(t *testing.T) {
+	f := newFixtureWith(t, filepath.Join(t.TempDir(), "invites.db"))
+	ctx := context.Background()
+	_, link, err := f.svc.Create(ctx, f.adm, "race@example.com", nil, nil)
+	if err != nil {
+		t.Fatalf("Create: %v", err)
+	}
+	token := tokenOf(t, link)
+	const n = 8
+	var wg sync.WaitGroup
+	var successes atomic.Int32
+	errs := make([]error, n)
+	for i := range n {
+		wg.Add(1)
+		go func() {
+			defer wg.Done()
+			if _, err := f.svc.Accept(ctx, token, "", "Racer", testPassword, "1.2.3.4", "ua"); err == nil {
+				successes.Add(1)
+			} else {
+				errs[i] = err
+			}
+		}()
+	}
+	wg.Wait()
+	if got := successes.Load(); got != 1 {
+		t.Fatalf("successful accepts = %d, want exactly 1 (errs: %v)", got, errs)
+	}
+	for _, err := range errs {
+		if err == nil {
+			continue
+		}
+		if code, ok := apperr.NotFoundCode(err); !ok || code != "invite_invalid" {
+			t.Errorf("losing accept err = %v, want invite_invalid", err)
+		}
 	}
 }
 
@@ -250,7 +348,7 @@ func TestInviteExpired(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 	f.now = f.now.Add(7*24*time.Hour + time.Millisecond)
-	_, _, err = f.svc.Accept(ctx, tokenOf(t, link), "", "Late", testPassword, "1.2.3.4", "ua")
+	_, err = f.svc.Accept(ctx, tokenOf(t, link), "", "Late", testPassword, "1.2.3.4", "ua")
 	wantInviteInvalid(t, err)
 }
 
@@ -262,10 +360,10 @@ func TestInviteReuseRejected(t *testing.T) {
 		t.Fatalf("Create: %v", err)
 	}
 	token := tokenOf(t, link)
-	if _, _, err := f.svc.Accept(ctx, token, "", "Once", testPassword, "1.2.3.4", "ua"); err != nil {
+	if _, err := f.svc.Accept(ctx, token, "", "Once", testPassword, "1.2.3.4", "ua"); err != nil {
 		t.Fatalf("first Accept: %v", err)
 	}
-	_, _, err = f.svc.Accept(ctx, token, "", "Once", "another long password", "1.2.3.4", "ua")
+	_, err = f.svc.Accept(ctx, token, "", "Once", "another long password", "1.2.3.4", "ua")
 	wantInviteInvalid(t, err)
 }
 
@@ -279,7 +377,7 @@ func TestInviteRevoke(t *testing.T) {
 	if err := f.svc.Revoke(ctx, f.adm, "", inv.ID); err != nil {
 		t.Fatalf("Revoke: %v", err)
 	}
-	_, _, err = f.svc.Accept(ctx, tokenOf(t, link), "", "Rev", testPassword, "1.2.3.4", "ua")
+	_, err = f.svc.Accept(ctx, tokenOf(t, link), "", "Rev", testPassword, "1.2.3.4", "ua")
 	wantInviteInvalid(t, err)
 
 	pending, err := f.svc.List(ctx, "")
