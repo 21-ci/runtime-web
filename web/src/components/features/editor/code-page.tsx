@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { Loader2, RotateCw, Save } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
@@ -244,18 +245,17 @@ function StatusPill(props: { org: string; app: string; pending: boolean; version
     );
   }
   if (version === null) return null;
-  const href = `/${encodeURIComponent(org)}/apps/${encodeURIComponent(app)}/versions?v=${version}`;
   if (state === "failed") {
     return (
-      <a href={href} role="status">
+      <Link to="/$org/apps/$app/versions" params={{ org, app }} role="status">
         <Badge variant="danger">Build failed v{version}</Badge>
-      </a>
+      </Link>
     );
   }
   return (
-    <a href={href} aria-label={`Live v${version}, open build log`}>
+    <Link to="/$org/apps/$app/versions" params={{ org, app }} aria-label={`Live v${version}, open versions`}>
       <Badge variant="success">Live v{version}</Badge>
-    </a>
+    </Link>
   );
 }
 

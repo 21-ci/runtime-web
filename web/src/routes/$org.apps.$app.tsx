@@ -9,7 +9,14 @@ export const Route = createFileRoute("/$org/apps/$app")({
   component: AppPage,
 });
 
-// AppPage is the app header. The tabs (settings, versions, logs) arrive with later tasks.
+// AppPage is the app header plus section tabs; the active tab renders in the Outlet.
+const APP_TABS = [
+  { to: "/$org/apps/$app/code", label: "Code" },
+  { to: "/$org/apps/$app/logs", label: "Logs" },
+  { to: "/$org/apps/$app/versions", label: "Versions" },
+  { to: "/$org/apps/$app/settings", label: "Settings" },
+] as const;
+
 function AppPage() {
   const { org, app } = Route.useParams();
   const apps = useApps(org);
@@ -48,13 +55,18 @@ function AppPage() {
         <dt className="text-muted">Live version</dt>
         <dd>{a.live_version ?? "none"}</dd>
       </dl>
-      <nav aria-label="App sections" className="flex gap-3 text-sm">
-        <Link to="/$org/apps/$app/versions" params={{ org, app }} className="hover:underline">
-          Versions
-        </Link>
-        <Link to="/$org/apps/$app/logs" params={{ org, app }} className="hover:underline">
-          Logs
-        </Link>
+      <nav aria-label="App sections" className="flex gap-3 border-b border-line text-sm">
+        {APP_TABS.map((t) => (
+          <Link
+            key={t.to}
+            to={t.to}
+            params={{ org, app }}
+            className="-mb-px border-b-2 border-transparent pb-2 text-muted hover:text-text"
+            activeProps={{ className: "border-blue font-medium text-text", "aria-current": "page" }}
+          >
+            {t.label}
+          </Link>
+        ))}
       </nav>
       <Outlet />
     </div>
