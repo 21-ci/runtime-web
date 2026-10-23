@@ -19,6 +19,18 @@ if (!window.matchMedia) {
     }) as MediaQueryList;
 }
 window.scrollTo = () => {};
+// cmdk scrolls the active item into view, which jsdom does not implement.
+if (!Element.prototype.scrollIntoView) {
+  Element.prototype.scrollIntoView = () => {};
+}
+// cmdk measures its list with ResizeObserver, which jsdom does not provide.
+if (!("ResizeObserver" in globalThis)) {
+  globalThis.ResizeObserver = class {
+    observe() {}
+    unobserve() {}
+    disconnect() {}
+  } as unknown as typeof ResizeObserver;
+}
 
 beforeAll(() => {
   server.listen({ onUnhandledRequest: "error" });
