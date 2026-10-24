@@ -266,3 +266,8 @@ export async function unmapHost(deps: DomainDeps, m: PendingUnmap): Promise<bool
 export async function listHostsOf(deps: DomainDeps, serviceId: string) {
   return runtimeOf(deps).op().listHosts(serviceId);
 }
+
+/** Removes every domain of a deleted app (rows, and runtime hosts of active ones). */
+export async function removeAppDomains(deps: DomainDeps, serviceId: string, actor: AuditActor): Promise<void> {
+  for (const d of await listDomains(deps.storage.db, serviceId)) await removeDomain(deps, d, actor);
+}

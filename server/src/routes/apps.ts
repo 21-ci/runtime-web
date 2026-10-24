@@ -72,7 +72,6 @@ export function registerApps(router: Router, deps: Deps): void {
   router.delete(one, route(async (c, ctx) => {
     await A.deleteApp(c, slug(ctx));
     await audit(c, "app.delete", slug(ctx), null);
-    // Custom domains of the app are removed by T8's domains module (orphan sweep).
     return noContent();
   }));
 

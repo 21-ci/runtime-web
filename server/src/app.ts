@@ -19,6 +19,7 @@ import { registerAudit } from "./routes/audit.ts";
 import { registerSettings } from "./routes/settings.ts";
 import { registerInternal } from "./routes/internal.ts";
 import type { AppLookup, TxtLookup } from "./domains/types.ts";
+import { appLookup } from "./apps/service.ts";
 import type { RouteInfo } from "./http/router.ts";
 
 // Composition root, runtime-agnostic: main.ts passes runtime adapters, tests pass
@@ -50,6 +51,7 @@ export interface App {
 }
 
 export function createApp(deps: Deps): App {
+  deps.apps ??= appLookup(deps);
   const router = new Router();
   registerHealth(router, deps);
   registerAuth(router, deps);

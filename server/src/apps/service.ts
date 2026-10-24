@@ -9,7 +9,10 @@ import { Runtime, type Scoped } from "../runtime/client.ts";
 import type * as T from "../runtime/types.ts";
 import { can, type Action, type Subject } from "../authz/policy.ts";
 import { authorize } from "../orgs/members.ts";
-import { defaultKey, type Org } from "../orgs/orgs.ts";
+import { defaultKey, getOrg, type Org } from "../orgs/orgs.ts";
+import { dbOf } from "../auth/types.ts";
+import type { AppLookup } from "../domains/types.ts";
+import { removeAppDomains } from "../domains/domains.ts";
 import type { Actor } from "../orgs/common.ts";
 import { rt } from "../runtime/errors.ts";
 import { checkBundle, MAX_FILE_BYTES, unpack } from "./source.ts";
@@ -222,6 +225,7 @@ export async function updateApp(c: OrgCtx, slug: string, patch: T.ServicePatch, 
 export async function deleteApp(c: OrgCtx, slug: string) {
   const app = await appFor(c, slug, "app.delete");
   await rt(() => c.cli.deleteService(app.id));
+  await removeAppDomains(c.deps, app.id, c.actor);
   return app;
 }
 
@@ -388,4 +392,18 @@ export async function exportData(c: OrgCtx, slug: string): Promise<{ first: Uint
 function totalOf(cr: string | undefined): number | null {
   const m = cr ? /\/(\d+)\s*$/.exec(cr) : null;
   return m ? Number(m[1]) : null;
+}
+
+/** Deps.apps: resolves an org's app slug to its runtime service with the org's default key. */
+export function appLookup(deps: Deps): AppLookup {
+  return {
+    async resolve(orgId, slug) {
+      const org = await getOrg(await dbOf(deps), orgId);
+      if (!org) return null;
+      const cli = await orgClient(deps, org);
+      const page = await rt(() => cli.listServices({ slug }));
+      const s = page.items.find((x) => x.slug === slug);
+      return s ? { serviceId: s.id, slug: s.slug, projectSlug: s.project } : null;
+    },
+  };
 }
