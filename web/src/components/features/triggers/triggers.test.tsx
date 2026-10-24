@@ -11,9 +11,6 @@ import { useShellHandlers } from "@/test/shell-fixtures";
 import { useAppHandlers } from "../app-header/fixtures";
 import { pickOption } from "@/test/select";
 
-// Routes are code-split, so the first render of each test waits on a lazy chunk.
-vi.setConfig({ testTimeout: 20_000 });
-
 const TRIGGERS = "/acme/apps/hello/triggers";
 
 beforeEach(() => {

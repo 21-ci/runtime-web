@@ -7,8 +7,6 @@ import { server } from "./msw";
 import { renderAt } from "./render";
 import { useShellHandlers } from "./shell-fixtures";
 
-const LOAD = { timeout: 5000 };
-
 const members = [
   { user: { id: "usr_1", email: "ada@example.test", name: "Ada" }, role: "owner", grants: {} },
   { user: { id: "usr_2", email: "grace@example.test", name: "Grace" }, role: "member", grants: {} },
@@ -41,9 +39,9 @@ describe("org dashboard", { timeout: 15_000 }, () => {
     useShellHandlers();
     dashboardHandlers();
     renderAt("/acme");
-    const actions = await screen.findByRole("region", { name: "Quick actions" }, LOAD);
+    const actions = await screen.findByRole("region", { name: "Quick actions" });
     // New project is owner/admin only, so it appears once the org role has loaded.
-    await within(actions).findByText("New project", {}, LOAD);
+    await within(actions).findByText("New project", {});
     for (const name of ["New app", "New project", "Invite member", "Create token", "Add domain"]) {
       expect(within(actions).getByText(name)).toBeInTheDocument();
     }
@@ -53,8 +51,8 @@ describe("org dashboard", { timeout: 15_000 }, () => {
     useShellHandlers();
     dashboardHandlers();
     renderAt("/acme");
-    const apps = await screen.findByRole("region", { name: "Apps" }, LOAD);
-    const tile = await within(apps).findByRole("link", { name: /Hello/ }, LOAD);
+    const apps = await screen.findByRole("region", { name: "Apps" });
+    const tile = await within(apps).findByRole("link", { name: /Hello/ });
     expect(tile).toHaveTextContent(/ready/i);
     expect(tile).toHaveAttribute("href", "/acme/apps/hello");
   });
@@ -63,8 +61,8 @@ describe("org dashboard", { timeout: 15_000 }, () => {
     useShellHandlers();
     dashboardHandlers();
     renderAt("/acme");
-    const activity = await screen.findByRole("region", { name: "Recent activity" }, LOAD);
-    expect(await within(activity).findByText("app.create", {}, LOAD)).toBeInTheDocument();
+    const activity = await screen.findByRole("region", { name: "Recent activity" });
+    expect(await within(activity).findByText("app.create", {})).toBeInTheDocument();
     expect(within(activity).getByText(/web\/hello/)).toBeInTheDocument();
   });
 
@@ -72,8 +70,8 @@ describe("org dashboard", { timeout: 15_000 }, () => {
     useShellHandlers();
     dashboardHandlers();
     renderAt("/acme");
-    const people = await screen.findByRole("region", { name: /Members/ }, LOAD);
-    expect(await within(people).findByText("Grace", {}, LOAD)).toBeInTheDocument();
+    const people = await screen.findByRole("region", { name: /Members/ });
+    expect(await within(people).findByText("Grace", {})).toBeInTheDocument();
     expect(within(people).getByText("grace@example.test")).toBeInTheDocument();
   });
 
@@ -81,7 +79,7 @@ describe("org dashboard", { timeout: 15_000 }, () => {
     useShellHandlers();
     dashboardHandlers({ audit: [] });
     renderAt("/acme");
-    const activity = await screen.findByRole("region", { name: "Recent activity" }, LOAD);
-    expect(await within(activity).findByText("No activity yet", {}, LOAD)).toBeInTheDocument();
+    const activity = await screen.findByRole("region", { name: "Recent activity" });
+    expect(await within(activity).findByText("No activity yet", {})).toBeInTheDocument();
   });
 });

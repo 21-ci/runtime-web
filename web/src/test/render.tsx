@@ -8,8 +8,14 @@ import { routeTree } from "@/routeTree.gen";
 
 // renderAt mounts the real file-route tree at `path` with an in-memory history.
 // Redirects from the API client navigate this router, so tests can assert router.state.location.
+// Each call gets a fresh QueryClient with retries off: a failed request should surface as an error
+// on the first attempt, not after the production backoff (seconds) has elapsed.
 export function renderAt(path: string) {
   const queryClient = createQueryClient();
+  queryClient.setDefaultOptions({
+    queries: { retry: false, refetchOnWindowFocus: false },
+    mutations: { retry: false },
+  });
   const router = createRouter({
     routeTree,
     history: createMemoryHistory({ initialEntries: [path] }),

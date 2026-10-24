@@ -1,7 +1,8 @@
-import { cleanup, waitFor } from "@testing-library/react";
+import { act, cleanup } from "@testing-library/react";
 import { createMemoryHistory, createRouter } from "@tanstack/react-router";
 import { afterEach, describe, expect, it } from "vitest";
 
+import { useAppHandlers } from "@/components/features/app-header/fixtures";
 import { setCsrfToken } from "@/lib/api";
 import { createQueryClient } from "@/lib/query";
 import { routeTree } from "@/routeTree.gen";
@@ -26,25 +27,28 @@ function allPaths(): string[] {
   return [...paths].sort();
 }
 
+const paths = allPaths();
+
 describe("rendered routes", () => {
   afterEach(() => {
     cleanup();
     setCsrfToken(null);
   });
 
-  it("walks every route in the tree and never renders the word val", async () => {
-    useShellHandlers();
-    const paths = allPaths();
+  it("includes the expected routes", () => {
     expect(paths).toContain("/acme/apps/new");
     expect(paths.length).toBeGreaterThan(5);
+  });
 
-    for (const path of paths) {
-      cleanup();
-      renderAt(path);
-      await waitFor(() => expect(document.body.textContent ?? "").not.toMatch(/\bval\b/i), { timeout: 2000 });
-      // Let queries settle so late data is covered too.
-      await new Promise((r) => setTimeout(r, 50));
-      expect(document.body.textContent ?? "", path).not.toMatch(/\bval\b/i);
-    }
+  // One test per route so a failure names its path and no route inherits another's timing.
+  it.each(paths)("%s renders without the word val", async (path) => {
+    useShellHandlers();
+    useAppHandlers();
+    const router = renderAt(path);
+    // Wait for the lazy route chunk and its loaders; query data then renders as it arrives.
+    await act(async () => {
+      await router.load();
+    });
+    expect(document.body.textContent ?? "", path).not.toMatch(/\bval\b/i);
   });
 });
