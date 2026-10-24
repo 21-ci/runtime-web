@@ -184,9 +184,23 @@ export async function listProviders(deps: AuthDeps): Promise<{ id: ProviderId; n
   return out;
 }
 
-/** Keeps only same-origin absolute paths, defaulting to "/". */
+const SAFE_PATH = /^\/(?![/\\])[\x21-\x7e]*$/;
+
+/**
+ * Keeps only same-origin absolute paths, defaulting to "/". Both the raw value and its
+ * percent-decoded form must be "/" plus printable ASCII, not start with "//" or "/\\",
+ * and contain no backslash: browsers drop tabs/newlines and treat "\\" as "/", so
+ * "/\t/evil.com" would otherwise become "//evil.com" (audit M7).
+ */
 export function safeNext(p: string | null | undefined): string {
-  if (!p || !p.startsWith("/") || p.startsWith("//") || p.includes("\\")) return "/";
+  if (!p) return "/";
+  let decoded: string;
+  try {
+    decoded = decodeURIComponent(p);
+  } catch {
+    return "/";
+  }
+  for (const v of [p, decoded]) if (!SAFE_PATH.test(v) || v.includes("\\")) return "/";
   return p;
 }
 

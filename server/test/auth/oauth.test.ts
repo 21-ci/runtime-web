@@ -232,6 +232,9 @@ describe("oauth", () => {
 
   it("safeNext keeps same-origin paths only", () => {
     expect(safeNext("/a?b")).toBe("/a?b");
-    for (const bad of ["//evil", "https://evil", "/\\evil", "", null]) expect(safeNext(bad)).toBe("/");
+    expect(safeNext("/orgs/x/apps?tab=logs#top")).toBe("/orgs/x/apps?tab=logs#top");
+    const bad = ["//evil", "https://evil", "/\\evil", "", null, "/\t/evil.com", "/\n/evil.com", "/\r/evil.com", "/\\\\evil.com",
+      "//evil.com", "/%2F%2Fevil.com", "/%2f/evil.com", "/%5Cevil.com", "/%09/evil.com", "/ /evil.com", "/a b", "/\u00e9", "/%E0%A4%A", "evil.com"];
+    for (const b of bad) expect(safeNext(b), JSON.stringify(b)).toBe("/");
   });
 });
