@@ -37,7 +37,7 @@ import {
   type AdminOrg,
 } from "./admin-api";
 import { ConfirmDialog } from "./confirm-dialog";
-import { SelectField } from "./user-dialogs";
+import { NONE_VALUE, SelectField } from "./user-dialogs";
 
 type OrgAction = { kind: "rename" | "delete"; org: AdminOrg };
 
@@ -174,7 +174,7 @@ function CreateOrgDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
     const form = new FormData(e.currentTarget);
     const slug = String(form.get("slug") ?? "").trim();
     const name = String(form.get("name") ?? "").trim();
-    const owner = String(form.get("owner") ?? "");
+    const owner = String(form.get("owner") ?? "") === NONE_VALUE ? "" : String(form.get("owner") ?? "");
     const next: Record<string, string> = {};
     if (!slug) next.slug = "Enter a slug.";
     if (!name) next.name = "Enter a name.";
@@ -212,14 +212,16 @@ function CreateOrgDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
         <AuthForm errors={errors} onSubmit={onSubmit}>
           <FormField label="Slug" name="slug" autoComplete="off" error={errors.slug} />
           <FormField label="Name" name="name" autoComplete="off" error={errors.name} />
-          <SelectField label="Owner" name="owner" error={errors.owner}>
-            <option value="">Choose a user</option>
-            {(users.data ?? []).map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name} ({u.email})
-              </option>
-            ))}
-          </SelectField>
+          <SelectField
+            label="Owner"
+            name="owner"
+            error={errors.owner}
+            defaultValue={NONE_VALUE}
+            options={[
+              { value: NONE_VALUE, label: "Choose a user" },
+              ...(users.data ?? []).map((u) => ({ value: u.id, label: `${u.name} (${u.email})` })),
+            ]}
+          />
           <DialogFooter>
             <Button type="submit" variant="default" disabled={create.isPending}>
               Create organization

@@ -36,6 +36,12 @@ if (!("ResizeObserver" in globalThis)) {
   } as unknown as typeof ResizeObserver;
 }
 
+// Radix Select pointer handling needs pointer capture, which jsdom does not implement.
+if (!Element.prototype.hasPointerCapture) {
+  Element.prototype.hasPointerCapture = () => false;
+  Element.prototype.releasePointerCapture = () => {};
+}
+
 beforeAll(() => {
   server.listen({ onUnhandledRequest: "error" });
 });

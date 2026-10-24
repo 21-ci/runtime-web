@@ -16,6 +16,7 @@ import { LimitsSection } from "./limits";
 import { ScalingSection } from "./scaling";
 import { StatusPill } from "./status-pill";
 import type { AppDetail } from "./api";
+import { pickOption } from "@/test/select";
 
 const org = "acme";
 
@@ -60,7 +61,7 @@ describe("app settings", () => {
     renderWithClient(<AccessSection org={org} app={appFixture()} />);
 
     expect(screen.queryByText(/needs an invoke token/i)).toBeNull();
-    await user.selectOptions(screen.getByRole("combobox", { name: "Access" }), "key");
+    await pickOption(user, screen.getByRole("combobox", { name: "Access" }), "Key");
     expect(screen.getByText(/needs an invoke token/i)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Create invoke token" }));

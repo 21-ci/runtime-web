@@ -16,6 +16,13 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ApiError } from "@/lib/api";
 import { handleMutationError } from "@/lib/query";
 import type { OrgRole } from "@/lib/types";
@@ -86,9 +93,11 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
               const grants = Object.entries(m.grants);
               return (
                 <li key={m.user.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
-                  <span className="min-w-0">
-                    <span className="block font-medium">{m.user.name}</span>
-                    <span className="block truncate text-muted">{m.user.email}</span>
+                  <span className="flex min-w-0 flex-1 flex-col">
+                    <span className="truncate font-medium">{m.user.name}</span>
+                    <span className="truncate text-muted" title={m.user.email}>
+                      {m.user.email}
+                    </span>
                     {grants.length > 0 ? (
                       <span className="block text-xs text-muted">
                         {grants.map(([p, r]) => `${p}: ${r}`).join(", ")}
@@ -98,20 +107,22 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
                   <span className="flex items-center gap-2">
                     {canManage && !locked ? (
                       <>
-                        <select
-                          id={`role-${m.user.id}`}
-                          aria-label={`Role for ${m.user.email}`}
+                        <Select
                           value={m.role}
                           disabled={setRole.isPending}
-                          onChange={(e) => changeRole(m, e.target.value as OrgRole)}
-                          className="h-[34px] rounded-[6px] border border-line bg-surface px-2 text-sm"
+                          onValueChange={(v) => changeRole(m, v as OrgRole)}
                         >
-                          {assignableRoles(role).map((r) => (
-                            <option key={r} value={r}>
-                              {ROLE_LABEL[r]}
-                            </option>
-                          ))}
-                        </select>
+                          <SelectTrigger aria-label={`Role for ${m.user.email}`} className="h-[34px] w-auto min-w-32">
+                            <SelectValue />
+                          </SelectTrigger>
+                          <SelectContent>
+                            {assignableRoles(role).map((r) => (
+                              <SelectItem key={r} value={r}>
+                                {ROLE_LABEL[r]}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
                         <Button
                           variant="ghost"
                           size="icon"

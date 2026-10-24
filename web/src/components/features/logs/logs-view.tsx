@@ -4,8 +4,18 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { type ConnState, type LogLevel, type LogLine, useLogStream } from "./use-log-stream";
+
+// ALL_LEVELS stands in for "no minimum level"; Radix Select items cannot have an empty value.
+const ALL_LEVELS = "all";
 
 const CONN_LABEL: Record<ConnState, string> = {
   connecting: "Connecting",
@@ -56,18 +66,18 @@ export function LogsView({ org, app }: { org: string; app: string }) {
           onChange={(e) => setFilter(e.target.value)}
           className="max-w-xs"
         />
-        <select
-          aria-label="Minimum level"
-          value={level}
-          onChange={(e) => setLevel(e.target.value as LogLevel)}
-          className="h-[34px] rounded-[4px] border border-line bg-panel px-2 text-sm text-text"
-        >
-          <option value="">All levels</option>
-          <option value="debug">Debug and up</option>
-          <option value="info">Info and up</option>
-          <option value="warn">Warn and up</option>
-          <option value="error">Error only</option>
-        </select>
+        <Select value={level || ALL_LEVELS} onValueChange={(v) => setLevel(v === ALL_LEVELS ? "" : (v as LogLevel))}>
+          <SelectTrigger aria-label="Minimum level" className="h-[34px] w-auto min-w-40 bg-panel px-2 text-sm">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value={ALL_LEVELS}>All levels</SelectItem>
+            <SelectItem value="debug">Debug and up</SelectItem>
+            <SelectItem value="info">Info and up</SelectItem>
+            <SelectItem value="warn">Warn and up</SelectItem>
+            <SelectItem value="error">Error only</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
       {stream.gap ? (

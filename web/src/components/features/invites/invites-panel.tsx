@@ -16,6 +16,13 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ApiError } from "@/lib/api";
 import type { OrgRole } from "@/lib/types";
 
@@ -142,13 +149,18 @@ function InviteForm({ org, role }: { org: string; role: OrgRole }) {
         <FormField label="Email" name="email" type="email" autoComplete="off" error={errors.email} />
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={roleId}>Role</Label>
-          <select id={roleId} name="role" defaultValue="member" className="h-[34px] rounded-[6px] border border-line bg-surface px-2 text-sm">
-            {roles.map((r) => (
-              <option key={r} value={r}>
-                {ROLE_LABEL[r]}
-              </option>
-            ))}
-          </select>
+          <Select name="role" defaultValue="member">
+            <SelectTrigger id={roleId}>
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {roles.map((r) => (
+                <SelectItem key={r} value={r}>
+                  {ROLE_LABEL[r]}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div>
           <Button type="submit" variant="default" disabled={create.isPending}>

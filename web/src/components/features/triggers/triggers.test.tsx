@@ -9,6 +9,7 @@ import { renderAt } from "@/test/render";
 import { useShellHandlers } from "@/test/shell-fixtures";
 
 import { useAppHandlers } from "../app-header/fixtures";
+import { pickOption } from "@/test/select";
 
 // Routes are code-split, so the first render of each test waits on a lazy chunk.
 vi.setConfig({ testTimeout: 20_000 });
@@ -60,7 +61,7 @@ describe("triggers", () => {
     renderAt(TRIGGERS);
 
     await userEvent.click(await screen.findByRole("button", { name: "Add schedule" }));
-    await userEvent.selectOptions(screen.getByLabelText("Kind"), "cron");
+    await pickOption(userEvent, screen.getByLabelText("Kind"), "Cron");
     await userEvent.type(screen.getByLabelText("Cron expression"), "0 9 * * 1-5");
     await userEvent.click(screen.getByRole("button", { name: "Create schedule" }));
 
@@ -72,7 +73,7 @@ describe("triggers", () => {
     renderAt(TRIGGERS);
 
     await userEvent.click(await screen.findByRole("button", { name: "Add schedule" }));
-    await userEvent.selectOptions(screen.getByLabelText("Kind"), "cron");
+    await pickOption(userEvent, screen.getByLabelText("Kind"), "Cron");
     await userEvent.type(screen.getByLabelText("Cron expression"), "0 9 * * 1-5");
 
     expect(await screen.findByText("At 09:00, Monday through Friday")).toBeInTheDocument();

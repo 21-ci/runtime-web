@@ -4,6 +4,13 @@ import { toast } from "sonner";
 import { usePatchApp, type AppView } from "@/components/features/app-header/hooks";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 
@@ -59,19 +66,18 @@ export function HttpRouteCard({ org, app, view }: { org: string; app: string; vi
       <form onSubmit={onSubmit} className="flex max-w-xl flex-col gap-4">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="http-access">Access</Label>
-          <select
-            id="http-access"
-            value={access}
-            onChange={(e) => setAccess(e.target.value as AppView["access"])}
-            aria-describedby="http-access-hint"
-            className="h-[34px] rounded-[4px] border border-line-strong bg-surface px-3 text-text"
-          >
-            {ACCESS.map((a) => (
-              <option key={a.value} value={a.value}>
-                {a.label}
-              </option>
-            ))}
-          </select>
+          <Select value={access} onValueChange={(v) => setAccess(v as AppView["access"])}>
+            <SelectTrigger id="http-access" aria-describedby="http-access-hint">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {ACCESS.map((a) => (
+                <SelectItem key={a.value} value={a.value}>
+                  {a.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <p id="http-access-hint" className="text-sm text-muted">
             {ACCESS.find((a) => a.value === access)?.hint}
           </p>
