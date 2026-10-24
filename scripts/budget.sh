@@ -8,7 +8,7 @@
 #   editor chunk         <= 900 KB gzip                   (chunks containing CodeMirror; excludes the lazy TS worker)
 #   TS worker            <= 1.5 MB gzip                   (lazy *worker* chunks, loaded on the editor page only)
 #
-# Env overrides: BIN, DIST, RSS_CONTAINER (default runtime-web-rtweb-1), REQUIRE_RSS=1 (fail when no
+# Env overrides: SKIP_BIN=1 (skip the binary check), BIN, DIST, RSS_CONTAINER (default runtime-web-rtweb-1), REQUIRE_RSS=1 (fail when no
 # container is running instead of skipping), REQUIRE_EDITOR=1 (fail when no editor chunk exists).
 #
 # Measure RSS 30 s after start: `docker compose up -d --wait` then run this script.
@@ -32,7 +32,9 @@ report() { # report STATUS LABEL DETAIL
 }
 
 # --- binary size -----------------------------------------------------------------------------
-if [ -f "$BIN" ]; then
+if [ "${SKIP_BIN:-0}" = 1 ]; then
+  report SKIP "binary size" "SKIP_BIN=1 (no Go binary; TS backend)"
+elif [ -f "$BIN" ]; then
   size=$(wc -c <"$BIN" | tr -d ' ')
   if [ "$size" -le "$MAX_BIN_BYTES" ]; then
     report PASS "binary size" "$size bytes <= $MAX_BIN_BYTES ($BIN)"

@@ -5,7 +5,7 @@ LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.dat
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build test vet vuln fmt fmt-check ci ci-full clean web web-test web-lint web-audit web-embed e2e budget docker compose-up compose-down
+.PHONY: help build test vet vuln fmt fmt-check ci ci-full clean web web-test web-lint web-audit web-embed e2e budget coverage docker compose-up compose-down
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -50,6 +50,10 @@ web-embed: web ## Copy web/dist into internal/api/dist for go:embed
 	rm -rf internal/api/dist
 	mkdir -p internal/api
 	cp -R web/dist internal/api/dist
+
+coverage: ## Web + server tests with v8 coverage and thresholds (reports in */coverage)
+	cd web && npm run coverage
+	cd server && npm run coverage
 
 budget: build ## Check binary size, idle RSS and web gzip budgets (docs/02 section 7)
 	node --test scripts/budget-measure.test.js

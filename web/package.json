@@ -9,6 +9,7 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
+    "coverage": "vitest run --coverage --testTimeout=30000 --maxWorkers=2",
     "test:watch": "vitest"
   },
   "dependencies": {
@@ -53,6 +54,7 @@
     "@types/react": "19.1.16",
     "@types/react-dom": "19.1.9",
     "@vitejs/plugin-react": "5.0.4",
+    "@vitest/coverage-v8": "3.2.4",
     "eslint": "9.37.0",
     "eslint-plugin-react-hooks": "5.2.0",
     "globals": "16.4.0",

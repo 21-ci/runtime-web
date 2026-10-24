@@ -8,3 +8,6 @@ data/
 # build output
 bin/
 .claude/
+
+# test coverage reports
+coverage/
