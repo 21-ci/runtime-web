@@ -17,6 +17,9 @@ export const CHUNK = 150 * 1024;
 const MAX_PARTS = 80; // 12 MB
 const CHUNK_TTL = 120;
 const BAKED_TENANT = "__RTWEB_TENANT_ID__";
+// The unreplaced placeholder, spelled so install.mjs's replaceAll leaves it alone (else the guard compares
+// the baked id with itself and refuses every caller).
+const PLACEHOLDER = "__RTWEB_" + "TENANT_ID__";
 const SERVICE_SLUG = "rtweb";
 
 export interface Caller {
@@ -116,7 +119,7 @@ export function pathAllowed(scope: "op" | "tenant", path: string): boolean {
 }
 
 export function checkCaller(caller: Caller | undefined, allowedTenant: string | undefined): Caller {
-  if (!caller?.tenant || !allowedTenant || allowedTenant === BAKED_TENANT || caller.tenant !== allowedTenant) {
+  if (!caller?.tenant || !allowedTenant || allowedTenant === PLACEHOLDER || caller.tenant !== allowedTenant) {
     throw new SdkFail("forbidden", "rtctl: caller not allowed");
   }
   if (caller.service?.slug !== SERVICE_SLUG) throw new SdkFail("forbidden", "rtctl: caller not allowed");

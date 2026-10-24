@@ -41,6 +41,18 @@ describe("rtctl SDK", () => {
     expect(fetched).toEqual([]);
   });
 
+  it("accepts the tenant install.mjs bakes in (the placeholder replace must not also disarm the guard)", async () => {
+    const { mkdtempSync, writeFileSync } = await import("node:fs");
+    const { join } = await import("node:path");
+    const { tmpdir } = await import("node:os");
+    const src = readFileSync(new URL("../../sdk/rtctl/mod.ts", import.meta.url), "utf8");
+    const file = join(mkdtempSync(join(tmpdir(), "rtctl-")), "mod.ts");
+    writeFileSync(file, src.replaceAll("__RTWEB_TENANT_ID__", "ten_baked"));
+    const baked = (await import(/* @vite-ignore */ file)) as typeof mod;
+    expect(baked.checkCaller(ctx("ten_baked").caller, "ten_baked").tenant).toBe("ten_baked");
+    expect(() => baked.checkCaller(ctx("ten_other").caller, "ten_baked")).toThrow();
+  });
+
   it("path allow-list per binding", () => {
     const yes: [string, string][] = [
       ["op", "/v1/tenants"], ["op", "/v1/tenants/ten_1/keys/key_1"], ["op", "/v1/node/status"], ["op", "/v1/version"],
