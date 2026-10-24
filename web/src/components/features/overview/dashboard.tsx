@@ -3,6 +3,7 @@ import {
   Boxes,
   ChevronDown,
   Eye,
+  FolderOpen,
   FolderPlus,
   Globe,
   KeyRound,
@@ -15,9 +16,12 @@ import {
 import { useState, type ReactNode } from "react";
 
 import { useRecentActivity } from "@/components/features/audit/hooks";
+import { NoProjects } from "@/components/features/empty/no-projects";
+import { QueryError } from "@/components/features/empty/query-error";
 import { useMembers } from "@/components/features/members/hooks";
 import { CreateProjectDialog } from "@/components/features/org/create-project-dialog";
 import { OrgAvatar } from "@/components/layout/org-switcher";
+import { Badge } from "@/components/ui/badge";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -29,17 +33,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
-import { IconTile, type Entity } from "@/components/ui/icon-tile";
+import { IconTile, LetterTile, hueFor, type Entity, type Hue } from "@/components/ui/icon-tile";
 import { SectionCard, SMALL_CONTROL, SMALL_ICON } from "@/components/ui/section-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApps, useProjects } from "@/hooks/orgs";
+import { formatRelative } from "@/lib/format";
 import type { OrgRole } from "@/lib/types";
-import { cn } from "@/lib/utils";
 
-const BUILD_DOT: Record<string, string> = {
-  ready: "bg-tag-green-text",
-  building: "bg-tag-yellow-text",
-  failed: "bg-tag-red-text",
+const PROJECT_HUES: Hue[] = ["green", "blue", "pink", "yellow", "purple", "teal", "orange"];
+
+const BUILD_VARIANT: Record<string, "success" | "danger" | "warning" | "default"> = {
+  ready: "success",
+  failed: "danger",
+  building: "warning",
+  pending: "warning",
 };
 
 function QuickAction({
@@ -60,13 +67,13 @@ function QuickAction({
   onClick?: () => void;
 }) {
   const cls =
-    "flex w-full min-w-0 cursor-pointer items-center gap-3 rounded-xl border border-line bg-surface p-3.5 text-left outline-none transition-[background-color,border-color,box-shadow] duration-[160ms] hover:border-line-strong hover:shadow-card focus-visible:ring-2 focus-visible:ring-focus";
+    "flex h-full w-full min-w-0 cursor-pointer flex-col gap-2.5 rounded-lg border border-line bg-surface p-3.5 text-left shadow-card outline-none transition-[background-color,border-color,box-shadow] duration-[140ms] hover:border-line-strong hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus sm:flex-row sm:items-center sm:gap-3 lg:flex-col lg:items-start";
   const body = (
     <>
-      <IconTile icon={icon} entity={entity} size="md" />
+      <IconTile icon={icon} entity={entity} size="md" solid />
       <span className="min-w-0">
         <span className="block truncate text-sm font-medium text-text">{title}</span>
-        <span className="block truncate text-xs text-muted">{subtitle}</span>
+        <span className="block truncate text-[12px] text-muted">{subtitle}</span>
       </span>
     </>
   );
@@ -106,6 +113,50 @@ function SkeletonGrid({ n = 4, h = "h-20" }: { n?: number; h?: string }) {
   );
 }
 
+function ProjectsCard({ org }: { org: string }) {
+  const projects = useProjects(org);
+  const apps = useApps(org);
+  const list = projects.data ?? [];
+  return (
+    <section aria-labelledby="projects-heading" className="flex flex-col gap-3">
+      <h2 id="projects-heading" className="text-[15px] font-semibold">
+        Projects
+      </h2>
+      {projects.isError ? (
+        <QueryError error={projects.error} onRetry={() => void projects.refetch()} notFoundTitle="Organization not found" />
+      ) : projects.isPending ? (
+        <SkeletonGrid n={2} h="h-20" />
+      ) : list.length === 0 ? (
+        <NoProjects org={org} />
+      ) : (
+        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+          {list.map((p, i) => {
+            const count = (apps.data ?? []).filter((a) => a.project === p.slug).length;
+            return (
+              <li key={p.slug} className="min-w-0">
+                <Link
+                  to="/$org/projects/$p"
+                  params={{ org, p: p.slug }}
+                  className="flex h-full items-center gap-3 rounded-lg border border-line bg-surface p-3.5 shadow-card outline-none transition-[border-color,background-color] duration-[140ms] hover:border-line-strong hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus"
+                >
+                  <IconTile icon={FolderOpen} hue={PROJECT_HUES[i % PROJECT_HUES.length]} size="md" solid />
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-medium text-text">{p.name}</span>
+                    <span className="block truncate text-[12px] text-muted">
+                      {apps.data ? `${count} ${count === 1 ? "app" : "apps"} · ` : ""}
+                      {p.environments.join(", ")}
+                    </span>
+                  </span>
+                </Link>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 function AppsCard({ org }: { org: string }) {
   const apps = useApps(org);
   const projects = useProjects(org);
@@ -138,7 +189,7 @@ function AppsCard({ org }: { org: string }) {
           <CardMenu label="Apps menu">
             <DropdownMenuItem asChild>
               <Link to="/$org/apps/new" params={{ org }}>
-                <Plus className="size-4" aria-hidden="true" /> New app
+                <Plus aria-hidden="true" /> New app
               </Link>
             </DropdownMenuItem>
           </CardMenu>
@@ -148,25 +199,26 @@ function AppsCard({ org }: { org: string }) {
       {apps.isPending ? (
         <SkeletonGrid />
       ) : list.length === 0 ? (
-        <EmptyState entity="apps" icon={Boxes} title="No apps yet" description="Create an app to see it here." />
+        <EmptyState bare entity="apps" icon={Boxes} title="No apps yet" description="Create an app to see it here." />
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2">
+        <ul className="flex flex-col gap-2">
           {list.map((a) => (
             <li key={`${a.project}/${a.slug}`} className="min-w-0">
               <Link
                 to="/$org/apps/$app"
                 params={{ org, app: a.slug }}
-                className="flex h-full flex-col gap-3 rounded-xl border border-line p-4 outline-none transition-[border-color,box-shadow] duration-[160ms] hover:border-line-strong hover:shadow-card focus-visible:ring-2 focus-visible:ring-focus"
+                className="flex items-center gap-3 rounded-lg border border-line px-3 py-2.5 outline-none transition-[border-color,background-color] duration-[140ms] hover:border-line-strong hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus"
               >
-                <IconTile icon={Boxes} entity="apps" size="md" />
-                <span className="min-w-0">
+                <LetterTile label={a.name ?? a.slug} hue={hueFor(a.slug)} size="md" solid />
+                <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-text">{a.name ?? a.slug}</span>
-                  <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted">
-                    <span
-                      aria-hidden="true"
-                      className={cn("size-1.5 rounded-full", BUILD_DOT[a.status.build_state] ?? "bg-muted")}
-                    />
-                    {a.status.build_state} · {projectName(a.project)} / {a.environment}
+                  <span className="mt-0.5 flex items-center gap-1.5 text-[12px] text-muted">
+                    <Badge variant={BUILD_VARIANT[a.status.build_state] ?? "default"} dot className="h-4 px-1 text-[11px]">
+                      {a.status.build_state}
+                    </Badge>
+                    <span className="truncate">
+                      {projectName(a.project)} / {a.environment}
+                    </span>
                   </span>
                 </span>
               </Link>
@@ -193,7 +245,7 @@ function ActivityCard({ org, canSee }: { org: string; canSee: boolean }) {
       }
     >
       {!canSee ? (
-        <EmptyState entity="audit" icon={ScrollText} title="Activity is for admins" description="Ask an owner or admin." />
+        <EmptyState bare entity="audit" icon={ScrollText} title="Activity is for admins" description="Ask an owner or admin." />
       ) : activity.isPending ? (
         <div className="flex flex-col gap-3" aria-busy="true">
           <Skeleton className="h-10" />
@@ -201,26 +253,27 @@ function ActivityCard({ org, canSee }: { org: string; canSee: boolean }) {
           <Skeleton className="h-10" />
         </div>
       ) : activity.isError ? (
-        <EmptyState entity="audit" icon={ScrollText} title="Could not load activity" />
+        <EmptyState bare entity="audit" icon={ScrollText} title="Could not load activity" />
       ) : items.length === 0 ? (
-        <EmptyState entity="audit" icon={ScrollText} title="No activity yet" description="Changes in this org show up here." />
+        <EmptyState bare entity="audit" icon={ScrollText} title="No activity yet" description="Changes in this org show up here." />
       ) : (
         <ol className="relative flex flex-col">
           {items.map((e, i) => {
             const who = e.actor.name ?? e.actor.email ?? "System";
             return (
               <li key={e.id} className="relative flex gap-3 pb-4 last:pb-0">
-                {i < items.length - 1 ? (
-                  <span aria-hidden="true" className="absolute top-8 bottom-0 left-3.5 w-px bg-line" />
-                ) : null}
-                <OrgAvatar name={who} className="size-7 rounded-full text-[12px]" />
-                <div className="min-w-0 flex-1 pt-0.5">
+                {i < items.length - 1 ? <span aria-hidden="true" className="absolute bottom-0 left-3 top-7 w-px bg-line" /> : null}
+                <OrgAvatar name={who} className="size-6 rounded-full text-[11px]" />
+                <div className="min-w-0 flex-1">
                   <p className="text-sm text-text">
                     <span className="font-medium">{who}</span>{" "}
                     <code className="rounded-md bg-panel-2 px-1.5 py-0.5 text-[12px]">{e.action}</code>
                   </p>
-                  <p className="mt-0.5 truncate text-xs text-muted">
-                    {e.target} · <time dateTime={new Date(e.at).toISOString()}>{new Date(e.at).toLocaleString()}</time>
+                  <p className="mt-0.5 truncate text-[12px] text-muted">
+                    {e.target} ·{" "}
+                    <time dateTime={new Date(e.at).toISOString()} title={new Date(e.at).toLocaleString()}>
+                      {formatRelative(e.at)}
+                    </time>
                   </p>
                 </div>
               </li>
@@ -242,36 +295,34 @@ function MembersCard({ org }: { org: string }) {
         <CardMenu label="Members menu">
           <DropdownMenuItem asChild>
             <Link to="/$org/settings/members" params={{ org }}>
-              <UserPlus className="size-4" aria-hidden="true" /> Invite member
+              <UserPlus aria-hidden="true" /> Invite member
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
             <Link to="/$org/settings/members" params={{ org }}>
-              <Eye className="size-4" aria-hidden="true" /> Manage members
+              <Eye aria-hidden="true" /> Manage members
             </Link>
           </DropdownMenuItem>
         </CardMenu>
       }
     >
       {members.isPending ? (
-        <SkeletonGrid n={3} h="h-28" />
+        <SkeletonGrid n={3} h="h-24" />
       ) : members.isError || list.length === 0 ? (
-        <EmptyState entity="members" title="No members to show" />
+        <EmptyState bare entity="members" title="No members to show" />
       ) : (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
           {list.map((m) => {
             const name = m.user.name ?? m.user.email;
             return (
-              <li
-                key={m.user.id}
-                className="flex min-w-0 flex-col items-center gap-2 rounded-xl border border-line p-4 text-center"
-              >
-                <OrgAvatar name={name} className="size-11 rounded-full text-base" />
+              <li key={m.user.id} className="flex min-w-0 flex-col items-center gap-2 rounded-lg border border-line p-4 text-center">
+                <OrgAvatar name={name} solid className="size-10 rounded-full text-[15px]" />
                 <span className="min-w-0 max-w-full">
                   <span className="block truncate text-sm font-medium text-text">{name}</span>
-                  <span className="block truncate text-xs text-muted">{m.user.email}</span>
+                  <span className="block truncate text-[12px] text-muted">{m.user.email}</span>
                 </span>
+                <Badge className="capitalize">{m.role}</Badge>
               </li>
             );
           })}
@@ -281,7 +332,7 @@ function MembersCard({ org }: { org: string }) {
   );
 }
 
-// Dashboard is the org overview: quick actions, then apps, activity and members cards.
+// Dashboard is the org overview: quick actions, then projects, apps, activity and members cards.
 export function Dashboard({ org, role }: { org: string; role: OrgRole | null | undefined }) {
   const apps = useApps(org);
   const [createOpen, setCreateOpen] = useState(false);
@@ -289,9 +340,9 @@ export function Dashboard({ org, role }: { org: string; role: OrgRole | null | u
   const firstApp = apps.data?.[0]?.slug;
 
   return (
-    <div className="flex flex-col gap-5">
+    <div className="flex min-w-0 flex-col gap-6">
       <section aria-label="Quick actions">
-        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <QuickAction icon={Plus} entity="apps" title="New app" subtitle="Deploy code in seconds" to="/$org/apps/new" params={{ org }} />
           {isAdmin ? (
             <QuickAction icon={FolderPlus} entity="projects" title="New project" subtitle="Group apps together" onClick={() => setCreateOpen(true)} />
@@ -303,15 +354,18 @@ export function Dashboard({ org, role }: { org: string; role: OrgRole | null | u
             entity="domains"
             title="Add domain"
             subtitle="Serve an app on your URL"
-            to={firstApp ? "/$org/apps/$app/settings" : "/$org/apps/new"}
+            to={firstApp ? "/$org/apps/$app/domains" : "/$org/apps/new"}
             params={firstApp ? { org, app: firstApp } : { org }}
           />
         </ul>
       </section>
-      <div className="grid gap-5 lg:grid-cols-2">
+      <ProjectsCard org={org} />
+      <div className="grid gap-6 lg:grid-cols-2">
         <AppsCard org={org} />
         <ActivityCard org={org} canSee={isAdmin} />
-        <MembersCard org={org} />
+        <div className="lg:col-span-2">
+          <MembersCard org={org} />
+        </div>
       </div>
       {isAdmin ? <CreateProjectDialog org={org} open={createOpen} onOpenChange={setCreateOpen} /> : null}
     </div>

@@ -36,6 +36,8 @@ import { Route as OrgSettingsMembersRouteImport } from './routes/$org.settings.m
 import { Route as OrgSettingsTokensRouteImport } from './routes/$org.settings.tokens'
 import { Route as OrgAppsAppIndexRouteImport } from './routes/$org.apps.$app.index'
 import { Route as OrgAppsAppCodeRouteImport } from './routes/$org.apps.$app.code'
+import { Route as OrgAppsAppDomainsRouteImport } from './routes/$org.apps.$app.domains'
+import { Route as OrgAppsAppEnvRouteImport } from './routes/$org.apps.$app.env'
 import { Route as OrgAppsAppLogsRouteImport } from './routes/$org.apps.$app.logs'
 import { Route as OrgAppsAppSettingsRouteImport } from './routes/$org.apps.$app.settings'
 import { Route as OrgAppsAppTriggersRouteImport } from './routes/$org.apps.$app.triggers'
@@ -176,6 +178,16 @@ const OrgAppsAppCodeRoute = OrgAppsAppCodeRouteImport.update({
   path: '/code',
   getParentRoute: () => OrgAppsAppRoute,
 } as any)
+const OrgAppsAppDomainsRoute = OrgAppsAppDomainsRouteImport.update({
+  id: '/domains',
+  path: '/domains',
+  getParentRoute: () => OrgAppsAppRoute,
+} as any)
+const OrgAppsAppEnvRoute = OrgAppsAppEnvRouteImport.update({
+  id: '/env',
+  path: '/env',
+  getParentRoute: () => OrgAppsAppRoute,
+} as any)
 const OrgAppsAppLogsRoute = OrgAppsAppLogsRouteImport.update({
   id: '/logs',
   path: '/logs',
@@ -224,6 +236,8 @@ export interface FileRoutesByFullPath {
   '/$org/settings/members': typeof OrgSettingsMembersRoute
   '/$org/settings/tokens': typeof OrgSettingsTokensRoute
   '/$org/apps/$app/code': typeof OrgAppsAppCodeRoute
+  '/$org/apps/$app/domains': typeof OrgAppsAppDomainsRoute
+  '/$org/apps/$app/env': typeof OrgAppsAppEnvRoute
   '/$org/apps/$app/logs': typeof OrgAppsAppLogsRoute
   '/$org/apps/$app/settings': typeof OrgAppsAppSettingsRoute
   '/$org/apps/$app/triggers': typeof OrgAppsAppTriggersRoute
@@ -254,6 +268,8 @@ export interface FileRoutesByTo {
   '/$org/settings/members': typeof OrgSettingsMembersRoute
   '/$org/settings/tokens': typeof OrgSettingsTokensRoute
   '/$org/apps/$app/code': typeof OrgAppsAppCodeRoute
+  '/$org/apps/$app/domains': typeof OrgAppsAppDomainsRoute
+  '/$org/apps/$app/env': typeof OrgAppsAppEnvRoute
   '/$org/apps/$app/logs': typeof OrgAppsAppLogsRoute
   '/$org/apps/$app/settings': typeof OrgAppsAppSettingsRoute
   '/$org/apps/$app/triggers': typeof OrgAppsAppTriggersRoute
@@ -288,6 +304,8 @@ export interface FileRoutesById {
   '/$org/settings/members': typeof OrgSettingsMembersRoute
   '/$org/settings/tokens': typeof OrgSettingsTokensRoute
   '/$org/apps/$app/code': typeof OrgAppsAppCodeRoute
+  '/$org/apps/$app/domains': typeof OrgAppsAppDomainsRoute
+  '/$org/apps/$app/env': typeof OrgAppsAppEnvRoute
   '/$org/apps/$app/logs': typeof OrgAppsAppLogsRoute
   '/$org/apps/$app/settings': typeof OrgAppsAppSettingsRoute
   '/$org/apps/$app/triggers': typeof OrgAppsAppTriggersRoute
@@ -323,6 +341,8 @@ export interface FileRouteTypes {
     | '/$org/settings/members'
     | '/$org/settings/tokens'
     | '/$org/apps/$app/code'
+    | '/$org/apps/$app/domains'
+    | '/$org/apps/$app/env'
     | '/$org/apps/$app/logs'
     | '/$org/apps/$app/settings'
     | '/$org/apps/$app/triggers'
@@ -353,6 +373,8 @@ export interface FileRouteTypes {
     | '/$org/settings/members'
     | '/$org/settings/tokens'
     | '/$org/apps/$app/code'
+    | '/$org/apps/$app/domains'
+    | '/$org/apps/$app/env'
     | '/$org/apps/$app/logs'
     | '/$org/apps/$app/settings'
     | '/$org/apps/$app/triggers'
@@ -386,6 +408,8 @@ export interface FileRouteTypes {
     | '/$org/settings/members'
     | '/$org/settings/tokens'
     | '/$org/apps/$app/code'
+    | '/$org/apps/$app/domains'
+    | '/$org/apps/$app/env'
     | '/$org/apps/$app/logs'
     | '/$org/apps/$app/settings'
     | '/$org/apps/$app/triggers'
@@ -602,6 +626,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgAppsAppCodeRouteImport
       parentRoute: typeof OrgAppsAppRoute
     }
+    '/$org/apps/$app/domains': {
+      id: '/$org/apps/$app/domains'
+      path: '/domains'
+      fullPath: '/$org/apps/$app/domains'
+      preLoaderRoute: typeof OrgAppsAppDomainsRouteImport
+      parentRoute: typeof OrgAppsAppRoute
+    }
+    '/$org/apps/$app/env': {
+      id: '/$org/apps/$app/env'
+      path: '/env'
+      fullPath: '/$org/apps/$app/env'
+      preLoaderRoute: typeof OrgAppsAppEnvRouteImport
+      parentRoute: typeof OrgAppsAppRoute
+    }
     '/$org/apps/$app/logs': {
       id: '/$org/apps/$app/logs'
       path: '/logs'
@@ -635,6 +673,8 @@ declare module '@tanstack/react-router' {
 
 interface OrgAppsAppRouteChildren {
   OrgAppsAppCodeRoute: typeof OrgAppsAppCodeRoute
+  OrgAppsAppDomainsRoute: typeof OrgAppsAppDomainsRoute
+  OrgAppsAppEnvRoute: typeof OrgAppsAppEnvRoute
   OrgAppsAppLogsRoute: typeof OrgAppsAppLogsRoute
   OrgAppsAppSettingsRoute: typeof OrgAppsAppSettingsRoute
   OrgAppsAppTriggersRoute: typeof OrgAppsAppTriggersRoute
@@ -644,6 +684,8 @@ interface OrgAppsAppRouteChildren {
 
 const OrgAppsAppRouteChildren: OrgAppsAppRouteChildren = {
   OrgAppsAppCodeRoute: OrgAppsAppCodeRoute,
+  OrgAppsAppDomainsRoute: OrgAppsAppDomainsRoute,
+  OrgAppsAppEnvRoute: OrgAppsAppEnvRoute,
   OrgAppsAppLogsRoute: OrgAppsAppLogsRoute,
   OrgAppsAppSettingsRoute: OrgAppsAppSettingsRoute,
   OrgAppsAppTriggersRoute: OrgAppsAppTriggersRoute,

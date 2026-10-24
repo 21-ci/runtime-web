@@ -53,7 +53,7 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
   return (
     <section aria-labelledby="queue-heading" className="flex flex-col gap-3">
       <div>
-        <h2 id="queue-heading" className="text-base font-semibold">
+        <h2 id="queue-heading" className="text-[15px] font-semibold">
           Queue
         </h2>
         <p className="text-sm text-muted">Send a test message to check the handler.</p>
@@ -62,7 +62,7 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
       {stats.isPending ? (
         <Skeleton className="h-16 w-full" />
       ) : (
-        <dl className="grid grid-cols-2 divide-x divide-line rounded-md border border-line bg-surface sm:grid-cols-4">
+        <dl className="grid grid-cols-2 divide-x divide-line rounded-lg border border-line bg-surface shadow-card sm:grid-cols-4">
           <div className="flex flex-col gap-0.5 p-3">
             <dt className="text-[12px] text-muted">Depth</dt>
             <dd className="text-base font-medium tabular-nums">{stats.data.depth}</dd>

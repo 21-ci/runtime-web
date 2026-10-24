@@ -3,6 +3,7 @@ import { createContext, useContext, type ReactNode } from "react";
 import { Button } from "@/components/ui/button";
 
 import { ApiError } from "@/lib/api";
+import { cn } from "@/lib/utils";
 
 // fieldErrorsOf returns the 422 web validation map (request field path to message), or nothing.
 export function fieldErrorsOf(err: unknown): Record<string, string> {
@@ -30,6 +31,7 @@ export function SaveButton({ disabled, children }: { disabled?: boolean; childre
   );
 }
 
+// Section is one settings block: a card with a title, a description and a form.
 export function Section({
   id,
   title,
@@ -44,9 +46,12 @@ export function Section({
   className?: string;
 }) {
   return (
-    <section aria-labelledby={`${id}-title`} className={`flex flex-col gap-3 rounded-md border border-line bg-surface p-4 ${className}`}>
-      <header className="flex flex-col gap-1">
-        <h2 id={`${id}-title`} className="text-base font-semibold text-text">
+    <section
+      aria-labelledby={`${id}-title`}
+      className={cn("flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card", className)}
+    >
+      <header className="flex flex-col gap-0.5">
+        <h2 id={`${id}-title`} className="text-[15px] font-semibold text-text">
           {title}
         </h2>
         {description ? <p className="text-sm text-muted">{description}</p> : null}
@@ -61,7 +66,7 @@ export function Section({
 export function FormAlert({ messages }: { messages: string[] }) {
   if (messages.length === 0) return null;
   return (
-    <div role="alert" className="rounded-sm border border-danger/40 bg-danger-soft p-3 text-sm text-text">
+    <div role="alert" className="rounded-md border border-danger/30 bg-danger-soft p-3 text-sm text-danger-text">
       {messages.map((m) => (
         <p key={m}>{m}</p>
       ))}
@@ -72,7 +77,7 @@ export function FormAlert({ messages }: { messages: string[] }) {
 export function FieldError({ id, message }: { id: string; message?: string }) {
   if (!message) return null;
   return (
-    <p id={id} className="text-sm text-danger-text">
+    <p id={id} className="text-[13px] text-danger-text">
       {message}
     </p>
   );

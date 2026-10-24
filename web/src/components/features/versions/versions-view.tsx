@@ -72,7 +72,7 @@ export function VersionsView({ org, app }: { org: string; app: string }) {
 
   return (
     <section className="flex flex-col gap-3" aria-labelledby="versions-heading">
-      <h2 id="versions-heading" className="text-base font-semibold">
+      <h2 id="versions-heading" className="text-[15px] font-semibold">
         Versions
       </h2>
       <div className="overflow-x-auto">

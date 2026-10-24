@@ -58,7 +58,7 @@ export function HttpRouteCard({ org, app, view }: { org: string; app: string; vi
   return (
     <section aria-labelledby="http-heading" className="flex flex-col gap-3">
       <div>
-        <h2 id="http-heading" className="text-base font-semibold">
+        <h2 id="http-heading" className="text-[15px] font-semibold">
           HTTP
         </h2>
         <p className="text-sm text-muted">Who can call the app, and which requests reach it.</p>

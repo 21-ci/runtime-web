@@ -1,31 +1,12 @@
-import { Boxes as BoxesTile } from "lucide-react";
-import { useEffect, useRef, useState, type CSSProperties } from "react";
-import { IconTile } from "@/components/ui/icon-tile";
 import { Link, useLocation } from "@tanstack/react-router";
+import { useEffect, useRef, useState, type CSSProperties } from "react";
 
-import { Badge } from "@/components/ui/badge";
+import { APP_SECTIONS } from "@/components/layout/sidebar";
 import type { AppSummary } from "@/hooks/orgs";
 
-const PILL: Record<string, "default" | "success" | "danger" | "info"> = {
-  ready: "success",
-  failed: "danger",
-  building: "info",
-  pending: "info",
-};
-
-const APP_TABS = [
-  { to: "/$org/apps/$app", label: "Overview", exact: true },
-  { to: "/$org/apps/$app/code", label: "Code", exact: false },
-  { to: "/$org/apps/$app/logs", label: "Logs", exact: false },
-  { to: "/$org/apps/$app/versions", label: "Versions", exact: false },
-  { to: "/$org/apps/$app/triggers", label: "Triggers", exact: false },
-  { to: "/$org/apps/$app/settings", label: "Settings", exact: false },
-] as const;
-
-// AppHeader shows the app name, its project and environment, the build status pill and the
-// last build or runtime error. The tabs link to the app sub-pages.
-export function AppHeader({ org, app }: { org: string; app: AppSummary }) {
-  const { build_state, tier, last_error } = app.status;
+// AppTabs is the phone-width app navigation: a snap-scrolling tab strip under the top bar with
+// the same sections the sidebar lists on wider screens (where this strip is hidden).
+export function AppTabs({ org, app }: { org: string; app: AppSummary }) {
   const location = useLocation();
   const navRef = useRef<HTMLElement>(null);
   const [edges, setEdges] = useState({ start: false, end: false });
@@ -54,48 +35,28 @@ export function AppHeader({ org, app }: { org: string; app: AppSummary }) {
   const fade = edges.start || edges.end ? fadeMask(edges) : undefined;
 
   return (
-    <header className="flex flex-col gap-2">
-      <p className="text-sm text-muted">
-        <Link to="/$org/projects/$p" params={{ org, p: app.project }} className="hover:underline">
-          {app.project}
-        </Link>
-        {" / "}
-        {app.environment}
-      </p>
-      <div className="flex flex-wrap items-center gap-3">
-        <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]"><IconTile icon={BoxesTile} entity="apps" size="md" />{app.name ?? app.slug}</h1>
-        <Badge variant={PILL[build_state] ?? "default"} title={`Tier ${tier}`}>
-          {build_state}
-        </Badge>
-      </div>
-      {last_error ? (
-        <p role="note" className="text-sm text-danger-text">
-          Last error: {last_error}
-        </p>
-      ) : null}
-      <div className="relative -mx-3 md:mx-0">
-        <nav
-          ref={navRef}
-          aria-label="App sections"
-          onScroll={measure}
-          style={fade}
-          className="flex snap-x snap-mandatory scroll-px-3 gap-1 overflow-x-auto border-b border-line px-3 md:px-0 [scrollbar-width:none]"
-        >
-          {APP_TABS.map((t) => (
-            <Link
-              key={t.to}
-              to={t.to}
-              params={{ org, app: app.slug }}
-              activeOptions={{ exact: t.exact }}
-              className="-mb-px flex h-9 shrink-0 snap-start items-center border-b-2 border-transparent px-3 text-sm font-medium text-muted hover:text-text focus-visible:ring-2 focus-visible:ring-focus"
-              activeProps={{ className: "border-text text-text", "aria-current": "page" }}
-            >
-              {t.label}
-            </Link>
-          ))}
-        </nav>
-      </div>
-    </header>
+    <div className="sticky top-12 z-[5] border-b border-line bg-bg md:hidden">
+      <nav
+        ref={navRef}
+        aria-label="App sections"
+        onScroll={measure}
+        style={fade}
+        className="flex snap-x snap-mandatory scroll-px-3 gap-1 overflow-x-auto px-3 [scrollbar-width:none]"
+      >
+        {APP_SECTIONS.map((t) => (
+          <Link
+            key={t.to}
+            to={t.to}
+            params={{ org, app: app.slug }}
+            activeOptions={{ exact: t.exact ?? false }}
+            className="-mb-px flex h-10 shrink-0 snap-start items-center border-b-2 border-transparent px-2 text-sm font-medium text-muted outline-none hover:text-text focus-visible:ring-2 focus-visible:ring-focus"
+            activeProps={{ className: "border-text text-text", "aria-current": "page" }}
+          >
+            {t.label}
+          </Link>
+        ))}
+      </nav>
+    </div>
   );
 }
 

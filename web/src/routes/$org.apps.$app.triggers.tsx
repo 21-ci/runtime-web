@@ -1,5 +1,7 @@
 import { createFileRoute } from "@tanstack/react-router";
 
+import { PageBody } from "@/components/layout/app-shell";
+
 import { TriggersPage } from "@/components/features/triggers/triggers-page";
 
 export const Route = createFileRoute("/$org/apps/$app/triggers")({
@@ -8,5 +10,9 @@ export const Route = createFileRoute("/$org/apps/$app/triggers")({
 
 function TriggersRoute() {
   const { org, app } = Route.useParams();
-  return <TriggersPage org={org} app={app} />;
+  return (
+    <PageBody>
+      <TriggersPage org={org} app={app} />
+    </PageBody>
+  );
 }

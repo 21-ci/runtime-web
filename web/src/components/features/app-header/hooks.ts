@@ -13,6 +13,9 @@ export type Ingress = {
 // AppView is the detail body of GET …/{app} (docs/reference/api.md §8.1). Only the fields this UI reads.
 export type AppView = AppSummary & {
   etag: string;
+  runtime: string;
+  profile: string | null;
+  url: string;
   access: "public" | "key" | "internal";
   ingress: Ingress | null;
   limits: { effective: Record<string, unknown> };

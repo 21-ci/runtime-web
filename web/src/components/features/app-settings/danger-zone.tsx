@@ -45,13 +45,15 @@ export function DangerZone({
   return (
     <section
       aria-labelledby="danger-title"
-      className="flex flex-col gap-3 rounded-md border border-danger/40 bg-surface p-4"
+      className="flex flex-col gap-3 rounded-lg border border-danger/30 bg-surface p-5 shadow-card sm:flex-row sm:items-center sm:justify-between"
     >
-      <h2 id="danger-title" className="text-base font-semibold text-danger-text">
-        Danger zone
-      </h2>
-      <p className="text-sm text-muted">Deleting this app removes its domains and cannot be undone.</p>
       <div>
+        <h2 id="danger-title" className="text-[15px] font-semibold text-text">
+          Delete this app
+        </h2>
+        <p className="text-sm text-muted">Deleting removes its code, data and domains. This cannot be undone.</p>
+      </div>
+      <div className="shrink-0">
         <Button variant="danger" onClick={() => setOpen(true)}>
           Delete app
         </Button>
@@ -77,7 +79,7 @@ export function DangerZone({
             <Button variant="secondary" onClick={() => setOpen(false)}>
               Cancel
             </Button>
-            <Button variant="danger" disabled={!matches || del.isPending} onClick={onConfirm}>
+            <Button variant="danger-solid" disabled={!matches || del.isPending} onClick={onConfirm}>
               Delete permanently
             </Button>
           </DialogFooter>

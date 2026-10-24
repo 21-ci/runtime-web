@@ -2,7 +2,8 @@
 import { autocompletion, closeBrackets, closeBracketsKeymap, completionKeymap } from "@codemirror/autocomplete";
 import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
 import { javascript } from "@codemirror/lang-javascript";
-import { bracketMatching, defaultHighlightStyle, indentOnInput, syntaxHighlighting } from "@codemirror/language";
+import { bracketMatching, HighlightStyle, indentOnInput, syntaxHighlighting } from "@codemirror/language";
+import { tags as t } from "@lezer/highlight";
 import { linter, lintGutter, lintKeymap, setDiagnostics, type Diagnostic as CmDiagnostic } from "@codemirror/lint";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import { EditorState } from "@codemirror/state";
@@ -31,13 +32,37 @@ export type CodeEditorProps = {
   getFiles: () => Record<string, string>;
 };
 
+// The editor reads every colour from the design tokens, so it follows the light and dark themes.
 const theme = EditorView.theme({
-  "&": { height: "100%", backgroundColor: "var(--color-panel)", color: "var(--color-text)", fontSize: "13px" },
-  "&.cm-focused": { outline: "2px solid var(--color-focus)" },
-  ".cm-gutters": { backgroundColor: "var(--color-panel-2)", color: "var(--color-muted)", border: "none" },
-  ".cm-activeLine, .cm-activeLineGutter": { backgroundColor: "var(--color-accent-pale)" },
-  ".cm-content": { fontFamily: "ui-monospace, SFMono-Regular, Menlo, monospace", caretColor: "var(--color-text)" },
+  "&": { height: "100%", backgroundColor: "var(--color-bg)", color: "var(--color-text)", fontSize: "13px" },
+  "&.cm-focused": { outline: "none" },
+  ".cm-scroller": { lineHeight: "1.65" },
+  ".cm-gutters": { backgroundColor: "var(--color-bg)", color: "var(--color-muted)", border: "none", paddingLeft: "6px" },
+  ".cm-activeLine": { backgroundColor: "var(--color-hover)" },
+  ".cm-activeLineGutter": { backgroundColor: "transparent", color: "var(--color-text)" },
+  ".cm-content": { fontFamily: "var(--font-mono)", caretColor: "var(--color-text)", padding: "8px 0" },
+  ".cm-line": { padding: "0 12px" },
+  ".cm-selectionBackground, &.cm-focused .cm-selectionBackground, ::selection": { backgroundColor: "var(--color-accent-soft) !important" },
+  ".cm-selectionMatch": { backgroundColor: "var(--color-active)" },
+  ".cm-matchingBracket": { backgroundColor: "var(--color-active)", outline: "1px solid var(--color-line-strong)" },
+  ".cm-tooltip": { backgroundColor: "var(--color-surface-2)", border: "1px solid var(--color-line)", borderRadius: "6px", boxShadow: "var(--shadow-menu)", color: "var(--color-text)" },
+  ".cm-tooltip-autocomplete ul li[aria-selected]": { backgroundColor: "var(--color-hover)", color: "var(--color-text)" },
+  ".cm-lintRange-error": { backgroundImage: "none", textDecoration: "underline wavy var(--color-danger)" },
+  ".cm-lintRange-warning": { backgroundImage: "none", textDecoration: "underline wavy var(--color-tag-yellow-solid)" },
 });
+
+const highlight = HighlightStyle.define([
+  { tag: [t.keyword, t.modifier, t.controlKeyword, t.operatorKeyword, t.definitionKeyword], color: "var(--color-tag-purple-text)" },
+  { tag: [t.string, t.special(t.string), t.regexp], color: "var(--color-tag-green-text)" },
+  { tag: [t.number, t.bool, t.null, t.atom], color: "var(--color-tag-orange-text)" },
+  { tag: [t.comment, t.lineComment, t.blockComment], color: "var(--color-muted)", fontStyle: "italic" },
+  { tag: [t.function(t.variableName), t.function(t.propertyName)], color: "var(--color-tag-blue-text)" },
+  { tag: [t.propertyName, t.attributeName], color: "var(--color-tag-teal-text)" },
+  { tag: [t.typeName, t.className, t.namespace], color: "var(--color-tag-yellow-text)" },
+  { tag: [t.variableName, t.definition(t.variableName)], color: "var(--color-text)" },
+  { tag: [t.operator, t.punctuation, t.bracket], color: "var(--color-muted)" },
+  { tag: t.invalid, color: "var(--color-danger-text)" },
+]);
 
 function toCm(state: EditorState, diags: Diagnostic[]): CmDiagnostic[] {
   return diags.map((d) => {
@@ -79,7 +104,7 @@ export default function CodeEditor(props: CodeEditorProps) {
           closeBrackets(),
           autocompletion(),
           highlightSelectionMatches(),
-          syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+          syntaxHighlighting(highlight),
           javascript({ typescript: /\.tsx?$/.test(path), jsx: /x$/.test(path) }),
           keymap.of([
             {
@@ -143,5 +168,5 @@ export default function CodeEditor(props: CodeEditorProps) {
     if (v) v.dispatch(setDiagnostics(v.state, toCm(v.state, diagnostics)));
   }, [diagnostics, path, readOnly]);
 
-  return <div ref={host} className="h-full min-h-[320px] overflow-auto rounded-md border border-line" />;
+  return <div ref={host} className="h-full min-h-[320px] overflow-auto" />;
 }

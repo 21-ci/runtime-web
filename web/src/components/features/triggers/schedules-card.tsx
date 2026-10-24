@@ -47,7 +47,7 @@ export function SchedulesCard({ org, app, cronAllowed = true }: { org: string; a
     <section aria-labelledby="schedules-heading" className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
-          <h2 id="schedules-heading" className="text-base font-semibold">
+          <h2 id="schedules-heading" className="text-[15px] font-semibold">
             Schedules
           </h2>
           <p className="text-sm text-muted">Run the app on a fixed interval or cron expression.</p>
@@ -70,7 +70,7 @@ export function SchedulesCard({ org, app, cronAllowed = true }: { org: string; a
           action={<Button onClick={() => setAdding(true)}>Add schedule</Button>}
         />
       ) : (
-        <ul className="divide-y divide-line rounded-md border border-line bg-surface">
+        <ul className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
           {schedules.data.map((s) => {
             const label = scheduleLabel(s);
             return (

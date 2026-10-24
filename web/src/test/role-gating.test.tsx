@@ -48,22 +48,44 @@ describe("role gating", { timeout: 15_000 }, () => {
   it("viewer sees app settings read-only: no Save or Delete", async () => {
     useProjectRoleHandlers("viewer");
     renderAt("/acme/apps/hello/settings");
-    expect(await screen.findByRole("heading", { name: /hello settings/i })).toBeInTheDocument();
-    expect(await screen.findByText("API_KEY")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Settings" })).toBeInTheDocument();
+    await screen.findByRole("form", { name: /scaling/i });
     expect(screen.queryByRole("button", { name: /save/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /delete/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Danger zone" })).toBeNull();
+  });
+
+  it("viewer sees env, secrets and domains read-only", async () => {
+    useProjectRoleHandlers("viewer");
+    renderAt("/acme/apps/hello/env");
+    expect(await screen.findByText("API_KEY")).toBeInTheDocument();
+    expect(await screen.findByText("MODE")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^add$/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /edit mode/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /save/i })).toBeNull();
+    expect(screen.queryByRole("button", { name: /delete/i })).toBeNull();
+    renderAt("/acme/apps/hello/domains");
+    await screen.findByText("No custom domains");
     expect(screen.queryByRole("button", { name: /add domain/i })).toBeNull();
   });
 
   it("developer may edit env but not secrets or domains", async () => {
     useProjectRoleHandlers("developer");
-    renderAt("/acme/apps/hello/settings");
-    expect(await screen.findByRole("button", { name: "Save variables" })).toBeInTheDocument();
+    renderAt("/acme/apps/hello/env");
+    expect(await screen.findByRole("button", { name: "Add" })).toBeInTheDocument();
     expect(await screen.findByText("API_KEY")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Edit MODE" })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Save secret" })).toBeNull();
     expect(screen.queryByRole("button", { name: /delete api_key/i })).toBeNull();
+    renderAt("/acme/apps/hello/domains");
+    await screen.findByText("No custom domains");
     expect(screen.queryByRole("button", { name: /add domain/i })).toBeNull();
-    await userEvent.click(screen.getByRole("button", { name: "Danger zone" }));
+  });
+
+  it("developer reaches the danger zone and the delete button", async () => {
+    useProjectRoleHandlers("developer");
+    renderAt("/acme/apps/hello/settings");
+    await userEvent.click(await screen.findByRole("button", { name: "Danger zone" }));
     expect(screen.getByRole("button", { name: /delete app/i })).toBeInTheDocument();
   });
 
@@ -78,7 +100,8 @@ describe("role gating", { timeout: 15_000 }, () => {
   it("a 403 on save shows a permission toast", async () => {
     useProjectRoleHandlers("developer");
     server.use(http.put(`${BASE}/env`, () => apiError(403, "forbidden", "forbidden")));
-    renderAt("/acme/apps/hello/settings");
+    renderAt("/acme/apps/hello/env");
+    await userEvent.click(await screen.findByRole("button", { name: "Edit as .env" }));
     await userEvent.click(await screen.findByRole("button", { name: "Save variables" }));
     expect(await screen.findByText(/don't have permission/i)).toBeInTheDocument();
   });

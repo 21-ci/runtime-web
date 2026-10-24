@@ -11,7 +11,7 @@ export function OnceSchedulesCard({ org, app }: { org: string; app: string }) {
   return (
     <section aria-labelledby="once-schedules-heading" className="flex flex-col gap-3">
       <div>
-        <h2 id="once-schedules-heading" className="text-base font-semibold">
+        <h2 id="once-schedules-heading" className="text-[15px] font-semibold">
           One-off tasks
         </h2>
         <p className="text-sm text-muted">Tasks your code queued with std:schedule, waiting to run.</p>
@@ -23,7 +23,7 @@ export function OnceSchedulesCard({ org, app }: { org: string; app: string }) {
       ) : once.data.length === 0 ? (
         <p className="text-sm text-muted">No pending tasks.</p>
       ) : (
-        <ul className="divide-y divide-line rounded-md border border-line bg-surface">
+        <ul className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
           {once.data.map((s) => (
             <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-3 py-2 text-sm">
               <code className="text-xs">{s.id}</code>

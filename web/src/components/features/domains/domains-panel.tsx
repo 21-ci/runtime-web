@@ -97,7 +97,7 @@ function CopyButton({ label, value }: { label: string; value: string }) {
 
 function DnsRecord({ host, domain }: { host: string; domain: Domain }) {
   return (
-    <div className="flex flex-col gap-3 rounded-md border border-line bg-panel p-3 text-sm">
+    <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
       <p>
         Add these DNS records for <span className="font-mono">{host}</span>.
       </p>
@@ -176,12 +176,12 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
   }
 
   return (
-    <section aria-labelledby="domains-heading" className="flex flex-col gap-4">
+    <section aria-labelledby="domains-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
       <header>
-        <h2 id="domains-heading" className="text-base font-semibold">
-          Domains
+        <h2 id="domains-heading" className="text-[15px] font-semibold">
+          Custom domains
         </h2>
-        <p className="text-sm text-muted">Serve this app on your own host names. HTTPS certificates are issued automatically.</p>
+        <p className="text-sm text-muted">HTTPS certificates are issued automatically once DNS is verified.</p>
       </header>
 
       {domains.isError ? (
@@ -189,7 +189,7 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
       ) : domains.isPending ? (
         <Skeleton className="h-32 w-full" />
       ) : domains.data.length === 0 ? (
-        <EmptyState entity="domains"
+        <EmptyState bare entity="domains"
           icon={Globe}
           title="No custom domains"
           description="Add a host name to point your own domain at this app."
@@ -197,11 +197,11 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
       ) : (
         <ul className="flex flex-col gap-3">
           {domains.data.map((d) => (
-            <li key={d.id} className="group flex flex-col gap-3 rounded-md border border-line bg-surface p-4">
+            <li key={d.id} className="group flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-mono text-sm font-medium">{d.host}</span>
                 <div className="flex flex-wrap items-center gap-2">
-                  <Badge variant={d.status === "failed" ? "danger" : d.status === "active" ? "success" : "outline"}>
+                  <Badge dot variant={d.status === "failed" ? "danger" : d.status === "active" ? "success" : "warning"}>
                     {STATUS_LABEL[d.status]}
                   </Badge>
                   <Badge variant={d.cert_status === "error" ? "danger" : "outline"}>
@@ -275,7 +275,7 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
             <Button variant="secondary" onClick={() => setPendingRemove(null)}>
               Cancel
             </Button>
-            <Button variant="danger" onClick={confirmRemove} disabled={remove.isPending}>
+            <Button variant="danger-solid" onClick={confirmRemove} disabled={remove.isPending}>
               Remove domain
             </Button>
           </DialogFooter>

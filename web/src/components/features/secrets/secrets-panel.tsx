@@ -72,9 +72,9 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
   }
 
   return (
-    <section aria-labelledby="secrets-heading" className="flex flex-col gap-4">
+    <section aria-labelledby="secrets-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
       <header>
-        <h2 id="secrets-heading" className="text-base font-semibold">
+        <h2 id="secrets-heading" className="text-[15px] font-semibold">
           Secrets
         </h2>
         <p className="text-sm text-muted">
@@ -92,7 +92,7 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
       ) : secrets.isPending ? (
         <Skeleton className="h-24 w-full" />
       ) : secrets.data.length === 0 ? (
-        <EmptyState entity="secrets"
+        <EmptyState bare entity="secrets"
           icon={KeyRound}
           title="No secrets yet"
           description="Secrets hold API keys and passwords your app reads at run time."
@@ -108,12 +108,12 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
           }
         />
       ) : (
-        <ul aria-label="Secret names" className="divide-y divide-line rounded-md border border-line bg-surface">
+        <ul aria-label="Secret names" className="divide-y divide-line rounded-lg border border-line">
           {secrets.data.map((s) => (
-            <li key={s.name} className="group flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
-              <span className="font-mono">{s.name}</span>
+            <li key={s.name} className="group flex h-10 items-center justify-between gap-3 px-4 text-sm">
+              <span className="flex items-center gap-2 font-mono text-[13px] font-medium"><KeyRound className="size-3.5 text-tag-brown-text" aria-hidden="true" />{s.name}</span>
               <span className="flex items-center gap-3">
-                <span className="text-muted">Updated {new Date(s.updated_at).toLocaleDateString()}</span>
+                <span className="text-[12px] text-muted">Updated {new Date(s.updated_at).toLocaleDateString()}</span>
                 {canWrite ? (
                   <Button
                     variant="ghost"
@@ -133,6 +133,7 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
 
       {canWrite ? (
       <AuthForm errors={errors} onSubmit={onSubmit}>
+        <p className="text-[13px] font-medium">Set or replace a secret</p>
         <FormField
           label="Name"
           name="name"
@@ -167,7 +168,7 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
             <Button variant="secondary" onClick={() => setPendingDelete(null)}>
               Cancel
             </Button>
-            <Button variant="danger" onClick={confirmDelete} disabled={remove.isPending}>
+            <Button variant="danger-solid" onClick={confirmDelete} disabled={remove.isPending}>
               Delete secret
             </Button>
           </DialogFooter>
