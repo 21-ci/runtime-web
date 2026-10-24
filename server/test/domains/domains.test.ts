@@ -2,7 +2,7 @@
 // the runtime, expiry and deactivation in the checker, unmap retries, reconcile, and
 // authz on the app routes. Clock is the harness fake clock (tick).
 import { describe, expect, it } from "vitest";
-import { normalizeHost } from "../../src/domains/domains.ts";
+import { MAX_PENDING_PER_ORG, normalizeHost } from "../../src/domains/domains.ts";
 import { checkOnce, ACTIVE_EVERY_MS, PENDING_TTL_MS } from "../../src/domains/checker.ts";
 import { APP, DOMAINS, ORG, seed, type Seeded } from "./fakes.ts";
 import { errCode } from "../auth/helpers.ts";
@@ -67,6 +67,41 @@ describe("POST /api/orgs/{org}/apps/{app}/domains", () => {
     const res = await s.owner.call("POST", DOMAINS, { host: "taken.example.com" });
     expect(res.status).toBe(409);
     expect(await errCode(res)).toBe("host_taken");
+  });
+
+  it("answers one generic host_taken for a host held by another org (M5)", async () => {
+    const s = await seed();
+    await s.db.run(
+      "INSERT INTO domains (id, org_id, app_slug, project_slug, service_id, host, txt_token, status, created_at, txt_misses) VALUES ('dom_x', 'org_2', 'a', 'p', 'svc_x', 'held.example.com', 't', 'pending', ?, 0)",
+      [s.app.deps.now()],
+    );
+    const theirs = await s.owner.call("POST", DOMAINS, { host: "held.example.com" });
+    await claim(s, "mine.example.com");
+    const ours = await s.owner.call("POST", DOMAINS, { host: "mine.example.com" });
+    expect(theirs.status).toBe(409);
+    const a = (await theirs.json()) as { error: unknown };
+    const b = (await ours.json()) as { error: unknown };
+    expect(a.error).toEqual(b.error);
+    expect(JSON.stringify(a)).not.toMatch(/org/i);
+  });
+
+  it("purges failed rows so the host can be claimed again", async () => {
+    const s = await seed();
+    await s.db.run(
+      "INSERT INTO domains (id, org_id, app_slug, project_slug, service_id, host, txt_token, status, created_at, txt_misses) VALUES ('dom_x', 'org_2', 'a', 'p', 'svc_x', 'old.example.com', 't', 'failed', ?, 0)",
+      [s.app.deps.now()],
+    );
+    const d = await claim(s, "old.example.com");
+    expect(d.status).toBe("pending");
+    expect(await s.db.first("SELECT id FROM domains WHERE id = 'dom_x'")).toBeNull();
+  });
+
+  it("caps pending claims per org", async () => {
+    const s = await seed();
+    for (let i = 0; i < MAX_PENDING_PER_ORG; i++) await claim(s, `p${i}.example.com`);
+    const res = await s.owner.call("POST", DOMAINS, { host: "one-more.example.com" });
+    expect(res.status).toBe(409);
+    expect(await errCode(res)).toBe("pending_limit");
   });
 
   it("does not expose another org's apps", async () => {
@@ -175,10 +210,10 @@ describe("checker", () => {
     const d = await claim(s, "shop.example.com");
     s.app.tick(PENDING_TTL_MS + 1);
     await checkOnce(s.app.deps);
-    const row = await s.db.first<{ status: string }>("SELECT status FROM domains WHERE id = ?", [d.id]);
-    expect(row?.status).toBe("failed");
+    expect(await s.db.first("SELECT status FROM domains WHERE id = ?", [d.id])).toBeNull();
     const ex = await s.db.first("SELECT action FROM audit WHERE action = 'domain.expire'");
     expect(ex).not.toBeNull();
+    expect((await claim(s, "shop.example.com")).status).toBe("pending");
   });
 
   it("deactivates an active host after 3 consecutive TXT misses and unmaps it", async () => {

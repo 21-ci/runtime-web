@@ -129,14 +129,23 @@ export async function listDomains(db: Db, serviceId: string): Promise<DomainRow[
   return db.all<DomainRow>("SELECT * FROM domains WHERE service_id = ? ORDER BY created_at, id", [serviceId]);
 }
 
-/** Claims host for app as pending. A host already claimed anywhere is 409 host_taken. */
+export const MAX_PENDING_PER_ORG = 20;
+
+const hostTaken = () => conflict("host_taken", "This host is not available.");
+
+/**
+ * Claims host for app as pending. Failed rows for the host (any org) are purged first so
+ * an abandoned claim never blocks it; any remaining row is 409 host_taken with one
+ * generic message that does not say who holds it. At most MAX_PENDING_PER_ORG pending
+ * claims per org (409 pending_limit). Pending rows expire after 24 h (checker.ts).
+ */
 export async function addDomain(deps: DomainDeps, a: { orgId: string; app: AppRef; host: string; actor: AuditActor }): Promise<DomainRow> {
   const h = normalizeHost(a.host, consoleHost(deps.config.origin));
-  const existing = await deps.storage.db.first<{ org_id: string }>("SELECT org_id FROM domains WHERE host = ?", [h]);
-  if (existing) {
-    const msg = existing.org_id === a.orgId ? "This org already has the domain." : "This host is already in use.";
-    throw conflict("host_taken", msg);
-  }
+  const db = deps.storage.db;
+  await db.run("DELETE FROM domains WHERE host = ? AND status = ?", [h, STATUS_FAILED]);
+  if (await db.first("SELECT 1 AS x FROM domains WHERE host = ?", [h])) throw hostTaken();
+  const n = await db.first<{ n: number }>("SELECT COUNT(*) AS n FROM domains WHERE org_id = ? AND status = ?", [a.orgId, STATUS_PENDING]);
+  if (Number(n?.n ?? 0) >= MAX_PENDING_PER_ORG) throw conflict("pending_limit", "Too many unverified domains; verify or remove some first.");
   const now = deps.now();
   const row: DomainRow = {
     id: newId("dom_", now),
@@ -162,7 +171,7 @@ export async function addDomain(deps: DomainDeps, a: { orgId: string; app: AppRe
       auditStmt(deps, { actor: a.actor, orgId: a.orgId, action: "domain.add", target: h, detail: { app: a.app.slug } }),
     ]);
   } catch (e) {
-    if (isUnique(e)) throw conflict("host_taken", "This host is already in use.");
+    if (isUnique(e)) throw hostTaken();
     throw e;
   }
   return row;

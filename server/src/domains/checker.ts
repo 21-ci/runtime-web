@@ -63,7 +63,8 @@ async function run(host: string, f: () => Promise<unknown>): Promise<void> {
 async function checkPending(deps: DomainDeps, d: DomainRow, now: number): Promise<void> {
   if (now - d.created_at >= PENDING_TTL_MS) {
     await deps.storage.db.batch([
-      { sql: "UPDATE domains SET status = ? WHERE id = ?", args: [STATUS_FAILED, d.id] },
+      // Delete, not mark failed: the host must become claimable again (audit M5).
+      { sql: "DELETE FROM domains WHERE id = ? AND status = ?", args: [d.id, STATUS_PENDING] },
       auditStmt(deps, { actor: SYSTEM, orgId: d.org_id, action: "domain.expire", target: d.host }),
     ]);
     return;
