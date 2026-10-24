@@ -50,14 +50,14 @@ export function LimitsSection({ org, app }: { org: string; app: AppDetail }) {
   return (
     <Section id="limits" title="Limits" description="What this app asked for and what it gets.">
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1 rounded-[4px] border border-line p-3">
-          <p className="text-sm font-medium text-text">Requested</p>
+        <div className="flex flex-col gap-1 rounded-sm border border-line p-3">
+          <p className="text-[13px] font-medium text-text">Requested</p>
           <pre className="overflow-x-auto text-xs text-muted">
             {JSON.stringify(app.limits.requested ?? {}, null, 2)}
           </pre>
         </div>
-        <div className="flex flex-col gap-1 rounded-[4px] border border-line p-3">
-          <p className="text-sm font-medium text-text">Effective</p>
+        <div className="flex flex-col gap-1 rounded-sm border border-line p-3">
+          <p className="text-[13px] font-medium text-text">Effective</p>
           <pre className="overflow-x-auto text-xs text-text">{JSON.stringify(app.limits.effective, null, 2)}</pre>
           <p className="text-sm text-muted">
             Source: <span className="text-text">{SOURCE_LABEL[app.limits.source]}</span>
@@ -68,7 +68,7 @@ export function LimitsSection({ org, app }: { org: string; app: AppDetail }) {
       <form onSubmit={onSubmit} className="flex flex-col gap-3" aria-label="Limits settings">
         <div className="flex flex-col gap-1">
           <Label htmlFor="limits-profile">Profile</Label>
-          <Input id="limits-profile" value={profile} onChange={(e) => setProfile(e.target.value)} placeholder="None" />
+          <Input id="limits-profile" value={profile} onChange={(e) => setProfile(e.target.value)} placeholder="e.g. small…" />
         </div>
         <div className="flex flex-col gap-1">
           <Label htmlFor="limits-json">Requested limits (JSON)</Label>
@@ -78,7 +78,9 @@ export function LimitsSection({ org, app }: { org: string; app: AppDetail }) {
             onChange={(e) => setText(e.target.value)}
             rows={5}
             aria-describedby="limits-error"
-            className="rounded-[4px] border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus"
+            spellCheck={false}
+            autoComplete="off"
+            className="rounded-sm border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus"
           />
           <FieldError id="limits-error" message={fieldError} />
         </div>

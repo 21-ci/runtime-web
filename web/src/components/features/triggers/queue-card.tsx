@@ -62,22 +62,22 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
       {stats.isPending ? (
         <Skeleton className="h-16 w-full" />
       ) : (
-        <dl className="grid grid-cols-2 gap-2 sm:grid-cols-4">
-          <div className="rounded-[6px] border border-line bg-surface p-3">
-            <dt className="text-xs text-muted">Depth</dt>
-            <dd className="font-semibold">{stats.data.depth}</dd>
+        <dl className="grid grid-cols-2 divide-x divide-line rounded-md border border-line bg-surface sm:grid-cols-4">
+          <div className="flex flex-col gap-0.5 p-3">
+            <dt className="text-[12px] text-muted">Depth</dt>
+            <dd className="text-base font-medium tabular-nums">{stats.data.depth}</dd>
           </div>
-          <div className="rounded-[6px] border border-line bg-surface p-3">
-            <dt className="text-xs text-muted">In flight</dt>
-            <dd className="font-semibold">{stats.data.in_flight}</dd>
+          <div className="flex flex-col gap-0.5 p-3">
+            <dt className="text-[12px] text-muted">In flight</dt>
+            <dd className="text-base font-medium tabular-nums">{stats.data.in_flight}</dd>
           </div>
-          <div className="rounded-[6px] border border-line bg-surface p-3">
-            <dt className="text-xs text-muted">Oldest</dt>
-            <dd className="font-semibold">{Math.round(stats.data.oldest_age_ms / 1000)} s</dd>
+          <div className="flex flex-col gap-0.5 p-3">
+            <dt className="text-[12px] text-muted">Oldest</dt>
+            <dd className="text-base font-medium tabular-nums">{Math.round(stats.data.oldest_age_ms / 1000)} s</dd>
           </div>
-          <div className="rounded-[6px] border border-line bg-surface p-3">
-            <dt className="text-xs text-muted">Dead-lettered</dt>
-            <dd className="font-semibold">{stats.data.dlq}</dd>
+          <div className="flex flex-col gap-0.5 p-3">
+            <dt className="text-[12px] text-muted">Dead-lettered</dt>
+            <dd className="text-base font-medium tabular-nums">{stats.data.dlq}</dd>
           </div>
         </dl>
       )}
@@ -90,7 +90,9 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
             rows={4}
             value={bodyText}
             onChange={(e) => setBodyText(e.target.value)}
-            className="rounded-[4px] border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+            spellCheck={false}
+            autoComplete="off"
+            className="rounded-sm border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
           />
         </div>
         <div className="flex flex-col gap-1.5">

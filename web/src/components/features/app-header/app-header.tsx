@@ -33,7 +33,7 @@ export function AppHeader({ org, app }: { org: string; app: AppSummary }) {
         {app.environment}
       </p>
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-xl font-semibold">{app.name ?? app.slug}</h1>
+        <h1 className="text-2xl font-semibold">{app.name ?? app.slug}</h1>
         <Badge variant={PILL[build_state] ?? "default"} title={`Tier ${tier}`}>
           {build_state}
         </Badge>
@@ -43,15 +43,15 @@ export function AppHeader({ org, app }: { org: string; app: AppSummary }) {
           Last error: {last_error}
         </p>
       ) : null}
-      <nav aria-label="App sections" className="flex gap-1 overflow-x-auto border-b border-line">
+      <nav aria-label="App sections" className="flex gap-1 overflow-x-auto border-b border-line [scrollbar-width:none]">
         {APP_TABS.map((t) => (
           <Link
             key={t.to}
             to={t.to}
             params={{ org, app: app.slug }}
             activeOptions={{ exact: t.exact }}
-            className="-mb-px border-b-2 border-transparent px-3 py-2 text-sm font-semibold text-muted hover:text-text focus-visible:ring-2 focus-visible:ring-focus"
-            activeProps={{ className: "border-accent text-text", "aria-current": "page" }}
+            className="-mb-px flex h-9 shrink-0 items-center border-b-2 border-transparent px-3 text-sm font-medium text-muted hover:text-text focus-visible:ring-2 focus-visible:ring-focus"
+            activeProps={{ className: "border-text text-text", "aria-current": "page" }}
           >
             {t.label}
           </Link>

@@ -97,7 +97,7 @@ function CopyButton({ label, value }: { label: string; value: string }) {
 
 function DnsRecord({ host, domain }: { host: string; domain: Domain }) {
   return (
-    <div className="flex flex-col gap-3 rounded-[6px] border border-line bg-panel p-3 text-sm">
+    <div className="flex flex-col gap-3 rounded-md border border-line bg-panel p-3 text-sm">
       <p>
         Add these DNS records for <span className="font-mono">{host}</span>.
       </p>
@@ -178,7 +178,7 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
   return (
     <section aria-labelledby="domains-heading" className="flex flex-col gap-4">
       <header>
-        <h2 id="domains-heading" className="text-sm font-semibold">
+        <h2 id="domains-heading" className="text-base font-semibold">
           Domains
         </h2>
         <p className="text-sm text-muted">Serve this app on your own host names. HTTPS certificates are issued automatically.</p>
@@ -197,7 +197,7 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
       ) : (
         <ul className="flex flex-col gap-3">
           {domains.data.map((d) => (
-            <li key={d.id} className="flex flex-col gap-3 rounded-[6px] border border-line bg-surface p-4">
+            <li key={d.id} className="group flex flex-col gap-3 rounded-md border border-line bg-surface p-4">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="font-mono text-sm font-medium">{d.host}</span>
                 <div className="flex flex-wrap items-center gap-2">
@@ -225,7 +225,7 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
               <p className="text-sm text-muted">Keep the TXT record; removing it deactivates the domain.</p>
 
               {canWrite ? (
-              <div className="flex flex-wrap gap-2">
+              <div className="flex flex-wrap gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
                 {d.status !== "active" ? (
                   <Button
                     variant="secondary"

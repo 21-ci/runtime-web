@@ -74,7 +74,7 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
   return (
     <section aria-labelledby="secrets-heading" className="flex flex-col gap-4">
       <header>
-        <h2 id="secrets-heading" className="text-sm font-semibold">
+        <h2 id="secrets-heading" className="text-base font-semibold">
           Secrets
         </h2>
         <p className="text-sm text-muted">
@@ -108,9 +108,9 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
           }
         />
       ) : (
-        <ul aria-label="Secret names" className="divide-y divide-line rounded-[6px] border border-line bg-surface">
+        <ul aria-label="Secret names" className="divide-y divide-line rounded-md border border-line bg-surface">
           {secrets.data.map((s) => (
-            <li key={s.name} className="flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
+            <li key={s.name} className="group flex items-center justify-between gap-3 px-4 py-2.5 text-sm">
               <span className="font-mono">{s.name}</span>
               <span className="flex items-center gap-3">
                 <span className="text-muted">Updated {new Date(s.updated_at).toLocaleDateString()}</span>
@@ -118,6 +118,7 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
                   <Button
                     variant="ghost"
                     size="icon"
+                    className="opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
                     aria-label={`Delete ${s.name}`}
                     onClick={() => setPendingDelete(s)}
                   >
