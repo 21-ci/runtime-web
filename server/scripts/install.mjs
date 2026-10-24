@@ -75,7 +75,7 @@ async function checkNode() {
     const what = [!planOk && `plan "${WANT_PLAN}"`, missing.length && `bindings ${missing.join(", ")}`].filter(Boolean).join(" and ");
     step(1, `node config lacks ${what}`);
     todo.push(
-      `Merge deploy/rt.rtweb.toml into the node's rt.toml, export RTWEB_OP_TOKEN and RTWEB_RELAY_SECRET in the node's ` +
+      `Merge deploy/rt.rtweb.toml into the node's rt.toml, export RTWEB_OP_TOKEN ("Bearer <root token>") and RTWEB_RELAY_SECRET in the node's ` +
         `environment, then restart rt (SIGHUP reloads plans and bindings), and re-run this script.`,
     );
   } else step(1, `node config ok (plan ${WANT_PLAN}, bindings ${BINDINGS.join(", ")})`);
@@ -150,7 +150,7 @@ async function ensureService(tenant, cron) {
     await put("RTWEB_SETUP_TOKEN", setupToken);
     step(5, "set secret RTWEB_SETUP_TOKEN (new)");
   }
-  // Rotated every run: authorises this run's large-asset uploads only.
+  // Rotated every run: authorises this run's large-asset uploads only, deleted again once they are done.
   const assetToken = randomBytes(24).toString("base64url");
   await put("RTWEB_ASSET_TOKEN", assetToken);
   return { svc, setupToken, assetToken };
@@ -230,7 +230,12 @@ async function uploadBlobs(assetToken) {
         await fh.read(buf, 0, buf.length, i * b.partBytes);
         const res = await fetch(`${INVOKE}/s/${SLUG}/api/internal/assets/${id}/${i}`, {
           method: "PUT",
-          headers: { "x-rtweb-asset-token": assetToken, "content-type": "application/octet-stream" },
+          headers: {
+            "x-rtweb-asset-token": assetToken,
+            "content-type": "application/octet-stream",
+            // Integrity of each part: the server stores the bytes only when they hash to this value.
+            "x-rtweb-part-sha256": createHash("sha256").update(buf).digest("hex"),
+          },
           body: buf,
         });
         if (res.status !== 204) throw new Error(`asset ${b.path} part ${i} -> ${res.status} ${(await res.text()).slice(0, 300)}`);
@@ -269,7 +274,13 @@ async function main() {
   const oldEnv = await setEnv(tenant, svc, {});
   const digest = await deploy(tenant, svc, oldEnv);
   await setEnv(tenant, svc, { RTWEB_BUNDLE: digest });
-  await uploadBlobs(assetToken);
+  try {
+    await uploadBlobs(assetToken);
+  } finally {
+    // The upload token must not outlive this run: whoever holds it could replace console assets.
+    await api("DELETE", `/v1/services/${svc.id}/secrets/RTWEB_ASSET_TOKEN`, { tenant, ok: [404] });
+    step(6, "deleted secret RTWEB_ASSET_TOKEN");
+  }
   if (HOST) {
     await api("PUT", `/v1/services/${svc.id}/hosts/${HOST}`, { tenant });
     step(7, `mapped host ${HOST} -> ${SLUG}`);

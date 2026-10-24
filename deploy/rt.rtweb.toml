@@ -1,8 +1,16 @@
 # Runtime Web fragment for the node's rt.toml (docs/contributing/architecture.md D2, D4).
-# Merge into rt.toml, export RTWEB_OP_TOKEN (operator/root token) and RTWEB_RELAY_SECRET (random,
-# same value as in the Caddy relay) in the node's environment, then restart rt (SIGHUP reloads
-# plans and bindings). server/scripts/install.mjs checks both and prints this reminder when missing.
-# Unknown keys fail startup: keep to the documented keys.
+# Merge into rt.toml, export RTWEB_OP_TOKEN and RTWEB_RELAY_SECRET in the node's environment, then
+# restart rt (SIGHUP reloads plans and bindings). server/scripts/install.mjs checks both and prints this
+# reminder when missing. Unknown keys fail startup: keep to the documented keys.
+#   RTWEB_OP_TOKEN      the full Authorization value for the operator token: "Bearer <RT_ROOT_TOKEN>"
+#                       (the runtime has a single operator credential, the root token; inject_headers sends
+#                       the value verbatim). install.sh derives it from the rt environment file.
+#   RTWEB_RELAY_SECRET  64 random hex chars, the same value Caddy's relay compares (never empty).
+#
+# The node must also trust Caddy on loopback for X-Forwarded-For, or every client IP reads 127.0.0.1:
+#   [ingress]
+#   trusted_proxies = ["127.0.0.1/32", "::1/128"]
+# install.sh adds that to an existing [ingress] table (a second [ingress] here would break the merge).
 
 [plans.rtweb]
 max_services = 2
