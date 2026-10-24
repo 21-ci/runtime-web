@@ -30,7 +30,7 @@ export function EventsPanel({ org, app }: { org: string; app: string }) {
       <h2 id="events-heading" className="text-base font-semibold">
         Events
       </h2>
-      <ul className="divide-y divide-line rounded-[6px] border border-line bg-surface">
+      <ul className="divide-y divide-line rounded-md border border-line bg-surface">
         {items.map((ev) => (
           <li key={ev.id} className="flex flex-col gap-0.5 px-3 py-2 text-sm sm:flex-row sm:items-center sm:gap-3">
             <span className="font-mono text-xs font-semibold">{ev.kind}</span>

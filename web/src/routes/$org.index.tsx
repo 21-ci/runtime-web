@@ -46,7 +46,7 @@ function OrgOverview() {
                   <Link
                     to="/$org/projects/$p"
                     params={{ org, p: p.slug }}
-                    className="block rounded-[6px] border border-line bg-surface p-4 hover:border-line-strong"
+                    className="block rounded-md border border-line bg-surface p-4 hover:border-line-strong"
                   >
                     <span className="block font-semibold">{p.name}</span>
                     <span className="mt-1 block text-sm text-muted">{p.environments.join(", ")}</span>

@@ -65,7 +65,7 @@ export function InvitesPanel({ org, role }: { org: string; role: OrgRole }) {
       ) : invites.data.length === 0 ? (
         <EmptyState icon={MailPlus} title="No pending invites" description="Invite a teammate with the form below." />
       ) : (
-        <ul aria-label="Pending invites" className="divide-y divide-line rounded-[6px] border border-line bg-surface">
+        <ul aria-label="Pending invites" className="divide-y divide-line rounded-md border border-line bg-surface">
           {invites.data.map((inv) => (
             <li key={inv.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm">
               <span>
@@ -169,7 +169,7 @@ function InviteForm({ org, role }: { org: string; role: OrgRole }) {
         </div>
       </AuthForm>
       {link ? (
-        <div className="flex items-center gap-2 rounded-[6px] border border-line bg-panel p-3 text-sm">
+        <div className="flex items-center gap-2 rounded-md border border-line bg-panel p-3 text-sm">
           <code className="min-w-0 flex-1 break-all font-mono">{link}</code>
           <Button variant="secondary" size="sm" aria-label="Copy invite link" onClick={() => void navigator.clipboard.writeText(link)}>
             <Copy className="size-4" aria-hidden />

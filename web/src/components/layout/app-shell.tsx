@@ -1,11 +1,14 @@
-import { useState, type ReactNode } from "react";
-import { Menu, Search } from "lucide-react";
+import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
+import * as SheetPrimitive from "@radix-ui/react-dialog";
+import { Menu, PanelLeft, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
-import { useOrgs } from "@/hooks/orgs";
+import { applyTheme, readTheme, writeTheme, type Theme } from "@/lib/theme";
+import { cn } from "@/lib/utils";
 import { AccountMenu } from "./account-menu";
+import { Breadcrumbs } from "./breadcrumbs";
 import { CommandMenu } from "./command-menu";
+import { ShellContext, type ShellState } from "./shell-context";
 import { Sidebar } from "./sidebar";
 import { ThemeToggle } from "./theme-toggle";
 
@@ -13,71 +16,168 @@ import { ThemeToggle } from "./theme-toggle";
 const SHORTCUT_LABEL =
   typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform) ? "⌘K" : "Ctrl K";
 
-// AppShell is the signed-in frame: a fixed sidebar from md up, a sheet below md, a topbar and the
-// page content. The skip link is the first focus stop and jumps past the navigation.
-export function AppShell({ org, children }: { org: string; children: ReactNode }) {
-  const orgs = useOrgs();
-  const [sheetOpen, setSheetOpen] = useState(false);
-  const current = orgs.data?.find((o) => o.slug === org);
+const COLLAPSED_KEY = "rt-sidebar-collapsed";
 
-  // The command menu listens for ⌘K / Ctrl K, so the topbar buttons reuse that keydown.
-  function openCommandMenu() {
-    document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }));
+function readCollapsed(): boolean {
+  try {
+    return localStorage.getItem(COLLAPSED_KEY) === "1";
+  } catch {
+    return false;
   }
+}
+
+function writeCollapsed(v: boolean) {
+  try {
+    if (v) localStorage.setItem(COLLAPSED_KEY, "1");
+    else localStorage.removeItem(COLLAPSED_KEY);
+  } catch {
+    // Storage blocked: the choice still applies for this page view.
+  }
+}
+
+// AppShell is the signed-in frame: a 240px sidebar from md up (collapsible with ⌘\), a sheet
+// below md, a 44px topbar with breadcrumbs, and the page content. It owns the shell state (palette,
+// theme, collapse). The skip link is the first focus stop and jumps past the navigation.
+export function AppShell({ org, children }: { org: string; children: ReactNode }) {
+  const [sheetOpen, setSheetOpen] = useState(false);
+  const [paletteOpen, setPaletteOpen] = useState(false);
+  const [theme, setThemeState] = useState<Theme>(() => readTheme());
+  const [collapsed, setCollapsedState] = useState<boolean>(() => readCollapsed());
+
+  useEffect(() => {
+    applyTheme(theme);
+  }, [theme]);
+
+  const setTheme = useCallback((next: Theme) => {
+    writeTheme(next);
+    setThemeState(next);
+  }, []);
+
+  const setCollapsed = useCallback((next: boolean) => {
+    writeCollapsed(next);
+    setCollapsedState(next);
+  }, []);
+
+  useEffect(() => {
+    function onKey(e: KeyboardEvent) {
+      if (!(e.metaKey || e.ctrlKey)) return;
+      if (e.key.toLowerCase() === "k") {
+        e.preventDefault();
+        setPaletteOpen((v) => !v);
+      } else if (e.key === "\\") {
+        e.preventDefault();
+        setCollapsedState((v) => {
+          writeCollapsed(!v);
+          return !v;
+        });
+      }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, []);
+
+  const shell = useMemo<ShellState>(
+    () => ({
+      paletteOpen,
+      setPaletteOpen,
+      theme,
+      setTheme,
+      collapsed,
+      setCollapsed,
+    }),
+    [paletteOpen, theme, setTheme, collapsed, setCollapsed],
+  );
 
   return (
-    <div className="flex min-h-dvh bg-bg text-text">
-      <a
-        href="#main"
-        className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-[6px] focus:bg-surface focus:px-3 focus:py-2 focus:shadow-[0_8px_24px_-12px_rgb(0_0_0_/0.35)]"
-      >
-        Skip to content
-      </a>
+    <ShellContext.Provider value={shell}>
+      <div className="flex min-h-dvh bg-bg text-text">
+        <a
+          href="#main"
+          className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-surface focus:px-3 focus:py-2 focus:shadow-menu"
+        >
+          Skip to content
+        </a>
 
-      <aside className="sticky top-0 hidden h-dvh w-60 shrink-0 overflow-y-auto border-r border-line bg-panel md:block">
-        <Sidebar org={org} />
-      </aside>
+        <aside
+          className={cn(
+            "sticky top-0 hidden h-dvh w-60 shrink-0 overflow-y-auto border-r border-line bg-panel",
+            !collapsed && "md:block",
+          )}
+        >
+          <Sidebar org={org} onCollapse={() => setCollapsed(true)} />
+        </aside>
 
-      <div className="flex min-w-0 flex-1 flex-col">
-        <header className="sticky top-0 z-10 flex h-12 items-center gap-2 border-b border-line bg-surface px-3 md:px-6">
-          <Dialog open={sheetOpen} onOpenChange={setSheetOpen}>
-            <DialogTrigger asChild>
-              <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation">
-                <Menu className="size-5" aria-hidden="true" />
+        <div className="flex min-w-0 flex-1 flex-col">
+          <header className="sticky top-0 z-10 flex h-11 items-center gap-1 border-b border-line bg-bg px-3 md:px-4">
+            <SheetPrimitive.Root open={sheetOpen} onOpenChange={setSheetOpen}>
+              <SheetPrimitive.Trigger asChild>
+                <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation">
+                  <Menu className="size-4" aria-hidden="true" />
+                </Button>
+              </SheetPrimitive.Trigger>
+              <SheetPrimitive.Portal>
+                <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-overlay/30" />
+                <SheetPrimitive.Content className="fixed inset-y-0 left-0 z-50 w-60 max-w-[85vw] overflow-y-auto border-r border-line bg-panel text-text shadow-menu outline-none transition-transform duration-[160ms] ease-ui starting:-translate-x-full">
+                  <SheetPrimitive.Title className="sr-only">Navigation</SheetPrimitive.Title>
+                  <SheetPrimitive.Description className="sr-only">
+                    Organization projects and apps
+                  </SheetPrimitive.Description>
+                  <Sidebar org={org} onNavigate={() => setSheetOpen(false)} />
+                </SheetPrimitive.Content>
+              </SheetPrimitive.Portal>
+            </SheetPrimitive.Root>
+
+            {collapsed ? (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="hidden md:inline-flex"
+                aria-label="Expand sidebar"
+                title="Expand sidebar (⌘\)"
+                onClick={() => setCollapsed(false)}
+              >
+                <PanelLeft className="size-4" aria-hidden="true" />
               </Button>
-            </DialogTrigger>
-            <DialogContent className="left-0 top-0 h-dvh w-72 max-w-[85vw] translate-x-0 translate-y-0 overflow-y-auto rounded-none p-0">
-              <DialogTitle className="sr-only">Navigation</DialogTitle>
-              <DialogDescription className="sr-only">Organization projects and apps</DialogDescription>
-              <Sidebar org={org} onNavigate={() => setSheetOpen(false)} />
-            </DialogContent>
-          </Dialog>
+            ) : null}
 
-          <p className="min-w-0 flex-1 truncate text-sm text-muted">{current?.name ?? org}</p>
+            <Breadcrumbs org={org} />
 
-          <Button variant="ghost" size="icon" aria-label="Search" onClick={openCommandMenu} className="sm:hidden">
-            <Search className="size-5" aria-hidden="true" />
-          </Button>
-          <Button
-            variant="secondary"
-            size="sm"
-            aria-label="Open command menu"
-            onClick={openCommandMenu}
-            className="hidden sm:inline-flex"
+            <Button
+              variant="ghost"
+              size="icon"
+              aria-label="Search"
+              onClick={() => setPaletteOpen(true)}
+              className="sm:hidden"
+            >
+              <Search className="size-4" aria-hidden="true" />
+            </Button>
+            <Button
+              variant="secondary"
+              size="sm"
+              aria-label="Open command menu"
+              onClick={() => setPaletteOpen(true)}
+              className="hidden text-muted sm:inline-flex"
+            >
+              <Search className="size-4" aria-hidden="true" /> Search
+              <kbd className="ml-2 rounded-sm border border-line bg-panel px-1 font-mono text-[11px] text-muted">
+                {SHORTCUT_LABEL}
+              </kbd>
+            </Button>
+            <ThemeToggle className="ml-1 hidden sm:inline-flex" />
+            <AccountMenu />
+          </header>
+
+          <main
+            id="main"
+            tabIndex={-1}
+            className="mx-auto w-full max-w-[1100px] flex-1 p-4 outline-none md:px-10 md:py-8"
           >
-            <Search className="size-4" aria-hidden="true" /> Search
-            <kbd className="ml-2 rounded border border-line px-1 text-xs text-muted">{SHORTCUT_LABEL}</kbd>
-          </Button>
-          <ThemeToggle />
-          <AccountMenu />
-        </header>
+            {children}
+          </main>
+        </div>
 
-        <main id="main" tabIndex={-1} className="w-full max-w-[1280px] flex-1 p-4 outline-none md:px-8 md:py-6">
-          {children}
-        </main>
+        <CommandMenu org={org} />
       </div>
-
-      <CommandMenu org={org} />
-    </div>
+    </ShellContext.Provider>
   );
 }

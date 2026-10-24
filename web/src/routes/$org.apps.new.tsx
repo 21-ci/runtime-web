@@ -143,7 +143,7 @@ function NewAppPage() {
                   aria-checked={checked}
                   onClick={() => setTemplate(id)}
                   className={cn(
-                    "flex items-start gap-3 rounded-[6px] border bg-surface p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-focus",
+                    "flex items-start gap-3 rounded-md border bg-surface p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-focus",
                     checked ? "border-accent ring-1 ring-accent" : "border-line hover:border-line-strong",
                   )}
                 >

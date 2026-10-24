@@ -101,7 +101,7 @@ export function LogsView({ org, app }: { org: string; app: string }) {
       ) : (
         <ol
           aria-label="Log lines"
-          className="max-h-[60vh] overflow-auto rounded-[4px] border border-line bg-panel p-2 font-mono text-xs"
+          className="max-h-[60vh] overflow-auto rounded-sm border border-line bg-panel p-2 font-mono text-xs"
         >
           {visible.map((l) => (
             <LogRow key={l.seq} line={l} />
