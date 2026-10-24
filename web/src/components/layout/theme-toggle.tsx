@@ -5,22 +5,18 @@ import { cn } from "@/lib/utils";
 import { useShell } from "./shell-context";
 
 const OPTIONS: { value: Theme; label: string; Icon: typeof Sun }[] = [
-  { value: "system", label: "System theme", Icon: Monitor },
   { value: "light", label: "Light theme", Icon: Sun },
   { value: "dark", label: "Dark theme", Icon: Moon },
+  { value: "system", label: "System theme", Icon: Monitor },
 ];
 
-// ThemeToggle is a radio group: arrow keys move the choice. The choice lives in the shell state
-// (persisted by AppShell), so the palette's "Toggle theme" and this control stay in sync.
+// ThemeToggle is a segmented radio group: arrow keys move the choice. The choice lives in the
+// shell state (persisted by AppShell), so the palette's "Toggle theme" and this control stay in sync.
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme } = useShell();
 
   return (
-    <div
-      role="radiogroup"
-      aria-label="Theme"
-      className={cn("inline-flex rounded-md border border-line bg-panel p-0.5", className)}
-    >
+    <div role="radiogroup" aria-label="Theme" className={cn("inline-flex h-7 rounded-md bg-panel-2 p-0.5", className)}>
       {OPTIONS.map(({ value, label, Icon }) => {
         const checked = theme === value;
         return (
@@ -41,11 +37,11 @@ export function ThemeToggle({ className }: { className?: string }) {
               setTheme(OPTIONS[(i + step + OPTIONS.length) % OPTIONS.length].value);
             }}
             className={cn(
-              "grid size-6 cursor-pointer place-items-center rounded-sm text-muted outline-none hover:text-text focus-visible:ring-2 focus-visible:ring-focus",
-              checked && "bg-surface text-text ring-1 ring-line",
+              "grid h-6 w-7 cursor-pointer place-items-center rounded-[5px] text-muted outline-none transition-[background-color,color,box-shadow] duration-[120ms] hover:text-text focus-visible:ring-2 focus-visible:ring-focus",
+              checked && "bg-surface-2 text-text shadow-card",
             )}
           >
-            <Icon className="size-4" aria-hidden="true" />
+            <Icon className="size-3.5" aria-hidden="true" />
           </button>
         );
       })}

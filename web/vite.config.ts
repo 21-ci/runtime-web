@@ -9,5 +9,19 @@ export default defineConfig({
   resolve: {
     alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
   },
-  server: { port: 5173 },
+  server: {
+    port: 5173,
+    // RTWEB_DEV_PROXY=http://console.localhost:18443 forwards /api to a running backend while
+    // the console itself is served by Vite (cookies are first-party on localhost, the Origin
+    // header is rewritten so the server's same-origin check passes).
+    proxy: process.env.RTWEB_DEV_PROXY
+      ? {
+          "/api": {
+            target: process.env.RTWEB_DEV_PROXY,
+            changeOrigin: true,
+            headers: { origin: process.env.RTWEB_DEV_PROXY },
+          },
+        }
+      : undefined,
+  },
 });

@@ -1,51 +1,69 @@
-import { Shield as ShieldTile } from "lucide-react";
-import { IconTile } from "@/components/ui/icon-tile";
 import { Link } from "@tanstack/react-router";
+import { ArrowLeft, Building2, Database, Globe, ScrollText, Server, Settings, Shield, Users } from "lucide-react";
 import type { ReactNode } from "react";
 
-// AdminLayout frames the instance-admin pages. They sit outside an org, so they carry their own
-// header with section tabs and a way back to the console.
-export function AdminLayout({ children }: { children: ReactNode }) {
-  const tabClass =
-    "inline-flex h-7 items-center rounded-sm px-2.5 text-sm font-medium text-muted hover:bg-text/[0.05] hover:text-text aria-[current=page]:bg-text/[0.07] aria-[current=page]:text-text";
+import { AppShell } from "@/components/layout/app-shell";
+import { NavLink, SidebarFrame } from "@/components/layout/sidebar";
+import { IconTile } from "@/components/ui/icon-tile";
+import { useOrgs } from "@/hooks/orgs";
+
+const SECTIONS = [
+  { to: "/admin/users", label: "Users", icon: Users },
+  { to: "/admin/orgs", label: "Organizations", icon: Building2 },
+  { to: "/admin/audit", label: "Audit log", icon: ScrollText },
+  { to: "/admin/node", label: "Node", icon: Server },
+  { to: "/admin/cache", label: "Cache", icon: Database },
+  { to: "/admin/domains", label: "Domains", icon: Globe },
+  { to: "/admin/settings", label: "Settings", icon: Settings },
+] as const;
+
+function AdminNav({ onNavigate, onCollapse }: { onNavigate?: () => void; onCollapse?: () => void }) {
   return (
-    <div className="min-h-dvh bg-bg text-text">
-      <header className="border-b border-line bg-surface px-4 py-3 md:px-10">
-        <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3">
-          <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]"><IconTile icon={ShieldTile} entity="admin" size="md" />Instance admin</h1>
-          <Link to="/" className="ml-auto text-sm text-muted hover:text-text">
-            Back to console
-          </Link>
+    <SidebarFrame
+      label="Admin sections"
+      top={
+        <div className="flex h-9 min-w-0 flex-1 items-center gap-2 px-1.5 text-sm">
+          <IconTile icon={Shield} entity="admin" size="sm" solid />
+          <span className="truncate font-semibold">Instance admin</span>
         </div>
-      </header>
-      <div className="mx-auto flex max-w-6xl flex-col gap-5 p-4 md:px-10 md:py-8">
-        <nav aria-label="Admin sections" className="flex flex-wrap gap-1">
-          <Link to="/admin/users" className={tabClass} activeProps={{ "aria-current": "page" }}>
-            Users
-          </Link>
-          <Link to="/admin/orgs" className={tabClass} activeProps={{ "aria-current": "page" }}>
-            Organizations
-          </Link>
-          <Link to="/admin/audit" className={tabClass} activeProps={{ "aria-current": "page" }}>
-            Audit log
-          </Link>
-          <Link to="/admin/node" className={tabClass} activeProps={{ "aria-current": "page" }}>
-            Node
-          </Link>
-          <Link to="/admin/cache" className={tabClass} activeProps={{ "aria-current": "page" }}>
-            Cache
-          </Link>
-          <Link to="/admin/domains" className={tabClass} activeProps={{ "aria-current": "page" }}>
-            Domains
-          </Link>
-          <Link to="/admin/settings" className={tabClass} activeProps={{ "aria-current": "page" }}>
-            Settings
-          </Link>
-        </nav>
-        <main id="main" className="flex min-w-0 flex-col gap-6">
-          {children}
-        </main>
+      }
+      onCollapse={onCollapse}
+      footer={
+        <Link
+          to="/"
+          onClick={onNavigate}
+          className="flex h-7 items-center gap-2 rounded-md px-2 text-sm text-muted outline-none hover:bg-hover hover:text-text focus-visible:ring-2 focus-visible:ring-focus"
+        >
+          <ArrowLeft className="size-4" aria-hidden="true" />
+          Back to console
+        </Link>
+      }
+    >
+      <div className="flex flex-col gap-px pt-2">
+        {SECTIONS.map((s) => (
+          <NavLink key={s.to} to={s.to} icon={s.icon} label={s.label} onNavigate={onNavigate} />
+        ))}
       </div>
-    </div>
+    </SidebarFrame>
+  );
+}
+
+// AdminLayout frames the instance-admin pages in the console shell with their own sidebar. They
+// sit outside an org, so the palette is scoped to the user's first org when there is one.
+export function AdminLayout({ children }: { children: ReactNode }) {
+  const orgs = useOrgs();
+  const first = orgs.data?.[0]?.slug ?? null;
+  return (
+    <AppShell
+      org={first}
+      nav={(props) => <AdminNav {...props} />}
+      crumbs={
+        <p className="min-w-0 flex-1 truncate text-sm">
+          <span className="text-muted">Admin</span>
+        </p>
+      }
+    >
+      {children}
+    </AppShell>
   );
 }

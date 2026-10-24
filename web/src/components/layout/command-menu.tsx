@@ -22,9 +22,9 @@ import { visibleSettings } from "./settings-registry";
 import { useShell } from "./shell-context";
 
 const ITEM =
-  "flex h-9 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-sm text-text transition-colors duration-[120ms] data-[selected=true]:bg-hover";
+  "flex h-8 cursor-pointer items-center gap-2.5 rounded-md px-2 text-sm text-text transition-colors duration-[100ms] data-[selected=true]:bg-hover";
 const HEADING =
-  "[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted";
+  "[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-[11px] [&_[cmdk-group-heading]]:font-semibold [&_[cmdk-group-heading]]:text-muted";
 const ICON = "size-4 shrink-0 text-muted";
 
 // settingsIcon picks the icon for a registry entry by its section.
@@ -65,12 +65,12 @@ export function CommandMenu({ org }: { org: string }) {
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
         label="Command menu"
-        overlayClassName="fixed inset-0 z-50 bg-overlay/30"
-        contentClassName="fixed left-1/2 top-[14vh] z-50 w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-2xl border border-line bg-surface text-text shadow-menu outline-none"
+        overlayClassName="fixed inset-0 z-50 bg-overlay/35 dark:bg-overlay/55"
+        contentClassName="fixed left-1/2 top-[14vh] z-50 w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-lg border border-line bg-surface-2 text-text shadow-menu outline-none data-[state=open]:animate-[pop-in_160ms_var(--motion-ease)]"
       >
         <Command.Input
           placeholder="Search apps, projects, actions…"
-          className="h-12 w-full border-b border-line bg-transparent px-4 text-sm outline-none placeholder:text-muted"
+          className="h-11 w-full border-b border-line bg-transparent px-4 text-sm outline-none placeholder:text-muted"
         />
         <Command.List className="max-h-[min(50vh,420px)] overflow-y-auto p-1.5">
           <Command.Empty className="px-3 py-6 text-center text-sm text-muted">No matches.</Command.Empty>
@@ -200,7 +200,7 @@ export function CommandMenu({ org }: { org: string }) {
             </Command.Group>
           ) : null}
         </Command.List>
-        <div className="flex h-8 items-center gap-3 border-t border-line px-3 text-xs text-muted">
+        <div className="flex h-8 items-center gap-3 border-t border-line bg-panel px-3 text-[11px] text-muted">
           <span>↑↓ to navigate</span>
           <span>↵ to select</span>
           <span>esc to close</span>
