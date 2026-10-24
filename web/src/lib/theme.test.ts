@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-import { applyTheme, readTheme, writeTheme } from "./theme";
+import { applyTheme, readTheme, subscribeSystemTheme, writeTheme } from "./theme";
 
 afterEach(() => {
   document.documentElement.classList.remove("dark");
@@ -26,5 +26,38 @@ describe("theme", () => {
     });
     expect(readTheme()).toBe("system");
     expect(() => writeTheme("light")).not.toThrow();
+  });
+
+  it("system theme follows OS scheme changes while subscribed", () => {
+    let dark = false;
+    const listeners = new Set<(e: MediaQueryListEvent) => void>();
+    const original = window.matchMedia;
+    window.matchMedia = (query: string) =>
+      ({
+        get matches() {
+          return dark;
+        },
+        media: query,
+        onchange: null,
+        addListener: () => {},
+        removeListener: () => {},
+        addEventListener: (_t: string, l: (e: MediaQueryListEvent) => void) => listeners.add(l),
+        removeEventListener: (_t: string, l: (e: MediaQueryListEvent) => void) => listeners.delete(l),
+        dispatchEvent: () => false,
+      }) as unknown as MediaQueryList;
+    try {
+      applyTheme("system");
+      const unsubscribe = subscribeSystemTheme(() => applyTheme("system"));
+      expect(document.documentElement.classList.contains("dark")).toBe(false);
+
+      dark = true;
+      listeners.forEach((l) => l({ matches: true } as MediaQueryListEvent));
+      expect(document.documentElement.classList.contains("dark")).toBe(true);
+
+      unsubscribe();
+      expect(listeners.size).toBe(0);
+    } finally {
+      window.matchMedia = original;
+    }
   });
 });

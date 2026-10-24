@@ -35,3 +35,23 @@ export function applyTheme(theme: Theme) {
   }
   document.documentElement.classList.toggle("dark", dark);
 }
+
+// subscribeSystemTheme calls onChange when the OS colour scheme changes, so a "system" choice
+// follows the OS without a reload. Returns the unsubscribe function. Older engines only have the
+// deprecated addListener, so it falls back to that.
+export function subscribeSystemTheme(onChange: () => void): () => void {
+  let mql: MediaQueryList;
+  try {
+    mql = window.matchMedia("(prefers-color-scheme: dark)");
+  } catch {
+    return () => {};
+  }
+  if (!mql) return () => {};
+  const listener = () => onChange();
+  if (typeof mql.addEventListener === "function") {
+    mql.addEventListener("change", listener);
+    return () => mql.removeEventListener("change", listener);
+  }
+  mql.addListener(listener);
+  return () => mql.removeListener(listener);
+}

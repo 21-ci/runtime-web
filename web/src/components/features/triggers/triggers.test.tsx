@@ -103,4 +103,19 @@ describe("triggers", () => {
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(calls).toBe(2));
   });
+
+  it("plan without cron defaults the schedule kind to Interval and disables Cron", async () => {
+    useAppHandlers({ effective: { allowed_triggers: ["interval", "http"] } });
+    renderAt(TRIGGERS);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Add schedule" }));
+    const kind = await screen.findByLabelText("Kind");
+    expect(kind).toHaveTextContent("Interval");
+    expect(screen.getByLabelText("Every (seconds)")).toBeInTheDocument();
+
+    await userEvent.click(kind);
+    const cron = await screen.findByRole("option", { name: "Cron" });
+    expect(cron).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText(/not included in your plan/i)).toBeInTheDocument();
+  });
 });

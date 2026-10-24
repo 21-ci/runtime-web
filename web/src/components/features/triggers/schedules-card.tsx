@@ -36,7 +36,7 @@ function scheduleLabel(s: Schedule): string {
 }
 
 // SchedulesCard lists schedules and adds, pauses, resumes and deletes them.
-export function SchedulesCard({ org, app }: { org: string; app: string }) {
+export function SchedulesCard({ org, app, cronAllowed = true }: { org: string; app: string; cronAllowed?: boolean }) {
   const schedules = useSchedules(org, app);
   const update = useUpdateSchedule(org, app);
   const remove = useDeleteSchedule(org, app);
@@ -109,7 +109,7 @@ export function SchedulesCard({ org, app }: { org: string; app: string }) {
         </ul>
       )}
 
-      {adding ? <ScheduleDialog org={org} app={app} onClose={() => setAdding(false)} /> : null}
+      {adding ? <ScheduleDialog org={org} app={app} cronAllowed={cronAllowed} onClose={() => setAdding(false)} /> : null}
 
       <ConfirmDialog
         open={deleting !== null}
@@ -136,9 +136,20 @@ export function SchedulesCard({ org, app }: { org: string; app: string }) {
 }
 
 // ScheduleDialog creates a schedule. The cron preview updates as the expression is typed.
-function ScheduleDialog({ org, app, onClose }: { org: string; app: string; onClose: () => void }) {
+function ScheduleDialog({
+  org,
+  app,
+  cronAllowed,
+  onClose,
+}: {
+  org: string;
+  app: string;
+  cronAllowed: boolean;
+  onClose: () => void;
+}) {
   const create = useCreateSchedule(org, app);
-  const [kind, setKind] = useState<"interval" | "cron">("cron");
+  // Interval is the default; cron is the default only when the plan allows it.
+  const [kind, setKind] = useState<"interval" | "cron">(cronAllowed ? "cron" : "interval");
   const [cron, setCron] = useState("");
   const [timezone, setTimezone] = useState("UTC");
   const [every, setEvery] = useState("60");
@@ -197,12 +208,19 @@ function ScheduleDialog({ org, app, onClose }: { org: string; app: string; onClo
         <form onSubmit={onSubmit} className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="schedule-kind">Kind</Label>
+            {cronAllowed ? null : (
+              <p id="schedule-kind-hint" className="text-sm text-muted">
+                Cron is not included in your plan. Use an interval instead.
+              </p>
+            )}
             <Select value={kind} onValueChange={(v) => setKind(v as "interval" | "cron")}>
-              <SelectTrigger id="schedule-kind">
+              <SelectTrigger id="schedule-kind" aria-describedby={cronAllowed ? undefined : "schedule-kind-hint"}>
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="cron">Cron</SelectItem>
+                <SelectItem value="cron" disabled={!cronAllowed}>
+                  Cron
+                </SelectItem>
                 <SelectItem value="interval">Interval</SelectItem>
               </SelectContent>
             </Select>

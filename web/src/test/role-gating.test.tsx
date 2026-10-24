@@ -63,6 +63,7 @@ describe("role gating", { timeout: 15_000 }, () => {
     expect(screen.queryByRole("button", { name: "Save secret" })).toBeNull();
     expect(screen.queryByRole("button", { name: /delete api_key/i })).toBeNull();
     expect(screen.queryByRole("button", { name: /add domain/i })).toBeNull();
+    await userEvent.click(screen.getByRole("button", { name: "Danger zone" }));
     expect(screen.getByRole("button", { name: /delete app/i })).toBeInTheDocument();
   });
 

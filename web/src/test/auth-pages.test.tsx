@@ -112,10 +112,76 @@ describe("auth pages", { timeout: 15_000 }, () => {
     await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
   });
 
+  it("account security renders inside the app shell", async () => {
+    server.use(
+      http.get("/api/me", () =>
+        HttpResponse.json({
+          user: testUser,
+          csrf: "csrf-shell",
+          orgs: [{ slug: "acme", name: "Acme", role: "member" }],
+          policy: { require_2fa: false, password_login_disabled: false },
+          mfa_enrollment_required: false,
+        }),
+      ),
+      http.get("/api/orgs", () =>
+        HttpResponse.json({ items: [{ id: "org_1", slug: "acme", name: "Acme", created_at: 1, role: "member" }] }),
+      ),
+      http.get("/api/orgs/acme/projects", () => HttpResponse.json({ items: [] })),
+      http.get("/api/me/sessions", () => HttpResponse.json({ items: [] })),
+      http.get("/api/me/logins", () => HttpResponse.json({ items: [] })),
+    );
+    renderAt("/me/security");
+
+    expect(await screen.findByRole("heading", { name: "Account security" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Open navigation" })).toBeInTheDocument();
+  });
+
+  it("fresh instance: / goes to /setup instead of /login", async () => {
+    server.use(http.get("/api/setup", () => HttpResponse.json({ needed: true })));
+    const router = renderAt("/");
+    await waitFor(() => expect(router.state.location.pathname).toBe("/setup"));
+  });
+
+  it("invite accept signs in and lands on the org home, not /login", async () => {
+    let signedIn = false;
+    server.use(
+      http.get("/api/invites/accept/tok_1", () => HttpResponse.json({ email: "ada@example.test", org_name: "Acme" })),
+      http.post("/api/invites/accept/tok_1", () => {
+        signedIn = true;
+        return HttpResponse.json({ email: "ada@example.test" }, { status: 201 });
+      }),
+      http.get("/api/me", () =>
+        signedIn
+          ? HttpResponse.json({
+              user: testUser,
+              csrf: "csrf-invite",
+              orgs: [{ slug: "acme", name: "Acme", role: "member" }],
+              policy: { require_2fa: false, password_login_disabled: false },
+              mfa_enrollment_required: false,
+            })
+          : apiError(401, "unauthenticated"),
+      ),
+      http.get("/api/orgs", () =>
+        HttpResponse.json({
+          items: [{ id: "org_1", slug: "acme", name: "Acme", created_at: 1, role: "member" }],
+        }),
+      ),
+    );
+    const router = renderAt("/invite/tok_1");
+    const user = userEvent.setup({ delay: null });
+
+    await user.type(await screen.findByLabelText("Name"), "Ada");
+    await user.type(screen.getByLabelText("Password"), "correct horse battery");
+    await user.click(screen.getByRole("button", { name: "Accept invite" }));
+
+    await waitFor(() => expect(router.state.location.pathname).toBe("/acme"));
+  });
+
   it("setup asks for setup token", async () => {
     let body: Record<string, unknown> | null = null;
     server.use(
-      http.get("/api/setup", () => HttpResponse.json({ needed: true })),
+      // Setup is needed until the admin exists, as on a real instance.
+      http.get("/api/setup", () => HttpResponse.json({ needed: body === null })),
       http.post("/api/setup", async ({ request }) => {
         body = (await request.json()) as Record<string, unknown>;
         return HttpResponse.json({ user: testUser, csrf: "csrf-3" }, { status: 201 });
@@ -154,7 +220,7 @@ describe("auth pages", { timeout: 15_000 }, () => {
     await user.type(screen.getByLabelText("Password"), "correct horse battery");
     await user.click(screen.getByRole("button", { name: "Accept invite" }));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
     expect(body).toEqual({ name: "New Person", password: "correct horse battery" });
   });
 

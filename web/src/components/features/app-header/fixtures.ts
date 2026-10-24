@@ -48,12 +48,18 @@ type Opts = {
   onRedrive?: () => void;
   onPurge?: () => void;
   onEnqueue?: (body: unknown) => void;
+  effective?: Record<string, unknown>;
 };
 
 // useAppHandlers serves the app-scoped reads for the "hello" app in the "acme" org.
 export function useAppHandlers(opts: Opts = {}) {
   server.use(
-    http.get("/api/orgs/:org/apps/:app", () => HttpResponse.json(appView)),
+    http.get("/api/orgs/:org/apps/:app", () =>
+      HttpResponse.json({
+        ...appView,
+        limits: { ...appView.limits, effective: opts.effective ?? appView.limits.effective },
+      }),
+    ),
     http.get("/api/orgs/:org/apps/:app/stats", () =>
       HttpResponse.json({ requests: 42, errors: 2, error_rate: 0.05, p50_ms: 12, p95_ms: 80, p99_ms: 120 }),
     ),

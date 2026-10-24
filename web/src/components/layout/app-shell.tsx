@@ -3,7 +3,7 @@ import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { Menu, PanelLeft, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { applyTheme, readTheme, writeTheme, type Theme } from "@/lib/theme";
+import { applyTheme, readTheme, subscribeSystemTheme, writeTheme, type Theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { AccountMenu } from "./account-menu";
 import { Breadcrumbs } from "./breadcrumbs";
@@ -42,6 +42,9 @@ export function AppShell({ org, children }: { org: string; children: ReactNode }
 
   useEffect(() => {
     applyTheme(theme);
+    if (theme !== "system") return;
+    // "System" follows OS scheme changes for as long as the shell is mounted.
+    return subscribeSystemTheme(() => applyTheme("system"));
   }, [theme]);
 
   const setTheme = useCallback((next: Theme) => {

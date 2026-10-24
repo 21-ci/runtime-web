@@ -46,15 +46,15 @@ describe("SecurityPage", () => {
   it("security page lists sessions and revokes", async () => {
     const user = userEvent.setup();
     let sessions = [
-      { id: "s_current", ip: "127.0.0.1", ua: "Firefox on macOS", created_at: 1, last_seen_at: 2, current: true },
-      { id: "s_other", ip: "10.0.0.2", ua: "Chrome on Linux", created_at: 1, last_seen_at: 2, current: false },
+      { id: "s_current", ip: "127.0.0.1", ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.0; rv:120.0) Gecko/20100101 Firefox/120.0", created_at: 1, last_seen_at: 2, current: true },
+      { id: "s_other", ip: "10.0.0.2", ua: "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36", created_at: 1, last_seen_at: 2, current: false },
     ];
     server.use(
       http.get("/api/me", () => HttpResponse.json(me)),
       http.get("/api/me/sessions", () => HttpResponse.json({ items: sessions })),
       http.get("/api/me/logins", () =>
         HttpResponse.json({
-          items: [{ id: "l_1", at: 1_700_000_000_000, ip: "127.0.0.1", ua: "Firefox on macOS", method: "password", result: "ok" }],
+          items: [{ id: "l_1", at: 1_700_000_000_000, ip: "127.0.0.1", ua: "Mozilla/5.0 (Macintosh; Intel Mac OS X 14.0; rv:120.0) Gecko/20100101 Firefox/120.0", method: "password", result: "ok" }],
         }),
       ),
       http.delete("/api/me/sessions/:id", ({ params }) => {
