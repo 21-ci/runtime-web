@@ -11,7 +11,7 @@
 // RTWEB_SLUG ("rtweb"), RTWEB_PLAN ("rtweb"; falls back to "free" with a warning when the node lacks it),
 // RTWEB_ORIGIN (browser origin of the console, default `${RT_INVOKE}`), RTWEB_HOST (console host to map),
 // RTWEB_RUNTIME_PUBLIC_URL (public base of app URLs, default `${RT_INVOKE}`), RTWEB_DEFAULT_PLAN (plan for new org
-// tenants; the server defaults to "free"),
+// tenants; the server defaults to "free"), RTWEB_VERSION (build label for /healthz; install.sh passes the release),
 // RTCTL_SDK_VERSION ("0.1.0").
 //
 // Steps that need the operator (node config + restart/SIGHUP) are printed, never performed.
@@ -33,6 +33,7 @@ const ORIGIN = process.env.RTWEB_ORIGIN ?? INVOKE;
 const HOST = process.env.RTWEB_HOST ?? "";
 const PUBLIC_URL = process.env.RTWEB_RUNTIME_PUBLIC_URL ?? INVOKE;
 const DEFAULT_PLAN = process.env.RTWEB_DEFAULT_PLAN ?? "";
+const VERSION = process.env.RTWEB_VERSION ?? "";
 const SDK_VERSION = process.env.RTCTL_SDK_VERSION ?? "0.1.0";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const REPO = join(ROOT, "..");
@@ -110,7 +111,8 @@ async function ensureSdk(tenantId) {
     todo.push("Re-run once server/sdk/rtctl exists to publish and grant the rtctl SDK.");
     return;
   }
-  const source = (await readFile(src)).toString("base64");
+  // Bake the caller tenant into the SDK: only tenant runtime-web may call it (mod.ts BAKED_TENANT).
+  const source = Buffer.from((await readFile(src, "utf8")).replaceAll("__RTWEB_TENANT_ID__", tenantId)).toString("base64");
   const r = await api("POST", "/v1/sdks", { body: { name: "rtctl", version: SDK_VERSION, source, description: "Runtime Web control API" }, ok: [409] });
   step(4, r.status === 409 ? `sdk rtctl ${SDK_VERSION} already published` : `published sdk rtctl ${SDK_VERSION}`);
   await api("PUT", "/v1/sdk-grants", { body: { scope: `tenant:${tenantId}`, sdk: "rtctl", effect: "allow" } });
@@ -161,6 +163,7 @@ async function setEnv(tenant, svc, extra) {
     RTWEB_ORIGIN: ORIGIN,
     RTWEB_RUNTIME_PUBLIC_URL: PUBLIC_URL,
     ...(DEFAULT_PLAN ? { RTWEB_DEFAULT_PLAN: DEFAULT_PLAN } : {}),
+    ...(VERSION ? { RTWEB_VERSION: VERSION } : {}),
     ...extra,
   };
   if (JSON.stringify(Object.entries(env).sort()) !== JSON.stringify(Object.entries(next).sort())) {

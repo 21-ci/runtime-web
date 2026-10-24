@@ -1,6 +1,6 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help ci clean web web-test web-lint web-audit e2e budget server-deps server-assets server-ci server-test server-deploy server-install
+.PHONY: help ci clean web web-test web-lint web-audit e2e budget server-deps server-assets server-ci server-test server-deploy server-install coverage
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
@@ -18,6 +18,10 @@ web-lint: ## Lint and typecheck the web console (ESLint)
 
 web-audit: ## Install web deps and fail on high-severity npm advisories
 	cd web && npm ci && npm audit --audit-level=high
+
+coverage: ## Web + server tests with v8 coverage and thresholds (reports in */coverage)
+	cd web && npm run coverage
+	cd server && npm run coverage
 
 budget: ## Check the web gzip budgets of web/dist (docs/02 section 7); with RTWEB_URL also the service health
 	node --test scripts/budget-measure.test.js
