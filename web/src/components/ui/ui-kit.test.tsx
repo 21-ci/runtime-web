@@ -73,12 +73,12 @@ describe("ui kit", () => {
     render(<EmptyState title="No apps" description="Create one to start." />);
     const title = screen.getByText("No apps");
     const box = title.parentElement as HTMLElement;
-    expect(box.className).toMatch(/rounded-md/);
+    expect(box.className).toMatch(/rounded-2xl/);
     expect(box.className).toMatch(/border-line/);
     expect(box.className).not.toMatch(/border-dashed/);
   });
 
-  it("table uses 36px rows and muted light headers", () => {
+  it("table uses 40px rows and muted light headers", () => {
     render(
       <Table>
         <TableHeader>
@@ -94,7 +94,7 @@ describe("ui kit", () => {
       </Table>,
     );
     expect(screen.getByRole("columnheader", { name: "Name" }).className).toMatch(/text-muted/);
-    expect(screen.getByRole("cell", { name: "billing" }).className).toMatch(/h-9/);
+    expect(screen.getByRole("cell", { name: "billing" }).className).toMatch(/h-10/);
   });
 
   it("dialog opens from its trigger and shows title and description", async () => {

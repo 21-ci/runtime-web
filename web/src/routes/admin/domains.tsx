@@ -1,3 +1,5 @@
+import { Globe as GlobeTile } from "lucide-react";
+import { IconTile } from "@/components/ui/icon-tile";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AdminLayout } from "@/components/features/admin/admin-layout";
@@ -41,7 +43,7 @@ function AdminDomainsPage() {
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Domains</h1>
+      <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]"><IconTile icon={GlobeTile} entity="domains" size="md" />Domains</h1>
       {domains.isError ? (
         <QueryError error={domains.error} onRetry={() => void domains.refetch()} notFoundTitle="Not available" />
       ) : domains.isPending ? (

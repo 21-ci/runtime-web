@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
@@ -19,6 +20,7 @@ function InvitePage() {
   const invite = useInvite(token);
   const accept = useAcceptInvite(token);
   const navigate = useNavigate();
+  const qc = useQueryClient();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [needsLogin, setNeedsLogin] = useState(false);
@@ -39,7 +41,10 @@ function InvitePage() {
       { name, password },
       {
         onSuccess: () => {
-          void navigate({ to: "/login", search: {} });
+          // The accept call starts a session. Drop cached data from any earlier user, then load the
+          // session (GET /api/me) and go to the org home instead of the sign-in page.
+          qc.removeQueries();
+          void navigate({ to: "/", replace: true });
         },
         onError: (err) => {
           if (!(err instanceof ApiError)) return setFormError("Something went wrong. Try again.");
@@ -54,7 +59,7 @@ function InvitePage() {
 
   if (invite.isPending) {
     return (
-      <AuthShell title="Accept invite">
+      <AuthShell title="Accept invite" description="You have been invited to join a team on Runtime.">
         <div className="flex flex-col gap-3" aria-busy="true">
           <Skeleton className="h-8 w-full" />
           <Skeleton className="h-8 w-full" />
@@ -79,7 +84,7 @@ function InvitePage() {
   const { email, org_name } = invite.data;
 
   return (
-    <AuthShell title="Accept invite">
+    <AuthShell title="Accept invite" description="You have been invited to join a team on Runtime.">
       <div className="mb-4 text-sm">
         <p className="text-muted">Email</p>
         <p className="font-medium">{email}</p>

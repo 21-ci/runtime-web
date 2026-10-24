@@ -79,7 +79,7 @@ export function AuditPage({ org }: { org: string }) {
       ) : audit.isPending ? (
         <Skeleton className="h-40 w-full" />
       ) : entries.length === 0 ? (
-        <EmptyState icon={ScrollText} title="No matching entries" description="Try different filters." />
+        <EmptyState entity="audit" icon={ScrollText} title="No matching entries" description="Try different filters." />
       ) : (
         <>
           <Table>

@@ -45,7 +45,7 @@ export function TokensPage({ org, role }: { org: string; role: OrgRole }) {
 
   if (!canManage) {
     return (
-      <EmptyState
+      <EmptyState entity="tokens"
         icon={KeyRound}
         title="Tokens are for admins"
         description="Tokens need the owner or admin role. Ask an admin to create one."
@@ -83,7 +83,7 @@ export function TokensPage({ org, role }: { org: string; role: OrgRole }) {
       ) : tokens.isPending ? (
         <Skeleton className="h-32 w-full" />
       ) : tokens.data.length === 0 ? (
-        <EmptyState
+        <EmptyState entity="tokens"
           icon={KeyRound}
           title="No tokens yet"
           description="Create a token for a CI job or a script."

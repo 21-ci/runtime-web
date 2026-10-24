@@ -102,7 +102,7 @@ export function AuditPage() {
           <Skeleton className="h-12" />
         </div>
       ) : items.length === 0 ? (
-        <EmptyState
+        <EmptyState entity="audit"
           icon={ScrollText}
           title="No entries match"
           description="Clear a filter to see more of the log."

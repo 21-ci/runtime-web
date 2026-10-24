@@ -69,14 +69,14 @@ function useCodeHandlers(opts: { files?: typeof files; onPut?: (req: Request) =>
 
 async function openEditor() {
   renderAt("/acme/apps/hello/code");
-  return await screen.findByRole("textbox", { name: /code editor/i }, { timeout: 8000 });
+  return await screen.findByRole("textbox", { name: /code editor/i });
 }
 
 function pressSave() {
   fireEvent.keyDown(document, { key: "s", metaKey: true });
 }
 
-describe("code editor", { timeout: 15000 }, () => {
+describe("code editor", () => {
   afterEach(() => setCsrfToken(null));
 
   it("viewer sees read-only editor and no Save", async () => {
@@ -114,9 +114,21 @@ describe("code editor", { timeout: 15000 }, () => {
   it("save shows building then live", async () => {
     useShellHandlers();
     useCodeHandlers();
+    // The build stays in progress until the test releases it. A fixed server delay would make the
+    // "building" state a race against the render, which is what flaked under load.
+    let built = false;
+    server.use(
+      http.put(`${BASE}/files`, () =>
+        HttpResponse.json({ version: version(2, "building"), etag: '"e2"' }),
+      ),
+      http.get(`${BASE}/versions`, () =>
+        HttpResponse.json({ items: [version(2, built ? "ready" : "building"), version(1)] }),
+      ),
+    );
     await openEditor();
     await userEvent.click(await screen.findByRole("button", { name: /save/i }));
     expect(await screen.findByText(/building/i)).toBeInTheDocument();
+    built = true;
     const live = await screen.findByRole("link", { name: /live v2/i });
     expect(live.getAttribute("href")).toContain("/acme/apps/hello/versions");
     const frame = screen.getByTitle(/preview/i);
@@ -156,7 +168,6 @@ describe("code editor", { timeout: 15000 }, () => {
     act(() => cm.dispatch({ changes: { from: 0, insert: "// two\n" } }));
     release();
     expect(await screen.findByText(/saved version 2/i)).toBeInTheDocument();
-    await new Promise((r) => setTimeout(r, 50));
     expect(cm.state.doc.toString()).toContain("// two");
     expect(cm.state.doc.toString()).toContain("// one");
     // The text typed during the save is still unsaved.
@@ -189,7 +200,7 @@ describe("code editor", { timeout: 15000 }, () => {
     useShellHandlers();
     useCodeHandlers({ files: { ...files, kind: "wasm", read_only: true, files: { "app.wasm": "(binary)" }, entry: "app.wasm" } });
     renderAt("/acme/apps/hello/code");
-    expect(await screen.findByText(/WebAssembly/i, undefined, { timeout: 3000 })).toBeInTheDocument();
+    expect(await screen.findByText(/WebAssembly/i)).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: /save/i })).not.toBeInTheDocument();
   });
 

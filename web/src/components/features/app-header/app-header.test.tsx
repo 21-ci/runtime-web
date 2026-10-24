@@ -1,4 +1,4 @@
-import { screen } from "@testing-library/react";
+import { screen, waitFor } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
@@ -32,5 +32,27 @@ describe("app header", () => {
 
     expect(await screen.findByText("failed")).toBeInTheDocument();
     expect(screen.getByText(/boom: bad import/)).toBeInTheDocument();
+  });
+
+  it("tab bar scrolls the active tab into view and snaps", async () => {
+    useShellHandlers();
+    useAppHandlers();
+    const scrollIntoView = vi.fn();
+    const original = Element.prototype.scrollIntoView;
+    Element.prototype.scrollIntoView = scrollIntoView;
+    try {
+      renderAt("/acme/apps/hello/triggers");
+
+      const nav = await screen.findByRole("navigation", { name: "App sections" });
+      expect(nav.className).toContain("snap-x");
+      const active = nav.querySelector('[aria-current="page"]') as HTMLElement;
+      expect(active).toHaveTextContent("Triggers");
+      await waitFor(() =>
+        expect(scrollIntoView).toHaveBeenCalledWith(expect.objectContaining({ inline: "center" })),
+      );
+      expect(scrollIntoView.mock.contexts[0]).toBe(active);
+    } finally {
+      Element.prototype.scrollIntoView = original;
+    }
   });
 });

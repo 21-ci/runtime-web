@@ -1,3 +1,5 @@
+import { ShieldCheck as ShieldCheckTile } from "lucide-react";
+import { IconTile } from "@/components/ui/icon-tile";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
@@ -9,6 +11,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ApiError } from "@/lib/api";
+import { describeUserAgent } from "@/lib/user-agent";
 
 import { EnrollTotp, RecoveryCodes } from "./enroll-2fa";
 import {
@@ -33,7 +36,7 @@ export function SecurityPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-4 py-8">
       <header>
-        <h1 className="text-2xl font-semibold">Account security</h1>
+        <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]"><IconTile icon={ShieldCheckTile} entity="security" size="md" />Account security</h1>
         <p className="text-sm text-muted">{me.data.user.email}</p>
       </header>
 
@@ -204,7 +207,7 @@ function SessionsSection() {
           {sessions.data.map((s) => (
             <li key={s.id} className="group flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
               <span>
-                <span className="font-medium">{s.ua}</span>
+                <span className="font-medium">{describeUserAgent(s.ua)}</span>
                 <span className="block text-muted">
                   {s.ip} · last active {new Date(s.last_seen_at).toLocaleString()}
                 </span>
@@ -216,7 +219,7 @@ function SessionsSection() {
                   variant="ghost"
                   size="sm"
                   className="opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
-                  aria-label={`Revoke session ${s.ua}`}
+                  aria-label={`Revoke session ${describeUserAgent(s.ua)}`}
                   disabled={revoke.isPending}
                   onClick={() => revoke.mutate(s.id)}
                 >
@@ -247,7 +250,7 @@ function LoginHistorySection() {
       ) : logins.isPending ? (
         <Skeleton className="h-24 w-full" />
       ) : logins.data.length === 0 ? (
-        <EmptyState title="No sign-ins yet" />
+        <EmptyState entity="security" title="No sign-ins yet" />
       ) : (
         <Table>
           <TableHeader>
@@ -262,7 +265,7 @@ function LoginHistorySection() {
             {logins.data.map((e) => (
               <TableRow key={e.id}>
                 <TableCell>{new Date(e.at).toLocaleString()}</TableCell>
-                <TableCell>{e.ua}</TableCell>
+                <TableCell>{describeUserAgent(e.ua)}</TableCell>
                 <TableCell>{e.method}</TableCell>
                 <TableCell>{e.result === "ok" ? "Signed in" : e.result.replace(/_/g, " ")}</TableCell>
               </TableRow>

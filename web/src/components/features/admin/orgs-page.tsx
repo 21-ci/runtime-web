@@ -67,7 +67,7 @@ export function OrgsPage() {
           <Skeleton className="h-12" />
         </div>
       ) : (orgs.data ?? []).length === 0 ? (
-        <EmptyState
+        <EmptyState entity="admin"
           icon={Building2}
           title="No organizations yet"
           description="Create an organization and pick its owner from the users."

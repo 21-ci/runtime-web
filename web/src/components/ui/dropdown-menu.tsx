@@ -17,7 +17,7 @@ const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 min-w-[180px] overflow-hidden rounded-md border border-line bg-surface p-1 text-text shadow-menu",
+        "z-50 min-w-[180px] overflow-hidden rounded-xl border border-line bg-surface p-1.5 text-text shadow-menu",
         className,
       )}
       {...props}
@@ -33,7 +33,7 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex h-7 cursor-pointer select-none items-center gap-2 rounded-sm px-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-hover",
+      "relative flex h-8 cursor-pointer select-none items-center gap-2 rounded-lg transition-colors px-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-hover",
       destructive && "text-danger",
       className,
     )}
@@ -49,7 +49,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex h-7 cursor-pointer select-none items-center gap-2 rounded-sm py-1 pl-7 pr-2 text-sm outline-none data-[highlighted]:bg-hover",
+      "relative flex h-8 cursor-pointer select-none items-center gap-2 rounded-lg transition-colors py-1 pl-7 pr-2 text-sm outline-none data-[highlighted]:bg-hover",
       className,
     )}
     {...props}
@@ -63,6 +63,30 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   </DropdownMenuPrimitive.CheckboxItem>
 ));
 DropdownMenuCheckboxItem.displayName = "DropdownMenuCheckboxItem";
+
+const DropdownMenuRadioGroup = DropdownMenuPrimitive.RadioGroup;
+
+const DropdownMenuRadioItem = React.forwardRef<
+  React.ComponentRef<typeof DropdownMenuPrimitive.RadioItem>,
+  React.ComponentPropsWithoutRef<typeof DropdownMenuPrimitive.RadioItem>
+>(({ className, children, ...props }, ref) => (
+  <DropdownMenuPrimitive.RadioItem
+    ref={ref}
+    className={cn(
+      "relative flex h-8 cursor-pointer select-none items-center gap-2 rounded-lg py-1 pl-7 pr-2 text-sm outline-none transition-colors data-[highlighted]:bg-hover",
+      className,
+    )}
+    {...props}
+  >
+    <span className="absolute left-2 inline-flex size-4 items-center justify-center">
+      <DropdownMenuPrimitive.ItemIndicator>
+        <Check className="size-4" aria-hidden="true" />
+      </DropdownMenuPrimitive.ItemIndicator>
+    </span>
+    {children}
+  </DropdownMenuPrimitive.RadioItem>
+));
+DropdownMenuRadioItem.displayName = "DropdownMenuRadioItem";
 
 const DropdownMenuLabel = React.forwardRef<
   React.ComponentRef<typeof DropdownMenuPrimitive.Label>,
@@ -78,7 +102,7 @@ DropdownMenuLabel.displayName = "DropdownMenuLabel";
 
 const DropdownMenuShortcut = ({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) => (
   <span
-    className={cn("ml-auto rounded-sm border border-line bg-panel px-1 font-mono text-[11px] text-muted", className)}
+    className={cn("ml-auto rounded-md bg-panel-2 px-1 font-mono text-[11px] text-muted", className)}
     {...props}
   />
 );
@@ -99,6 +123,8 @@ export {
   DropdownMenuGroup,
   DropdownMenuItem,
   DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
   DropdownMenuSeparator,
   DropdownMenuShortcut,
   DropdownMenuTrigger,

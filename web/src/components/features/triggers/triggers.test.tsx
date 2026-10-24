@@ -11,9 +11,6 @@ import { useShellHandlers } from "@/test/shell-fixtures";
 import { useAppHandlers } from "../app-header/fixtures";
 import { pickOption } from "@/test/select";
 
-// Routes are code-split, so the first render of each test waits on a lazy chunk.
-vi.setConfig({ testTimeout: 20_000 });
-
 const TRIGGERS = "/acme/apps/hello/triggers";
 
 beforeEach(() => {
@@ -105,5 +102,20 @@ describe("triggers", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/runtime is busy/i);
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(calls).toBe(2));
+  });
+
+  it("plan without cron defaults the schedule kind to Interval and disables Cron", async () => {
+    useAppHandlers({ effective: { allowed_triggers: ["interval", "http"] } });
+    renderAt(TRIGGERS);
+
+    await userEvent.click(await screen.findByRole("button", { name: "Add schedule" }));
+    const kind = await screen.findByLabelText("Kind");
+    expect(kind).toHaveTextContent("Interval");
+    expect(screen.getByLabelText("Every (seconds)")).toBeInTheDocument();
+
+    await userEvent.click(kind);
+    const cron = await screen.findByRole("option", { name: "Cron" });
+    expect(cron).toHaveAttribute("aria-disabled", "true");
+    expect(screen.getByText(/not included in your plan/i)).toBeInTheDocument();
   });
 });

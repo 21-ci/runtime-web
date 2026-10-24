@@ -3,6 +3,8 @@ import { QueryError } from "@/components/features/empty/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCan } from "@/hooks/authz";
 
+import { planAllowsCron } from "./cron-allowed";
+
 import { DlqCard } from "./dlq-card";
 import { HttpRouteCard } from "./http-route-card";
 import { OnceSchedulesCard } from "./once-schedules-card";
@@ -27,7 +29,7 @@ export function TriggersPage({ org, app }: { org: string; app: string }) {
         <HttpRouteCard key={view.data.etag} org={org} app={app} view={view.data} />
       </fieldset>
       <fieldset disabled={can("app.schedules.write") !== true} className="contents">
-        <SchedulesCard org={org} app={app} />
+        <SchedulesCard org={org} app={app} cronAllowed={planAllowsCron(view.data.limits.effective)} />
       </fieldset>
       <OnceSchedulesCard org={org} app={app} />
       <fieldset disabled={can("app.queue.write") !== true} className="contents">

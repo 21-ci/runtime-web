@@ -78,7 +78,7 @@ function LoginPage() {
   const formError = login.error instanceof ApiError ? loginMessage(login.error) : null;
 
   return (
-    <AuthShell title="Sign in to Runtime">
+    <AuthShell title="Welcome back" description="Sign in to your Runtime workspace to pick up where you left off.">
       {search.error ? (
         <p role="alert" className="mb-4 text-sm text-danger">
           {OAUTH_ERRORS[search.error] ?? "Sign-in failed. Try again."}

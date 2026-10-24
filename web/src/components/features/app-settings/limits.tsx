@@ -4,6 +4,7 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type AppDetail, usePatchApp } from "./api";
+import { flattenLimits, formatLimit } from "./limit-format";
 import { FieldError, FormAlert, REPLACE_NOTE, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
 
 const SOURCE_LABEL: Record<AppDetail["limits"]["source"], string> = {
@@ -50,15 +51,13 @@ export function LimitsSection({ org, app }: { org: string; app: AppDetail }) {
   return (
     <Section id="limits" title="Limits" description="What this app asked for and what it gets.">
       <div className="grid gap-3 sm:grid-cols-2">
-        <div className="flex flex-col gap-1 rounded-sm border border-line p-3">
+        <div className="flex flex-col gap-2 rounded-sm border border-line p-3">
           <p className="text-[13px] font-medium text-text">Requested</p>
-          <pre className="overflow-x-auto text-xs text-muted">
-            {JSON.stringify(app.limits.requested ?? {}, null, 2)}
-          </pre>
+          <LimitList values={app.limits.requested ?? {}} empty="Nothing requested." />
         </div>
-        <div className="flex flex-col gap-1 rounded-sm border border-line p-3">
+        <div className="flex flex-col gap-2 rounded-sm border border-line p-3">
           <p className="text-[13px] font-medium text-text">Effective</p>
-          <pre className="overflow-x-auto text-xs text-text">{JSON.stringify(app.limits.effective, null, 2)}</pre>
+          <LimitList values={app.limits.effective} empty="No limits apply." />
           <p className="text-sm text-muted">
             Source: <span className="text-text">{SOURCE_LABEL[app.limits.source]}</span>
           </p>
@@ -93,5 +92,24 @@ export function LimitsSection({ org, app }: { org: string; app: AppDetail }) {
         </div>
       </form>
     </Section>
+  );
+}
+
+// LimitList renders limits as a key/value list with units, so a number reads as "1 MiB" or "30 s".
+function LimitList({ values, empty }: { values: Record<string, unknown>; empty: string }) {
+  const rows = flattenLimits(values);
+  if (rows.length === 0) return <p className="text-sm text-muted">{empty}</p>;
+  return (
+    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+      {rows.map(([key, value]) => {
+        const { label, value: text } = formatLimit(key, value);
+        return (
+          <div key={key} className="contents">
+            <dt className="text-muted">{label}</dt>
+            <dd className="text-right font-mono text-xs text-text tabular-nums">{text}</dd>
+          </div>
+        );
+      })}
+    </dl>
   );
 }

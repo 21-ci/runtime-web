@@ -1,5 +1,8 @@
+import { House as HomeTile } from "lucide-react";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
+import { Dashboard } from "@/components/features/overview/dashboard";
 import { NoProjects } from "@/components/features/empty/no-projects";
 import { QueryError } from "@/components/features/empty/query-error";
 import { QuotaBar } from "@/components/features/org/quota-bar";
@@ -19,9 +22,14 @@ function OrgOverview() {
   const canSeeUsage = role === "owner" || role === "admin";
 
   return (
-    <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
+    <div className="flex flex-col gap-6">
+      <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]">
+        <IconTile icon={HomeTile} entity="overview" size="md" />
+        Overview
+      </h1>
+      <Dashboard org={org} role={role} />
+      <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <div className="min-w-0">
-        <h1 className="mb-4 text-xl font-semibold">Overview</h1>
         <section aria-labelledby="projects-heading" className="flex flex-col gap-3">
           <h2 id="projects-heading" className="text-sm font-semibold">
             Projects
@@ -46,7 +54,7 @@ function OrgOverview() {
                   <Link
                     to="/$org/projects/$p"
                     params={{ org, p: p.slug }}
-                    className="block rounded-md border border-line bg-surface p-4 hover:border-line-strong"
+                    className="block rounded-xl border border-line bg-surface p-4 transition-[border-color,box-shadow] hover:border-line-strong hover:shadow-card"
                   >
                     <span className="block font-semibold">{p.name}</span>
                     <span className="mt-1 block text-sm text-muted">{p.environments.join(", ")}</span>
@@ -61,6 +69,7 @@ function OrgOverview() {
       <div className="flex flex-col gap-4">
         <QuotaBar org={org} />
         <UsageCard org={org} enabled={canSeeUsage} />
+      </div>
       </div>
     </div>
   );

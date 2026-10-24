@@ -1,3 +1,5 @@
+import { Settings as SettingsTile } from "lucide-react";
+import { IconTile } from "@/components/ui/icon-tile";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { QuotaBar } from "@/components/features/org/quota-bar";
@@ -20,7 +22,7 @@ function GeneralRoute() {
   const current = orgs.data?.find((o) => o.slug === org);
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-2xl font-semibold">Organization settings</h1>
+      <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]"><IconTile icon={SettingsTile} entity="settings" size="md" />Organization settings</h1>
       <dl className="grid max-w-md grid-cols-2 gap-2 text-sm">
         <dt className="text-muted">Name</dt>
         <dd>{current?.name ?? org}</dd>

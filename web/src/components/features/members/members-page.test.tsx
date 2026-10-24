@@ -48,13 +48,12 @@ describe("MembersPage", () => {
     );
     renderPage("owner");
 
-    const slow = { timeout: 4000 };
-    expect(await screen.findByText("linus@example.test", {}, slow)).toBeInTheDocument();
+    expect(await screen.findByText("linus@example.test")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Revoke invite for linus@example.test" }));
-    await user.click(await screen.findByRole("button", { name: "Revoke" }, slow));
+    await user.click(await screen.findByRole("button", { name: "Revoke" }));
 
-    await waitFor(() => expect(revoked).toBe("inv_1"), slow);
-    await waitFor(() => expect(screen.queryByText("linus@example.test")).toBeNull(), slow);
+    await waitFor(() => expect(revoked).toBe("inv_1"));
+    await waitFor(() => expect(screen.queryByText("linus@example.test")).toBeNull());
   });
 
   it("long member emails truncate with a full-text title", async () => {

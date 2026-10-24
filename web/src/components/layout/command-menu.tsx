@@ -22,7 +22,7 @@ import { visibleSettings } from "./settings-registry";
 import { useShell } from "./shell-context";
 
 const ITEM =
-  "flex h-8 cursor-pointer items-center gap-2 rounded-sm px-2 text-sm text-text data-[selected=true]:bg-active";
+  "flex h-9 cursor-pointer items-center gap-2.5 rounded-lg px-2.5 text-sm text-text transition-colors duration-[120ms] data-[selected=true]:bg-hover";
 const HEADING =
   "[&_[cmdk-group-heading]]:px-2 [&_[cmdk-group-heading]]:pb-1 [&_[cmdk-group-heading]]:pt-2 [&_[cmdk-group-heading]]:text-xs [&_[cmdk-group-heading]]:font-medium [&_[cmdk-group-heading]]:text-muted";
 const ICON = "size-4 shrink-0 text-muted";
@@ -66,13 +66,13 @@ export function CommandMenu({ org }: { org: string }) {
         onOpenChange={setPaletteOpen}
         label="Command menu"
         overlayClassName="fixed inset-0 z-50 bg-overlay/30"
-        contentClassName="fixed left-1/2 top-[14vh] z-50 w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-md bg-surface text-text shadow-menu outline-none"
+        contentClassName="fixed left-1/2 top-[14vh] z-50 w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-2xl border border-line bg-surface text-text shadow-menu outline-none"
       >
         <Command.Input
           placeholder="Search apps, projects, actions…"
-          className="h-11 w-full border-b border-line bg-transparent px-3 text-sm outline-none placeholder:text-muted"
+          className="h-12 w-full border-b border-line bg-transparent px-4 text-sm outline-none placeholder:text-muted"
         />
-        <Command.List className="max-h-[min(50vh,420px)] overflow-y-auto p-1">
+        <Command.List className="max-h-[min(50vh,420px)] overflow-y-auto p-1.5">
           <Command.Empty className="px-3 py-6 text-center text-sm text-muted">No matches.</Command.Empty>
 
           <Command.Group heading="Actions" className={HEADING}>
@@ -91,12 +91,12 @@ export function CommandMenu({ org }: { org: string }) {
                 }
                 className={ITEM}
               >
-                <Plus className={ICON} aria-hidden="true" /> New app
+                <Plus className={`${ICON} text-tag-orange-text`} aria-hidden="true" /> New app
               </Command.Item>
             ) : null}
             {canCreateProject ? (
               <Command.Item value="new project" onSelect={() => run(() => setCreateOpen(true))} className={ITEM}>
-                <FolderPlus className={ICON} aria-hidden="true" /> New project
+                <FolderPlus className={`${ICON} text-tag-yellow-text`} aria-hidden="true" /> New project
               </Command.Item>
             ) : null}
             <Command.Item
@@ -121,7 +121,7 @@ export function CommandMenu({ org }: { org: string }) {
               onSelect={() => run(() => void navigate({ to: "/$org", params: { org } }))}
               className={ITEM}
             >
-              <LayoutDashboard className={ICON} aria-hidden="true" /> Go to Overview
+              <LayoutDashboard className={`${ICON} text-tag-orange-text`} aria-hidden="true" /> Go to Overview
             </Command.Item>
             {isAdmin ? (
               <Command.Item
@@ -129,7 +129,7 @@ export function CommandMenu({ org }: { org: string }) {
                 onSelect={() => run(() => void navigate({ to: "/admin" }))}
                 className={ITEM}
               >
-                <Shield className={ICON} aria-hidden="true" /> Admin
+                <Shield className={`${ICON} text-tag-red-text`} aria-hidden="true" /> Admin
               </Command.Item>
             ) : null}
           </Command.Group>
@@ -169,7 +169,7 @@ export function CommandMenu({ org }: { org: string }) {
                   }
                   className={ITEM}
                 >
-                  <FolderOpen className={ICON} aria-hidden="true" /> {p.name}
+                  <FolderOpen className={`${ICON} text-tag-yellow-text`} aria-hidden="true" /> {p.name}
                 </Command.Item>
               ))}
             </Command.Group>
@@ -192,7 +192,7 @@ export function CommandMenu({ org }: { org: string }) {
                   }
                   className={ITEM}
                 >
-                  <Boxes className={ICON} aria-hidden="true" />
+                  <Boxes className={`${ICON} text-tag-blue-text`} aria-hidden="true" />
                   <span className="truncate">{a.name ?? a.slug}</span>
                   <span className="ml-auto shrink-0 text-xs text-muted">{projectName(a.project)}</span>
                 </Command.Item>

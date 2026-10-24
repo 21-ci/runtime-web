@@ -92,7 +92,7 @@ export function LogsView({ org, app }: { org: string; app: string }) {
       ) : null}
 
       {visible.length === 0 ? (
-        <EmptyState
+        <EmptyState entity="logs"
           title={stream.lines.length === 0 ? "No log lines yet" : "No lines match this filter"}
           description={
             stream.lines.length === 0 ? "Lines appear here as the app handles requests." : "Clear the filter to see every line."

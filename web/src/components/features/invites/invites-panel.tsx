@@ -63,7 +63,7 @@ export function InvitesPanel({ org, role }: { org: string; role: OrgRole }) {
       ) : invites.isPending ? (
         <Skeleton className="h-16 w-full" />
       ) : invites.data.length === 0 ? (
-        <EmptyState icon={MailPlus} title="No pending invites" description="Invite a teammate with the form below." />
+        <EmptyState entity="invites" icon={MailPlus} title="No pending invites" description="Invite a teammate with the form below." />
       ) : (
         <ul aria-label="Pending invites" className="divide-y divide-line rounded-md border border-line bg-surface">
           {invites.data.map((inv) => (

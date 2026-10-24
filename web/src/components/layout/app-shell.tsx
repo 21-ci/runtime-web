@@ -3,7 +3,7 @@ import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { Menu, PanelLeft, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
-import { applyTheme, readTheme, writeTheme, type Theme } from "@/lib/theme";
+import { applyTheme, readTheme, subscribeSystemTheme, writeTheme, type Theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { AccountMenu } from "./account-menu";
 import { Breadcrumbs } from "./breadcrumbs";
@@ -11,10 +11,6 @@ import { CommandMenu } from "./command-menu";
 import { ShellContext, type ShellState } from "./shell-context";
 import { Sidebar } from "./sidebar";
 import { ThemeToggle } from "./theme-toggle";
-
-// SHORTCUT_LABEL names the palette key for the platform: ⌘K on Apple devices, Ctrl K elsewhere.
-const SHORTCUT_LABEL =
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform) ? "⌘K" : "Ctrl K";
 
 const COLLAPSED_KEY = "rt-sidebar-collapsed";
 
@@ -46,6 +42,9 @@ export function AppShell({ org, children }: { org: string; children: ReactNode }
 
   useEffect(() => {
     applyTheme(theme);
+    if (theme !== "system") return;
+    // "System" follows OS scheme changes for as long as the shell is mounted.
+    return subscribeSystemTheme(() => applyTheme("system"));
   }, [theme]);
 
   const setTheme = useCallback((next: Theme) => {
@@ -100,7 +99,7 @@ export function AppShell({ org, children }: { org: string; children: ReactNode }
 
         <aside
           className={cn(
-            "sticky top-0 hidden h-dvh w-60 shrink-0 overflow-y-auto border-r border-line bg-panel",
+            "sticky top-0 hidden h-dvh w-60 shrink-0 overflow-y-auto bg-panel",
             !collapsed && "md:block",
           )}
         >
@@ -108,7 +107,7 @@ export function AppShell({ org, children }: { org: string; children: ReactNode }
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-10 flex h-11 items-center gap-1 border-b border-line bg-bg px-3 md:px-4">
+          <header className="sticky top-0 z-10 flex h-13 items-center gap-1.5 border-b border-line bg-bg px-3 md:px-6">
             <SheetPrimitive.Root open={sheetOpen} onOpenChange={setSheetOpen}>
               <SheetPrimitive.Trigger asChild>
                 <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation">
@@ -117,7 +116,7 @@ export function AppShell({ org, children }: { org: string; children: ReactNode }
               </SheetPrimitive.Trigger>
               <SheetPrimitive.Portal>
                 <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-overlay/30" />
-                <SheetPrimitive.Content className="fixed inset-y-0 left-0 z-50 w-60 max-w-[85vw] overflow-y-auto border-r border-line bg-panel text-text shadow-menu outline-none transition-transform duration-[160ms] ease-ui starting:-translate-x-full">
+                <SheetPrimitive.Content className="fixed inset-y-0 left-0 z-50 w-60 max-w-[85vw] overflow-y-auto bg-panel text-text shadow-menu outline-none transition-transform duration-[160ms] ease-ui starting:-translate-x-full">
                   <SheetPrimitive.Title className="sr-only">Navigation</SheetPrimitive.Title>
                   <SheetPrimitive.Description className="sr-only">
                     Organization projects and apps
@@ -147,23 +146,11 @@ export function AppShell({ org, children }: { org: string; children: ReactNode }
               size="icon"
               aria-label="Search"
               onClick={() => setPaletteOpen(true)}
-              className="sm:hidden"
+              className="md:hidden"
             >
               <Search className="size-4" aria-hidden="true" />
             </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              aria-label="Open command menu"
-              onClick={() => setPaletteOpen(true)}
-              className="hidden text-muted sm:inline-flex"
-            >
-              <Search className="size-4" aria-hidden="true" /> Search
-              <kbd className="ml-2 rounded-sm border border-line bg-panel px-1 font-mono text-[11px] text-muted">
-                {SHORTCUT_LABEL}
-              </kbd>
-            </Button>
-            <ThemeToggle className="ml-1 hidden sm:inline-flex" />
+<ThemeToggle className="ml-1 hidden sm:inline-flex" />
             <AccountMenu />
           </header>
 

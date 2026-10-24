@@ -15,6 +15,7 @@ export type AppView = AppSummary & {
   etag: string;
   access: "public" | "key" | "internal";
   ingress: Ingress | null;
+  limits: { effective: Record<string, unknown> };
 };
 
 export function appPath(org: string, app: string) {

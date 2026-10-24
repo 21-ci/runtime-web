@@ -58,7 +58,7 @@ function MfaPage() {
   }
 
   return (
-    <AuthShell title="Two-step verification">
+    <AuthShell title="Two-step verification" description="Enter the code from your authenticator app.">
       <p className="mb-4 text-sm text-muted">
         {recovery
           ? "Enter one of your recovery codes. Each code works once."

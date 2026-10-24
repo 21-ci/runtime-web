@@ -134,7 +134,7 @@ export function UsersPage() {
           <Skeleton className="h-12" />
         </div>
       ) : items.length === 0 ? (
-        <EmptyState
+        <EmptyState entity="members"
           icon={UserRound}
           title={search ? "No users match" : "No users yet"}
           description={search ? "Try another name or email." : "Create the first user or send an invite link."}

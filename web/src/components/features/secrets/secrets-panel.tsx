@@ -92,7 +92,7 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
       ) : secrets.isPending ? (
         <Skeleton className="h-24 w-full" />
       ) : secrets.data.length === 0 ? (
-        <EmptyState
+        <EmptyState entity="secrets"
           icon={KeyRound}
           title="No secrets yet"
           description="Secrets hold API keys and passwords your app reads at run time."

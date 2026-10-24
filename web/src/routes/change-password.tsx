@@ -50,7 +50,7 @@ function ChangePasswordPage() {
   }
 
   return (
-    <AuthShell title="Change password">
+    <AuthShell title="Change password" description="Choose a new password to keep your account safe.">
       <p className="mb-4 text-sm text-muted">Choose a new password before you continue.</p>
       <AuthForm errors={errors} onSubmit={onSubmit}>
         <FormField

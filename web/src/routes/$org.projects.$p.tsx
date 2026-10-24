@@ -1,3 +1,5 @@
+import { FolderOpen as FolderTile } from "lucide-react";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { NoApps } from "@/components/features/empty/no-apps";
@@ -42,7 +44,7 @@ function ProjectPage() {
   return (
     <div className="flex flex-col gap-6">
       <header>
-        <h1 className="text-xl font-semibold">{project.name}</h1>
+        <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]"><IconTile icon={FolderTile} entity="projects" size="md" />{project.name}</h1>
         <ul className="mt-2 flex flex-wrap gap-2" aria-label="Environments">
           {(envs.data ?? project.environments).map((e) => (
             <li key={e} className="rounded-full border border-line bg-panel px-2.5 py-0.5 text-xs">

@@ -56,7 +56,7 @@ function SetupPage() {
   }
 
   return (
-    <AuthShell title="Set up Runtime">
+    <AuthShell title="Set up Runtime" description="Create the first admin account. It only takes a minute.">
       {status.isPending ? (
         <div className="flex flex-col gap-3" aria-busy="true">
           <Skeleton className="h-8 w-full" />

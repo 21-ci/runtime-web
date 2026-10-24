@@ -2,11 +2,13 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, configure } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll } from "vitest";
 
+import { setCsrfToken, setNavigator, setOnSignedOut } from "@/lib/api";
+
 import { server } from "./msw";
 
-// Routes are code-split, so the first render of a route waits on a lazy chunk. The default 1 s
-// findBy timeout is too tight for that under parallel workers.
-configure({ asyncUtilTimeout: 4_000 });
+// Safety net only: tests await the specific state they need, and this bounds the wait when the
+// machine is loaded (lazy route chunks, parallel workers, coverage instrumentation).
+configure({ asyncUtilTimeout: 10_000 });
 
 // jsdom gaps: sonner reads matchMedia for theme="system", and router scroll restoration calls scrollTo.
 if (!window.matchMedia) {
@@ -46,9 +48,14 @@ beforeAll(() => {
   server.listen({ onUnhandledRequest: "error" });
 });
 
+// Module-level state in lib/api must not leak between tests: each test starts signed out, with the
+// default browser navigator, and no sign-out hook. renderAt installs its own per test.
 afterEach(() => {
   cleanup();
   server.resetHandlers();
+  setCsrfToken(null);
+  setNavigator((to) => window.location.assign(to));
+  setOnSignedOut(() => {});
 });
 
 afterAll(() => {

@@ -9,10 +9,10 @@ function Toaster(props: ToasterProps) {
       closeButton
       toastOptions={{
         classNames: {
-          toast: "rounded-md border border-line bg-surface text-text shadow-menu",
+          toast: "rounded-2xl border border-line bg-surface text-text shadow-menu",
           description: "text-muted",
-          actionButton: "bg-accent text-white",
-          cancelButton: "bg-panel-2 text-text",
+          actionButton: "rounded-full bg-accent text-on-primary",
+          cancelButton: "rounded-full bg-secondary text-text",
         },
       }}
       {...props}
