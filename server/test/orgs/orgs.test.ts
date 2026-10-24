@@ -71,6 +71,32 @@ describe("admin orgs", () => {
     expect((await w.admin.call("GET", "/api/orgs/acme")).status).toBe(404);
   });
 
+  it("default key is sealed per org: swapped blobs fail, legacy no-AAD blobs open and get resealed", async () => {
+    const w = await world();
+    const { defaultKey, getOrgBySlug } = await import("../../src/orgs/orgs.ts");
+    const { sealerOf } = await import("../../src/auth/types.ts");
+    const { SealError } = await import("../../src/crypto/seal.ts");
+    await makeOrg(w, "acme", await adminId(w));
+    await makeOrg(w, "beta", await adminId(w));
+    const db = w.app.deps.storage.db;
+    const a = (await getOrgBySlug(db, "acme"))?.id as string;
+    const b = (await getOrgBySlug(db, "beta"))?.id as string;
+    const keyA = await defaultKey(w.app.deps, a);
+    const blob = async (id: string) =>
+      new Uint8Array((await db.first<{ s: Uint8Array }>("SELECT default_key_sealed AS s FROM orgs WHERE id = ?", [id]))?.s as Uint8Array);
+    // copy acme's sealed key into beta: must not open as beta's key
+    await db.run("UPDATE orgs SET default_key_sealed = ? WHERE id = ?", [await blob(a), b]);
+    await expect(defaultKey(w.app.deps, b)).rejects.toBeInstanceOf(SealError);
+    // legacy value (sealed before contexts) opens once and is rewritten bound to the org
+    const legacy = await (await sealerOf(w.app.deps)).seal(new TextEncoder().encode(keyA));
+    await db.run("UPDATE orgs SET default_key_sealed = ? WHERE id = ?", [legacy, a]);
+    expect(await defaultKey(w.app.deps, a)).toBe(keyA);
+    const now = await blob(a);
+    expect(Buffer.from(now).equals(Buffer.from(legacy))).toBe(false);
+    await expect((await sealerOf(w.app.deps)).open(now)).rejects.toBeInstanceOf(SealError);
+    expect(new TextDecoder().decode(await (await sealerOf(w.app.deps)).open(now, `org.default_key:${a}`))).toBe(keyA);
+  });
+
   it("admin routes need instance admin", async () => {
     const w = await world();
     const u = await member(w, "bob@example.com");

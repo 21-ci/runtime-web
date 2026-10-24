@@ -9,6 +9,7 @@ import { AppError, conflict, notFound } from "../http/errors.ts";
 import type { Db, Stmt } from "../storage/types.ts";
 import { isBlocked, lockoutKey, MAX_TOTP_FAILURES, rateLimited, recordFailure, resetFailures } from "./ratelimit.ts";
 import { dbOf, getUserById, hasherOf, sealerOf, type AuthDeps } from "./types.ts";
+import { openCompat } from "../crypto/seal.ts";
 
 export const RECOVERY_CODE_COUNT = 10;
 export const TOTP_ISSUER = "Runtime Web";
@@ -47,6 +48,9 @@ export async function totpEnabled(db: Db, userId: string): Promise<boolean> {
   return r !== null && r.enabled_at !== null;
 }
 
+/** Seal context (AAD) of user_totp.secret_sealed. */
+const totpContext = (userId: string) => `user_totp.secret:${userId}`;
+
 /** Starts (or restarts) an unconfirmed enrollment and returns the otpauth URL. */
 export async function enroll(deps: AuthDeps, userId: string, password: string): Promise<string> {
   const db = await dbOf(deps);
@@ -55,7 +59,7 @@ export async function enroll(deps: AuthDeps, userId: string, password: string): 
   if (await totpEnabled(db, userId)) throw conflict("totp_already_enabled", "two-factor authentication is already on");
   await checkPassword(deps, userId, password);
   const secret = randomBytes(20);
-  const sealed = await (await sealerOf(deps)).seal(secret);
+  const sealed = await (await sealerOf(deps)).seal(secret, totpContext(userId));
   await db.batch([
     { sql: "DELETE FROM user_totp WHERE user_id = ? AND enabled_at IS NULL", args: [userId] },
     { sql: "INSERT INTO user_totp (user_id, secret_sealed, enabled_at, last_step) VALUES (?, ?, NULL, -1)", args: [userId, sealed] },
@@ -80,7 +84,9 @@ async function check(deps: AuthDeps, userId: string, code: string, enabled: bool
   if (!row || (row.enabled_at !== null) !== enabled) return fail(deps, userId);
   const c = normalizeCode(code);
   if (!validCodeShape(c)) return fail(deps, userId);
-  const secret = await (await sealerOf(deps)).open(new Uint8Array(row.secret_sealed));
+  const old = new Uint8Array(row.secret_sealed);
+  const { plain: secret, resealed } = await openCompat(await sealerOf(deps), old, totpContext(userId));
+  if (resealed) await db.run("UPDATE user_totp SET secret_sealed = ? WHERE user_id = ? AND secret_sealed = ?", [resealed, userId, old]);
   const step = Math.floor(deps.now() / 1000 / TOTP_PERIOD_SECONDS);
   let matched = -1;
   for (let d = -TOTP_SKEW; d <= TOTP_SKEW; d++) {

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createSealer, SealError } from "../../src/crypto/seal.ts";
+import { createSealer, openCompat, SealError } from "../../src/crypto/seal.ts";
 
 // Fixture produced by the earlier Go backend's sealer (key = bytes 0..31, plain "client-secret").
 const GO_KEY = Uint8Array.from({ length: 32 }, (_, i) => i);
@@ -46,5 +46,37 @@ describe("seal (AES-256-GCM, Go envelope nonce||ciphertext||tag)", () => {
 
   it("rejects keys that are not 32 bytes", async () => {
     await expect(createSealer(new Uint8Array(16))).rejects.toThrow(/32 bytes/);
+  });
+});
+
+describe("seal with associated data (context binding)", () => {
+  const enc = (t: string) => new TextEncoder().encode(t);
+  const dec = (b: Uint8Array) => new TextDecoder().decode(b);
+
+  it("opens only under the same context", async () => {
+    const s = await createSealer(GO_KEY);
+    const sealed = await s.seal(enc("k1"), "org.default_key:org_a");
+    expect(dec(await s.open(sealed, "org.default_key:org_a"))).toBe("k1");
+    await expect(s.open(sealed, "org.default_key:org_b")).rejects.toBeInstanceOf(SealError);
+    await expect(s.open(sealed)).rejects.toBeInstanceOf(SealError);
+  });
+
+  it("openCompat accepts a legacy no-AAD value and returns a context-bound reseal", async () => {
+    const s = await createSealer(GO_KEY);
+    const legacy = fromB64(GO_SEALED_B64);
+    const r = await openCompat(s, legacy, "oauth.client_secret:google");
+    expect(dec(r.plain)).toBe("client-secret");
+    expect(r.resealed).not.toBeNull();
+    expect(dec(await s.open(r.resealed as Uint8Array, "oauth.client_secret:google"))).toBe("client-secret");
+    await expect(s.open(r.resealed as Uint8Array)).rejects.toBeInstanceOf(SealError);
+  });
+
+  it("openCompat on a bound value needs no reseal; wrong context fails", async () => {
+    const s = await createSealer(GO_KEY);
+    const bound = await s.seal(enc("x"), "a");
+    const r = await openCompat(s, bound, "a");
+    expect(dec(r.plain)).toBe("x");
+    expect(r.resealed).toBeNull();
+    await expect(openCompat(s, bound, "b")).rejects.toBeInstanceOf(SealError);
   });
 });

@@ -20,6 +20,7 @@ import type { Db, Stmt } from "../storage/types.ts";
 import { loginUser, type Client, type LoginOutcome } from "./login.ts";
 import { lookupSession, sessionCookie } from "./session.ts";
 import { dbOf, getUserByEmail, normalizeEmail, sealerOf, type AuthDeps } from "./types.ts";
+import { openCompat } from "../crypto/seal.ts";
 
 export const PROVIDERS = ["github", "google", "oidc"] as const;
 export type ProviderId = (typeof PROVIDERS)[number];
@@ -44,6 +45,8 @@ export type OAuthErrorCode =
 const isProvider = (id: string): id is ProviderId => (PROVIDERS as readonly string[]).includes(id);
 const settingKey = (id: string) => `oauth.${id}`;
 const secretKey = (id: string) => `oauth.${id}.client_secret`;
+/** Seal context (AAD) of a provider's client secret. */
+const secretContext = (id: string) => `oauth.client_secret:${id}`;
 
 interface StoredProvider {
   enabled: boolean;
@@ -135,7 +138,7 @@ export async function oauthSettingStatements(deps: AuthDeps, input: ProviderInpu
       if (p.client_secret) cur.secret_set = true;
     }
     if (p.client_secret) {
-      const sealed = await (await sealerOf(deps)).seal(new TextEncoder().encode(p.client_secret));
+      const sealed = await (await sealerOf(deps)).seal(new TextEncoder().encode(p.client_secret), secretContext(p.id));
       stmts.push({ sql: up, args: [secretKey(p.id), JSON.stringify(base64url(sealed))] });
     }
   }
@@ -161,7 +164,10 @@ export async function getProvider(deps: AuthDeps, id: string): Promise<ProviderC
   if (!sp?.enabled) return null;
   const sec = await setting<string>(db, secretKey(id));
   if (sec === null) return null;
-  const plain = await (await sealerOf(deps)).open(unb64url(sec));
+  const { plain, resealed } = await openCompat(await sealerOf(deps), unb64url(sec), secretContext(id));
+  if (resealed) {
+    await db.run("UPDATE settings SET value = ? WHERE key = ? AND value = ?", [JSON.stringify(base64url(resealed)), secretKey(id), JSON.stringify(sec)]);
+  }
   return {
     id,
     enabled: true,

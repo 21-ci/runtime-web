@@ -180,6 +180,25 @@ describe("TOTP", () => {
     expect(rows.map((r) => r.code_hash)).not.toContain(codes[0]);
   });
 
+  it("TOTP secret is bound to its user; a legacy no-AAD secret still verifies and is resealed", async () => {
+    const app = testApp();
+    const c = await setupAdmin(app);
+    const { url } = await enableTotp(app, c);
+    const db = app.deps.storage.db;
+    const { sealerOf } = await import("../../src/auth/types.ts");
+    const sealer = await sealerOf(app.deps);
+    const secret = base32Decode(new URL(url).searchParams.get("secret") as string);
+    const legacy = await sealer.seal(secret);
+    await db.run("UPDATE user_totp SET secret_sealed = ?", [legacy]);
+    const res = await loginAs(app, "admin@example.com");
+    const done = await post(app, "/api/auth/mfa", { code: await codeFor(app, url) }, { cookie: cookieOf(res) });
+    expect(done.status).toBe(200);
+    const row = await db.first<{ s: Uint8Array; u: string }>("SELECT secret_sealed AS s, user_id AS u FROM user_totp");
+    const now = new Uint8Array(row?.s as Uint8Array);
+    await expect(sealer.open(now)).rejects.toThrow();
+    expect(await sealer.open(now, `user_totp.secret:${row?.u}`)).toEqual(secret);
+  });
+
   it("login with TOTP: pending cookie only works at /api/auth/mfa", async () => {
     const app = testApp();
     const c = await setupAdmin(app);

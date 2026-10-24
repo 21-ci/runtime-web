@@ -3,6 +3,7 @@
 
 import type { Deps } from "../app.ts";
 import { dbOf, sealerOf } from "../auth/types.ts";
+import { openCompat } from "../crypto/seal.ts";
 import { defaultKeyScopes } from "../authz/policy.ts";
 import { newId } from "../crypto/random.ts";
 import { AppError, conflict, invalid, notFound } from "../http/errors.ts";
@@ -107,9 +108,9 @@ export async function createOrg(deps: OrgDeps, actor: Actor, input: CreateOrgIn)
   });
   try {
     const key = await op.createTenantKey(tenant.id, { name: DEFAULT_KEY_NAME, scopes: defaultKeyScopes() as Scope[] });
-    const sealed = await (await sealerOf(deps)).seal(new TextEncoder().encode(key.secret));
     const now = deps.now();
     const org: Org = { id: newId("org_", now), slug, name, tenantId: tenant.id, defaultKeyId: key.id, createdAt: now };
+    const sealed = await (await sealerOf(deps)).seal(new TextEncoder().encode(key.secret), defaultKeyContext(org.id));
     try {
       await db.batch([
         {
@@ -146,12 +147,18 @@ export async function renameOrg(deps: OrgDeps, actor: Actor, org: Org, nameIn: u
   return { ...org, name };
 }
 
+/** Seal context (AAD) of orgs.default_key_sealed. */
+export const defaultKeyContext = (orgId: string) => `org.default_key:${orgId}`;
+
 /** The org's default tenant key secret (unsealed). Never returned to clients. */
 export async function defaultKey(deps: Pick<Deps, "storage" | "config">, orgId: string): Promise<string> {
   const db = await dbOf(deps);
   const r = await db.first<{ default_key_sealed: Uint8Array | null }>("SELECT default_key_sealed FROM orgs WHERE id = ? AND deleted_at IS NULL", [orgId]);
   if (!r?.default_key_sealed) throw notFound();
-  const plain = await (await sealerOf(deps)).open(new Uint8Array(r.default_key_sealed));
+  const old = new Uint8Array(r.default_key_sealed);
+  const { plain, resealed } = await openCompat(await sealerOf(deps), old, defaultKeyContext(orgId));
+  // CAS on the old bytes so a concurrent rotation is never overwritten.
+  if (resealed) await db.run("UPDATE orgs SET default_key_sealed = ? WHERE id = ? AND default_key_sealed = ?", [resealed, orgId, old]);
   return new TextDecoder().decode(plain);
 }
 

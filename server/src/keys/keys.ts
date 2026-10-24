@@ -10,7 +10,7 @@ import { isNotFound, isRuntimeError } from "../runtime/client.ts";
 import type { Scope } from "../runtime/types.ts";
 import { newId } from "../crypto/random.ts";
 import { auditIn } from "../audit/audit.ts";
-import { defaultKey, type Org as OrgRow } from "../orgs/orgs.ts";
+import { defaultKey, defaultKeyContext, type Org as OrgRow } from "../orgs/orgs.ts";
 import { runtimeOf } from "../orgs/common.ts";
 
 export const DEFAULT_KEY_NAME = "rtweb-default";
@@ -295,7 +295,7 @@ export async function rotateDefaultKey(deps: Deps, actor: Actor, org: OrgRow): P
     name: DEFAULT_KEY_NAME,
     scopes: [...KEY_SCOPES],
   });
-  const sealed = await (await sealerOf(deps)).seal(new TextEncoder().encode(key.secret));
+  const sealed = await (await sealerOf(deps)).seal(new TextEncoder().encode(key.secret), defaultKeyContext(org.id));
   const now = deps.now();
   try {
     await db.tx(async (tx) => {
