@@ -160,7 +160,12 @@ describe("TOTP", () => {
   it("enroll gives an otpauth URL; confirm needs a valid code and returns 10 codes", async () => {
     const app = testApp();
     const c = await setupAdmin(app);
-    const e = (await (await c.call("POST", "/api/me/totp/enroll")).json()) as { otpauth_url: string };
+    for (const body of [{}, { password: "wrong" }]) {
+      const r = await c.call("POST", "/api/me/totp/enroll", body);
+      expect(r.status).toBe(401);
+      expect(await errCode(r)).toBe("invalid_credentials");
+    }
+    const e = (await (await c.call("POST", "/api/me/totp/enroll", { password: PW })).json()) as { otpauth_url: string };
     expect(e.otpauth_url).toMatch(/^otpauth:\/\/totp\/Runtime%20Web:admin@example\.com\?algorithm=SHA1&digits=6&issuer=Runtime\+Web&period=30&secret=[A-Z2-7]{32}$/);
     const bad = await c.call("POST", "/api/me/totp/confirm", { code: "000000" });
     expect(bad.status).toBe(422);
@@ -169,7 +174,7 @@ describe("TOTP", () => {
     const codes = ((await ok.json()) as { recovery_codes: string[] }).recovery_codes;
     expect(codes).toHaveLength(10);
     expect(codes[0]).toMatch(/^[a-z2-7]{4}-[a-z2-7]{4}-[a-z2-7]{4}-[a-z2-7]{4}$/);
-    expect(await errCode(await c.call("POST", "/api/me/totp/enroll"))).toBe("totp_already_enabled");
+    expect(await errCode(await c.call("POST", "/api/me/totp/enroll", { password: PW }))).toBe("totp_already_enabled");
     expect(await errCode(await c.call("POST", "/api/me/totp/confirm", { code: "123456" }))).toBe("totp_already_enabled");
     const rows = await app.deps.storage.db.all<{ code_hash: string }>("SELECT code_hash FROM recovery_codes");
     expect(rows.map((r) => r.code_hash)).not.toContain(codes[0]);

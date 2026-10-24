@@ -311,7 +311,7 @@ endpoints must be `https`. Discovery is cached per issuer for 10 minutes.
 | GET | `/api/me/sessions` | session | | `200 {items: SessionInfo[]}` | |
 | DELETE | `/api/me/sessions/{id}` | session | | `204` | `404 not_found` (not the caller's session) |
 | POST | `/api/me/sessions/revoke-others` | session | | `200 {revoked: number}` | |
-| POST | `/api/me/totp/enroll` | session (2FA gate-exempt) | | `200 {otpauth_url: string}` | `409 totp_already_enabled` |
+| POST | `/api/me/totp/enroll` | session (2FA gate-exempt) | `{password: string}` | `200 {otpauth_url: string}` | `401 invalid_credentials` (wrong current password; counts toward the per-user lockout), `409 totp_already_enabled`, `429 rate_limited` |
 | POST | `/api/me/totp/confirm` | session (2FA gate-exempt) | `{code: string}` | `200 {recovery_codes: string[]}` (10, shown once) | `409 totp_already_enabled`, `422 invalid_code`, `429 rate_limited` |
 | POST | `/api/me/totp/disable` | session | `{password: string; code: string}` | `204` | `401 invalid_credentials`, `422 invalid_code`, `409 totp_not_enabled` |
 | POST | `/api/me/recovery-codes` | session | `{password: string}` | `200 {recovery_codes: string[]}` (old ones invalidated) | `401 invalid_credentials`, `409 totp_not_enabled` |

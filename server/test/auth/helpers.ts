@@ -79,7 +79,7 @@ export async function codeFor(app: TestApp, otpauth: string, offsetSteps = 0): P
 
 /** Enrolls and confirms TOTP for c; returns the otpauth URL and recovery codes. */
 export async function enableTotp(app: TestApp, c: Client): Promise<{ url: string; codes: string[] }> {
-  const e = await c.call("POST", "/api/me/totp/enroll");
+  const e = await c.call("POST", "/api/me/totp/enroll", { password: PW });
   expect(e.status).toBe(200);
   const url = ((await e.json()) as { otpauth_url: string }).otpauth_url;
   const res = await c.call("POST", "/api/me/totp/confirm", { code: await codeFor(app, url) });

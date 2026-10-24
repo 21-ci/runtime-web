@@ -91,7 +91,10 @@ export function registerMe(r: Router, deps: Deps): void {
 
   r.post(
     "/api/me/totp/enroll",
-    s(async (ctx) => json({ otpauth_url: await enroll(deps, authOf(ctx).user.id) })),
+    s(async (ctx) => {
+      const body = await readJson(ctx.req);
+      return json({ otpauth_url: await enroll(deps, authOf(ctx).user.id, str(body.password)) });
+    }),
   );
 
   r.post(

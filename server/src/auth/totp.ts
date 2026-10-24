@@ -48,11 +48,12 @@ export async function totpEnabled(db: Db, userId: string): Promise<boolean> {
 }
 
 /** Starts (or restarts) an unconfirmed enrollment and returns the otpauth URL. */
-export async function enroll(deps: AuthDeps, userId: string): Promise<string> {
+export async function enroll(deps: AuthDeps, userId: string, password: string): Promise<string> {
   const db = await dbOf(deps);
   const u = await getUserById(db, userId);
   if (!u) throw notFound();
   if (await totpEnabled(db, userId)) throw conflict("totp_already_enabled", "two-factor authentication is already on");
+  await checkPassword(deps, userId, password);
   const secret = randomBytes(20);
   const sealed = await (await sealerOf(deps)).seal(secret);
   await db.batch([
@@ -148,7 +149,7 @@ async function checkPassword(deps: AuthDeps, userId: string, password: string): 
   const db = await dbOf(deps);
   const u = await getUserById(db, userId);
   if (!u) throw notFound();
-  if (typeof password !== "string" || !(await hasherOf(deps).verify(u.pw_hash, password))) {
+  if (typeof password !== "string" || password === "" || !(await hasherOf(deps).verify(u.pw_hash, password))) {
     await recordFailure(deps.storage.kv, lockoutKey(userId));
     throw invalidCredentials();
   }
