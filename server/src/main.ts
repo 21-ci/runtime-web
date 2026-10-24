@@ -11,8 +11,8 @@ const app = createApp({
   storage: runtimeStorage(),
   version: Deno.env.get("RTWEB_VERSION") ?? "dev",
   now: () => Date.now(),
-  config: loadConfig((n) => Deno.env.get(n)),
   spa: { assets, blobs: blob, assetToken: () => Deno.env.get("RTWEB_ASSET_TOKEN") },
+  config: loadConfig((n) => Deno.env.get(n)),
 });
 
 export default {
