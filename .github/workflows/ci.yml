@@ -1,0 +1,138 @@
+# CI: every pull request and push to main/server.
+#
+#   web     npm ci, eslint, vitest with v8 coverage + thresholds, vite build, gzip budget (scripts/budget.sh)
+#   server  npm ci, eslint, tsc, vitest (unit project) with v8 coverage + thresholds
+#   docs    mkdocs build --strict (only once mkdocs.yml exists)
+#
+# Coverage reports (lcov + json-summary) are uploaded as artifacts. No secrets are used.
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main, server]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+env:
+  NODE_VERSION: "22"
+
+jobs:
+  web:
+    name: web
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: web
+    steps:
+      - uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: web/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run lint
+      - run: npm run coverage
+      - run: npm run build
+      - name: Budget (gzip; the Go binary check is skipped)
+        working-directory: .
+        env:
+          SKIP_BIN: "1"
+        run: |
+          node --test scripts/budget-measure.test.js
+          scripts/budget.sh
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: coverage-web
+          path: web/coverage/
+          retention-days: 14
+          if-no-files-found: warn
+
+  server:
+    name: server
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    defaults:
+      run:
+        working-directory: server
+    steps:
+      - uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: npm
+          cache-dependency-path: server/package-lock.json
+      - run: npm ci --ignore-scripts
+      - run: npm run lint
+      - run: npm run typecheck
+      - run: npm run coverage
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        if: always()
+        with:
+          name: coverage-server
+          path: server/coverage/
+          retention-days: 14
+          if-no-files-found: warn
+
+  shell:
+    name: shell
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - name: shellcheck (preinstalled on ubuntu runners)
+        run: shellcheck -s sh install.sh && shellcheck scripts/*.sh
+      - name: install.sh --dry-run
+        run: sh install.sh --dry-run --version 0.0.0 --domain console.example.com --email ops@example.com
+
+  docs:
+    name: docs
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      # hashFiles is not available in a job-level `if`, so each step is guarded after checkout.
+      - uses: actions/setup-python@6d4fd22b20465ccc0f7354476588e8df7c9ca0e0 # v7.1.0
+        if: hashFiles('mkdocs.yml') != ''
+        with:
+          python-version: "3.12"
+      - name: Install mkdocs (pinned in docs/requirements.txt)
+        if: hashFiles('mkdocs.yml') != ''
+        run: |
+          if [ -f docs/requirements.txt ]; then
+            python -m pip install -r docs/requirements.txt
+          else
+            echo "::error::mkdocs.yml exists but docs/requirements.txt does not"; exit 1
+          fi
+      - if: hashFiles('mkdocs.yml') != ''
+        run: mkdocs build --strict
