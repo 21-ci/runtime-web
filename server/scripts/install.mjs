@@ -45,6 +45,9 @@ if (!TOKEN) {
 }
 
 const todo = [];
+// Set once this run stores a new setup token, so a later failure still shows it (re-runs never reissue it).
+let issuedSetupToken = null;
+const consoleUrl = () => (process.env.RTWEB_ORIGIN ? ORIGIN : HOST ? `https://${HOST}` : `${INVOKE}/s/${SLUG}`);
 const step = (n, msg) => console.log(`[${n}] ${msg}`);
 
 async function api(method, path, { body, tenant, ok = [] } = {}) {
@@ -153,6 +156,7 @@ async function ensureService(tenant, cron) {
   if (!secrets.has("RTWEB_SETUP_TOKEN")) {
     setupToken = randomBytes(24).toString("base64url");
     await put("RTWEB_SETUP_TOKEN", setupToken);
+    issuedSetupToken = setupToken;
     step(5, "set secret RTWEB_SETUP_TOKEN (new)");
   }
   // Rotated every run: authorises this run's large-asset uploads only, deleted again once they are done.
@@ -296,11 +300,11 @@ async function main() {
   const ok = await smoke();
   console.log("");
   if (setupToken) {
-    console.log(`First-run setup: open ${HOST ? `https://${HOST}` : `${INVOKE}/s/${SLUG}`}/setup`);
+    console.log(`First-run setup: open ${consoleUrl()}/setup`);
     console.log(`Setup token (shown once): ${setupToken}`);
     console.log("After setup, delete it: DELETE /v1/services/" + svc.id + "/secrets/RTWEB_SETUP_TOKEN");
   } else {
-    console.log(`Console: ${HOST ? `https://${HOST}` : `${INVOKE}/s/${SLUG}`}/ (setup token was issued by an earlier run; delete the secret and re-run to reissue)`);
+    console.log(`Console: ${consoleUrl()}/ (setup token was issued by an earlier run; delete the secret and re-run to reissue)`);
   }
   if (todo.length) {
     console.log("\nOperator steps remaining:");
@@ -311,5 +315,6 @@ async function main() {
 
 main().catch((e) => {
   console.error(e.message);
+  if (issuedSetupToken) console.error(`Setup token (issued by this failed run, shown once): ${issuedSetupToken}`);
   process.exit(1);
 });
