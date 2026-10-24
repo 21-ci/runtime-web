@@ -99,7 +99,15 @@ export interface TestApp extends App {
 export function testApp(overrides: Partial<Deps> = {}): TestApp {
   let t = 1_700_000_000_000;
   const now = () => t;
-  const deps: Deps = { storage: memoryStorage(now), version: "test", now, rtctl: new FakeRtCtl(), config: testConfig(), hasher: fastHasher, ...overrides };
+  const deps: Deps = {
+    storage: memoryStorage(now),
+    version: "test",
+    now,
+    rtctl: new FakeRtCtl(),
+    config: testConfig(),
+    hasher: fastHasher,
+    ...overrides,
+  };
   const app = createApp(deps);
   return {
     ...app,

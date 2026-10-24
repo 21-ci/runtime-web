@@ -22,8 +22,14 @@ export type Middleware = (ctx: RequestContext, next: () => Promise<Response>) =>
 
 interface Route {
   method: string;
+  pattern: string;
   segments: string[];
   handler: Handler;
+}
+
+export interface RouteInfo {
+  method: string;
+  pattern: string;
 }
 
 export class Router {
@@ -37,8 +43,13 @@ export class Router {
   }
 
   add(method: string, pattern: string, handler: Handler): this {
-    this.routes.push({ method: method.toUpperCase(), segments: split(pattern), handler });
+    this.routes.push({ method: method.toUpperCase(), pattern, segments: split(pattern), handler });
     return this;
+  }
+
+  /** Registered routes, for the contract guard (test/contract.test.ts). */
+  describe(): RouteInfo[] {
+    return this.routes.map((r) => ({ method: r.method, pattern: `/${r.segments.join("/")}` }));
   }
 
   get(p: string, h: Handler) { return this.add("GET", p, h); }

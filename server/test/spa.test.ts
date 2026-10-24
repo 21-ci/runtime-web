@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { testApp, TEST_ORIGIN } from "./harness.ts";
+import { TEST_ORIGIN, testApp } from "./harness.ts";
 import { memoryBlobs, type AssetManifest } from "../src/spa.ts";
 
 const INDEX = `<!doctype html><html><head><script src="/theme-init.js"></script>

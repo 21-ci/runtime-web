@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { testApp, TEST_ORIGIN } from "./harness.ts";
+import { TEST_ORIGIN, testApp } from "./harness.ts";
 
 describe("health and router", () => {
   it("answers /healthz and /api/healthz", async () => {

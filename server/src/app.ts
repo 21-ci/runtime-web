@@ -14,6 +14,12 @@ import { registerProjects } from "./routes/projects.ts";
 import { registerLimitsUsage } from "./routes/limits_usage.ts";
 import { registerAdminNode } from "./routes/admin_node.ts";
 import { registerApps } from "./routes/apps.ts";
+import { registerDomains } from "./routes/domains.ts";
+import { registerAudit } from "./routes/audit.ts";
+import { registerSettings } from "./routes/settings.ts";
+import { registerInternal } from "./routes/internal.ts";
+import type { AppLookup, TxtLookup } from "./domains/types.ts";
+import type { RouteInfo } from "./http/router.ts";
 
 // Composition root, runtime-agnostic: main.ts passes runtime adapters, tests pass
 // in-memory ones. Each feature task adds one `registerX(router, deps)` line here.
@@ -31,10 +37,16 @@ export interface Deps {
   hasher?: Hasher;
   /** Outbound fetch for OAuth/OIDC; defaults to globalThis.fetch. */
   fetch?: typeof fetch;
+  /** App slug → runtime service (apps task); domain routes answer 404 without it. */
+  apps?: AppLookup;
+  /** TXT lookups for domain verification; defaults to DNS-over-HTTPS. */
+  txt?: TxtLookup;
 }
 
 export interface App {
   fetch(req: Request, info?: { clientIp?: string }): Promise<Response>;
+  /** Registered routes (contract guard). */
+  routes(): RouteInfo[];
 }
 
 export function createApp(deps: Deps): App {
@@ -49,6 +61,10 @@ export function createApp(deps: Deps): App {
   registerLimitsUsage(router, deps);
   registerAdminNode(router, deps);
   registerApps(router, deps);
+  registerDomains(router, deps);
+  registerAudit(router, deps);
+  registerSettings(router, deps);
+  registerInternal(router, deps);
   registerSpa(router, deps); // keep last: installs the SPA fallback
   return {
     fetch: (req, info) =>
@@ -56,5 +72,6 @@ export function createApp(deps: Deps): App {
         basePath: req.headers.get("x-rt-base-path") ?? "",
         clientIp: info?.clientIp ?? req.headers.get("x-rt-client-ip") ?? undefined,
       }),
+    routes: () => router.describe(),
   };
 }
