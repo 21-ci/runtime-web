@@ -62,7 +62,7 @@ describe("spa", () => {
   });
 
   it("does not fall back for non-GET methods", async () => {
-    expect((await app().a.call("POST", "/orgs/x")).status).toBe(404);
+    expect((await app().a.call("POST", "/orgs/x", { headers: { origin: "https://console.test" } })).status).toBe(404);
   });
 
   it("honours x-rt-base-path in index.html", async () => {
