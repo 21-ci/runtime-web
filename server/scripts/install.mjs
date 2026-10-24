@@ -119,8 +119,10 @@ async function ensureSdk(tenantId) {
   const r = await api("POST", "/v1/sdks", { body: { name: "rtctl", version: SDK_VERSION, source, description: "Runtime Web control API" }, ok: [409] });
   step(4, r.status === 409 ? `sdk rtctl ${SDK_VERSION} already published` : `published sdk rtctl ${SDK_VERSION}`);
   await api("PUT", "/v1/sdk-grants", { body: { scope: `tenant:${tenantId}`, sdk: "rtctl", effect: "allow" } });
-  await api("PUT", "/v1/sdk-grants", { body: { scope: "node", sdk: "rtctl", effect: "deny" } });
-  step(4, `sdk grants: allow tenant:${tenantId}, deny node`);
+  // Nothing is granted by default, and a deny at any level wins (a node-wide deny would also block the
+  // tenant allow above). Clear the node grant older installs wrote: a PUT with no effect deletes it.
+  await api("PUT", "/v1/sdk-grants", { body: { scope: "node", sdk: "rtctl" }, ok: [204] });
+  step(4, `sdk grants: allow tenant:${tenantId} only`);
 }
 
 // 5. service, env, secrets
