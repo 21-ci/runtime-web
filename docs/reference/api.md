@@ -1,11 +1,12 @@
 # Runtime Web HTTP API (v1 contract)
 
-This is the contract between the `rtweb` BFF (`internal/api`, Tasks 11a–11f) and the React console
-(`web/`, Tasks 13–15). Handlers and MSW mocks are both written from this file. When the code and this
+This is the contract between the `rtweb` service (`server/src/routes/`, a TypeScript backend that runs as an App
+on 21 Cloud Runtime) and the React console (`web/`). Handlers and MSW mocks are both written from this file, and
+`server/test/contract.test.ts` fails when a route listed here is not registered. When the code and this
 file disagree, fix one of them in the same PR.
 
-Names follow the plan's Interfaces blocks: `{org}` is the **org slug**, `{app}` is the **app slug**
-(resolved to the runtime `svc_` id by `apps.Resolve`), `{project}`/`{p}` is the **project slug**, and project
+Names: `{org}` is the **org slug**, `{app}` is the **app slug**
+(resolved to the runtime `svc_` id by the apps lookup), `{project}`/`{p}` is the **project slug**, and project
 grants are keyed by project slug. The word "service" never appears in this API. "App" is the user-facing
 name.
 
@@ -22,8 +23,8 @@ name.
 
 ### 1.2 Auth, cookies, CSRF, Origin
 
-- **Session cookie:** `__Host-rtw_session` (`HttpOnly; Secure; SameSite=Lax; Path=/`, no `Domain`). In dev mode
-  (`RTWEB_DEV=1`) it is `rtw_session` without `Secure`. The idle TTL is 7 days (sliding) and the absolute TTL is
+- **Session cookie:** `__Host-rtw_session` (`HttpOnly; Secure; SameSite=Lax; Path=/`, no `Domain`). With
+  `RTWEB_INSECURE_COOKIES=1` (local development only) it is `rtw_session` without `Secure`. The idle TTL is 7 days (sliding) and the absolute TTL is
   30 days.
 - **MFA-pending cookie:** the same cookie name holds a 5-minute `mfa_pending` session after a password login
   for a user with TOTP. Only `POST /api/auth/mfa` accepts it. Every other route answers `401 unauthenticated`.
@@ -32,8 +33,8 @@ name.
   Public routes without a session (`/api/setup`, `/api/auth/login`, `/api/auth/mfa`,
   `/api/invites/accept/{token}`) skip CSRF.
 - **Origin:** every unsafe method (POST, PUT, PATCH, DELETE), including the public ones, must carry an
-  `Origin` header equal to `RTWEB_PUBLIC_URL`. Missing or foreign → `403 origin_invalid`. The internal
-  router routes (§9) use a bearer secret instead and are exempt.
+  `Origin` header equal to `RTWEB_ORIGIN`. Missing or foreign → `403 origin_invalid`. The internal
+  routes (§9) are not browser routes and are exempt.
 - **Gates** (applied in this order after the session is loaded):
   1. `must_change_password` → `403 password_change_required` on every route except `GET /api/me`,
      `PUT /api/me/password` and `POST /api/auth/logout`.
@@ -47,10 +48,11 @@ Each route lists one of:
 
 - `public`: no session.
 - `session`: any logged-in user (after the gates).
-- `instance.admin`: instance admins only (`authz.InstanceAdmin`), otherwise `403 forbidden`.
-- an `authz.Action` (`app.read`, …): checked with `authz.Can(subject, action, projectSlug)`. For app routes the
+- `instance.admin`: instance admins only, otherwise `403 forbidden`.
+- an action (`app.read`, …): checked with `can(subject, action, projectSlug)` (`server/src/authz/policy.ts`). For app routes the
   project is the app's `project`, and for project routes it is `{p}`.
-- `bearer`: `Authorization: Bearer <ROUTER_SHARED_SECRET>`.
+- `asset-token`: `X-Rtweb-Asset-Token: <RTWEB_ASSET_TOKEN>` (install-time asset upload, §9).
+- `loopback`: reached only from the node itself; the Caddy console site answers `404` for `/api/internal/*`.
 
 Instance admins act as owner of every org. Each such use is audited with `as_instance_admin=1`.
 
@@ -87,7 +89,7 @@ type ErrorBody = {
   ```
 - `429` and `503 busy` also set the `Retry-After` header (seconds) and `details.retry_after` (seconds).
 
-### 1.5 Error codes (global mapping, `internal/api/errors.go`)
+### 1.5 Error codes (global mapping, `server/src/http/errors.ts`)
 
 | Status | `code` | Source |
 |---|---|---|
@@ -326,7 +328,7 @@ type Invite = {
   created_by: Pick<User, "id" | "name">;
   created_at: number; expires_at: number;   // 7 days
 };
-// link: `${RTWEB_PUBLIC_URL}/invite/<token>` (page calls /api/invites/accept/<token>)
+// link: `${RTWEB_ORIGIN}/invite/<token>` (page calls /api/invites/accept/<token>)
 ```
 
 Management uses the invite id (`inv_…`); the public accept page uses the token under `/api/invites/accept/`.
@@ -390,7 +392,7 @@ type InstanceSettingsWrite = {
 };
 ```
 
-There is no plan field anywhere: every org uses `RUNTIME_DEFAULT_PLAN`.
+There is no plan field anywhere: every org uses `RTWEB_DEFAULT_PLAN`.
 
 ## 7. Orgs, members, tokens, projects
 
@@ -477,7 +479,7 @@ type AppView = AppSummary & {
   runtime: string;                     // "deno" | "wasm"
   profile: string | null;
   access: "public" | "key" | "internal";
-  url: string;                         // `${RUNTIME_PUBLIC_URL}/s/{slug}/`
+  url: string;                         // `${RTWEB_RUNTIME_PUBLIC_URL}/s/{slug}/`
   scaling: object | null; ingress: object | null; egress: object | null;
   call: object | null; triggers: object | null;           // runtime blocks, passed through
   status: AppSummary["status"] & { inflight: number; admission: object | null };
@@ -582,7 +584,7 @@ schedule count.
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
 | GET | `…/{app}/domains` | `app.read` | | `200 {items: Domain[]}` | `404` |
-| POST | `…/{app}/domains` | `domains.manage` | `{host: string}` | `201 Domain` (`pending`) | `403`, `409 host_taken` (already active anywhere), `422 invalid` (IP, wildcard, port, `BASE_DOMAIN` or below, console or runtime host, > 253 chars) |
+| POST | `…/{app}/domains` | `domains.manage` | `{host: string}` | `201 Domain` (`pending`) | `403`, `409 host_taken` (already active anywhere), `422 invalid` (IP, wildcard, port, single label, numeric TLD, the console host, > 253 chars) |
 | POST | `…/{app}/domains/{id}/verify` | `domains.manage` | | `200 Domain` (`active`, or still `pending` when the TXT does not match yet) | `403`, `404`, `409 host_taken` |
 | DELETE | `…/{app}/domains/{id}` | `domains.manage` | | `204` | `403`, `404` |
 
@@ -647,36 +649,21 @@ type LogLine = {
   terminal reason (for example the app was deleted). The client should not reconnect after it.
 - Build logs (`…/versions/{v}/build-logs`) use the same `LogLine` shape as JSON.
 
-## 9. Internal router routes
+## 9. Internal routes
 
-Used only by `rtrouter`. They need `Authorization: Bearer <ROUTER_SHARED_SECRET>` (wrong or missing →
-`401 unauthenticated`) and skip session, CSRF and Origin checks.
+Used by the edge and the installer, never by the console. They skip session, CSRF and Origin checks.
 
 | Method | Path | Auth | Request | Response |
 |---|---|---|---|---|
-| GET | `/api/internal/router/routes` | bearer | `If-None-Match: <etag>` | `200 RouteTable` + `ETag`, or `304` when unchanged |
-| POST | `/api/internal/router/cert-status` | bearer | `CertStatusReport` | `204` (unknown hosts are ignored) |
+| GET | `/api/internal/tls-ask` | loopback | `?domain=<host>` | `200 ok` for an `active` custom domain, else `404` (Caddy on-demand TLS `ask`) |
+| PUT | `/api/internal/assets/{id}/{part}` | asset-token | raw bytes (≤ 900 kB part) | `204`; `403` wrong token, `404` unknown asset or part, `413 too_large` |
 
-```ts
-type RouteTable = {
-  console_host: string;                    // host of RTWEB_PUBLIC_URL → proxied to rtweb
-  base_domain: string;                     // {app}.{base_domain} → runtime
-  hosts: Record<string, { slug: string }>; // ACTIVE custom domains only; host → app slug
-};
-type CertStatusReport = {
-  hosts: Record<string, {
-    status: "pending" | "issued" | "error";
-    not_after?: number | null;             // unix ms
-    error?: string | null;
-  }>;
-};
-```
-
-The router polls every 5 s with `If-None-Match`. Its ACME `ask` hook allows only hosts in `hosts`.
+`install.mjs` rotates `RTWEB_ASSET_TOKEN` on every run and uploads the console files too large for the bundle
+(over 1 MB) to `std:blob` through the second route; the SPA handler streams them back.
 
 ## 10. SPA
 
 Every non-`/api` path that is not a file in `web/dist` returns `index.html` (`Cache-Control: no-cache`).
 `/assets/*` is served with `Cache-Control: public, max-age=31536000, immutable`. Every response has
-`Content-Security-Policy: default-src 'self'; frame-src <RUNTIME_PUBLIC_URL>`. Unknown `/api/*` paths return
+`Content-Security-Policy: default-src 'self'; frame-src <RTWEB_RUNTIME_PUBLIC_URL>`. Unknown `/api/*` paths return
 `404 not_found` as JSON.

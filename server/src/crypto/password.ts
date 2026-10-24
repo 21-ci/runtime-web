@@ -1,5 +1,5 @@
-// argon2id password hashing (port of internal/auth/password.go). Same params as
-// Go (m=64 MiB, t=3, p=2, 16-byte salt, 32-byte key), PHC string output, so hashes
+// argon2id password hashing. Same params as the earlier Go backend
+// (m=64 MiB, t=3, p=2, 16-byte salt, 32-byte key), PHC string output, so hashes
 // written by either implementation verify in the other.
 
 import { argon2id } from "hash-wasm";

@@ -1,4 +1,4 @@
-// Instance-admin user management (port of internal/users): create with a temporary
+// Instance-admin user management: create with a temporary
 // password, list (paged), update (name/disabled/admin), soft delete, reset password/2FA.
 
 import type { Deps } from "../app.ts";

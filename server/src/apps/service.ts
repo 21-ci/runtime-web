@@ -1,4 +1,4 @@
-// Apps on the runtime (port of internal/apps). Every call acts with the org's
+// Apps on the runtime. Every call acts with the org's
 // hidden default key (sealed in orgs.default_key_sealed, design §6) through
 // `Runtime.as(key)`. A slug held by another tenant is invisible to that key and so
 // 404. No resolve cache: each request is its own task.

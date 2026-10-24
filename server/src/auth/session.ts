@@ -1,4 +1,4 @@
-// Sessions (port of internal/auth/session.go). The cookie holds 32 random bytes
+// Sessions. The cookie holds 32 random bytes
 // as hex; the row key is sha256(raw bytes) hex, so a DB dump cannot be replayed.
 // Idle TTL 7 d (sliding, touched at most once a minute), absolute 30 d,
 // MFA-pending sessions 5 min.

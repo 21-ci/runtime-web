@@ -1,4 +1,4 @@
-// Starter sources uploaded as version 1 (port of internal/apps/templates.go).
+// Starter sources uploaded as version 1.
 // Guest code uses std:* modules only; {{SLUG}} is replaced by the app slug.
 
 export const TEMPLATES: Record<string, string> = {

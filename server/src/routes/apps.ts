@@ -1,5 +1,5 @@
-// /api/orgs/{org}/apps… (api-web §8.1–8.4, §8.6). Port of internal/api/routes_apps.go
-// and routes_stream.go. Domains (§8.5) belong to T8.
+// /api/orgs/{org}/apps… (api-web §8.1–8.4, §8.6).
+// Domains (§8.5) live in routes/domains.ts.
 
 import type { Deps } from "../app.ts";
 import { authOf, requireSession, withRetryAfter } from "../auth/middleware.ts";

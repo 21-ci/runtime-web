@@ -1,4 +1,4 @@
-// Domain errors and their HTTP mapping (api-web.md §1.4/§1.5). Handlers throw
+// Domain errors and their HTTP mapping (api.md §1.4/§1.5). Handlers throw
 // AppError; the router turns it into the error envelope. Anything else is a 500
 // whose message never leaks to the client.
 

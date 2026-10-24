@@ -1,6 +1,6 @@
-// AES-256-GCM sealing of secrets at rest (port of internal/seal).
+// AES-256-GCM sealing of secrets at rest.
 //
-// Envelope, byte-compatible with Go `seal.Sealer.Seal`: nonce(12) || ciphertext || tag(16).
+// Envelope, byte-compatible with the earlier Go backend: nonce(12) || ciphertext || tag(16).
 // No version prefix; store the bytes as a BLOB. Open fails with SealError on any
 // truncation or authentication failure, never with a partial plaintext.
 

@@ -1,5 +1,4 @@
-// First-run setup, password login, second factor and password changes (port of
-// internal/auth/service.go and setup.go).
+// First-run setup, password login, second factor and password changes.
 
 import { constantTimeEqual, sha256 } from "../crypto/hash.ts";
 import { newId, randomHex } from "../crypto/random.ts";

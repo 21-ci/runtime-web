@@ -1,5 +1,5 @@
-// RFC 4226 HOTP / RFC 6238 TOTP (HMAC-SHA-1, 6 digits, 30 s step, +-1 step skew
-// as in internal/auth/totp.go) plus base32 (RFC 4648, unpadded) for authenticator
+// RFC 4226 HOTP / RFC 6238 TOTP (HMAC-SHA-1, 6 digits, 30 s step, +-1 step skew)
+// plus base32 (RFC 4648, unpadded) for authenticator
 // enrollment. WebCrypto only.
 
 export const TOTP_PERIOD_SECONDS = 30;

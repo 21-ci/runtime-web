@@ -1,4 +1,4 @@
-// In-memory RtCtl for unit tests (port of internal/runtime/runtimetest).
+// In-memory RtCtl for unit tests.
 // Mirrors the two error shapes a real call can produce:
 //   - control API: JSON envelope {error:{code,message,details}} (auth, scope, validation, 404, 409, 412)
 //   - binding refusal: text/plain body + `x-rt-reason` (path outside the

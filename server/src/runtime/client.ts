@@ -1,4 +1,4 @@
-// Typed control-API client over RtCtl (port of internal/runtime). `Runtime`
+// Typed control-API client over RtCtl. `Runtime`
 // holds no credential; `.op()` is the operator scope (binding rtctl-op),
 // `.as(key)` a tenant key scope (binding rtctl-tenant via the relay).
 import type * as T from "./types.ts";

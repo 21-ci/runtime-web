@@ -5,18 +5,15 @@ routine tasks. For the settings themselves, see [Configuration](configuration.md
 
 ## First run
 
-1. Start the stack as described in [Install](getting-started/install.md).
-2. Open the console. On a clean database it shows the setup page and asks for the setup token.
-3. Enter the token. If you did not set `RTWEB_SETUP_TOKEN`, find the generated one in the console log (it is logged once, at `WARN`, on start):
-
-    ```bash
-    docker compose logs rtweb | grep -i setup
-    ```
-
+1. Install as described in [Install](getting-started/install.md).
+2. Open `https://<domain>/setup`. On a clean database it asks for the setup token.
+3. Enter the token that `install.sh` (through `install.mjs`) printed once. It is the service secret
+   `RTWEB_SETUP_TOKEN`; to issue a new one, delete that secret and re-run the installer.
 4. Create the first account. It becomes the instance admin.
 5. Sign in again. Enable two-factor authentication for your account at once (see [Two-factor auth and OAuth](user-guide/two-factor-and-oauth.md)).
 
-The setup token is useless once setup is complete. Setup can run only once per database.
+Setup can run only once per database. Afterwards delete the secret (`DELETE /v1/services/<id>/secrets/RTWEB_SETUP_TOKEN`
+on the control API with the root token; install prints the exact path).
 
 ## Instance admin console
 
@@ -35,56 +32,56 @@ Instance admins see the **Admin** area in the console. It has these pages:
 
 Admin actions that change state are written to the audit log.
 
-## Command line
+## Account recovery
 
-The console binary has an `admin` subcommand for recovery tasks that do not need the browser:
-
-```bash
-rtweb admin reset-2fa --email person@example.com
-```
-
-Use it when someone loses their authenticator and their recovery codes.
+When someone loses their authenticator and their recovery codes, an instance admin removes their second factor from
+**Admin → Users** (`DELETE /api/admin/users/{id}/totp`), or resets their password, which forces a change at the next
+sign-in. Both are audited.
 
 ## Runtime node
 
-The console talks to one runtime node. The node runs the apps, stores their data and enforces their limits. Check its
-health from the **Node** page, and from the compose service:
+The console runs on one runtime node as the service `rtweb` in the tenant `runtime-web`. The node runs the apps,
+stores their data and enforces their limits. Check its health from the **Node** page, and on the host:
 
 ```bash
-docker compose ps
-docker compose logs -f runtime
+systemctl status rt caddy
+journalctl -u rt -f
 ```
 
-Plans (quotas and limits per tenant) are defined in the runtime's configuration. The console assigns new tenants the
-plan named by `RUNTIME_DEFAULT_PLAN`.
+Plans (quotas, limits and `allowed_triggers` per tenant) are defined in the node's `rt.toml`. The console's own
+tenant uses the `rtweb` plan from `deploy/rt.rtweb.toml`; new org tenants get the plan named by
+`RTWEB_DEFAULT_PLAN` (default `free`). Every five minutes a `housekeeping` schedule runs the console's background
+jobs (domain re-checks, pruning); it needs the `cron` trigger in the `rtweb` plan.
 
-## Custom domains and the router
+## Custom domains and TLS
 
-Custom domains need the router and a DNS record. A domain is shown as pending until its TXT record matches the
-verification value. The router serves the console host, every `{app}.BASE_DOMAIN` host and every verified custom domain.
-With `ROUTER_TLS=on` it obtains certificates through ACME. Plan for port 443 and port 80 to be reachable from the
+A domain is shown as pending until its TXT record matches the verification value. Once verified, the console maps it
+to the app as a runtime custom host, and Caddy obtains a certificate on demand: its `ask` hook calls the console's
+`/api/internal/tls-ask`, which says yes only for active domains. Ports 80 and 443 must be reachable from the
 internet.
 
 ## Backups and keys
 
-- Back up the database file (`RTWEB_DB`) while the console is stopped, or with SQLite's online backup.
-- Back up `RTWEB_SECRET_KEY` and `RUNTIME_MASTER_KEY` separately, in a password manager or a secret store.
-  A database backup without its keys cannot decrypt sealed secrets.
+- The console's data lives in the `rtweb` service's `std:sql` database on the node: back up the node's data
+  directory (`/var/lib/rt`) with the runtime's backup procedure.
+- Back up the keys separately, in a password manager or a secret store: the service secret `RTWEB_SEAL_KEY`, the rt
+  environment file (`/etc/default/rt`: root and master keys) and `/etc/rtweb/`. A data backup without its keys cannot
+  decrypt sealed secrets.
 - Test a restore on a second machine before you need it.
 
 ## Upgrades
 
 Read the [changelog](https://github.com/21-ci/runtime-web/blob/main/CHANGELOG.md) for the version you are moving to. Back
-up first, then pull the new version and run `docker compose up -d --build --wait`. Schema migrations run when the console
-starts.
+up first, then run the installer again with the new version (`sudo sh install.sh --version X.Y.Z --domain ... --email
+...`). It keeps the secrets, uploads and activates the new service version, and the schema migrations run on the
+first request.
 
 ## Security checklist
 
-- Every `dev-insecure-*` value is replaced, and `RTWEB_DEV` is unset.
-- HTTPS is on, and the public URLs use `https://`.
-- `RTWEB_TRUSTED_PROXIES` lists only proxies you run.
+- `RTWEB_INSECURE_COOKIES` is unset, and `RTWEB_ORIGIN` uses `https://`.
+- `RTWEB_SETUP_TOKEN` is deleted after first-run setup.
 - Two-factor auth is enabled for every instance admin, and is required by policy if your team can enforce it.
-- Only the router's ports are exposed. The runtime's control port and the metrics port stay on the internal network.
+- Only Caddy's ports (80, 443) are exposed. The node's invoke (8080), control (8081) and metrics (9090) listeners stay on loopback.
 - The audit log is reviewed on a schedule.
 
 For the full model, read the [security model](security-model.md).

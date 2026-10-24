@@ -15,7 +15,7 @@
 #   --uninstall            remove Runtime Web files, secrets and the Caddy site (the runtime node is left alone)
 #   -h, --help
 #
-# What it does (docs/design/backend-on-runtime.md section 5):
+# What it does (docs/contributing/architecture.md section 5):
 #   1. checks root, Linux, x86_64/aarch64, curl, tar, sha256sum|shasum, node >= 22.5
 #   2. installs the runtime node (rt) with its own installer, pinned to a release tag, when it is not on PATH
 #   3. downloads runtime-web-<ver>.tar.gz + SHA256SUMS (+ Sigstore bundle), verifies them, unpacks to /opt/runtime-web

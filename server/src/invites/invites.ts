@@ -1,4 +1,4 @@
-// Expiring, single-use invite links (port of internal/invites). Tokens are stored as
+// Expiring, single-use invite links. Tokens are stored as
 // SHA-256 hex. A new email creates the user with the chosen password and logs in via
 // loginUser (2FA policy applies); an existing account must be the caller and only gets
 // the bound membership. Revoking deletes the row (unknown == revoked to the public).

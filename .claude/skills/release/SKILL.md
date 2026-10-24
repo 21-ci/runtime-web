@@ -1,12 +1,12 @@
 ---
 name: release
-description: Use when preparing or cutting a Runtime Web release (version bump, CHANGELOG update, verification with make ci and make e2e, signed tag, images and GitHub release), or when asked how to release.
+description: Use when preparing or cutting a Runtime Web release (version bump, CHANGELOG update, package versions, verification with make ci and make coverage, tag, and the release workflow that signs and publishes), or when asked how to release.
 ---
 
 # Release Runtime Web
 
-The full, human-facing process is in `RELEASING.md`. This skill is the checklist to run it. Release automation is not in
-the repository yet, so every step is manual. Confirm with the user before any step that pushes, tags or publishes.
+The full, human-facing process is in `RELEASING.md`. This skill is the checklist to run it. Pushing a `vX.Y.Z` tag runs
+`.github/workflows/release.yml`, which builds, signs and publishes; the steps before the tag are manual. Confirm with the user before any step that pushes, tags or publishes.
 
 ## 0. Confirm the inputs
 
@@ -42,7 +42,11 @@ Write each entry for a user, in the present tense, without commit hashes. Entrie
 configuration keys must say so. Those also need the reference docs updated (`docs/reference/api.md`,
 `docs/configuration.md`).
 
-## 3. Update CHANGELOG.md
+## 3. Update CHANGELOG.md and the package versions
+
+Set `"version": "X.Y.Z"` in `server/package.json` and `web/package.json` (run `npm install` in each to refresh the
+lockfile). The release workflow fails when either does not match the tag.
+
 
 1. Move the entries under `## [Unreleased]` into `## [X.Y.Z] - YYYY-MM-DD` (today's date, ISO format).
 2. Leave an empty `## [Unreleased]` section at the top.
@@ -58,9 +62,11 @@ configuration keys must say so. Those also need the reference docs updated (`doc
 ## 4. Verify
 
 ```bash
-make ci           # format, vet, tests, vulnerability scan, web lint and tests, build, budgets
-make e2e          # compose stack and the Playwright smoke suite (needs Docker)
+make ci           # web build/lint/tests/budgets, server typecheck/lint/tests
+make coverage     # both suites with coverage thresholds
+shellcheck -s sh install.sh && sh install.sh --dry-run --version X.Y.Z --domain console.example.com --email ops@example.com
 mkdocs build --strict   # docs site, in a venv with docs/requirements.txt installed
+make e2e          # Playwright smoke against a runtime-hosted console (needs RTWEB_URL and a node)
 ```
 
 Every command must pass on the release commit. If `make e2e` cannot run in this environment, say so in the report
@@ -69,11 +75,11 @@ instead of skipping it silently.
 ## 5. Commit the release
 
 ```bash
-git add CHANGELOG.md
+git add CHANGELOG.md server/package.json server/package-lock.json web/package.json web/package-lock.json
 git -c commit.gpgsign=false commit -s -m "chore: release vX.Y.Z"
 ```
 
-Sign the tag (step 6) with the maintainer key. Do not commit the built binaries.
+Sign the tag (step 6) with the maintainer key. Do not commit build output.
 
 ## 6. Tag
 
@@ -87,20 +93,23 @@ Push only after the user confirms:
 git push origin main vX.Y.Z
 ```
 
-## 7. Build the images
+## 7. Watch the release workflow
 
-`make docker` builds `rtweb:dev` and `rtrouter:dev`. Retag them as `X.Y.Z` and push them to the registry the maintainers
-use. Record the image digests for the release notes.
+`release.yml` checks the tag against both package versions, runs the tests, assembles
+`runtime-web-X.Y.Z.tar.gz` (`server/`, `web/dist/`, `deploy/`, `install.sh`, `VERSION`), writes an SPDX SBOM, scans
+both with Trivy, publishes `SHA256SUMS` with a cosign keyless bundle and SLSA provenance, creates the GitHub release
+with the CHANGELOG section as notes, and a `verify` job re-downloads and checks everything.
 
 ```bash
-make build                      # bin/rtweb with version, commit and date stamped from git
-shasum -a 256 bin/rtweb         # checksum for the release page
+gh run watch -R 21-ci/runtime-web $(gh run list -R 21-ci/runtime-web --workflow release.yml -L1 --json databaseId -q '.[0].databaseId')
 ```
 
-## 8. Publish the GitHub release
+If it fails, fix the cause, delete the tag (and the release, if one was created) and tag again.
 
-Create the release from the tag, with the `## [X.Y.Z]` section of CHANGELOG.md as the body. Attach the checksums. Link
-the docs site.
+## 8. Check the published release
+
+`docs/contributing/ci-cd.md` lists the `cosign verify-blob`, `sha256sum --check` and `gh attestation verify`
+commands. Run them against the published assets.
 
 ## 9. Report
 
@@ -109,8 +118,8 @@ Return to the user:
 - the tag and the commit,
 - the CHANGELOG section,
 - the verification results (pass, fail or not run, with reasons),
-- the image digests and the release URL,
-- anything left for a human (signing key, registry credentials, announcement).
+- the release URL and the workflow run,
+- anything left for a human (tag signing key, announcement).
 
 ## Hotfix
 

@@ -2,7 +2,7 @@ import type { Deps } from "../app.ts";
 import type { Router } from "../http/router.ts";
 import { json } from "../http/json.ts";
 
-// GET /healthz is the contract route (api-web.md §2); /api/healthz is the same
+// GET /healthz is the contract route (api.md §2); /api/healthz is the same
 // answer under /api for probes that only reach the API prefix. `db` proves the
 // storage adapter works end to end.
 export function registerHealth(r: Router, deps: Deps): void {

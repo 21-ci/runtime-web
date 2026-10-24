@@ -4,7 +4,7 @@ import { meQuery } from "@/components/features/admin/gate";
 import { useOrgs, useProjects } from "@/hooks/orgs";
 import type { OrgRole } from "@/lib/types";
 
-// Write actions the console gates. Mirrors internal/authz rules (the server stays the authority;
+// Write actions the console gates. Mirrors server/src/authz/policy.ts (the server stays the authority;
 // this only hides controls a role cannot use).
 export type Action =
   | "org.update"

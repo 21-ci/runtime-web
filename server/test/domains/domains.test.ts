@@ -1,4 +1,4 @@
-// Port of internal/domains tests: validation, claim/conflict, verify and activation via
+// Domains: validation, claim/conflict, verify and activation via
 // the runtime, expiry and deactivation in the checker, unmap retries, reconcile, and
 // authz on the app routes. Clock is the harness fake clock (tick).
 import { describe, expect, it } from "vitest";

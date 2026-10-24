@@ -1,4 +1,4 @@
-// Domain checker (port of Go CheckOnce/reconcile), run from scheduled().
+// Domain checker, run from scheduled().
 // pending: re-verified every 60 s, failed after 24 h. active: re-checked every 6 h,
 // deactivated after 3 consecutive TXT misses. Runtime: queued unmaps are retried and
 // active hosts the runtime lost are re-PUT. Each step logs and continues on failure.

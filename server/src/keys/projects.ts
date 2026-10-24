@@ -1,4 +1,4 @@
-// Projects of an org (port of internal/apps/projects.go). The runtime owns the
+// Projects of an org. The runtime owns the
 // projects; calls go through the org's default key so the relay enforces the
 // tenant. Members see only projects they hold a grant on.
 

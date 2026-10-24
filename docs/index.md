@@ -13,7 +13,7 @@ Everything the console does goes through the runtime's API, so anything you can 
 
 - **Install**
 
-    Run the console and a runtime node with Docker Compose.
+    Install the console as an App on a 21 Cloud Runtime node with one script.
 
     [:octicons-arrow-right-24: Install](getting-started/install.md)
 

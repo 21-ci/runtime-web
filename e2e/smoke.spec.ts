@@ -211,7 +211,7 @@ test("smoke: setup, org, 2FA, app, invite, custom domain", async ({ browser }) =
     await inviteeCtx.close();
   });
 
-  await test.step("custom domain: unverified host gets no route through rtrouter", async () => {
+  await test.step("custom domain: unverified host gets no route on the runtime", async () => {
     const dom = await api(ownerPage, "POST", `/api/orgs/${ORG}/apps/${APP}/domains`, {
       csrf: ownerCsrf,
       data: { host: CUSTOM_HOST },

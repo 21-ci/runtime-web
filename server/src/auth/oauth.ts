@@ -1,4 +1,4 @@
-// OAuth / OIDC login linking (port of internal/auth/oauth.go + oauth_settings.go).
+// OAuth / OIDC login linking.
 // Authorization code + PKCE (S256) with a confidential client. It only links an
 // existing user by verified email and never creates one. id_token/nonce are not
 // used: identity comes from userinfo (GitHub: /user + /user/emails) over TLS.

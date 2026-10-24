@@ -1,4 +1,4 @@
-// Operator views of the runtime node (port of internal/admin). Calls use the
+// Operator views of the runtime node. Calls use the
 // operator binding. Every mutation writes a pending audit row before the runtime
 // call and an applied or failed row after it; a failed intent row aborts the change.
 

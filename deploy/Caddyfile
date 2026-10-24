@@ -1,4 +1,4 @@
-# Runtime Web edge for a 21 Cloud Runtime node (docs/design/backend-on-runtime.md D5, D10, D11).
+# Runtime Web edge for a 21 Cloud Runtime node (docs/contributing/architecture.md D5, D10, D11).
 # Env: RTWEB_RELAY_SECRET (same value the node exports for binding rtctl-tenant),
 #      RTWEB_DOMAIN (console host, e.g. console.example.com), RTWEB_ACME_EMAIL.
 # The runtime never terminates TLS: Caddy does, and forwards plain HTTP to the invoke listener :8080,
@@ -35,6 +35,9 @@ http://127.0.0.1:8082 {
 
 # Console host: mapped by the operator to service rtweb (PUT /v1/services/{s}/hosts/{host}).
 {$RTWEB_DOMAIN} {
+	# Internal routes (tls-ask, asset upload) are for the node itself, via 127.0.0.1:8080 only.
+	@internal path /api/internal/*
+	respond @internal 404
 	reverse_proxy 127.0.0.1:8080
 }
 

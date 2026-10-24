@@ -1,5 +1,4 @@
-// Request guards (port of internal/auth/{middleware,csrf,origin,mustchange,policy}.go
-// and the api session chain). Use from any route module:
+// Request guards: session, CSRF, Origin, must-change-password and policy gates. Use from any route module:
 //
 //   r.get("/api/orgs", requireSession(deps, async (ctx) => { const { user } = authOf(ctx); ... }));
 //   r.post("/api/admin/users", requireAdmin(deps, handler));

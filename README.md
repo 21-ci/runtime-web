@@ -44,55 +44,60 @@ click here you can also script.
 | **Triggers** | HTTP routes, interval and cron schedules, and the app's durable queue with its dead-letter queue, all managed from one page |
 | **Config** | Environment variables, write-only secrets, and the rules that decide who can call an app |
 | **Tokens** | Default org keys plus scoped custom tokens, shown once on creation and never again |
-| **Domains** | Custom domains with DNS TXT verification, mapped to apps through the router, with TLS through the router (ACME) |
+| **Domains** | Custom domains with DNS TXT verification, mapped to apps as runtime custom hosts, with on-demand TLS from Caddy (ACME) |
 | **Security** | Password login with TOTP two-factor auth, GitHub, Google and generic OIDC sign-in, session and CSRF protection, org-scoped audit log |
 | **Admin** | Instance admin console: users, orgs, invites, runtime node status, cache, instance settings, domains and audit |
 
 ## Quick install
 
-> The installer and release artifacts are not published yet. This is the path they will take.
+On a Linux host (x86_64 or aarch64) with Node.js 22.5+ and Caddy:
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/21-ci/runtime-web/main/install.sh | sh
+curl -fsSL https://raw.githubusercontent.com/21-ci/runtime-web/main/install.sh -o install.sh
+sudo sh install.sh --domain console.example.com --email ops@example.com
 ```
 
-The installer starts the console next to a 21 Cloud Runtime node. Set the secrets it asks for, then open the console
-URL it prints and complete first-run setup. Full steps: [Install](https://21-ci.github.io/runtime-web/getting-started/install/).
+`install.sh` installs a 21 Cloud Runtime node when `rt` is missing, downloads a signed release (SHA256SUMS, cosign
+bundle), adds the `rtweb` plan and bindings to the node, puts Caddy in front with on-demand TLS, and deploys the
+console as an App on the node with `server/scripts/install.mjs`. It prints a one-time setup token; open
+`https://<domain>/setup` to finish. `--dry-run` shows every step without changing the host. Full steps:
+[Install](https://21-ci.github.io/runtime-web/getting-started/install/).
 
 ## Architecture
 
 ```
-browser ──► router ──► console (SPA + API) ──► 21 Cloud Runtime (control API)
-              │                 │
-              └── app hosts ────┴── runtime public listener
+browser ──► Caddy (TLS) ──► runtime invoke listener ──► rtweb service (SPA + API, TypeScript)
+                                     │                          │ sdk("rtctl")
+                                     └── app hosts / custom     ▼
+                                         domains ──► apps   runtime control API (bindings rtctl-op,
+                                                            rtctl-tenant via the Caddy relay)
 ```
 
-- **Console**: a React single-page app and its JSON API. The API backend runs as an App on 21 Cloud Runtime.
-- **Router**: sends the console host, `{app}.{base domain}` and custom domains to the right place, and terminates TLS.
-- **Runtime**: runs the apps, owns their code, storage, schedules and queues, and enforces limits.
+- **Console**: a React single-page app (`web/`) embedded into the `rtweb` service (`server/`), a TypeScript backend
+  that runs as an App on 21 Cloud Runtime. State lives in the service's `std:sql` and `std:kv`.
+- **Runtime**: runs the apps, owns their code, storage, schedules and queues, maps custom hosts and enforces limits.
+- **Caddy**: terminates TLS for the console and app domains (on-demand certificates gated by the console) and relays
+  tenant-scoped control-API calls.
 
-Trust boundaries and the security model: [Security model](https://21-ci.github.io/runtime-web/security-model/).
+Design: [Architecture](https://21-ci.github.io/runtime-web/contributing/architecture/). Trust boundaries:
+[Security model](https://21-ci.github.io/runtime-web/security-model/).
 
 ## Development
 
-You need Docker with Compose v2, Node.js (for the web console) and GNU make. Dev quickstart with the full stack:
-
-```bash
-cp .env.example .env            # dev values: every dev-insecure-* secret is for local use only
-docker compose up -d --build --wait
-open http://console.localhost:8080
-```
-
-On a clean volume the console opens the setup page. The `make` targets cover the rest:
+You need Node.js 22.5+ and GNU make. For a live deploy, a local 21 Cloud Runtime node.
 
 ```bash
 make help        # list targets
-make ci          # the checks CI runs: format, vet, tests, build, budgets
-make web-test    # console tests (Vitest)
-make build       # build the rtweb binary into bin/
+make ci          # web build/lint/tests and budgets, server typecheck/lint/tests
+make coverage    # web + server tests with coverage thresholds
+make server-deploy   # dev deploy to a local runtime node (needs RT_ROOT_TOKEN)
+make e2e         # Playwright smoke against a hosted console (needs RTWEB_URL)
 ```
 
-Configuration reference: [Configuration](https://21-ci.github.io/runtime-web/configuration/). Local docs preview:
+The console's tests run against MSW handlers, the server's against an in-memory harness (node:sqlite, fake
+runtime), so neither needs a runtime node. Configuration:
+[Configuration](https://21-ci.github.io/runtime-web/configuration/). CI, security scans and signed releases:
+[CI and releases](https://21-ci.github.io/runtime-web/contributing/ci-cd/). Local docs preview:
 
 ```bash
 pip install -r docs/requirements.txt

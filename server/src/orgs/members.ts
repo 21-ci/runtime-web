@@ -1,4 +1,4 @@
-// Org members and project grants (port of internal/orgs/members.go), plus the
+// Org members and project grants, plus the
 // per-request org access check other route modules use (api-web §1.3 visibility rule).
 
 import type { Deps } from "../app.ts";

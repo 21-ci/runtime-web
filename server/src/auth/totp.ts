@@ -1,5 +1,4 @@
-// TOTP second factor and recovery codes (port of internal/auth/totp.go and
-// recovery.go). Secrets (20 bytes) are sealed at rest; `last_step` rejects
+// TOTP second factor and recovery codes. Secrets (20 bytes) are sealed at rest; `last_step` rejects
 // replays; recovery codes are stored as sha256(normalized) hex. Failures share
 // the per-user `lockout:<user>` budget (5 / 15 min).
 

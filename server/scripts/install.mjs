@@ -1,5 +1,5 @@
 #!/usr/bin/env node
-// Fresh-install bootstrap of Runtime Web on a 21 Cloud Runtime node (docs/design/backend-on-runtime.md §5).
+// Fresh-install bootstrap of Runtime Web on a 21 Cloud Runtime node (docs/contributing/architecture.md §5).
 //
 //   RT_ROOT_TOKEN=... node scripts/install.mjs [--build]
 //

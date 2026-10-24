@@ -1,4 +1,4 @@
-// Login history (port of internal/auth/events.go), table login_events.
+// Login history, table login_events.
 
 import { newId } from "../crypto/random.ts";
 import type { Db } from "../storage/types.ts";

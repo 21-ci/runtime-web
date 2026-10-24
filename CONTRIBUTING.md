@@ -9,11 +9,11 @@ Questions go to [Discussions](https://github.com/21-ci/runtime-web/discussions).
 - Open an issue or a discussion before a large change, so the design is agreed before the code.
 - One logical change per PR. Small PRs are reviewed faster.
 - Cover the main logic with tests: request paths, authorization rules, limits, user-visible errors. Use the helpers in
-  existing `*_test.go` and `web/src/test/` files.
+  `server/test/` (`harness.ts`, `fakes/`) and `web/src/test/`.
 - User-visible behaviour (HTTP API, config keys, limits, UI copy that documents a rule) changes together with its docs.
   The API reference is [`docs/reference/api.md`](docs/reference/api.md); the config reference is
   [`docs/configuration.md`](docs/configuration.md).
-- Changes that touch a trust boundary (sessions, CSRF, authorization, secrets, domains, the router) also update
+- Changes that touch a trust boundary (sessions, CSRF, authorization, secrets, domains, the rtctl SDK and bindings, the Caddy relay) also update
   [SECURITY.md](SECURITY.md) or the security model docs, and ask for a security-aware review.
 - Commit messages and PR titles use [Conventional Commits](https://www.conventionalcommits.org) (`feat:`, `fix:`,
   `docs:`, `chore:`, `feat!:` for a breaking change).
@@ -23,21 +23,21 @@ Questions go to [Discussions](https://github.com/21-ci/runtime-web/discussions).
 
 | Need | Why |
 |---|---|
-| Docker with Compose v2 | the full stack: 21 Cloud Runtime node, console, router |
-| Node.js (version in `web/package.json` engines or `.nvmrc`, if present) | the console (`web/`): npm, Vite, Vitest |
+| Node.js 22.5+ | the console (`web/`) and the backend (`server/`): npm, Vite, Vitest, `node:sqlite` in server tests |
 | GNU make | every task below is a `make` target |
+| optional: a local 21 Cloud Runtime node | `make server-deploy` and `make e2e` against a hosted console |
 | Python 3.10+ | the docs site (`docs/requirements.txt`) |
-| optional: `gitleaks`, `shellcheck` | what a local pre-commit check would run |
+| optional: `shellcheck`, `actionlint`, `gitleaks` | what CI runs on `install.sh`, the workflows and secrets |
 
 ```bash
 git clone https://github.com/21-ci/runtime-web && cd runtime-web
-cp .env.example .env
-make web          # install web dependencies and build the console
-docker compose up -d --build --wait
+make ci           # installs web and server dependencies, builds, lints and tests both
 ```
 
-Open `http://console.localhost:8080` and complete first-run setup. The dev values in `.env.example` are placeholders,
-and `RTWEB_DEV=1` accepts them. Never reuse them outside local development.
+Both test suites run without a runtime node: the console mocks the API with MSW, the server runs the whole app over
+an in-memory harness (node:sqlite, a Map for KV, a fake `rtctl`). To try a change in a real console, start a local
+runtime node, then `cp .env.example .env`, `set -a; . ./.env; set +a` and `make server-deploy`. The
+`dev-insecure-*` values are placeholders; never reuse them outside local development.
 
 ## Make targets
 
@@ -45,27 +45,27 @@ and `RTWEB_DEV=1` accepts them. Never reuse them outside local development.
 
 | Target | Does |
 |---|---|
-| `make build` | build the `rtweb` binary into `bin/` (embeds the console) |
-| `make test` | run the server tests |
-| `make web-test` | run the console tests (Vitest, Testing Library, MSW) |
-| `make web-lint` | ESLint and TypeScript checks for the console |
-| `make fmt` / `make fmt-check` | format / fail on unformatted files |
-| `make ci` | the full CI chain: format check, vet, tests, vulnerability scan, web lint and tests, build, budgets |
-| `make e2e` | start the compose stack and run the Playwright smoke suite |
-| `make docker` | build the `rtweb` and `rtrouter` images |
+| `make ci` | the CI chain: web build, lint, tests and gzip budgets; server typecheck, lint and unit tests |
+| `make coverage` | web + server tests with v8 coverage thresholds |
+| `make web-test` / `make web-lint` | console tests (Vitest, Testing Library, MSW) and ESLint |
+| `make server-test` | server unit tests (Vitest) |
+| `make server-deploy` | dev deploy of `server/` to a local runtime node (needs `RT_ROOT_TOKEN`) |
+| `make server-install` | idempotent install onto a runtime node (`server/scripts/install.mjs`) |
+| `make e2e` | Playwright smoke suite against a runtime-hosted console (needs `RTWEB_URL`) |
 
 ## Tests
 
 Run the narrowest test that covers your change while iterating, then the full chain before you push:
 
 ```bash
-make test                 # server packages
-make web-test            # console
-make e2e                 # black-box smoke against docker compose (needs Docker)
+cd server && npx vitest run test/orgs    # one server area
+cd web && npx vitest run src/components/features/apps
+make ci && make coverage
 ```
 
-The console's tests mock the API with MSW. When you change an endpoint, update the mock handlers under `web/src/test/`
-in the same PR.
+`server/test/contract.test.ts` parses the endpoint tables in [`docs/reference/api.md`](docs/reference/api.md) and
+fails when a documented route is not registered. When you change an endpoint,
+update that file and the console's MSW handlers under `web/src/test/` in the same PR.
 
 ## Pull requests
 

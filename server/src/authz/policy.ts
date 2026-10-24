@@ -1,5 +1,5 @@
 // What a user may do in an org: org roles, project grants keyed by project slug, and
-// the instance admin override. Pure logic, port of internal/authz.
+// the instance admin override. Pure logic.
 
 export const Actions = [
   "org.read",

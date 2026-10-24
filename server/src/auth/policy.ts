@@ -1,4 +1,4 @@
-// Instance auth policy in the settings table (port of internal/auth/policy.go).
+// Instance auth policy in the settings table.
 // Values are JSON booleans; a missing key is false.
 
 import { conflict } from "../http/errors.ts";

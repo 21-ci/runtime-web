@@ -1,4 +1,4 @@
-// Custom domains for apps (port of internal/domains). A host is claimed as `pending`,
+// Custom domains for apps. A host is claimed as `pending`,
 // verified by a TXT record at `_rtweb.<host>`, and mapped on the runtime (operator PUT
 // …/hosts/{h}) only after the TXT matches. Only `active` hosts are routed (tls-ask).
 // Callers pass an authorised app; this module does data, runtime and audit work.

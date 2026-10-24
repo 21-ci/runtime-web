@@ -1,5 +1,4 @@
-// Schema migrations for std:sql (design §6). Ported from internal/store/migrations
-// minus the router tables. Times are unix ms INTEGER; ids are `xxx_<ulid>` TEXT;
+// Schema migrations for std:sql (design §6). Times are unix ms INTEGER; ids are `xxx_<ulid>` TEXT;
 // booleans are INTEGER 0/1; sealed secrets are BLOB.
 //
 // Rules: append only. Each migration is idempotent (IF NOT EXISTS) so a partial

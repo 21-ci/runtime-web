@@ -1,6 +1,6 @@
 // eslint-disable-next-line @typescript-eslint/triple-slash-reference -- std module types for tsc; ignored by the runtime build
 /// <reference path="./std.d.ts" />
-// Operator SDK `rtctl` (design docs/design/backend-on-runtime.md D3-D5).
+// Operator SDK `rtctl` (design docs/contributing/architecture.md D3-D5).
 // The one path from the rtweb service to the runtime control API:
 //   op(req)      -> binding rtctl-op     (node injects the operator token)
 //   tenant(req)  -> binding rtctl-tenant (relay maps x-rtweb-key -> Authorization)

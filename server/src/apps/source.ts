@@ -1,4 +1,4 @@
-// App source ↔ editor Files (port of internal/apps/source.go). Supported formats:
+// App source ↔ editor Files. Supported formats:
 // TypeScript/JavaScript single files, the runtime JSON bundle {entry, files}, and
 // wasm (read-only). zip/tar archives (CLI uploads) are shown read-only with no files
 // in this port: unpacking them needs a zip/tar reader we do not ship.

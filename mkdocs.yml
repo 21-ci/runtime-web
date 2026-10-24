@@ -102,5 +102,7 @@ nav:
       - HTTP API: reference/api.md
   - Contributing:
       - contributing/index.md
+      - Architecture: contributing/architecture.md
+      - CI and releases: contributing/ci-cd.md
       - Code style: contributing/code-style.md
       - Design tokens: contributing/design-tokens.md

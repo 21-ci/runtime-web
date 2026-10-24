@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { hashPassword, verifyPassword } from "../../src/crypto/password.ts";
 
-// Produced by Go internal/auth.Argon2{}.Hash("correct horse battery").
+// Produced by the earlier Go backend's argon2id hasher,("correct horse battery").
 const GO_HASH =
   "$argon2id$v=19$m=65536,t=3,p=2$VSqhxuPNyep9IOl0uGtMvA$doVPygo6P9coakYPE0L55D49Cs+2BmQeQvraLGH40zc";
 

@@ -1,4 +1,4 @@
-// Org runtime keys (port of internal/keys). Custom tokens are minted with the
+// Org runtime keys. Custom tokens are minted with the
 // operator route so rotating the hidden default key never cascades to them.
 // The default key secret lives sealed in orgs.default_key_sealed and is never
 // listed or returned. Secrets of custom tokens are returned once and never stored.
@@ -14,7 +14,7 @@ import { defaultKey, type Org as OrgRow } from "../orgs/orgs.ts";
 import { runtimeOf } from "../orgs/common.ts";
 
 export const DEFAULT_KEY_NAME = "rtweb-default";
-/** Every tenant scope except keys:write (internal/authz DefaultKeyScopes). */
+/** Every tenant scope except keys:write (the default key scopes). */
 export const KEY_SCOPES = [
   "services:read",
   "logs:read",

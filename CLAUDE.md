@@ -1,7 +1,7 @@
 # Runtime Web
 
 React console plus a TypeScript backend that runs as a 21 Cloud Runtime service
-(docs/design/backend-on-runtime.md).
+(docs/contributing/architecture.md).
 
 ## Module map
 

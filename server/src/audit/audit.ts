@@ -1,4 +1,4 @@
-// Append-only audit log (port of internal/audit). Other modules record events with
+// Append-only audit log. Other modules record events with
 // `audit(deps, event)`, or `auditStmt(deps, event)` to put the row in the same batch as
 // the change it describes. Listing is keyset-paged, newest first.
 

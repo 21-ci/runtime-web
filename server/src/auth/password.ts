@@ -1,4 +1,4 @@
-// Password policy and the injectable hasher (port of internal/auth/password.go).
+// Password policy and the injectable hasher.
 // The argon2id implementation lives in crypto/password.ts; tests inject a cheap
 // hasher through Deps.hasher so suites stay fast.
 

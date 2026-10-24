@@ -1,5 +1,4 @@
-// Failure counters in std:kv (port of internal/auth/ratelimit.go, which used a
-// SQL table). Fixed windows: the first failure creates the counter with a TTL,
+// Failure counters in std:kv. Fixed windows: the first failure creates the counter with a TTL,
 // so the budget resets at most LOGIN_WINDOW after it was first spent.
 //
 // Keys: `rl:login:<sha256(ip|email)>` for password logins (10 / 15 min) and

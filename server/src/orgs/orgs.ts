@@ -1,4 +1,4 @@
-// Organizations (port of internal/orgs/orgs.go). Each org is one runtime tenant plus a
+// Organizations. Each org is one runtime tenant plus a
 // sealed hidden default tenant key that the console uses for calls on the org's behalf.
 
 import type { Deps } from "../app.ts";

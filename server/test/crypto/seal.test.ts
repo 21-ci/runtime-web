@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { createSealer, SealError } from "../../src/crypto/seal.ts";
 
-// Fixture produced by Go internal/seal (key = bytes 0..31, plain "client-secret").
+// Fixture produced by the earlier Go backend's sealer (key = bytes 0..31, plain "client-secret").
 const GO_KEY = Uint8Array.from({ length: 32 }, (_, i) => i);
 const GO_SEALED_B64 = "bcaBaVs1RL1+jp7SuAMLIfmDHyZYern/ffH5JoJHPyF3EIlRNA7lw24=";
 

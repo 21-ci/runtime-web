@@ -27,7 +27,8 @@ otherwise. Coordinated disclosure is expected: give us a reasonable window to sh
 
 ## Scope
 
-In scope: the console (API and SPA), the router, the setup and login flows, OAuth and TOTP, sealing of secrets at
+In scope: the console (the `rtweb` service: API and SPA), its edge (`deploy/Caddyfile`, the `rtctl` SDK and its
+bindings in `deploy/rt.rtweb.toml`), `install.sh` and the release artifacts, the setup and login flows, OAuth and TOTP, sealing of secrets at
 rest, custom domain verification, audit log integrity, and anything that lets one user or org act on another's
 resources.
 
@@ -38,6 +39,13 @@ headers without a demonstrated impact, and social engineering.
 ## Operator responsibilities
 
 The security model, including what is and is not protected, is in the
-[security model](https://21-ci.github.io/runtime-web/security-model/) docs. Before you expose an instance, replace
-every `dev-insecure-*` value, run with `RTWEB_DEV` unset, use HTTPS for public URLs, and set trusted proxies only to
-addresses you control.
+[security model](https://21-ci.github.io/runtime-web/security-model/) docs. Before you expose an instance, install a
+verified release (`install.sh` checks `SHA256SUMS` and, with cosign, its signature), keep `RTWEB_INSECURE_COOKIES`
+unset and `RTWEB_ORIGIN` on `https`, delete `RTWEB_SETUP_TOKEN` after setup, and keep the runtime node's listeners on
+loopback with only Caddy public.
+
+## Supply chain
+
+Releases are built by `.github/workflows/release.yml` from a tag: the tarball is reproducible, has an SPDX SBOM, is
+scanned with Trivy, and `SHA256SUMS` is signed keyless with cosign plus SLSA build provenance. CI also runs Trivy,
+CodeQL, `npm audit` and OpenSSF Scorecard (`.github/workflows/security.yml`); every action is pinned by commit SHA.

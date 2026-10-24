@@ -1,4 +1,4 @@
-# Runtime Web fragment for the node's rt.toml (docs/design/backend-on-runtime.md D2, D4).
+# Runtime Web fragment for the node's rt.toml (docs/contributing/architecture.md D2, D4).
 # Merge into rt.toml, export RTWEB_OP_TOKEN (operator/root token) and RTWEB_RELAY_SECRET (random,
 # same value as in the Caddy relay) in the node's environment, then restart rt (SIGHUP reloads
 # plans and bindings). server/scripts/install.mjs checks both and prints this reminder when missing.
