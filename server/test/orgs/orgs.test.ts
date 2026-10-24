@@ -23,7 +23,41 @@ describe("setup first org", () => {
     const app = testApp({ rtctl: fake });
     const admin = await setupAdmin(app);
     const res = await admin.call("GET", "/api/orgs");
+    expect(((await res.json()) as { items: { slug: string }[] }).items.map((o) => o.slug)).toEqual(["default"]);
+  });
+
+  it("when setup's org failed, the first GET /api/orgs by an instance admin creates it once", async () => {
+    const fake = new FakeRtCtl();
+    const app = testApp({ rtctl: fake });
+    fake.failNext({ status: 503, code: "control_disabled" });
+    const admin = await setupAdmin(app);
+    expect(fake.tenants.size).toBe(0);
+    const res = await admin.call("GET", "/api/orgs");
+    expect(((await res.json()) as { items: { slug: string; role: string }[] }).items).toEqual([expect.objectContaining({ slug: "default", role: "owner" })]);
+    expect(fake.tenants.size).toBe(1);
+    await admin.call("GET", "/api/orgs");
+    expect(fake.tenants.size).toBe(1);
+  });
+
+  it("does not recreate default after the admin created and deleted orgs", async () => {
+    const w = await world();
+    const del = await w.admin.call("DELETE", "/api/admin/orgs/default");
+    expect(del.status).toBe(204);
+    const res = await w.admin.call("GET", "/api/orgs");
     expect(((await res.json()) as { items: unknown[] }).items).toEqual([]);
+  });
+
+  it("if the retry fails too, the admin can still create an org by hand", async () => {
+    const fake = new FakeRtCtl();
+    const app = testApp({ rtctl: fake });
+    fake.failNext({ status: 503, code: "control_disabled" });
+    const admin = await setupAdmin(app);
+    fake.failNext({ status: 503, code: "control_disabled" });
+    const list = await admin.call("GET", "/api/orgs");
+    expect([list.status, ((await list.json()) as { items: unknown[] }).items]).toEqual([200, []]);
+    const me = (await (await admin.call("GET", "/api/me")).json()) as { id?: string; user?: { id: string } };
+    const created = await admin.call("POST", "/api/admin/orgs", { slug: "acme", name: "Acme", owner_user_id: me.user?.id ?? me.id });
+    expect(created.status).toBe(201);
   });
 });
 

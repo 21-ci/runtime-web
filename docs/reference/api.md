@@ -424,7 +424,7 @@ There is no plan field anywhere: every org uses `RTWEB_DEFAULT_PLAN`.
 
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
-| GET | `/api/orgs` | session | | `200 {items: Org[]}` (member orgs; all orgs for an instance admin) | |
+| GET | `/api/orgs` | session | | `200 {items: Org[]}` (member orgs; all orgs for an instance admin). If setup's first org failed (runtime not ready) and no org was ever created (no `org.create` audit row), an instance admin's call retries creating `default` first, best effort | |
 | GET | `/api/orgs/{org}` | `org.read` | | `200 Org` | `404` |
 | GET | `/api/orgs/{org}/members` | `org.read` (any member; mutations need `members.manage`) | | `200 {items: Member[]}` | `404` |
 | POST | `/api/orgs/{org}/members` | `members.manage` (+ `members.owners` for role `owner`) | `{user_id: string; role: OrgRole}` | `201 Member` | `403`, `404`, `409 already_member` |

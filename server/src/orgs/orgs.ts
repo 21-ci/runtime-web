@@ -224,6 +224,20 @@ export async function createFirstOrg(deps: OrgDeps, ownerUserId: string): Promis
 }
 
 /**
+ * Retry of the first-run org (setup's attempt can fail when the runtime is not ready):
+ * an instance admin's org list creates "default" when no org was ever created. "Ever"
+ * is read from the append-only audit log (`org.create`), so deleting every org later
+ * does not bring "default" back. Best effort like setup: failures are logged.
+ */
+export async function ensureFirstOrg(deps: OrgDeps, user: { id: string; instanceAdmin: boolean }): Promise<void> {
+  if (!user.instanceAdmin || !deps.rtctl) return;
+  const db = deps.storage.db;
+  if (await db.first("SELECT 1 AS x FROM audit WHERE action = 'org.create' LIMIT 1")) return;
+  if (await db.first("SELECT 1 AS x FROM orgs LIMIT 1")) return;
+  await createFirstOrg(deps, user.id);
+}
+
+/**
  * A rejected tenant create whose plan the runtime does not know is a deployment
  * error (RTWEB_DEFAULT_PLAN), not a bad request: say so instead of a bare 422.
  */

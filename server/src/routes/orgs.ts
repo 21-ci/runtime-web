@@ -6,7 +6,7 @@ import { dbOf } from "../auth/types.ts";
 import type { Router } from "../http/router.ts";
 import { json, noContent, readJson } from "../http/json.ts";
 import { addMember, listMembers, orgAccess, removeGrant, removeMember, setGrant, setRole } from "../orgs/members.ts";
-import { listOrgs, orgJson } from "../orgs/orgs.ts";
+import { ensureFirstOrg, listOrgs, orgJson } from "../orgs/orgs.ts";
 
 export function registerOrgs(r: Router, deps: Deps): void {
   const s = (h: Parameters<typeof requireSession>[1]) => requireSession(deps, h);
@@ -15,6 +15,7 @@ export function registerOrgs(r: Router, deps: Deps): void {
     "/api/orgs",
     s(async (ctx) => {
       const { user } = authOf(ctx);
+      await ensureFirstOrg(deps, user);
       const rows = await listOrgs(await dbOf(deps), user.id, user.instanceAdmin);
       return json({ items: rows.map((x) => orgJson(x.org, x.role)) });
     }),
