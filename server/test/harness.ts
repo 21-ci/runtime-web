@@ -2,6 +2,30 @@ import { DatabaseSync } from "node:sqlite";
 import { FakeRtCtl } from "./fakes/rtctl.ts";
 import { createApp, type App, type Deps } from "../src/app.ts";
 import type { Db, Kv, Row, SqlArg, Storage, Tx } from "../src/storage/types.ts";
+import type { Config } from "../src/config.ts";
+import type { Hasher } from "../src/auth/password.ts";
+import { verifyPassword } from "../src/crypto/password.ts";
+import { argon2id } from "hash-wasm";
+import { randomBytes } from "../src/crypto/random.ts";
+
+export const TEST_ORIGIN = "https://console.test";
+export const TEST_SETUP_TOKEN = "test-setup-token-0123456789abcdef";
+
+export function testConfig(over: Partial<Config> = {}): Config {
+  return { origin: TEST_ORIGIN, sealKey: new Uint8Array(32).fill(7), insecureCookies: false, setupToken: TEST_SETUP_TOKEN, ...over };
+}
+
+const b64 = (b: Uint8Array) => btoa(String.fromCharCode(...b)).replace(/=+$/, "");
+
+/** argon2id with tiny parameters (still a valid PHC string the real verifier accepts). */
+export const fastHasher: Hasher = {
+  async hash(password) {
+    const salt = randomBytes(16);
+    const key = await argon2id({ password, salt, memorySize: 8, iterations: 1, parallelism: 1, hashLength: 32, outputType: "binary" });
+    return `$argon2id$v=19$m=8,t=1,p=1$${b64(salt)}$${b64(key)}`;
+  },
+  verify: verifyPassword,
+};
 
 // Unit-test harness: the real app over node:sqlite (same SQLite dialect as the
 // runtime's std:sql) and a Map-backed KV with a controllable clock.
@@ -75,7 +99,15 @@ export interface TestApp extends App {
 export function testApp(overrides: Partial<Deps> = {}): TestApp {
   let t = 1_700_000_000_000;
   const now = () => t;
-  const deps: Deps = { storage: memoryStorage(now), version: "test", now, rtctl: new FakeRtCtl(), ...overrides };
+  const deps: Deps = {
+    storage: memoryStorage(now),
+    version: "test",
+    now,
+    rtctl: new FakeRtCtl(),
+    config: testConfig(),
+    hasher: fastHasher,
+    ...overrides,
+  };
   const app = createApp(deps);
   return {
     ...app,

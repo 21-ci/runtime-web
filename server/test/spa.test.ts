@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { testApp } from "./harness.ts";
+import { TEST_ORIGIN, testApp } from "./harness.ts";
 import { memoryBlobs, type AssetManifest } from "../src/spa.ts";
 
 const INDEX = `<!doctype html><html><head><script src="/theme-init.js"></script>
@@ -62,7 +62,7 @@ describe("spa", () => {
   });
 
   it("does not fall back for non-GET methods", async () => {
-    expect((await app().a.call("POST", "/orgs/x")).status).toBe(404);
+    expect((await app().a.call("POST", "/orgs/x", { headers: { origin: TEST_ORIGIN } })).status).toBe(404);
   });
 
   it("honours x-rt-base-path in index.html", async () => {

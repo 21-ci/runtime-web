@@ -40,7 +40,8 @@ export const migrations: readonly Migration[] = [
       `CREATE TABLE IF NOT EXISTS user_totp (
         user_id TEXT PRIMARY KEY REFERENCES users(id),
         secret_sealed BLOB NOT NULL,
-        enabled_at INTEGER
+        enabled_at INTEGER,
+        last_step INTEGER NOT NULL DEFAULT -1
       )`,
       `CREATE TABLE IF NOT EXISTS recovery_codes (
         user_id TEXT NOT NULL REFERENCES users(id),
@@ -68,7 +69,9 @@ export const migrations: readonly Migration[] = [
         ip TEXT,
         ua TEXT,
         method TEXT NOT NULL,
-        ok INTEGER NOT NULL
+        ok INTEGER NOT NULL,
+        email TEXT,
+        result TEXT NOT NULL DEFAULT 'ok'
       )`,
       `CREATE INDEX IF NOT EXISTS login_events_user_ts ON login_events (user_id, ts)`,
       `CREATE TABLE IF NOT EXISTS orgs (
