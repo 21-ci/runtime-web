@@ -62,6 +62,16 @@ export async function orgAccess(deps: Pick<Deps, "storage">, user: SessionUser, 
   return access;
 }
 
+/**
+ * Requires action on project for an org-visible subject: allowed → returns; project
+ * visible (project.read) but role too low → 403; project invisible → 404 (api-web §1.3).
+ */
+export function authorize(s: Subject, action: Action, project = ""): void {
+  if (can(s, action, project)) return;
+  if (project === "" || can(s, "project.read", project)) throw forbidden();
+  throw notFound();
+}
+
 async function memberJson(q: Tx, orgId: string, userId: string, role: string): Promise<MemberJson> {
   const [u] = await q.all<{ id: string; email: string; name: string }>("SELECT id, email, name FROM users WHERE id = ?", [userId]);
   const grants: Record<string, string> = {};

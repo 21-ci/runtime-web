@@ -2,9 +2,8 @@
 
 import type { Deps } from "../app.ts";
 import { authOf, requireSession } from "../auth/middleware.ts";
-import { loadOrg, canOrg } from "../keys/access.ts";
+import { orgAccess } from "../orgs/members.ts";
 import { createToken, listTokens, parseTokenReq, revokeToken, rotateDefaultKey } from "../keys/keys.ts";
-import { forbidden } from "../http/errors.ts";
 import type { Router } from "../http/router.ts";
 import { withRuntimeErrors } from "../runtime/errors.ts";
 import { json, noContent, readJson } from "../http/json.ts";
@@ -16,8 +15,7 @@ export function registerTokens(r: Router, deps: Deps): void {
     "/api/orgs/:org/tokens",
     s(async (ctx) => {
       const { user } = authOf(ctx);
-      const { org, sub } = await loadOrg(deps, ctx.params.org as string, user);
-      if (!canOrg(sub, "tokens.manage")) throw forbidden("forbidden", "not allowed");
+      const { org } = await orgAccess(deps, user, ctx.params.org as string, "tokens.manage");
       return json({ items: await listTokens(deps, org.id) });
     }),
   );
@@ -26,8 +24,7 @@ export function registerTokens(r: Router, deps: Deps): void {
     "/api/orgs/:org/tokens",
     s(async (ctx) => {
       const { user } = authOf(ctx);
-      const { org, sub } = await loadOrg(deps, ctx.params.org as string, user);
-      if (!canOrg(sub, "tokens.manage")) throw forbidden("forbidden", "not allowed");
+      const { org } = await orgAccess(deps, user, ctx.params.org as string, "tokens.manage");
       const req = parseTokenReq(await readJson<unknown>(ctx.req), deps.now());
       const out = await createToken(deps, { id: user.id, name: user.name }, org, req);
       return json(out, 201);
@@ -38,8 +35,7 @@ export function registerTokens(r: Router, deps: Deps): void {
     "/api/orgs/:org/tokens/:id",
     s(async (ctx) => {
       const { user } = authOf(ctx);
-      const { org, sub } = await loadOrg(deps, ctx.params.org as string, user);
-      if (!canOrg(sub, "tokens.manage")) throw forbidden("forbidden", "not allowed");
+      const { org } = await orgAccess(deps, user, ctx.params.org as string, "tokens.manage");
       await revokeToken(deps, { id: user.id, name: user.name }, org, ctx.params.id as string);
       return noContent();
     }),
@@ -49,8 +45,7 @@ export function registerTokens(r: Router, deps: Deps): void {
     "/api/orgs/:org/default-key/rotate",
     s(async (ctx) => {
       const { user } = authOf(ctx);
-      const { org, sub } = await loadOrg(deps, ctx.params.org as string, user);
-      if (!canOrg(sub, "defaultkey.rotate")) throw forbidden("forbidden", "not allowed");
+      const { org } = await orgAccess(deps, user, ctx.params.org as string, "defaultkey.rotate");
       await rotateDefaultKey(deps, { id: user.id, name: user.name }, org);
       return noContent();
     }),

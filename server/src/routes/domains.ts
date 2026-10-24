@@ -8,7 +8,7 @@ import { dbOf } from "../auth/types.ts";
 import { json, noContent, readJson } from "../http/json.ts";
 import { invalid, notFound } from "../http/errors.ts";
 import type { Router, RequestContext } from "../http/router.ts";
-import { orgBySlug, requireProject, subjectFor, type Subject } from "../domains/access.ts";
+import { authorize, orgAccess } from "../orgs/members.ts";
 import {
   addDomain,
   type DomainRow,
@@ -26,13 +26,10 @@ import { withRuntimeErrors } from "../runtime/errors.ts";
 async function appScope(deps: Deps, ctx: RequestContext, need: "viewer" | "admin") {
   const { user } = authOf(ctx);
   const db: Db = await dbOf(deps);
-  const org = await orgBySlug(db, ctx.params.org ?? "");
-  const sub: Subject = await subjectFor(db, user, org.id);
-  if (!sub.instanceAdmin && sub.orgRole === null) throw notFound();
+  const { org, subject, actor } = await orgAccess(deps, user, ctx.params.org ?? "");
   const app: AppRef | null = deps.apps ? await deps.apps.resolve(org.id, ctx.params.app ?? "") : null;
   if (!app) throw notFound();
-  requireProject(sub, app.projectSlug, need);
-  const actor = { userId: user.id, asInstanceAdmin: sub.orgRole === null };
+  authorize(subject, need === "admin" ? "domains.manage" : "app.read", app.projectSlug);
   return { db, org, app, actor };
 }
 

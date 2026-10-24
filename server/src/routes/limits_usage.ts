@@ -4,9 +4,10 @@ import type { Deps } from "../app.ts";
 import { authOf, requireSession } from "../auth/middleware.ts";
 import { dbOf } from "../auth/types.ts";
 import { auditIn } from "../audit/audit.ts";
-import { canOrg, loadOrg, orgBySlug } from "../keys/access.ts";
+import { orgAccess } from "../orgs/members.ts";
+import { getOrgBySlug } from "../orgs/orgs.ts";
 import { orgLimits, orgUsage, parseRange } from "../keys/usage.ts";
-import { forbidden, notFound } from "../http/errors.ts";
+import { notFound } from "../http/errors.ts";
 import type { Router } from "../http/router.ts";
 import { withRuntimeErrors } from "../runtime/errors.ts";
 import { json } from "../http/json.ts";
@@ -18,7 +19,7 @@ export function registerLimitsUsage(r: Router, deps: Deps): void {
     "/api/orgs/:org/limits",
     s(async (ctx) => {
       const { user } = authOf(ctx);
-      const { org } = await loadOrg(deps, ctx.params.org as string, user);
+      const { org } = await orgAccess(deps, user, ctx.params.org as string);
       return json(await orgLimits(deps, org));
     }),
   );
@@ -27,8 +28,7 @@ export function registerLimitsUsage(r: Router, deps: Deps): void {
     "/api/orgs/:org/usage",
     s(async (ctx) => {
       const { user } = authOf(ctx);
-      const { org, sub } = await loadOrg(deps, ctx.params.org as string, user);
-      if (!canOrg(sub, "org.usage.read")) throw forbidden("forbidden", "not allowed");
+      const { org } = await orgAccess(deps, user, ctx.params.org as string, "org.usage.read");
       const range = parseRange(ctx.url.searchParams);
       return json({ items: await orgUsage(deps, org, range) });
     }),
@@ -40,7 +40,7 @@ export function registerLimitsUsage(r: Router, deps: Deps): void {
     s(async (ctx) => {
       const { user } = authOf(ctx);
       const db = await dbOf(deps);
-      const org = await orgBySlug(db, ctx.params.org as string);
+      const org = await getOrgBySlug(db, ctx.params.org as string);
       if (!org) throw notFound();
       const range = parseRange(ctx.url.searchParams);
       const items = await orgUsage(deps, org, range);

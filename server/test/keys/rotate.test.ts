@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { retryPendingRevokes, rotateDefaultKey } from "../../src/keys/keys.ts";
-import { loadOrg } from "../../src/keys/access.ts";
+import { getOrgBySlug } from "../../src/orgs/orgs.ts";
 import { testApp } from "../harness.ts";
 import { count, fake, people, seedOrg } from "./helpers.ts";
 
@@ -34,7 +34,8 @@ describe("default key rotation", () => {
   it("rotation fails with 409 when the stored key changed underneath, and the minted key is revoked", async () => {
     const app = testApp();
     const org = await seedOrg(app);
-    const { org: row } = await loadOrg(app.deps, org.slug, { id: "usr_x", instanceAdmin: true });
+    const row = await getOrgBySlug(app.deps.storage.db, org.slug);
+    if (!row) throw new Error("org missing");
     const stale = { ...row, defaultKeyId: "key_stale" };
     const before = fake(app).keys.size;
 

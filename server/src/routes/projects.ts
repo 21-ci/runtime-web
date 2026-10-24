@@ -2,7 +2,7 @@
 
 import type { Deps } from "../app.ts";
 import { authOf, requireSession } from "../auth/middleware.ts";
-import { loadOrg } from "../keys/access.ts";
+import { orgAccess } from "../orgs/members.ts";
 import {
   createProject,
   deleteProject,
@@ -21,7 +21,8 @@ export function registerProjects(r: Router, deps: Deps): void {
   const s = (h: Parameters<typeof requireSession>[1]) => requireSession(deps, withRuntimeErrors(h));
   const access = async (ctx: Parameters<Parameters<typeof requireSession>[1]>[0]) => {
     const { user } = authOf(ctx);
-    return loadOrg(deps, ctx.params.org as string, user);
+    const { org, subject } = await orgAccess(deps, user, ctx.params.org as string);
+    return { org, sub: subject };
   };
 
   r.get(

@@ -3,12 +3,11 @@
 
 import type { Deps } from "../app.ts";
 import { authOf, requireSession, withRetryAfter } from "../auth/middleware.ts";
-import { dbOf } from "../auth/types.ts";
 import { AppError, badRequest, invalid } from "../http/errors.ts";
 import { json, noContent, readJson } from "../http/json.ts";
 import type { Handler, RequestContext, Router } from "../http/router.ts";
-import { newId } from "../crypto/random.ts";
-import { loadOrg } from "../apps/authz.ts";
+import { orgAccess } from "../orgs/members.ts";
+import { audit as writeAudit } from "../audit/audit.ts";
 import { rt } from "../runtime/errors.ts";
 import * as A from "../apps/service.ts";
 import { LOG_RANK, sseResponse } from "../apps/logs.ts";
@@ -24,10 +23,9 @@ export function registerApps(router: Router, deps: Deps): void {
     withRetryAfter(
       requireSession(deps, async (ctx) => {
         const { user } = authOf(ctx);
-        const db = await dbOf(deps);
-        const { org, sub } = await loadOrg(db, ctx.params.org ?? "", user);
+        const { org, subject, actor } = await orgAccess(deps, user, ctx.params.org ?? "");
         const cli = await A.orgClient(deps, org);
-        return h({ deps, org, sub, cli }, ctx);
+        return h({ deps, org, sub: subject, actor, cli }, ctx);
       }),
     );
   const base = "/api/orgs/:org/apps";
@@ -379,15 +377,6 @@ async function readBig(req: Request, max: number): Promise<Record<string, unknow
   }
 }
 
-/**
- * LOCAL audit insert (T8 owns src/audit). Same row shape as design §6; swap for
- * T8's writer when it merges.
- */
-async function audit(c: A.OrgCtx, action: string, target: string, data: unknown): Promise<void> {
-  const now = c.deps.now();
-  const detail = c.sub.instanceAdmin && c.sub.orgRole === null ? { ...(data as object | null ?? {}), as_instance_admin: 1 } : data;
-  await c.deps.storage.db.run(
-    "INSERT INTO audit (id, ts, org_id, actor_id, action, target, data) VALUES (?, ?, ?, ?, ?, ?, ?)",
-    [newId("aud_", now), now, c.org.id, c.sub.userId, action, target, JSON.stringify(detail ?? null)],
-  );
+async function audit(c: A.OrgCtx, action: string, target: string, detail: unknown): Promise<void> {
+  await writeAudit(c.deps, { actor: c.actor, orgId: c.org.id, action, target, detail });
 }

@@ -7,8 +7,16 @@ import { dbOf } from "../auth/types.ts";
 import { conflict, forbidden, invalid, notFound } from "../http/errors.ts";
 import { isNotFound, isRuntimeError, type Scoped } from "../runtime/client.ts";
 import type { Project as RtProject } from "../runtime/types.ts";
-import type { OrgRow, Subject } from "./access.ts";
-import { canOrg, grantRoles, isOrgAdmin, projectRole } from "./access.ts";
+import { can, type Subject } from "../authz/policy.ts";
+import type { Org as OrgRow } from "../orgs/orgs.ts";
+
+/** Owners, admins and instance admins act as project admins everywhere. */
+const isOrgAdmin = (s: Subject) => !!s.instanceAdmin || s.orgRole === "owner" || s.orgRole === "admin";
+const canOrg = (s: Subject, a: "project.create" | "project.delete") => can(s, a);
+const grantsOf = (s: Subject) => new Map(Object.entries(s.projectRoles ?? {}));
+/** Effective project role, or "" without access. */
+const projectRoleOf = (s: Subject, slug: string): string =>
+  isOrgAdmin(s) ? "admin" : s.orgRole ? (s.projectRoles?.[slug] ?? "") : "";
 import { defaultKeySecret, rtOf } from "./keys.ts";
 
 export interface ProjectJson {
@@ -53,7 +61,7 @@ async function scopedClient(deps: Deps, org: OrgRow): Promise<Scoped> {
 /** Projects the caller may read (all for owners/admins, granted ones for members). */
 export async function listProjects(deps: Deps, org: OrgRow, sub: Subject): Promise<ProjectJson[]> {
   const cli = await scopedClient(deps, org);
-  const grants = await grantRoles(await dbOf(deps), org.id, sub.userId);
+  const grants = grantsOf(sub);
   const out: ProjectJson[] = [];
   let cursor: string | undefined;
   do {
@@ -67,7 +75,7 @@ export async function listProjects(deps: Deps, org: OrgRow, sub: Subject): Promi
 }
 
 async function readable(deps: Deps, org: OrgRow, sub: Subject, slug: string): Promise<void> {
-  if (!(await projectRole(await dbOf(deps), sub, org.id, slug))) throw notFound();
+  if (!(projectRoleOf(sub, slug))) throw notFound();
 }
 
 export async function getProject(deps: Deps, org: OrgRow, sub: Subject, slug: string): Promise<ProjectJson> {
@@ -75,7 +83,7 @@ export async function getProject(deps: Deps, org: OrgRow, sub: Subject, slug: st
   const cli = await scopedClient(deps, org);
   try {
     const p = await cli.getProject(slug);
-    return projectFrom(sub, await grantRoles(await dbOf(deps), org.id, sub.userId), p);
+    return projectFrom(sub, grantsOf(sub), p);
   } catch (e) {
     mapRuntime(e, slugTaken);
   }
@@ -150,13 +158,13 @@ export function parsePatch(body: unknown): ProjectPatchReq {
 }
 
 export async function updateProject(deps: Deps, org: OrgRow, sub: Subject, slug: string, req: ProjectPatchReq): Promise<ProjectJson> {
-  const role = await projectRole(await dbOf(deps), sub, org.id, slug);
+  const role = projectRoleOf(sub, slug);
   if (!role) throw notFound();
   if (role !== "admin") throw forbidden("forbidden", "not allowed");
   const cli = await scopedClient(deps, org);
   try {
     const p = await cli.updateProject(slug, req);
-    return projectFrom(sub, await grantRoles(await dbOf(deps), org.id, sub.userId), p);
+    return projectFrom(sub, grantsOf(sub), p);
   } catch (e) {
     mapRuntime(e, slugTaken);
   }
@@ -164,7 +172,7 @@ export async function updateProject(deps: Deps, org: OrgRow, sub: Subject, slug:
 
 export async function deleteProject(deps: Deps, org: OrgRow, sub: Subject, slug: string): Promise<void> {
   if (!canOrg(sub, "project.delete")) {
-    if (!(await projectRole(await dbOf(deps), sub, org.id, slug))) throw notFound();
+    if (!(projectRoleOf(sub, slug))) throw notFound();
     throw forbidden("forbidden", "not allowed");
   }
   const cli = await scopedClient(deps, org);

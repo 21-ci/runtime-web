@@ -5,7 +5,7 @@
 import type { Deps } from "../app.ts";
 import { invalid } from "../http/errors.ts";
 import type { Limits, Usage } from "../runtime/types.ts";
-import type { OrgRow } from "./access.ts";
+import type { Org as OrgRow } from "../orgs/orgs.ts";
 import { defaultKeySecret, rtOf } from "./keys.ts";
 
 export type LimitsJson = Omit<Limits, "plan">;

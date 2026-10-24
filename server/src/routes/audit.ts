@@ -5,7 +5,9 @@ import type { Deps } from "../app.ts";
 import { authOf, requireAdmin, requireSession, withRetryAfter } from "../auth/middleware.ts";
 import { dbOf } from "../auth/types.ts";
 import { listAudit, type AuditFilter } from "../audit/audit.ts";
-import { orgBySlug, requireOrgAdmin, subjectFor } from "../domains/access.ts";
+import { orgAccess } from "../orgs/members.ts";
+import { getOrgBySlug } from "../orgs/orgs.ts";
+import { notFound } from "../http/errors.ts";
 import { json } from "../http/json.ts";
 import { invalid } from "../http/errors.ts";
 import type { RequestContext, Router } from "../http/router.ts";
@@ -35,7 +37,9 @@ export function registerAudit(r: Router, deps: Deps): void {
       withRetryAfter(async (ctx) => {
         const db = await dbOf(deps);
         const slug = ctx.url.searchParams.get("org");
-        const orgId = slug ? (await orgBySlug(db, slug)).id : undefined;
+        const org = slug ? await getOrgBySlug(db, slug) : null;
+        if (slug && !org) throw notFound();
+        const orgId = org?.id;
         return json(await listAudit(db, filterFrom(ctx, orgId)));
       }),
     ),
@@ -48,8 +52,7 @@ export function registerAudit(r: Router, deps: Deps): void {
       withRetryAfter(async (ctx) => {
         const { user } = authOf(ctx);
         const db = await dbOf(deps);
-        const org = await orgBySlug(db, ctx.params.org ?? "");
-        requireOrgAdmin(await subjectFor(db, user, org.id));
+        const { org } = await orgAccess(deps, user, ctx.params.org ?? "", "org.audit.read");
         return json(await listAudit(db, filterFrom(ctx, org.id)));
       }),
     ),

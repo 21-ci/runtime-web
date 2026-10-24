@@ -7,8 +7,10 @@ import type { Deps } from "../app.ts";
 import { AppError, conflict, invalid, notFound } from "../http/errors.ts";
 import { Runtime, type Scoped } from "../runtime/client.ts";
 import type * as T from "../runtime/types.ts";
-import { createSealer } from "../crypto/seal.ts";
-import { authorize, can, type AppAction, type OrgRow, type Subject } from "./authz.ts";
+import { can, type Action, type Subject } from "../authz/policy.ts";
+import { authorize } from "../orgs/members.ts";
+import { defaultKey, type Org } from "../orgs/orgs.ts";
+import type { Actor } from "../orgs/common.ts";
 import { rt } from "../runtime/errors.ts";
 import { checkBundle, MAX_FILE_BYTES, unpack } from "./source.ts";
 import { renderTemplate } from "./templates.ts";
@@ -32,15 +34,18 @@ export interface Resolved {
 
 export interface OrgCtx {
   deps: Deps;
-  org: OrgRow;
+  org: Org;
   sub: Subject;
+  actor: Actor;
   cli: Scoped;
 }
 
-export async function orgClient(deps: Deps, org: OrgRow): Promise<Scoped> {
-  if (!deps.rtctl || !org.sealedKey) throw new AppError(502, "runtime_unavailable", "runtime unavailable");
-  const sealer = await createSealer(deps.config.sealKey);
-  const key = new TextDecoder().decode(await sealer.open(org.sealedKey));
+export async function orgClient(deps: Deps, org: Org): Promise<Scoped> {
+  const unavailable = () => new AppError(502, "runtime_unavailable", "runtime unavailable");
+  if (!deps.rtctl) throw unavailable();
+  const key = await defaultKey(deps, org.id).catch(() => {
+    throw unavailable();
+  });
   return new Runtime(deps.rtctl).as(key);
 }
 
@@ -52,7 +57,7 @@ export async function resolve(c: OrgCtx, slug: string): Promise<Resolved> {
 }
 
 /** Resolves slug and checks `a` on its project. */
-export async function appFor(c: OrgCtx, slug: string, a: AppAction): Promise<Resolved> {
+export async function appFor(c: OrgCtx, slug: string, a: Action): Promise<Resolved> {
   const app = await resolve(c, slug);
   authorize(c.sub, a, app.project);
   return app;

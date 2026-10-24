@@ -5,12 +5,13 @@
 
 import type { Deps } from "../app.ts";
 import { dbOf, sealerOf } from "../auth/types.ts";
-import { conflict, invalid, notFound } from "../http/errors.ts";
-import { Runtime, isNotFound } from "../runtime/client.ts";
+import { AppError, conflict, invalid, notFound } from "../http/errors.ts";
+import { isNotFound } from "../runtime/client.ts";
 import type { Scope } from "../runtime/types.ts";
 import { newId } from "../crypto/random.ts";
 import { auditIn } from "../audit/audit.ts";
-import type { OrgRow } from "./access.ts";
+import { defaultKey, type Org as OrgRow } from "../orgs/orgs.ts";
+import { runtimeOf } from "../orgs/common.ts";
 
 export const DEFAULT_KEY_NAME = "rtweb-default";
 /** Every tenant scope except keys:write (internal/authz DefaultKeyScopes). */
@@ -57,16 +58,13 @@ export interface TokenReq {
 }
 
 /** The runtime client over the operator/relay transport. */
-export function rtOf(deps: Pick<Deps, "rtctl">): Runtime {
-  if (!deps.rtctl) throw new Error("runtime control transport not configured");
-  return new Runtime(deps.rtctl);
-}
+export const rtOf = runtimeOf;
 
 /** Plaintext of the org's sealed default key. Never sent to clients. */
-export async function defaultKeySecret(deps: Pick<Deps, "config">, org: OrgRow): Promise<string> {
-  if (!org.defaultKeySealed) throw conflict("no_default_key", "organization has no default key");
-  const plain = await (await sealerOf(deps)).open(org.defaultKeySealed);
-  return new TextDecoder().decode(plain);
+export async function defaultKeySecret(deps: Pick<Deps, "config" | "storage">, org: OrgRow): Promise<string> {
+  return defaultKey(deps, org.id).catch((e: unknown) => {
+    throw e instanceof AppError && e.status === 404 ? conflict("no_default_key", "organization has no default key") : e;
+  });
 }
 
 const strList = (v: unknown): string[] | null => {
