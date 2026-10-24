@@ -6,6 +6,7 @@ import { registerSpa, type SpaDeps } from "./spa.ts";
 import type { Config } from "./config.ts";
 import type { Hasher } from "./auth/password.ts";
 import { registerAuth } from "./routes/auth.ts";
+import { registerApps } from "./routes/apps.ts";
 
 // Composition root, runtime-agnostic: main.ts passes runtime adapters, tests pass
 // in-memory ones. Each feature task adds one `registerX(router, deps)` line here.
@@ -33,6 +34,7 @@ export function createApp(deps: Deps): App {
   const router = new Router();
   registerHealth(router, deps);
   registerAuth(router, deps);
+  registerApps(router, deps);
   registerSpa(router, deps); // keep last: installs the SPA fallback
   return {
     fetch: (req, info) =>
