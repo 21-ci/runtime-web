@@ -1,5 +1,7 @@
 import type { Deps } from "./app.ts";
+import { sha256Hex } from "./crypto/hash.ts";
 import { AppError } from "./http/errors.ts";
+import { loopbackOnly } from "./http/loopback.ts";
 import type { RequestContext, Router } from "./http/router.ts";
 
 // Serves the React console (web/dist) embedded by scripts/gen-assets.mjs.
@@ -22,7 +24,8 @@ export interface BlobAsset {
   type: string;
   etag: string;
   size: number;
-  blob: { parts: number };
+  /** sha256 (hex) per part, when the generator recorded them; uploads must match. */
+  blob: { parts: number; sha256?: string[] };
 }
 export type Asset = InlineAsset | BlobAsset;
 export type AssetManifest = Record<string, Asset>;
@@ -53,7 +56,7 @@ export function registerSpa(r: Router, deps: Deps): void {
   const byId = new Map<string, BlobAsset>();
   for (const a of Object.values(spa.assets)) if ("blob" in a) byId.set(idOf(a.etag), a);
 
-  r.put("/api/internal/assets/:id/:part", async (ctx) => {
+  r.put("/api/internal/assets/:id/:part", loopbackOnly(async (ctx) => {
     const want = spa.assetToken?.() ?? "";
     const got = ctx.req.headers.get("x-rtweb-asset-token") ?? "";
     if (!want || !safeEqual(want, got)) throw new AppError(403, "forbidden", "forbidden");
@@ -64,9 +67,15 @@ export function registerSpa(r: Router, deps: Deps): void {
     }
     const body = new Uint8Array(await ctx.req.arrayBuffer());
     if (body.length === 0 || body.length > MAX_PART) throw new AppError(413, "too_large", "part too large");
+    const claimed = (ctx.req.headers.get("x-rtweb-part-sha256") ?? "").toLowerCase();
+    const actual = await sha256Hex(body);
+    const expected = asset.blob.sha256?.[part];
+    if (!safeEqual(claimed, actual) || (expected !== undefined && !safeEqual(expected.toLowerCase(), actual))) {
+      throw new AppError(422, "checksum_mismatch", "part checksum mismatch");
+    }
     await spa.blobs.put(partKey(idOf(asset.etag), part), body);
     return new Response(null, { status: 204 });
-  });
+  }));
 
   r.notFound(async (ctx) => {
     const method = ctx.req.method;

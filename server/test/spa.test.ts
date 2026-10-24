@@ -1,3 +1,4 @@
+import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { TEST_ORIGIN, testApp } from "./harness.ts";
 import { memoryBlobs, type AssetManifest } from "../src/spa.ts";
@@ -13,6 +14,13 @@ function manifest(): AssetManifest {
     "/assets/big.js": { type: "text/javascript; charset=utf-8", etag: '"b1"', size: 6, blob: { parts: 2 } },
   };
 }
+
+const sha = (s: string) => createHash("sha256").update(s).digest("hex");
+const hdrs = (body: string, token = "tok"): Record<string, string> => ({
+  "x-rtweb-asset-token": token,
+  "x-rtweb-part-sha256": sha(body),
+  "x-rt-client-ip": "127.0.0.1",
+});
 
 function app(token = "tok") {
   const blobs = memoryBlobs();
@@ -84,7 +92,7 @@ describe("spa", () => {
   it("uploads and streams blob-backed assets", async () => {
     const { a } = app();
     const put = (part: number, body: string, token = "tok") =>
-      a.fetch(new Request(`http://localhost/api/internal/assets/b1/${part}`, { method: "PUT", body, headers: { "x-rtweb-asset-token": token } }));
+      a.fetch(new Request(`http://localhost/api/internal/assets/b1/${part}`, { method: "PUT", body, headers: hdrs(body, token) }));
     expect((await put(0, "abc", "bad")).status).toBe(403);
     expect((await put(0, "abc")).status).toBe(204);
     expect((await a.call("GET", "/assets/big.js")).status).toBe(503);
@@ -97,15 +105,55 @@ describe("spa", () => {
 
   it("refuses asset uploads when no token is configured", async () => {
     const { a } = app("");
-    const res = await a.fetch(new Request("http://localhost/api/internal/assets/b1/0", { method: "PUT", body: "x", headers: { "x-rtweb-asset-token": "" } }));
+    const res = await a.fetch(new Request("http://localhost/api/internal/assets/b1/0", { method: "PUT", body: "x", headers: hdrs("x", "") }));
     expect(res.status).toBe(403);
   });
 
   it("rejects uploads for unknown assets or parts", async () => {
     const { a } = app();
-    const put = (p: string) => a.fetch(new Request(`http://localhost/api/internal/assets/${p}`, { method: "PUT", body: "x", headers: { "x-rtweb-asset-token": "tok" } }));
+    const put = (p: string) => a.fetch(new Request(`http://localhost/api/internal/assets/${p}`, { method: "PUT", body: "x", headers: hdrs("x") }));
     expect((await put("zz/0")).status).toBe(404);
     expect((await put("b1/2")).status).toBe(404);
+  });
+
+  it("rejects a part whose x-rtweb-part-sha256 is missing or does not match", async () => {
+    const { a, blobs } = app();
+    const put = (headers: Record<string, string>) =>
+      a.fetch(new Request("http://localhost/api/internal/assets/b1/0", { method: "PUT", body: "abc", headers }));
+    const noSum = hdrs("abc");
+    delete noSum["x-rtweb-part-sha256"];
+    for (const h of [noSum, hdrs("abd"), { ...hdrs("abc"), "x-rtweb-part-sha256": "zz" }]) {
+      const res = await put(h);
+      expect(res.status).toBe(422);
+    }
+    expect(await blobs.get("spa/b1/0")).toBeNull();
+    expect((await put(hdrs("abc"))).status).toBe(204);
+  });
+
+  it("checks parts against manifest hashes when present", async () => {
+    const blobs = memoryBlobs();
+    const m = manifest();
+    m["/assets/big.js"] = { type: "text/javascript; charset=utf-8", etag: '"b1"', size: 6, blob: { parts: 2, sha256: [sha("abc"), sha("def")] } };
+    const a = testApp({ spa: { assets: m, blobs, assetToken: () => "tok" } });
+    const put = (part: number, body: string) =>
+      a.fetch(new Request(`http://localhost/api/internal/assets/b1/${part}`, { method: "PUT", body, headers: hdrs(body) }));
+    expect((await put(0, "evil")).status).toBe(422);
+    expect((await put(0, "abc")).status).toBe(204);
+  });
+
+  it("refuses internal asset uploads from a non-loopback client", async () => {
+    const { a } = app();
+    for (const ip of ["203.0.113.9", "10.0.0.1", "::ffff:198.51.100.1", ""]) {
+      const h: Record<string, string> = hdrs("abc");
+      if (ip) h["x-rt-client-ip"] = ip;
+      else delete h["x-rt-client-ip"];
+      const res = await a.fetch(new Request("http://localhost/api/internal/assets/b1/0", { method: "PUT", body: "abc", headers: h }));
+      expect(res.status).toBe(404);
+    }
+    for (const ip of ["127.0.0.1", "127.8.9.10", "::1", "::ffff:127.0.0.1"]) {
+      const res = await a.fetch(new Request("http://localhost/api/internal/assets/b1/0", { method: "PUT", body: "abc", headers: { ...hdrs("abc"), "x-rt-client-ip": ip } }));
+      expect(res.status).toBe(204);
+    }
   });
 
   it("is absent when no manifest is configured", async () => {

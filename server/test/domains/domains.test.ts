@@ -270,12 +270,17 @@ describe("reads", () => {
 
   it("serves tls-ask 200 only for active hosts", async () => {
     const s = await seed();
+    const local = { headers: { "x-rt-client-ip": "127.0.0.1" } };
     const d = await claim(s, "shop.example.com");
     expect((await s.app.call("GET", "/api/internal/tls-ask?domain=shop.example.com")).status).toBe(404);
     s.zone.set("_rtweb.shop.example.com", [d.txt_value]);
     await verify(s, d.id);
-    expect((await s.app.call("GET", "/api/internal/tls-ask?domain=SHOP.example.com")).status).toBe(200);
-    expect((await s.app.call("GET", "/api/internal/tls-ask?domain=other.example.com")).status).toBe(404);
+    expect((await s.app.call("GET", "/api/internal/tls-ask?domain=SHOP.example.com", local)).status).toBe(200);
+    expect((await s.app.call("GET", "/api/internal/tls-ask?domain=other.example.com", local)).status).toBe(404);
+    // a public (non-loopback) or unknown client never learns which hosts are active
+    expect((await s.app.call("GET", "/api/internal/tls-ask?domain=shop.example.com", { headers: { "x-rt-client-ip": "198.51.100.7" } })).status).toBe(404);
+    expect((await s.app.call("GET", "/api/internal/tls-ask?domain=shop.example.com")).status).toBe(404);
+    expect((await s.app.fetch(new Request("http://localhost/api/internal/tls-ask?domain=shop.example.com"), { clientIp: "::1" })).status).toBe(200);
   });
 
   it("instance admins list every domain with its org", async () => {

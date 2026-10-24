@@ -682,8 +682,8 @@ Used by the edge and the installer, never by the console. They skip session, CSR
 
 | Method | Path | Auth | Request | Response |
 |---|---|---|---|---|
-| GET | `/api/internal/tls-ask` | loopback | `?domain=<host>` | `200 ok` for an `active` custom domain, else `404` (Caddy on-demand TLS `ask`) |
-| PUT | `/api/internal/assets/{id}/{part}` | asset-token | raw bytes (≤ 900 kB part) | `204`; `403` wrong token, `404` unknown asset or part, `413 too_large` |
+| GET | `/api/internal/tls-ask` | loopback (runtime-resolved client IP; others get `404`) | `?domain=<host>` | `200 ok` for an `active` custom domain, else `404` (Caddy on-demand TLS `ask`) |
+| PUT | `/api/internal/assets/{id}/{part}` | loopback + asset-token; header `x-rtweb-part-sha256: <hex sha256 of body>` | raw bytes (≤ 900 kB part) | `204`; `403` wrong token, `404` unknown asset or part or non-loopback client, `413 too_large`, `422 checksum_mismatch` (header missing, wrong, or not the manifest's part hash) |
 
 `install.mjs` rotates `RTWEB_ASSET_TOKEN` on every run and uploads the console files too large for the bundle
 (over 1 MB) to `std:blob` through the second route; the SPA handler streams them back.
