@@ -41,6 +41,8 @@ const RETRY_BATCH = 100;
 export interface Actor {
   id: string;
   name: string;
+  /** Acting in an org they are not a member of (flags the audit rows). */
+  asInstanceAdmin?: boolean;
 }
 
 export interface TokenJson {
@@ -176,7 +178,7 @@ export async function createToken(
       );
       await auditIn(tx, now, {
         orgId: org.id,
-        actor: { userId: actor.id },
+        actor: { userId: actor.id, asInstanceAdmin: actor.asInstanceAdmin === true },
         action: "token.create",
         target: id,
         detail: { name: req.name, scopes: req.scopes, projects: req.projects, environments: req.environments },
@@ -254,7 +256,7 @@ export async function revokeToken(deps: Deps, actor: Actor, org: OrgRow, tokenId
     if (r.changes === 0) throw notFound("not_found", "token not found");
     await auditIn(tx, now, {
       orgId: org.id,
-      actor: { userId: actor.id },
+      actor: { userId: actor.id, asInstanceAdmin: actor.asInstanceAdmin === true },
       action: "token.revoke",
       target: tokenId,
       detail: { name: row.name },
@@ -314,7 +316,7 @@ export async function rotateDefaultKey(deps: Deps, actor: Actor, org: OrgRow): P
       }
       await auditIn(tx, now, {
         orgId: org.id,
-        actor: { userId: actor.id },
+        actor: { userId: actor.id, asInstanceAdmin: actor.asInstanceAdmin === true },
         action: "defaultkey.rotate",
         target: org.id,
         detail: { old_key_id: org.defaultKeyId, new_key_id: key.id },

@@ -104,6 +104,24 @@ describe("custom tokens", () => {
     expect((await p.admin.call("GET", `/api/orgs/${org.slug}/tokens`)).status).toBe(200);
   });
 
+  it("audit rows of a non-member instance admin are flagged as_instance_admin", async () => {
+    const app = testApp();
+    const org = await seedOrg(app);
+    const p = await people(app, org);
+    const flag = async (action: string, actor: string) =>
+      (await app.deps.storage.db.first<{ f: number }>("SELECT as_instance_admin AS f FROM audit WHERE action = ? AND actor_id = ?", [action, actor]))?.f;
+    const mk = async (c: typeof p.admin, name: string) =>
+      ((await (await c.call("POST", `/api/orgs/${org.slug}/tokens`, { name, scopes: ["invoke"] })).json()) as { token: { id: string } }).token.id;
+    const id = await mk(p.admin, "by-admin");
+    expect((await p.admin.call("DELETE", `/api/orgs/${org.slug}/tokens/${id}`)).status).toBe(204);
+    expect((await p.admin.call("POST", `/api/orgs/${org.slug}/default-key/rotate`)).status).toBe(204);
+    expect(await flag("token.create", p.adminId)).toBe(1);
+    expect(await flag("token.revoke", p.adminId)).toBe(1);
+    expect(await flag("defaultkey.rotate", p.adminId)).toBe(1);
+    await mk(p.owner, "by-owner");
+    expect(await flag("token.create", p.ownerId)).toBe(0);
+  });
+
   it("requires a CSRF token on mutations", async () => {
     const app = testApp();
     const org = await seedOrg(app);

@@ -24,9 +24,9 @@ export function registerTokens(r: Router, deps: Deps): void {
     "/api/orgs/:org/tokens",
     s(async (ctx) => {
       const { user } = authOf(ctx);
-      const { org } = await orgAccess(deps, user, ctx.params.org as string, "tokens.manage");
+      const { org, actor } = await orgAccess(deps, user, ctx.params.org as string, "tokens.manage");
       const req = parseTokenReq(await readJson<unknown>(ctx.req), deps.now());
-      const out = await createToken(deps, { id: user.id, name: user.name }, org, req);
+      const out = await createToken(deps, { id: user.id, name: user.name, asInstanceAdmin: actor.asInstanceAdmin === true }, org, req);
       return json(out, 201);
     }),
   );
@@ -35,8 +35,8 @@ export function registerTokens(r: Router, deps: Deps): void {
     "/api/orgs/:org/tokens/:id",
     s(async (ctx) => {
       const { user } = authOf(ctx);
-      const { org } = await orgAccess(deps, user, ctx.params.org as string, "tokens.manage");
-      await revokeToken(deps, { id: user.id, name: user.name }, org, ctx.params.id as string);
+      const { org, actor } = await orgAccess(deps, user, ctx.params.org as string, "tokens.manage");
+      await revokeToken(deps, { id: user.id, name: user.name, asInstanceAdmin: actor.asInstanceAdmin === true }, org, ctx.params.id as string);
       return noContent();
     }),
   );
@@ -45,8 +45,8 @@ export function registerTokens(r: Router, deps: Deps): void {
     "/api/orgs/:org/default-key/rotate",
     s(async (ctx) => {
       const { user } = authOf(ctx);
-      const { org } = await orgAccess(deps, user, ctx.params.org as string, "defaultkey.rotate");
-      await rotateDefaultKey(deps, { id: user.id, name: user.name }, org);
+      const { org, actor } = await orgAccess(deps, user, ctx.params.org as string, "defaultkey.rotate");
+      await rotateDefaultKey(deps, { id: user.id, name: user.name, asInstanceAdmin: actor.asInstanceAdmin === true }, org);
       return noContent();
     }),
   );
