@@ -375,7 +375,7 @@ describe("export", () => {
     expect(r.status).toBe(200);
     expect(r.headers.get("content-type")).toBe("application/vnd.sqlite3");
     expect(r.headers.get("content-disposition")).toBe('attachment; filename="hello.sqlite"');
-    expect(new Uint8Array(await r.arrayBuffer())).toEqual(data);
+    expect(Buffer.from(await r.arrayBuffer()).equals(Buffer.from(data))).toBe(true);
   });
 
   it("small snapshot without Range support is fine; over the cap → 413 export_too_large", async () => {
