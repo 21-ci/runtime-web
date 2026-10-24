@@ -14,10 +14,10 @@ import (
 	"github.com/21cloud/runtime-web/internal/authz"
 )
 
-// logRank orders the log levels for the ?level filter (api-web.md §8.6).
+// logRank orders the log levels for the ?level filter (reference/api.md §8.6).
 var logRank = map[string]int{"debug": 0, "info": 1, "warn": 2, "error": 3}
 
-// registerStreamRoutes registers the app log stream and the data export (api-web.md §8.4, §8.6).
+// registerStreamRoutes registers the app log stream and the data export (reference/api.md §8.4, §8.6).
 func (s *Server) registerStreamRoutes() {
 	s.appRoute(http.MethodGet, "/api/orgs/{org}/apps/{app}/logs", authz.AppLogsRead, s.streamLogs)
 	s.appRoute(http.MethodGet, "/api/orgs/{org}/apps/{app}/export", authz.AppDataExport, s.exportApp)

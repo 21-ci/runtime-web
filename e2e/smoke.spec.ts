@@ -1,5 +1,4 @@
-// Smoke journey for docs/02-design-v1.md section 7.1 (plus the 2FA, invite and custom-domain checks of
-// Task 18). Runs against `docker compose up --build --wait` (see Makefile target `e2e`).
+// Smoke journey (plus the 2FA, invite and custom-domain checks). Runs against `docker compose up --build --wait` (see Makefile target `e2e`).
 import { createHmac } from "node:crypto";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 

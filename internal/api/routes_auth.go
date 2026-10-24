@@ -23,7 +23,7 @@ func (s *Server) registerAuthRoutes() {
 	s.registerOAuthRoutes()
 }
 
-// userJSON is the User shape of api-web.md §2.
+// userJSON is the User shape of reference/api.md §2.
 type userJSON struct {
 	ID                 string `json:"id"`
 	Email              string `json:"email"`
@@ -35,7 +35,7 @@ type userJSON struct {
 	CreatedAt          int64  `json:"created_at"`
 }
 
-// sessionJSON is the SessionResp shape of api-web.md §3.
+// sessionJSON is the SessionResp shape of reference/api.md §3.
 type sessionJSON struct {
 	User userJSON `json:"user"`
 	CSRF string   `json:"csrf"`
@@ -128,7 +128,7 @@ type providerJSON struct {
 	Name string `json:"name"`
 }
 
-// authProviders reports the login options. OAuth providers arrive in Task 11e.
+// authProviders reports the login options: password and any enabled OAuth providers.
 func (s *Server) authProviders(w http.ResponseWriter, r *http.Request) error {
 	pol, err := s.deps.Auth.Policy(r.Context())
 	if err != nil {

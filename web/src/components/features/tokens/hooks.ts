@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 
-// Shape from docs/api-web.md §7. The secret is returned once, on create, and never again.
+// Shape from docs/reference/api.md §7. The secret is returned once, on create, and never again.
 export type Token = {
   id: string;
   name: string;

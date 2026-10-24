@@ -6,7 +6,7 @@ import (
 	"github.com/21cloud/runtime-web/internal/auth"
 )
 
-// registerOAuthRoutes wires the OAuth/OIDC login routes (api-web.md §4).
+// registerOAuthRoutes wires the OAuth/OIDC login routes (reference/api.md §4).
 func (s *Server) registerOAuthRoutes() {
 	s.routePublic(http.MethodGet, "/api/auth/oauth/{provider}/start", s.oauthStart)
 	s.routePublic(http.MethodGet, "/api/auth/oauth/{provider}/callback", s.oauthCallback)

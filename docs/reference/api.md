@@ -119,7 +119,7 @@ Every route below may also return the cross-cutting errors: `401`, the `403` mid
 and `503 busy` (for routes that call the runtime) and `500`. The per-route "Errors" column lists only the
 other codes.
 
-### 1.5.1 Error codes to add (Task 11a adds them to `apperr`)
+### 1.5.1 Additional error codes
 
 | Status | `code` | Where |
 |---|---|---|
@@ -212,7 +212,7 @@ type AuditEntry = {
 };
 ```
 
-## 3. Setup, auth and profile (Task 11a)
+## 3. Setup, auth and profile
 
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
@@ -257,7 +257,7 @@ Notes:
 - After a login with `must_change_password`, the UI goes to `/change-password`. With
   `mfa_enrollment_required`, it goes to `/me/security`.
 
-## 4. OAuth login linking (Task 11e)
+## 4. OAuth login linking
 
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
@@ -273,7 +273,7 @@ Security notes: `id_token` and `nonce` are intentionally not used. Identity come
 OIDC issuers must be `https` (`http` only in dev); discovery must report the configured issuer and all
 endpoints must be `https`. Discovery is cached per issuer for 10 minutes.
 
-## 5. Account security, invites (Task 11f)
+## 5. Account security, invites
 
 ### 5.1 `/api/me/*`
 
@@ -331,7 +331,7 @@ type Invite = {
 Management uses the invite id (`inv_…`); the public accept page uses the token under `/api/invites/accept/`.
 `GET /api/invites/accept/{token}` only previews (no side effects) and returns the same `404 invite_invalid` for expired, used, revoked and unknown tokens.
 
-## 6. Instance admin (Task 11b, Task 9)
+## 6. Instance admin
 
 All routes require `instance.admin`. Every mutation is audited.
 
@@ -391,7 +391,7 @@ type InstanceSettingsWrite = {
 
 There is no plan field anywhere: every org uses `RUNTIME_DEFAULT_PLAN`.
 
-## 7. Orgs, members, tokens, projects (Task 11b)
+## 7. Orgs, members, tokens, projects
 
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
@@ -445,7 +445,7 @@ type Quota = { limit: number | null; used: number; remaining: number | null; per
 
 Tokens are org-level only in v1: only org owners/admins (`tokens.manage`) create, list and revoke them. Project-scoped tokens (created by project admins): later.
 
-## 8. Apps (Task 11c)
+## 8. Apps
 
 `/api/orgs/{org}/apps/{app}` is abbreviated `…/{app}` below. Every app route resolves `{app}` in the org with
 `apps.Resolve` (unknown, or the slug belongs to another tenant → `404 not_found`) and then checks the action
@@ -605,7 +605,7 @@ type Domain = {
 
 The TXT record must stay. An active domain whose TXT is missing for 3 checks (6 h apart) becomes `failed`.
 
-### 8.6 Log stream (SSE, Task 11d)
+### 8.6 Log stream (SSE)
 
 `GET /api/orgs/{org}/apps/{app}/logs`
 
@@ -646,7 +646,7 @@ type LogLine = {
   terminal reason (for example the app was deleted). The client should not reconnect after it.
 - Build logs (`…/versions/{v}/build-logs`) use the same `LogLine` shape as JSON.
 
-## 9. Internal router routes (Task 11d)
+## 9. Internal router routes
 
 Used only by `rtrouter`. They need `Authorization: Bearer <ROUTER_SHARED_SECRET>` (wrong or missing →
 `401 unauthenticated`) and skip session, CSRF and Origin checks.

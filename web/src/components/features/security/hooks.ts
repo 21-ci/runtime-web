@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import type { Me } from "@/routes/__root";
 import { api } from "@/lib/api";
 
-// Shapes from docs/api-web.md §5.1.
+// Shapes from docs/reference/api.md §5.1.
 export type SessionInfo = {
   id: string;
   ip: string;

@@ -1,7 +1,7 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 
-// Handlers are written by hand from docs/api-web.md. Tests override per case with server.use(...).
+// Handlers are written by hand from docs/reference/api.md. Tests override per case with server.use(...).
 export const handlers = [
   http.get("/api/auth/providers", () =>
     HttpResponse.json({ password_login_disabled: false, providers: [] }),

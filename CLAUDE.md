@@ -10,8 +10,9 @@ Go BFF plus React console for 21 Cloud Runtime. Module `github.com/21cloud/runti
 | `internal/config/` | Env-var configuration and validation (secret key, same-site rule) |
 | `internal/seal/` | AES-256-GCM sealing of secrets at rest |
 | `internal/apperr/` | Shared domain errors; API layer maps them to HTTP codes |
-| `docs/CODESTYLE.md` | Binding code style (read before writing code) |
-| `docs/ui-reference/` | Read-only UI reference copied from the earlier prototype |
+| `docs/contributing/code-style.md` | Binding code style (read before writing code) |
+| `docs/` | User, admin, security and API docs (MkDocs site, `mkdocs.yml`); contributor guides in `docs/contributing/` |
+| `AGENTS.md` | Guide for AI coding agents working on this repo |
 
 ## Commands
 

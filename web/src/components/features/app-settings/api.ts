@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 
-// Shapes from docs/api-web.md §8.1. Runtime blocks are passed through; each present block replaces
+// Shapes from docs/reference/api.md §8.1. Runtime blocks are passed through; each present block replaces
 // the whole block on the server (no merge), so every form sends the complete block it edits.
 export type AppAccess = "public" | "key" | "internal";
 export type Ingress = {

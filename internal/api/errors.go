@@ -43,7 +43,7 @@ type apiError struct {
 	retryAfter time.Duration
 }
 
-// errorBody is the error envelope of api-web.md §1.4.
+// errorBody is the error envelope of reference/api.md §1.4.
 type errorBody struct {
 	Code    string `json:"code"`
 	Message string `json:"message"`
@@ -74,7 +74,7 @@ func retrySeconds(d time.Duration) int {
 }
 
 // mapError turns a service error into its HTTP status, code and details
-// (api-web.md §1.5). The order matters: the most specific wrapper wins.
+// (reference/api.md §1.5). The order matters: the most specific wrapper wins.
 func mapError(err error) apiError {
 	var ve *validationError
 	var inv apps.Invalid

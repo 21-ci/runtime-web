@@ -27,7 +27,7 @@ import (
 	"github.com/21cloud/runtime-web/internal/store/db"
 )
 
-// Provider IDs (api-web.md §4).
+// Provider IDs (reference/api.md §4).
 const (
 	ProviderGitHub = "github"
 	ProviderGoogle = "google"

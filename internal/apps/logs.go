@@ -19,7 +19,7 @@ import (
 	"github.com/21cloud/runtime-web/internal/runtime"
 )
 
-// Log hub defaults (docs/api-web.md §8.6).
+// Log hub defaults (docs/reference/api.md §8.6).
 const (
 	logBufSize    = 500
 	logSubSlack   = 64

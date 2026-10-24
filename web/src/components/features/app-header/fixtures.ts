@@ -3,7 +3,7 @@ import { http, HttpResponse } from "msw";
 import { server } from "@/test/msw";
 import { apps } from "@/test/shell-fixtures";
 
-// appView is the AppView body (docs/api-web.md §8.1) for the "hello" app in the shell fixtures.
+// appView is the AppView body (docs/reference/api.md §8.1) for the "hello" app in the shell fixtures.
 export const appView = {
   ...apps[0],
   etag: '"etag-1"',

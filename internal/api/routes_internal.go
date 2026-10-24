@@ -11,13 +11,13 @@ import (
 	"github.com/21cloud/runtime-web/internal/domains"
 )
 
-// internalPrefix marks the router-only routes (api-web.md §9).
+// internalPrefix marks the router-only routes (reference/api.md §9).
 const internalPrefix = "/api/internal/"
 
 // certStatusMax bounds the cert-status report body.
 const certStatusMax = 1 << 20
 
-// registerInternalRoutes registers the routes rtrouter uses (api-web.md §9).
+// registerInternalRoutes registers the routes rtrouter uses (reference/api.md §9).
 func (s *Server) registerInternalRoutes() {
 	s.internal(http.MethodGet, "/api/internal/router/routes", s.routerRoutes)
 	s.internal(http.MethodPost, "/api/internal/router/cert-status", s.routerCertStatus)
@@ -87,7 +87,7 @@ func etagMatch(header, etag string) bool {
 	return false
 }
 
-// certStatusBody is the CertStatusReport of api-web.md §9.
+// certStatusBody is the CertStatusReport of reference/api.md §9.
 type certStatusBody struct {
 	Hosts map[string]domains.CertStatus `json:"hosts"`
 }

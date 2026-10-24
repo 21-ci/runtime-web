@@ -19,7 +19,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, ApiError } from "@/lib/api";
 
-// Shape from docs/api-web.md §8.5.
+// Shape from docs/reference/api.md §8.5.
 export type Domain = {
   id: string;
   host: string;

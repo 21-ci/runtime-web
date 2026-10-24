@@ -8,7 +8,7 @@ import (
 	"github.com/21cloud/runtime-web/internal/auth"
 )
 
-// registerAccountRoutes wires the signed-in user's security routes of api-web.md §5.1. They take
+// registerAccountRoutes wires the signed-in user's security routes of reference/api.md §5.1. They take
 // the caller's own session, so every handler works on the caller's user id only.
 func (s *Server) registerAccountRoutes() {
 	s.route(http.MethodGet, "/api/me/sessions", "", s.listSessions)
@@ -30,7 +30,7 @@ func callerOf(r *http.Request) (auth.Principal, error) {
 	return p, nil
 }
 
-// sessionInfoJSON is the SessionInfo shape of api-web.md §5.1.
+// sessionInfoJSON is the SessionInfo shape of reference/api.md §5.1.
 type sessionInfoJSON struct {
 	ID         string `json:"id"`
 	IP         string `json:"ip"`
@@ -193,7 +193,7 @@ func (s *Server) regenerateRecoveryCodes(w http.ResponseWriter, r *http.Request)
 	return nil
 }
 
-// loginEventJSON is the LoginEvent shape of api-web.md §5.1.
+// loginEventJSON is the LoginEvent shape of reference/api.md §5.1.
 type loginEventJSON struct {
 	ID     string `json:"id"`
 	At     int64  `json:"at"`

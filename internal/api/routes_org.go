@@ -102,13 +102,13 @@ func instanceSubject(r *http.Request) (authz.Subject, error) {
 	return authz.Subject{UserID: p.User.ID, InstanceAdmin: true}, nil
 }
 
-// pageJSON is the Page<T> shape of api-web.md §1.6.
+// pageJSON is the Page<T> shape of reference/api.md §1.6.
 type pageJSON[T any] struct {
 	Items      []T     `json:"items"`
 	NextCursor *string `json:"next_cursor"`
 }
 
-// itemsJSON is the unpaged list shape {items: T[]} of api-web.md §1.6.
+// itemsJSON is the unpaged list shape {items: T[]} of reference/api.md §1.6.
 type itemsJSON[T any] struct {
 	Items []T `json:"items"`
 }
@@ -135,7 +135,7 @@ func nextCursor(next string) *string {
 	return &next
 }
 
-// orgJSON is the Org shape of api-web.md §2. Role is nil when the caller is not a member.
+// orgJSON is the Org shape of reference/api.md §2. Role is nil when the caller is not a member.
 type orgJSON struct {
 	ID        string  `json:"id"`
 	Slug      string  `json:"slug"`
@@ -152,7 +152,7 @@ func orgView(o orgs.Org, role string) orgJSON {
 	return v
 }
 
-// memberJSON is the Member shape of api-web.md §2.
+// memberJSON is the Member shape of reference/api.md §2.
 type memberJSON struct {
 	User struct {
 		ID    string `json:"id"`
@@ -174,7 +174,7 @@ func memberView(m orgs.Member) memberJSON {
 	return v
 }
 
-// auditJSON is the AuditEntry shape of api-web.md §2.
+// auditJSON is the AuditEntry shape of reference/api.md §2.
 type auditJSON struct {
 	ID              string          `json:"id"`
 	At              int64           `json:"at"`
@@ -402,7 +402,7 @@ func (s *Server) listTokens(w http.ResponseWriter, r *http.Request, c orgCall) e
 	return nil
 }
 
-// tokenReq is TokenReq of api-web.md §7. Projects are project slugs; expires_at is unix ms.
+// tokenReq is TokenReq of reference/api.md §7. Projects are project slugs; expires_at is unix ms.
 type tokenReq struct {
 	Name         string   `json:"name"`
 	Scopes       []string `json:"scopes"`
@@ -466,7 +466,7 @@ func (s *Server) getLimits(w http.ResponseWriter, r *http.Request, c orgCall) er
 	return nil
 }
 
-// usageJSON is the Usage shape of api-web.md §6. App is the slug, nil for a deleted app.
+// usageJSON is the Usage shape of reference/api.md §6. App is the slug, nil for a deleted app.
 type usageJSON struct {
 	App          *string `json:"app"`
 	Day          string  `json:"day"`

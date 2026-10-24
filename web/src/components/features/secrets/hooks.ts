@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 
-// Secrets are write-only: the list carries names and timestamps, never values (docs/api-web.md §8.3).
+// Secrets are write-only: the list carries names and timestamps, never values (docs/reference/api.md §8.3).
 export type SecretMeta = { name: string; updated_at: number };
 
 function base(org: string, app: string) {

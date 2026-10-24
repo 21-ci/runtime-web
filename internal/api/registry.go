@@ -19,7 +19,7 @@ type RouteSpec struct {
 	// Public routes take no session.
 	Public bool
 	// Internal routes are for rtrouter: they take no session, CSRF or Origin check and are gated by
-	// the ROUTER_SHARED_SECRET bearer instead (api-web.md §9).
+	// the ROUTER_SHARED_SECRET bearer instead (reference/api.md §9).
 	Internal bool
 }
 
@@ -53,7 +53,7 @@ func (s *Server) add(spec RouteSpec, h HandlerFunc, chain func(http.Handler) htt
 	s.mux.Handle(spec.Method+" "+spec.Pattern, hh)
 }
 
-// Gate exemptions (api-web.md §1.2): these stay reachable while a password
+// Gate exemptions (reference/api.md §1.2): these stay reachable while a password
 // change or 2FA enrolment is pending.
 var (
 	passwordGateExempt = []string{"/api/me", "/api/me/password", "/api/auth/logout"}

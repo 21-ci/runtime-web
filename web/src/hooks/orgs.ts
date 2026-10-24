@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { OrgRole } from "@/lib/types";
 
-// Shapes from docs/api-web.md §2 and §8.1. Timestamps are unix milliseconds.
+// Shapes from docs/reference/api.md §2 and §8.1. Timestamps are unix milliseconds.
 export type Org = { id: string; slug: string; name: string; created_at: number; role: OrgRole | null };
 export type Project = {
   slug: string;

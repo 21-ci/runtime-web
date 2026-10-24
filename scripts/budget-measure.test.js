@@ -1,5 +1,5 @@
 // node --test scripts/ — checks the budget split: the lazy TS worker is measured on its own,
-// not inside the editor chunk (docs/02-design-v1.md section 7.5).
+// not inside the editor chunk.
 const { test } = require("node:test");
 const assert = require("node:assert");
 const fs = require("node:fs");

@@ -6,7 +6,7 @@
 @import "@fontsource/ibm-plex-mono/latin-500.css";
 
 /*
- * Design tokens, migrated from docs/ui-reference/src/index.css.
+ * Design tokens.
  * Light values live on :root; the .dark block is the single dark set. The
  * class is applied to <html> before first paint by public/theme-init.js
  * when the OS prefers dark (external script: the server CSP forbids inline).

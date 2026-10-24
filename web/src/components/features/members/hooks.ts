@@ -4,7 +4,7 @@ import { useOrgs } from "@/hooks/orgs";
 import { api } from "@/lib/api";
 import type { OrgRole, User } from "@/lib/types";
 
-// Shape from docs/api-web.md §7. grants maps project slug to project role.
+// Shape from docs/reference/api.md §7. grants maps project slug to project role.
 export type Member = {
   user: Pick<User, "id" | "email" | "name">;
   role: OrgRole;

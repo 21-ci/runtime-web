@@ -15,7 +15,7 @@ import (
 	"github.com/21cloud/runtime-web/internal/users"
 )
 
-// registerAdminRoutes wires the instance-admin routes of api-web.md §6. Every route requires an
+// registerAdminRoutes wires the instance-admin routes of reference/api.md §6. Every route requires an
 // instance admin; the session chain enforces it.
 func (s *Server) registerAdminRoutes() {
 	ia := authz.InstanceAdmin
@@ -46,7 +46,7 @@ func (s *Server) registerAdminRoutes() {
 	s.route(http.MethodPut, "/api/admin/settings", ia, s.putSettings)
 }
 
-// adminUserJSON is the User shape of api-web.md §2 for a user from the users service.
+// adminUserJSON is the User shape of reference/api.md §2 for a user from the users service.
 func (s *Server) adminUserJSON(ctx context.Context, u users.User) (userJSON, error) {
 	on, err := s.deps.Auth.TOTP.Enabled(ctx, u.ID)
 	if err != nil {
@@ -434,7 +434,7 @@ func (s *Server) drainNode(w http.ResponseWriter, r *http.Request) error {
 	return nil
 }
 
-// adminDomainJSON is a custom domain with its owning org (api-web.md §6).
+// adminDomainJSON is a custom domain with its owning org (reference/api.md §6).
 type adminDomainJSON struct {
 	ID            string `json:"id"`
 	Host          string `json:"host"`
@@ -481,7 +481,7 @@ func (s *Server) listAdminAudit(w http.ResponseWriter, r *http.Request) error {
 	return s.writeAuditPage(w, r, orgID, r.URL.Query().Get("actor"))
 }
 
-// oauthProviderJSON is one OAuth provider of api-web.md §6. The client secret is write-only:
+// oauthProviderJSON is one OAuth provider of reference/api.md §6. The client secret is write-only:
 // only client_secret_set is returned.
 type oauthProviderJSON struct {
 	ID              string `json:"id"`
@@ -492,7 +492,7 @@ type oauthProviderJSON struct {
 	Name            string `json:"name,omitempty"`
 }
 
-// instanceSettingsJSON is the InstanceSettings shape of api-web.md §6.
+// instanceSettingsJSON is the InstanceSettings shape of reference/api.md §6.
 type instanceSettingsJSON struct {
 	PublicURL             string              `json:"public_url"`
 	Require2FA            bool                `json:"require_2fa"`

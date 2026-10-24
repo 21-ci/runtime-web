@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
-// Shape from docs/api-web.md §8.6 (one LogLine per SSE `log` event).
+// Shape from docs/reference/api.md §8.6 (one LogLine per SSE `log` event).
 export type LogLine = {
   seq: number;
   ts: number;

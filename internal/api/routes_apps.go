@@ -26,7 +26,7 @@ const (
 
 var appAccessModes = []string{"public", "key", "internal"}
 
-// registerAppRoutes wires the app, code, config, observability and domain routes (api-web.md section 8).
+// registerAppRoutes wires the app, code, config, observability and domain routes (reference/api.md section 8).
 func (s *Server) registerAppRoutes() {
 	s.appRoute(http.MethodGet, appsPath, authz.AppRead, s.listApps)
 	s.appRoute(http.MethodPost, appsPath, authz.AppCreate, s.createApp)
@@ -110,7 +110,7 @@ type appStatusJSON struct {
 	Admission  *runtime.Admission `json:"admission"`
 }
 
-// appJSON is the AppView shape of api-web.md section 8.1. Runtime blocks pass through unchanged.
+// appJSON is the AppView shape of reference/api.md section 8.1. Runtime blocks pass through unchanged.
 type appJSON struct {
 	Slug        string          `json:"slug"`
 	Name        *string         `json:"name"`

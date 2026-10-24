@@ -7,7 +7,7 @@ import (
 	"github.com/21cloud/runtime-web/internal/invites"
 )
 
-// registerInviteRoutes wires the invite routes of api-web.md §5.2. Management is by invite id and
+// registerInviteRoutes wires the invite routes of reference/api.md §5.2. Management is by invite id and
 // scoped to the org in the path (or instance-wide under /api/admin). The public accept routes take
 // the single-use token instead of a session and CSRF token.
 func (s *Server) registerInviteRoutes() {
@@ -23,7 +23,7 @@ func (s *Server) registerInviteRoutes() {
 	s.routePublic(http.MethodPost, "/api/invites/accept/{token}", s.acceptInvite)
 }
 
-// inviteJSON is the Invite shape of api-web.md §5.2.
+// inviteJSON is the Invite shape of reference/api.md §5.2.
 type inviteJSON struct {
 	ID        string            `json:"id"`
 	Email     string            `json:"email"`
@@ -64,7 +64,7 @@ func inviteViews(list []invites.Invite) []inviteJSON {
 	return out
 }
 
-// inviteReq is InviteReq of api-web.md §5.2. Org is a slug and is read only by the admin routes.
+// inviteReq is InviteReq of reference/api.md §5.2. Org is a slug and is read only by the admin routes.
 type inviteReq struct {
 	Email string `json:"email"`
 	Org   string `json:"org"`

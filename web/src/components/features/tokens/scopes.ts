@@ -1,6 +1,6 @@
 import type { OrgRole } from "@/lib/types";
 
-// Runtime tenant scopes a custom token may carry (docs/00-research-and-design.md §3.3). keys:write
+// Runtime tenant scopes a custom token may carry. keys:write
 // is never offered: the default key holds it, and a custom token must not mint keys.
 export const TOKEN_SCOPES = [
   "services:read",
