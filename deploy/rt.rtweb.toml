@@ -29,5 +29,5 @@ base_url        = "http://127.0.0.1:8082"
 inject_headers  = { x-relay-auth = "env:RTWEB_RELAY_SECRET" }
 allowed_plans   = ["rtweb"]
 allowed_methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
-allowed_paths   = ["/v1/services", "/v1/services/*", "/v1/projects", "/v1/projects/*", "/v1/keys", "/v1/keys/*", "/v1/tenants/*/usage"]
+allowed_paths   = ["/v1/services", "/v1/services/*", "/v1/projects", "/v1/projects/*", "/v1/keys", "/v1/keys/*", "/v1/tenants/*/usage", "/v1/me", "/v1/limits"]
 rate_limit      = { rps = 100, burst = 200 }

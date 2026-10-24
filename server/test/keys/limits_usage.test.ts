@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { testApp } from "../harness.ts";
-import { people, seedOrg } from "./helpers.ts";
+import { fake, people, seedOrg } from "./helpers.ts";
 
 describe("limits and usage", () => {
   it("limits are the runtime quota view without the plan name", async () => {
@@ -13,6 +13,16 @@ describe("limits and usage", () => {
     expect(body).not.toHaveProperty("plan");
     expect(body).toHaveProperty("invocations");
     expect(body).toHaveProperty("storage_bytes");
+    expect(body.allowed_triggers).toBeNull();
+  });
+
+  it("limits carry the plan's allowed_triggers from GET /v1/me", async () => {
+    const app = testApp();
+    fake(app).plans.set("free", { allowed_triggers: ["http", "interval"] });
+    const org = await seedOrg(app);
+    const p = await people(app, org);
+    const body = (await (await p.member.call("GET", `/api/orgs/${org.slug}/limits`)).json()) as Record<string, unknown>;
+    expect(body.allowed_triggers).toEqual(["http", "interval"]);
   });
 
   it("org usage needs org.usage.read (owners and admins) and validates the date range", async () => {

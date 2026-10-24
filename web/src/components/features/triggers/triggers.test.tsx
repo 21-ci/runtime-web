@@ -1,12 +1,12 @@
 import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { http } from "msw";
+import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { setCsrfToken } from "@/lib/api";
 import { apiError, server } from "@/test/msw";
 import { renderAt } from "@/test/render";
-import { useShellHandlers } from "@/test/shell-fixtures";
+import { limitsFixture, useShellHandlers } from "@/test/shell-fixtures";
 
 import { useAppHandlers } from "../app-header/fixtures";
 import { pickOption } from "@/test/select";
@@ -105,7 +105,8 @@ describe("triggers", () => {
   });
 
   it("plan without cron defaults the schedule kind to Interval and disables Cron", async () => {
-    useAppHandlers({ effective: { allowed_triggers: ["interval", "http"] } });
+    useAppHandlers();
+    server.use(http.get("/api/orgs/:org/limits", () => HttpResponse.json({ ...limitsFixture, allowed_triggers: ["interval", "http"] })));
     renderAt(TRIGGERS);
 
     await userEvent.click(await screen.findByRole("button", { name: "Add schedule" }));

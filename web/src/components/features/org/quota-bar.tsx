@@ -3,7 +3,7 @@ import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLimits, type Limits, type Quota } from "@/hooks/orgs";
 
-const ROWS: { key: keyof Omit<Limits, "day" | "resets_at">; label: string }[] = [
+const ROWS: { key: keyof Omit<Limits, "day" | "resets_at" | "allowed_triggers">; label: string }[] = [
   { key: "invocations", label: "Invocations" },
   { key: "egress_bytes", label: "Egress" },
   { key: "storage_bytes", label: "Storage" },

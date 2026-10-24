@@ -2,6 +2,7 @@ import { useAppView } from "@/components/features/app-header/hooks";
 import { QueryError } from "@/components/features/empty/query-error";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCan } from "@/hooks/authz";
+import { useLimits } from "@/hooks/orgs";
 
 import { planAllowsCron } from "./cron-allowed";
 
@@ -17,11 +18,13 @@ import { SchedulesCard } from "./schedules-card";
 export function TriggersPage({ org, app }: { org: string; app: string }) {
   const view = useAppView(org, app);
   const can = useCan(org, view.data?.project);
+  const limits = useLimits(org);
 
   if (view.isError) {
     return <QueryError error={view.error} onRetry={() => void view.refetch()} notFoundTitle="App not found" />;
   }
-  if (view.isPending) return <Skeleton className="h-40 w-full" />;
+  // Wait for the plan's trigger kinds so the schedule dialog opens with the right default kind.
+  if (view.isPending || limits.isPending) return <Skeleton className="h-40 w-full" />;
 
   return (
     <div className="flex flex-col gap-10">
@@ -29,7 +32,7 @@ export function TriggersPage({ org, app }: { org: string; app: string }) {
         <HttpRouteCard key={view.data.etag} org={org} app={app} view={view.data} />
       </fieldset>
       <fieldset disabled={can("app.schedules.write") !== true} className="contents">
-        <SchedulesCard org={org} app={app} cronAllowed={planAllowsCron(view.data.limits.effective)} />
+        <SchedulesCard org={org} app={app} cronAllowed={planAllowsCron(limits.data)} />
       </fieldset>
       <OnceSchedulesCard org={org} app={app} />
       <fieldset disabled={can("app.queue.write") !== true} className="contents">

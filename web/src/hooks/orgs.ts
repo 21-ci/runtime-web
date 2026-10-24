@@ -30,6 +30,8 @@ export type Limits = {
   storage_bytes: Quota;
   services: Quota;
   schedules: Quota;
+  /** Trigger kinds the org's runtime plan allows (`plan.allowed_triggers`); null when unknown. */
+  allowed_triggers: string[] | null;
 };
 export type Usage = {
   app: string | null;

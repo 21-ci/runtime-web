@@ -55,7 +55,7 @@ interface FService {
 }
 interface Principal { operator: boolean; tenant: string; key: FKey | null }
 
-export interface FakePlan { maxServices?: number; maxSchedules?: number }
+export interface FakePlan { maxServices?: number; maxSchedules?: number; allowed_triggers?: string[] }
 export interface Recorded { scope: "op" | "tenant"; key?: string; method: string; path: string; query: Record<string, string>; body: unknown; headers: Record<string, string> }
 export interface Injected { status: number; code?: string; reason?: string; retryAfter?: number; match?: (r: Recorded) => boolean }
 

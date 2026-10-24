@@ -442,6 +442,7 @@ type Token = {
 type Limits = {              // runtime LimitsView passthrough (the plan name is not shown in the UI)
   day: string; resets_at: number;
   invocations: Quota; egress_bytes: Quota; storage_bytes: Quota; services: Quota; schedules: Quota;
+  allowed_triggers: string[] | null; // the plan's `allowed_triggers` (runtime GET /v1/me plan.settings); null = unknown
 };
 type Quota = { limit: number | null; used: number; remaining: number | null; period: string };
 ```

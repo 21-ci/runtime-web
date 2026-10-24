@@ -8,7 +8,8 @@ import type { Limits, Usage } from "../runtime/types.ts";
 import type { Org as OrgRow } from "../orgs/orgs.ts";
 import { defaultKeySecret, rtOf } from "./keys.ts";
 
-export type LimitsJson = Omit<Limits, "plan">;
+/** Runtime quota view without the plan name, plus the plan's trigger kinds (null when unknown). */
+export type LimitsJson = Omit<Limits, "plan"> & { allowed_triggers: string[] | null };
 
 export interface UsageJson {
   app: string | null;
@@ -37,10 +38,17 @@ export function parseRange(q: URLSearchParams): { from?: string; to?: string } {
 
 export async function orgLimits(deps: Deps, org: OrgRow): Promise<LimitsJson> {
   const secret = await defaultKeySecret(deps, org);
-  const l = await rtOf(deps).as(secret).limits();
+  const cli = rtOf(deps).as(secret);
+  const [l, me] = await Promise.all([cli.limits(), cli.me()]);
   const out: Partial<Limits> = { ...l };
   delete out.plan;
-  return out as LimitsJson;
+  return { ...(out as Omit<Limits, "plan">), allowed_triggers: allowedTriggers(me.plan?.settings) };
+}
+
+/** `plan.settings.allowed_triggers` of GET /v1/me (the tenant's effective plan), when it is a string list. */
+export function allowedTriggers(settings: unknown): string[] | null {
+  const v = settings && typeof settings === "object" ? (settings as Record<string, unknown>).allowed_triggers : undefined;
+  return Array.isArray(v) && v.every((k) => typeof k === "string") ? v : null;
 }
 
 export async function orgUsage(deps: Deps, org: OrgRow, range: { from?: string; to?: string }): Promise<UsageJson[]> {

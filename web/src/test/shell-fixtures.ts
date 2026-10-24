@@ -24,7 +24,7 @@ export const apps = [
   },
 ];
 
-const limits = {
+export const limitsFixture = {
   day: "2026-10-23",
   resets_at: 1_700_000_000_000,
   invocations: { limit: 1000, used: 10, remaining: 990, period: "day" },
@@ -32,6 +32,7 @@ const limits = {
   storage_bytes: { limit: 1024, used: 512, remaining: 512, period: "total" },
   services: { limit: 5, used: 1, remaining: 4, period: "total" },
   schedules: { limit: 5, used: 0, remaining: 5, period: "total" },
+  allowed_triggers: ["http", "interval", "cron", "queue", "call"],
 };
 
 export const me = {
@@ -74,7 +75,7 @@ export function useShellHandlers(logoutSpy?: () => void) {
       const items = apps.filter((a) => !project || a.project === project);
       return HttpResponse.json({ items, next_cursor: null });
     }),
-    http.get("/api/orgs/:org/limits", () => HttpResponse.json(limits)),
+    http.get("/api/orgs/:org/limits", () => HttpResponse.json(limitsFixture)),
     http.get("/api/orgs/:org/usage", () => HttpResponse.json({ items: [] })),
     // Dashboard cards; tests that care override these with server.use(...).
     http.get("/api/orgs/:org/members", () => HttpResponse.json({ items: [] })),
