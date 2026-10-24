@@ -18,7 +18,7 @@ describe("health and router", () => {
   });
 
   it("returns 405 for a known path with the wrong method", async () => {
-    const res = await testApp().call("POST", "/api/healthz");
+    const res = await testApp().call("POST", "/api/healthz", { headers: { origin: "https://console.test" } });
     expect(res.status).toBe(405);
   });
 });

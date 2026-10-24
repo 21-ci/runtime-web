@@ -34,7 +34,7 @@ export interface LoginEventJson {
 
 export async function listLogins(db: Db, userId: string, limit: number): Promise<LoginEventJson[]> {
   const rows = await db.all<{ id: string; ts: number; ip: string | null; ua: string | null; method: string; result: string }>(
-    "SELECT id, ts, ip, ua, method, result FROM login_events WHERE user_id = ? ORDER BY ts DESC, id DESC LIMIT ?",
+    "SELECT id, ts, ip, ua, method, result FROM login_events WHERE user_id = ? ORDER BY ts DESC, rowid DESC LIMIT ?",
     [userId, limit],
   );
   return rows.map((r) => ({
