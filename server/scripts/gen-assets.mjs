@@ -4,11 +4,12 @@
 //   node scripts/gen-assets.mjs [--dist ../web/dist] [--out src/gen] [--max-inline 700000]
 //
 // Output:
-//   src/gen/assets.ts      manifest: path -> { type, etag, size, load? | blob? }
+//   src/gen/assets.ts      manifest: path -> { type, etag, size, load? | blob? } (blob = { parts, sha256[] })
 //   src/gen/a/<n>.ts       one module per inlined file (`export default` text or base64),
 //                          loaded lazily so a task parses only the file it serves.
 //   .gen-blobs.json        files over --max-inline (the bundle caps a file at 1 MB): the install
-//                          script uploads them to std:blob in parts; spa.ts streams them back.
+//                          script uploads them to std:blob in parts, each checked against its sha256;
+//                          spa.ts streams them back.
 // Without a dist directory an empty manifest is written so typecheck and tests still run.
 import { createHash } from "node:crypto";
 import { existsSync } from "node:fs";
@@ -73,8 +74,13 @@ async function main() {
     const meta = { type, etag, size: buf.length };
     if (buf.length > MAX_INLINE) {
       const parts = Math.ceil(buf.length / PART_BYTES);
-      blobs.push({ path, file: f, ...meta, parts, partBytes: PART_BYTES });
-      entries.push(`  ${JSON.stringify(path)}: ${JSON.stringify({ ...meta, blob: { parts } })},`);
+      // Hex sha256 of each part: the install uploads a part with this digest and the server stores it only when it matches.
+      const sha256 = [];
+      for (let i = 0; i < parts; i++) {
+        sha256.push(createHash("sha256").update(buf.subarray(i * PART_BYTES, (i + 1) * PART_BYTES)).digest("hex"));
+      }
+      blobs.push({ path, file: f, ...meta, parts, partBytes: PART_BYTES, sha256 });
+      entries.push(`  ${JSON.stringify(path)}: ${JSON.stringify({ ...meta, blob: { parts, sha256 } })},`);
       continue;
     }
     const text = isText(type);

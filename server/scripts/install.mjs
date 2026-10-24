@@ -228,13 +228,16 @@ async function uploadBlobs(assetToken) {
       for (let i = 0; i < b.parts; i++) {
         const buf = Buffer.alloc(Math.min(b.partBytes, b.size - i * b.partBytes));
         await fh.read(buf, 0, buf.length, i * b.partBytes);
+        // The digest comes from gen-assets (.gen-blobs.json); refuse to upload a part that drifted from it.
+        const sum = createHash("sha256").update(buf).digest("hex");
+        if (sum !== b.sha256?.[i]) throw new Error(`asset ${b.path} part ${i} does not match its manifest sha256; rebuild with gen-assets`);
         const res = await fetch(`${INVOKE}/s/${SLUG}/api/internal/assets/${id}/${i}`, {
           method: "PUT",
           headers: {
             "x-rtweb-asset-token": assetToken,
             "content-type": "application/octet-stream",
             // Integrity of each part: the server stores the bytes only when they hash to this value.
-            "x-rtweb-part-sha256": createHash("sha256").update(buf).digest("hex"),
+            "x-rtweb-part-sha256": sum,
           },
           body: buf,
         });
