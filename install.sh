@@ -9,38 +9,60 @@
 #   --email ADDR           ACME account e-mail for Caddy (required to install)
 #   --public-url URL       public base of app URLs, RTWEB_RUNTIME_PUBLIC_URL (default: https://<domain>)
 #   --default-plan NAME    runtime plan for new org tenants, RTWEB_DEFAULT_PLAN (default: the server's "free")
-#   --runtime-version X    21 Cloud Runtime release to install when `rt` is missing (default: the latest)
-#   --verify-signature     require cosign verification of SHA256SUMS (default: verify when cosign is on PATH)
+#   --runtime-version X    21 Cloud Runtime release to install when `rt` is missing (default: the pinned
+#                          RT_PINNED_VERSION below; any other version needs cosign)
+#   --insecure-skip-signature
+#                          install a Runtime Web release without verifying its Sigstore signature (checksums only).
+#                          Without this flag the installer refuses to run when cosign is not on PATH.
 #   --dry-run              print every step instead of changing the host (needs no root, no network)
-#   --uninstall            remove Runtime Web files, secrets and the Caddy site (the runtime node is left alone)
+#   --uninstall            remove Runtime Web files, secrets, bindings and the Caddy site (the runtime node stays)
 #   -h, --help
 #
 # What it does (docs/contributing/architecture.md section 5):
 #   1. checks root, Linux, x86_64/aarch64, curl, tar, sha256sum|shasum, node >= 22.5
-#   2. installs the runtime node (rt) with its own installer, pinned to a release tag, when it is not on PATH
-#   3. downloads runtime-web-<ver>.tar.gz + SHA256SUMS (+ Sigstore bundle), verifies them, unpacks to /opt/runtime-web
-#   4. generates RTWEB_OP_TOKEN / RTWEB_RELAY_SECRET (0600, never printed), adds the rtweb plan + bindings
-#      (deploy/rt.rtweb.toml) to /etc/rt/rt.toml and restarts rt
+#   2. downloads runtime-web-<ver>.tar.gz + SHA256SUMS + Sigstore bundle, verifies the signature on SHA256SUMS
+#      (release workflow identity) and the tarball against it, unpacks to /opt/runtime-web
+#   3. installs the runtime node (rt) when it is not on PATH: the release tarball of a pinned version, checked against
+#      a SHA256SUMS whose own sha256 is pinned in this file (and its Sigstore signature when cosign is on PATH).
+#      Nothing is ever fetched from a branch or a raw file at a git ref.
+#   4. generates RTWEB_RELAY_SECRET (0600, never printed), derives RTWEB_OP_TOKEN ("Bearer <root token>"), adds
+#      the rtweb plan + bindings (deploy/rt.rtweb.toml) and ingress.trusted_proxies to /etc/rt/rt.toml, restarts rt
 #   5. installs the Caddy site (deploy/Caddyfile: relay + console host + on-demand TLS gated by an `ask` endpoint)
 #   6. runs server/scripts/install.mjs with the node's root token read from the rt environment file
 #   7. prints the first-run setup URL and firewall hints
 #
-# Environment: RTWEB_INSTALL_REPO (default 21-ci/runtime-web), RTWEB_INSTALL_BASE_URL (release download mirror),
-# RT_INSTALL_REPO (default 21-ci/runtime), GITHUB_TOKEN (optional, for the latest-version lookup).
+# Environment: RTWEB_INSTALL_REPO (default 21-ci/runtime-web), RTWEB_INSTALL_BASE_URL (release download mirror;
+# the signature still has to come from the release workflow), GITHUB_TOKEN (optional, for the latest-version lookup).
 set -eu
+
+# The whole script runs from main(), called on the last line: a truncated `curl | sh` download runs nothing.
+main() {
 
 REPO=${RTWEB_INSTALL_REPO:-21-ci/runtime-web}
 BASE_URL=${RTWEB_INSTALL_BASE_URL:-https://github.com/$REPO/releases/download}
-RT_REPO=${RT_INSTALL_REPO:-21-ci/runtime}
 CERT_IDENTITY_REGEXP="^https://github\.com/$REPO/\.github/workflows/release\.yml@refs/tags/v"
 CERT_OIDC_ISSUER=https://token.actions.githubusercontent.com
+
+# 21 Cloud Runtime: fixed repository and a pinned release. To bump: download SHA256SUMS of the new release,
+# verify it with cosign (RT_CERT_IDENTITY_REGEXP), and paste `sha256sum SHA256SUMS` and the two rt tarball sums here.
+RT_REPO=21-ci/runtime
+RT_BASE_URL=https://github.com/$RT_REPO/releases/download
+RT_CERT_IDENTITY_REGEXP='^https://github\.com/21-ci/runtime/\.github/workflows/release\.yml@refs/tags/v'
+RT_PINNED_VERSION=0.1.1
+RT_PINNED_SUMS_SHA256=c0758bc73b989020fd892789c1349dc289e99f8934338fd644f2fd036994bc0f
+RT_PINNED_X86_64_SHA256=d688db474959907e80ab3d63575c5a2f8be9882cc99f2f38f34271abfcc65531
+RT_PINNED_AARCH64_SHA256=a37008c25605286b952e2a5c0e7d4430b2a499f2c2000b715edbb367f95a4375
 
 PREFIX=/opt/runtime-web
 ETC=/etc/rtweb
 RT_TOML=/etc/rt/rt.toml
 CADDY_SITE=/etc/caddy/Caddyfile.d/rtweb.caddy
+CADDY_DROPIN=/etc/systemd/system/caddy.service.d/rtweb.conf
 NODE_MIN_MAJOR=22
 NODE_MIN_MINOR=5
+BLOCK_BEGIN='# >>> runtime-web (managed by install.sh; do not edit inside) >>>'
+BLOCK_END='# <<< runtime-web <<<'
+LEGACY_MARK='# --- added by runtime-web install.sh ---'
 
 VERSION=""
 RT_VERSION=""
@@ -50,34 +72,7 @@ PUBLIC_URL=""
 DEFAULT_PLAN=""
 DRY_RUN=0
 UNINSTALL=0
-VERIFY_SIG=auto
-
-say() { printf '%s\n' "rtweb-install: $*" >&2; }
-die() {
-  say "error: $*"
-  exit 1
-}
-have() { command -v "$1" >/dev/null 2>&1; }
-need() { have "$1" || die "this installer needs '$1' on PATH"; }
-
-# run CMD...: execute, or print in --dry-run. Never pass secrets as arguments (they would be printed here).
-run() {
-  if [ "$DRY_RUN" = 1 ]; then
-    printf '  [dry-run] %s\n' "$*" >&2
-  else
-    "$@"
-  fi
-}
-
-usage() {
-  cat <<'EOF'
-usage: install.sh --domain HOST --email ADDR [--public-url URL] [--default-plan NAME] [--version X.Y.Z] [--runtime-version X.Y.Z]
-                  [--verify-signature] [--dry-run] | --uninstall [--dry-run]
-
-Installs Runtime Web as an App on a 21 Cloud Runtime node, verifying the release checksums (and their Sigstore
-signature when cosign is on PATH), and puts Caddy with on-demand TLS in front of it.
-EOF
-}
+SKIP_SIG=0
 
 while [ "$#" -gt 0 ]; do
   case "$1" in
@@ -112,7 +107,11 @@ while [ "$#" -gt 0 ]; do
       shift 2
       ;;
     --verify-signature)
-      VERIFY_SIG=yes
+      # Kept for old command lines: verification is now always required.
+      shift
+      ;;
+    --insecure-skip-signature)
+      SKIP_SIG=1
       shift
       ;;
     --dry-run)
@@ -132,9 +131,9 @@ while [ "$#" -gt 0 ]; do
 done
 
 # --- input validation (values end up in config files, so keep them to safe characters) ---------------------------
-valid_version() { printf '%s' "$1" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; }
 [ -z "$VERSION" ] || valid_version "$VERSION" || die "bad --version '$VERSION'"
 [ -z "$RT_VERSION" ] || valid_version "$RT_VERSION" || die "bad --runtime-version '$RT_VERSION'"
+[ -n "$RT_VERSION" ] || RT_VERSION=$RT_PINNED_VERSION
 if [ -n "$DOMAIN" ]; then
   printf '%s' "$DOMAIN" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$' ||
     die "bad --domain '$DOMAIN' (a fully qualified host name)"
@@ -167,22 +166,39 @@ case "$os" in
     ;;
 esac
 case "$arch" in
-  x86_64 | amd64 | aarch64 | arm64) ;;
+  x86_64 | amd64) arch=x86_64 ;;
+  aarch64 | arm64) arch=aarch64 ;;
   *) die "unsupported architecture $arch (x86_64 or aarch64)" ;;
 esac
 
 umask 077
 
+# Environment file of the rt unit (holds RT_ROOT_TOKEN / RT_MASTER_KEY and the rtweb binding secrets).
+RT_ENV=/etc/default/rt
+[ -d /etc/sysconfig ] && [ ! -d /etc/default ] && RT_ENV=/etc/sysconfig/rt
+
+tmp=$(mktemp -d)
+trap 'rm -rf "$tmp"' EXIT INT TERM
+
 # --- uninstall -----------------------------------------------------------------------------------------------------
 if [ "$UNINSTALL" = 1 ]; then
-  say "removing $PREFIX, $ETC and $CADDY_SITE"
+  say "removing $PREFIX, $ETC (secrets, caddy.env), $CADDY_SITE and $CADDY_DROPIN"
   run rm -rf "$PREFIX" "$ETC"
-  run rm -f "$CADDY_SITE" /etc/systemd/system/caddy.service.d/rtweb.conf
-  if have systemctl; then run systemctl reload caddy || true; fi
+  run rm -f "$CADDY_SITE" "$CADDY_DROPIN"
+  if [ "$DRY_RUN" = 1 ]; then
+    say "would remove RTWEB_OP_TOKEN / RTWEB_RELAY_SECRET from $RT_ENV and the runtime-web block from $RT_TOML"
+  else
+    [ -f "$RT_ENV" ] && drop_env_keys "$RT_ENV" RTWEB_OP_TOKEN RTWEB_RELAY_SECRET
+    [ -f "$RT_TOML" ] && strip_block "$RT_TOML"
+  fi
+  if have systemctl; then
+    run systemctl daemon-reload
+    run systemctl reload caddy || true
+    run systemctl restart rt || true
+  fi
   cat >&2 <<EOF
-rtweb-install: Runtime Web files are removed. Left in place on purpose:
-  - the runtime node (rt), its data and /etc/rt/rt.toml (remove the [plans.rtweb] block and the rtweb
-    [[binding]] entries by hand; a backup of the pre-install file is $RT_TOML.pre-rtweb)
+rtweb-install: Runtime Web files, secrets, the rtweb plan + bindings and the Caddy site are removed. Left in place:
+  - the runtime node (rt), its data, RT_ROOT_TOKEN and the rest of $RT_TOML (backup: $RT_TOML.pre-rtweb)
   - the runtime tenant 'runtime-web' and service 'rtweb' (delete them with the control API:
     DELETE /v1/tenants/<id> using the root token)
 EOF
@@ -215,87 +231,17 @@ else
   die "node >= $NODE_MIN_MAJOR.$NODE_MIN_MINOR is required to run install.mjs (distribution package or nodejs.org)"
 fi
 
-# random_hex N: N random bytes as hex, from the kernel CSPRNG.
-random_hex() {
-  if have openssl; then
-    openssl rand -hex "$1"
-  else
-    od -An -N"$1" -tx1 /dev/urandom | tr -d ' \n'
-  fi
-}
-
-latest() { # latest OWNER/REPO -> X.Y.Z
-  auth=""
-  [ -n "${GITHUB_TOKEN:-}" ] && auth="Authorization: Bearer $GITHUB_TOKEN"
-  v=$(curl -fsSL ${auth:+-H "$auth"} "https://api.github.com/repos/$1/releases/latest" |
-    sed -n 's/.*"tag_name": *"v\{0,1\}\([^"]*\)".*/\1/p' | head -n1)
-  valid_version "$v" || die "could not find the latest release of $1 (pass --version)"
-  printf '%s' "$v"
-}
-
-tmp=$(mktemp -d)
-trap 'rm -rf "$tmp"' EXIT INT TERM
-
-# fetch URL FILE: download over https only, retries, fail on HTTP errors.
-fetch() {
+HAVE_COSIGN=0
+have cosign && HAVE_COSIGN=1
+if [ "$HAVE_COSIGN" = 0 ] && [ "$SKIP_SIG" = 0 ]; then
   if [ "$DRY_RUN" = 1 ]; then
-    printf '  [dry-run] curl %s -> %s\n' "$1" "$2" >&2
-    return 0
+    say "warning: cosign not found (a real install refuses to run without it, unless --insecure-skip-signature)"
+  else
+    die "cosign is required to verify the release signature (https://docs.sigstore.dev/cosign/system_config/installation/); pass --insecure-skip-signature to install on checksums alone"
   fi
-  curl --proto '=https' --tlsv1.2 -fsSL --retry 3 -o "$2" "$1"
-}
-
-# --- 21 Cloud Runtime node -----------------------------------------------------------------------------------------
-if have rt; then
-  say "runtime node found: $(rt --version 2>/dev/null || echo rt)"
-else
-  if [ -z "$RT_VERSION" ]; then
-    if [ "$DRY_RUN" = 1 ]; then RT_VERSION=latest; else RT_VERSION=$(latest "$RT_REPO"); fi
-  fi
-  say "installing the runtime node rt $RT_VERSION (its installer verifies SHA256SUMS and, with cosign, the signature)"
-  # The installer is taken from the release tag, not a moving branch, and run from a file (never curl | sh).
-  ref=v$RT_VERSION
-  [ "$RT_VERSION" = latest ] && ref=main
-  fetch "https://raw.githubusercontent.com/$RT_REPO/$ref/packaging/install.sh" "$tmp/rt-install.sh"
-  fetch "https://raw.githubusercontent.com/$RT_REPO/$ref/packaging/systemd/rt.service" "$tmp/rt.service"
-  fetch "https://raw.githubusercontent.com/$RT_REPO/$ref/deploy/rt.toml" "$tmp/rt.toml"
-  sig_flag=""
-  [ "$VERIFY_SIG" = yes ] && sig_flag=--verify-signature
-  run sh "$tmp/rt-install.sh" --only rt --version "$RT_VERSION" --bin-dir /usr/bin $sig_flag
-  run install -d -m 0755 /etc/rt
-  run install -d -m 0750 /var/lib/rt
-  if [ ! -f "$RT_TOML" ]; then run install -m 0644 "$tmp/rt.toml" "$RT_TOML"; fi
-  run install -m 0644 "$tmp/rt.service" /etc/systemd/system/rt.service
 fi
 
-# Environment file of the rt unit (holds RT_ROOT_TOKEN / RT_MASTER_KEY); created 0600 with a fresh root token.
-RT_ENV=/etc/default/rt
-[ -d /etc/sysconfig ] && [ ! -d /etc/default ] && RT_ENV=/etc/sysconfig/rt
-if [ "$DRY_RUN" = 1 ]; then
-  say "would ensure $RT_ENV (0600) holds RT_ROOT_TOKEN (generated if absent)"
-elif [ ! -f "$RT_ENV" ] || ! grep -Eq '^RT_ROOT_TOKEN(_FILE)?=' "$RT_ENV"; then
-  touch "$RT_ENV"
-  chmod 0600 "$RT_ENV"
-  printf 'RT_ROOT_TOKEN=%s\n' "$(random_hex 32)" >>"$RT_ENV"
-  say "generated a root token in $RT_ENV (0600; not printed)"
-fi
-
-# read_env KEY FILE: value of KEY=... without sourcing the file (no code execution, no echo).
-read_env() {
-  sed -n "s/^$1=//p" "$2" 2>/dev/null | tail -n1 | sed 's/^"\(.*\)"$/\1/; s/^'"'"'\(.*\)'"'"'$/\1/'
-}
-
-root_token() {
-  t=$(read_env RT_ROOT_TOKEN "$RT_ENV")
-  if [ -z "$t" ]; then
-    f=$(read_env RT_ROOT_TOKEN_FILE "$RT_ENV")
-    [ -n "$f" ] && [ -r "$f" ] && t=$(tr -d '\n' <"$f")
-  fi
-  [ -n "$t" ] || die "no RT_ROOT_TOKEN or RT_ROOT_TOKEN_FILE in $RT_ENV"
-  printf '%s' "$t"
-}
-
-# --- Runtime Web release -------------------------------------------------------------------------------------------
+# --- Runtime Web release (first: it also carries deploy/rt.service for the node) -----------------------------------
 if [ -z "$VERSION" ]; then
   if [ "$DRY_RUN" = 1 ]; then VERSION=latest; else VERSION=$(latest "$REPO"); fi
 fi
@@ -304,26 +250,14 @@ say "Runtime Web $VERSION"
 fetch "$BASE_URL/v$VERSION/SHA256SUMS" "$tmp/SHA256SUMS"
 fetch "$BASE_URL/v$VERSION/$tarball" "$tmp/$tarball"
 
-if [ "$VERIFY_SIG" != no ] && { have cosign || [ "$VERIFY_SIG" = yes ]; }; then
-  have cosign || die "--verify-signature needs cosign on PATH (https://docs.sigstore.dev/cosign/system_config/installation/)"
+if [ "$HAVE_COSIGN" = 1 ] || [ "$DRY_RUN" = 1 ]; then
   fetch "$BASE_URL/v$VERSION/SHA256SUMS.sigstore.json" "$tmp/SHA256SUMS.sigstore.json"
-  run cosign verify-blob --bundle "$tmp/SHA256SUMS.sigstore.json" \
-    --certificate-identity-regexp "$CERT_IDENTITY_REGEXP" --certificate-oidc-issuer "$CERT_OIDC_ISSUER" \
-    "$tmp/SHA256SUMS" || die "cosign could not verify SHA256SUMS: refusing to install"
-  say "SHA256SUMS signature verified (Sigstore, release workflow identity)"
+  verify_sums "$tmp/SHA256SUMS" "$CERT_IDENTITY_REGEXP" || die "cosign could not verify SHA256SUMS: refusing to install"
+  say "SHA256SUMS signature verified (Sigstore, $REPO release workflow identity)"
 else
-  say "cosign not found: verifying checksums only (install cosign to also verify the signature)"
+  say "WARNING: --insecure-skip-signature: SHA256SUMS is NOT signature-checked; it only detects corruption"
 fi
-
-if [ "$DRY_RUN" = 1 ]; then
-  say "would verify sha256($tarball) against SHA256SUMS"
-else
-  want=$(awk -v f="$tarball" '$2 == f || $2 == "*"f {print $1}' "$tmp/SHA256SUMS")
-  [ -n "$want" ] || die "$tarball is not listed in SHA256SUMS"
-  got=$(sha256 "$tmp/$tarball")
-  [ "$want" = "$got" ] || die "checksum mismatch for $tarball: refusing to install"
-  say "checksum ok"
-fi
+check_sum "$tmp/SHA256SUMS" "$tmp/$tarball" "$tarball"
 
 dest="$PREFIX/$VERSION"
 run install -d -m 0755 "$PREFIX"
@@ -335,32 +269,56 @@ run mv "$dest.new" "$dest"
 run ln -sfn "$dest" "$PREFIX/current"
 APP="$PREFIX/current"
 
+# --- 21 Cloud Runtime node -----------------------------------------------------------------------------------------
+if have rt; then
+  say "runtime node found: $(rt --version 2>/dev/null || echo rt)"
+else
+  install_rt
+fi
+
+if [ "$DRY_RUN" = 1 ]; then
+  say "would ensure $RT_ENV (0600) holds RT_ROOT_TOKEN (generated if absent)"
+elif [ ! -f "$RT_ENV" ] || ! grep -Eq '^RT_ROOT_TOKEN(_FILE)?=' "$RT_ENV"; then
+  touch "$RT_ENV"
+  chmod 0600 "$RT_ENV"
+  printf 'RT_ROOT_TOKEN=%s\n' "$(random_hex 32)" >>"$RT_ENV"
+  say "generated a root token in $RT_ENV (0600; not printed)"
+fi
+
 # --- secrets (0600, root only, never printed) ----------------------------------------------------------------------
 run install -d -m 0700 "$ETC"
 if [ "$DRY_RUN" = 1 ]; then
-  say "would create $ETC/rtweb.env (0600) with RTWEB_OP_TOKEN and RTWEB_RELAY_SECRET (32 random bytes each)"
-elif [ ! -f "$ETC/rtweb.env" ]; then
-  {
-    printf 'RTWEB_OP_TOKEN=%s\n' "$(random_hex 32)"
-    printf 'RTWEB_RELAY_SECRET=%s\n' "$(random_hex 32)"
-  } >"$ETC/rtweb.env"
-  chmod 0600 "$ETC/rtweb.env"
-  say "generated $ETC/rtweb.env (0600)"
+  say "would create $ETC/rtweb.env (0600) with RTWEB_RELAY_SECRET (32 random bytes)"
+else
+  relay=$(read_env RTWEB_RELAY_SECRET "$ETC/rtweb.env")
+  if ! valid_secret "$relay"; then
+    relay=$(random_hex 32)
+    valid_secret "$relay" || die "could not generate RTWEB_RELAY_SECRET"
+    printf 'RTWEB_RELAY_SECRET=%s\n' "$relay" >"$ETC/rtweb.env"
+    chmod 0600 "$ETC/rtweb.env"
+    say "generated $ETC/rtweb.env (0600)"
+  fi
+  # Older installs kept a random, never-registered RTWEB_OP_TOKEN here; the op token is now derived below.
+  drop_env_keys "$ETC/rtweb.env" RTWEB_OP_TOKEN
 fi
 
-# --- runtime node config: rtweb plan + bindings, secrets in the rt environment -------------------------------------
+# --- runtime node config: rtweb plan + bindings, trusted proxy, secrets in the rt environment ----------------------
 if [ "$DRY_RUN" = 1 ]; then
-  say "would append $APP/deploy/rt.rtweb.toml to $RT_TOML (backup $RT_TOML.pre-rtweb) unless [plans.rtweb] exists"
-  say "would add RTWEB_OP_TOKEN / RTWEB_RELAY_SECRET to $RT_ENV and restart rt"
+  say "would put $APP/deploy/rt.rtweb.toml into $RT_TOML between runtime-web markers (backup $RT_TOML.pre-rtweb)"
+  say "would ensure [ingress] trusted_proxies = [\"127.0.0.1/32\", \"::1/128\"] in $RT_TOML (Caddy on loopback)"
+  say "would set RTWEB_OP_TOKEN=\"Bearer <root token>\" and RTWEB_RELAY_SECRET in $RT_ENV and restart rt"
 else
-  if ! grep -q '^\[plans\.rtweb\]' "$RT_TOML" 2>/dev/null; then
-    [ -f "$RT_TOML" ] && cp -p "$RT_TOML" "$RT_TOML.pre-rtweb"
-    { printf '\n# --- added by runtime-web install.sh ---\n'; cat "$APP/deploy/rt.rtweb.toml"; } >>"$RT_TOML"
-    say "added the rtweb plan and bindings to $RT_TOML"
-  fi
-  for k in RTWEB_OP_TOKEN RTWEB_RELAY_SECRET; do
-    if ! grep -q "^$k=" "$RT_ENV"; then grep "^$k=" "$ETC/rtweb.env" >>"$RT_ENV"; fi
-  done
+  [ -f "$RT_TOML" ] && [ ! -f "$RT_TOML.pre-rtweb" ] && cp -p "$RT_TOML" "$RT_TOML.pre-rtweb"
+  [ -f "$RT_TOML" ] && strip_block "$RT_TOML"
+  { printf '\n%s\n' "$BLOCK_BEGIN"; cat "$APP/deploy/rt.rtweb.toml"; printf '%s\n' "$BLOCK_END"; } >>"$RT_TOML"
+  chmod 0644 "$RT_TOML"
+  say "wrote the rtweb plan and bindings to $RT_TOML"
+  ensure_trusted_proxies "$RT_TOML"
+  # The runtime has one operator credential, the root token; inject_headers sends the value verbatim.
+  op="Bearer $(root_token)"
+  set_env_key "$RT_ENV" RTWEB_OP_TOKEN "\"$op\""
+  set_env_key "$RT_ENV" RTWEB_RELAY_SECRET "$relay"
+  unset op
   chmod 0600 "$RT_ENV"
 fi
 if have systemctl; then
@@ -388,16 +346,19 @@ if have caddy; then
       printf '\nimport /etc/caddy/Caddyfile.d/*.caddy\n' >>/etc/caddy/Caddyfile
     # deploy/Caddyfile reads RTWEB_DOMAIN, RTWEB_ACME_EMAIL and RTWEB_RELAY_SECRET (the relay's shared secret);
     # systemd loads the 0600 file as root before dropping to the caddy user.
-    {
-      printf 'RTWEB_DOMAIN=%s\nRTWEB_ACME_EMAIL=%s\n' "$DOMAIN" "$EMAIL"
-      grep '^RTWEB_RELAY_SECRET=' "$ETC/rtweb.env"
-    } >"$ETC/caddy.env"
+    printf 'RTWEB_DOMAIN=%s\nRTWEB_ACME_EMAIL=%s\nRTWEB_RELAY_SECRET=%s\n' "$DOMAIN" "$EMAIL" "$relay" >"$ETC/caddy.env"
     chmod 0600 "$ETC/caddy.env"
     install -d -m 0755 /etc/systemd/system/caddy.service.d
-    printf '[Service]\nEnvironmentFile=%s\n' "$ETC/caddy.env" >/etc/systemd/system/caddy.service.d/rtweb.conf
-    chmod 0644 /etc/systemd/system/caddy.service.d/rtweb.conf
-    caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >/dev/null 2>&1 ||
-      say "warning: caddy validate failed; check $CADDY_SITE"
+    printf '[Service]\nEnvironmentFile=%s\n' "$ETC/caddy.env" >"$CADDY_DROPIN"
+    chmod 0644 "$CADDY_DROPIN"
+    # Validate with the same environment Caddy will run with; a broken site must not be (re)started.
+    (
+      export RTWEB_DOMAIN="$DOMAIN" RTWEB_ACME_EMAIL="$EMAIL" RTWEB_RELAY_SECRET="$relay"
+      caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >"$tmp/caddy-validate.log" 2>&1
+    ) || {
+      sed 's/^/  /' "$tmp/caddy-validate.log" >&2
+      die "caddy validate failed for $CADDY_SITE: Caddy was not restarted"
+    }
   fi
   if have systemctl; then
     run systemctl daemon-reload
@@ -408,6 +369,7 @@ else
   say "caddy not found: install it from your distribution (apt/dnf install caddy, or caddyserver.com packages),"
   say "then re-run this script; the site file is $APP/deploy/Caddyfile"
 fi
+unset relay
 
 # --- deploy the rtweb service (install.mjs is idempotent) ----------------------------------------------------------
 if [ "$DRY_RUN" = 1 ]; then
@@ -436,6 +398,201 @@ Firewall: allow inbound 80/tcp and 443/tcp (Caddy) only. Keep the runtime's cont
 listener (8080) and metrics (9090) on loopback; do not expose them. For example:
   ufw allow 80,443/tcp        or   firewall-cmd --add-service=http --add-service=https --permanent
 
-Secrets: $RT_ENV and $ETC/rtweb.env (mode 0600, root). Back them up; never commit them.
+Secrets: $RT_ENV, $ETC/rtweb.env and $ETC/caddy.env (mode 0600, root). Back them up; never commit them.
 Uninstall: sh install.sh --uninstall
 EOF
+}
+
+# ===================================================================================================================
+# helpers (defined before main runs; they read main's variables at call time)
+
+say() { printf '%s\n' "rtweb-install: $*" >&2; }
+die() {
+  say "error: $*"
+  exit 1
+}
+have() { command -v "$1" >/dev/null 2>&1; }
+need() { have "$1" || die "this installer needs '$1' on PATH"; }
+
+# run CMD...: execute, or print in --dry-run. Never pass secrets as arguments (they would be printed here).
+run() {
+  if [ "$DRY_RUN" = 1 ]; then
+    printf '  [dry-run] %s\n' "$*" >&2
+  else
+    "$@"
+  fi
+}
+
+usage() {
+  cat <<'EOF'
+usage: install.sh --domain HOST --email ADDR [--public-url URL] [--default-plan NAME] [--version X.Y.Z] [--runtime-version X.Y.Z]
+                  [--insecure-skip-signature] [--dry-run] | --uninstall [--dry-run]
+
+Installs Runtime Web as an App on a 21 Cloud Runtime node and puts Caddy with on-demand TLS in front of it.
+The release's SHA256SUMS must carry a valid Sigstore signature from the release workflow (needs cosign), and the
+runtime node is installed from a pinned, checksum-verified release.
+EOF
+}
+
+valid_version() { printf '%s' "$1" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; }
+valid_secret() { printf '%s' "$1" | grep -Eq '^[0-9a-f]{64}$'; }
+
+# random_hex N: N random bytes as hex, from the kernel CSPRNG.
+random_hex() {
+  if have openssl; then
+    openssl rand -hex "$1"
+  else
+    od -An -N"$1" -tx1 /dev/urandom | tr -d ' \n'
+  fi
+}
+
+latest() { # latest OWNER/REPO -> X.Y.Z (GITHUB_TOKEN goes in a 0600 header file, never on curl's argv)
+  hdr="$tmp/gh-auth.hdr"
+  : >"$hdr"
+  [ -n "${GITHUB_TOKEN:-}" ] && printf 'Authorization: Bearer %s\n' "$GITHUB_TOKEN" >"$hdr"
+  v=$(curl --proto '=https' --tlsv1.2 -fsSL -H @"$hdr" "https://api.github.com/repos/$1/releases/latest" |
+    sed -n 's/.*"tag_name": *"v\{0,1\}\([^"]*\)".*/\1/p' | head -n1)
+  rm -f "$hdr"
+  valid_version "$v" || die "could not find the latest release of $1 (pass --version)"
+  printf '%s' "$v"
+}
+
+# fetch URL FILE: download over https only, retries, fail on HTTP errors.
+fetch() {
+  if [ "$DRY_RUN" = 1 ]; then
+    printf '  [dry-run] curl %s -> %s\n' "$1" "$2" >&2
+    return 0
+  fi
+  curl --proto '=https' --tlsv1.2 -fsSL --retry 3 -o "$2" "$1"
+}
+
+# verify_sums SUMS IDENTITY_REGEXP: cosign keyless check of SUMS against SUMS.sigstore.json.
+verify_sums() {
+  run cosign verify-blob --bundle "$1.sigstore.json" \
+    --certificate-identity-regexp "$2" --certificate-oidc-issuer "$CERT_OIDC_ISSUER" "$1" >/dev/null
+}
+
+# check_sum SUMS FILE NAME: FILE must hash to NAME's entry in SUMS.
+check_sum() {
+  if [ "$DRY_RUN" = 1 ]; then
+    say "would verify sha256($3) against SHA256SUMS"
+    return 0
+  fi
+  want=$(awk -v f="$3" '$2 == f || $2 == "*"f {print $1}' "$1")
+  [ -n "$want" ] || die "$3 is not listed in SHA256SUMS"
+  got=$(sha256 "$2")
+  [ "$want" = "$got" ] || die "checksum mismatch for $3: refusing to install"
+  say "checksum ok: $3"
+}
+
+# install_rt: the rt binary from its GitHub release tarball, the production rt.toml from the same tarball, and the
+# unit from this (already verified) Runtime Web release. Never runs a script downloaded from the runtime repository.
+install_rt() {
+  target="$arch-unknown-linux-gnu"
+  name="rt-$RT_VERSION-$target"
+  url="$RT_BASE_URL/v$RT_VERSION"
+  say "installing the runtime node rt $RT_VERSION ($target) from $RT_REPO release assets"
+  mkdir -p "$tmp/rt"
+  fetch "$url/SHA256SUMS" "$tmp/rt/SHA256SUMS"
+  fetch "$url/$name.tar.gz" "$tmp/rt/$name.tar.gz"
+  if [ "$RT_VERSION" = "$RT_PINNED_VERSION" ]; then
+    if [ "$DRY_RUN" = 1 ]; then
+      say "would check sha256(SHA256SUMS) == pinned $RT_PINNED_SUMS_SHA256"
+    else
+      [ "$(sha256 "$tmp/rt/SHA256SUMS")" = "$RT_PINNED_SUMS_SHA256" ] ||
+        die "runtime SHA256SUMS does not match the checksum pinned in install.sh: refusing to install"
+      case "$arch" in
+        x86_64) pinned=$RT_PINNED_X86_64_SHA256 ;;
+        *) pinned=$RT_PINNED_AARCH64_SHA256 ;;
+      esac
+      [ "$(sha256 "$tmp/rt/$name.tar.gz")" = "$pinned" ] || die "checksum mismatch for $name.tar.gz: refusing to install"
+    fi
+    say "runtime SHA256SUMS matches the pinned checksum"
+  elif [ "$HAVE_COSIGN" = 0 ] && [ "$DRY_RUN" = 0 ]; then
+    die "--runtime-version $RT_VERSION is not the pinned $RT_PINNED_VERSION: verifying it needs cosign"
+  fi
+  if [ "$HAVE_COSIGN" = 1 ] || [ "$DRY_RUN" = 1 ]; then
+    fetch "$url/SHA256SUMS.sigstore.json" "$tmp/rt/SHA256SUMS.sigstore.json"
+    verify_sums "$tmp/rt/SHA256SUMS" "$RT_CERT_IDENTITY_REGEXP" || die "cosign could not verify the runtime SHA256SUMS"
+    say "runtime SHA256SUMS signature verified (Sigstore, $RT_REPO release workflow identity)"
+  fi
+  check_sum "$tmp/rt/SHA256SUMS" "$tmp/rt/$name.tar.gz" "$name.tar.gz"
+  run tar -xzf "$tmp/rt/$name.tar.gz" -C "$tmp/rt" --no-same-owner
+  run install -m 0755 "$tmp/rt/$name/rt" /usr/bin/rt
+  if [ "$DRY_RUN" = 0 ] && ! id rt >/dev/null 2>&1; then
+    useradd --system --user-group --home-dir /var/lib/rt --no-create-home --shell /usr/sbin/nologin rt
+  fi
+  run install -d -m 0755 /etc/rt
+  run install -d -m 0750 /var/lib/rt
+  if [ "$DRY_RUN" = 1 ]; then
+    run chown rt:rt /var/lib/rt
+  else
+    chown rt:rt /var/lib/rt
+  fi
+  if [ ! -f "$RT_TOML" ]; then run install -m 0644 "$tmp/rt/$name/defconfigs/production.toml" "$RT_TOML"; fi
+  run install -m 0644 "$APP/deploy/rt.service" /etc/systemd/system/rt.service
+}
+
+# read_env KEY FILE: value of KEY=... without sourcing the file (no code execution, no echo).
+read_env() {
+  sed -n "s/^$1=//p" "$2" 2>/dev/null | tail -n1 | sed 's/^"\(.*\)"$/\1/; s/^'"'"'\(.*\)'"'"'$/\1/'
+}
+
+root_token() {
+  t=$(read_env RT_ROOT_TOKEN "$RT_ENV")
+  if [ -z "$t" ]; then
+    f=$(read_env RT_ROOT_TOKEN_FILE "$RT_ENV")
+    [ -n "$f" ] && [ -r "$f" ] && t=$(tr -d '\n' <"$f")
+  fi
+  [ -n "$t" ] || die "no RT_ROOT_TOKEN or RT_ROOT_TOKEN_FILE in $RT_ENV"
+  printf '%s' "$t"
+}
+
+# drop_env_keys FILE KEY...: remove KEY=... lines, keeping mode 0600 (the value never reaches argv).
+drop_env_keys() {
+  f=$1
+  shift
+  cp -p "$f" "$f.rtweb-tmp"
+  for k in "$@"; do
+    grep -v "^$k=" "$f.rtweb-tmp" >"$f.rtweb-tmp2" || true
+    mv "$f.rtweb-tmp2" "$f.rtweb-tmp"
+  done
+  chmod 0600 "$f.rtweb-tmp"
+  mv "$f.rtweb-tmp" "$f"
+}
+
+# set_env_key FILE KEY VALUE: replace or add KEY=VALUE. VALUE is passed through printf only (a shell builtin).
+set_env_key() {
+  drop_env_keys "$1" "$2"
+  printf '%s=%s\n' "$2" "$3" >>"$1"
+}
+
+# strip_block FILE: remove the managed runtime-web block (and a legacy appended fragment, which ran to the end).
+strip_block() {
+  awk -v b="$BLOCK_BEGIN" -v e="$BLOCK_END" -v l="$LEGACY_MARK" '
+    $0 == b { skip = 1; next }
+    $0 == e { skip = 0; next }
+    $0 == l { legacy = 1 }
+    !skip && !legacy { print }
+  ' "$1" >"$1.rtweb-tmp"
+  chmod 0644 "$1.rtweb-tmp"
+  mv "$1.rtweb-tmp" "$1"
+}
+
+# ensure_trusted_proxies FILE: the node must trust Caddy on loopback, or every client IP reads 127.0.0.1.
+ensure_trusted_proxies() {
+  if grep -Eq '^[[:space:]]*trusted_proxies[[:space:]]*=' "$1"; then
+    grep -E '^[[:space:]]*trusted_proxies[[:space:]]*=' "$1" | grep -q '127\.0\.0\.1' ||
+      die "$1 sets ingress.trusted_proxies without 127.0.0.1: add \"127.0.0.1/32\", \"::1/128\" (Caddy on this host)"
+  elif grep -q '^\[ingress\]' "$1"; then
+    awk '{ print } $0 == "[ingress]" { print "trusted_proxies = [\"127.0.0.1/32\", \"::1/128\"]   # Caddy (runtime-web install.sh)" }' \
+      "$1" >"$1.rtweb-tmp"
+    chmod 0644 "$1.rtweb-tmp"
+    mv "$1.rtweb-tmp" "$1"
+  else
+    printf '\n[ingress]\ntrusted_proxies = ["127.0.0.1/32", "::1/128"]   # Caddy (runtime-web install.sh)\n' >>"$1"
+  fi
+  say "ingress.trusted_proxies covers loopback (client IPs come from Caddy's X-Forwarded-For)"
+}
+
+main "$@"

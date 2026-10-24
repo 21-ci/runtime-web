@@ -77,9 +77,13 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: "22"
-      - name: npm audit --omit=dev
+      - name: npm audit (runtime deps)
         working-directory: ${{ matrix.dir }}
         run: npm audit --omit=dev --audit-level=high
+      # Dev deps (vitest, vite, ...) run on CI runners and developer machines: high/critical fails too.
+      - name: npm audit (all deps, including dev)
+        working-directory: ${{ matrix.dir }}
+        run: npm audit --audit-level=high
 
   codeql:
     name: codeql

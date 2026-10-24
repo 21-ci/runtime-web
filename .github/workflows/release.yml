@@ -3,7 +3,7 @@
 #   build    web (vite) + server bundle into runtime-web-<ver>.tar.gz:
 #              runtime-web-<ver>/server/   service source (src/, sdk/), scripts/install.mjs, rt.json, package*.json
 #              runtime-web-<ver>/web/dist/ the built console (embedded into the service by install.mjs)
-#              runtime-web-<ver>/deploy/   Caddyfile, rt.rtweb.toml
+#              runtime-web-<ver>/deploy/   Caddyfile, rt.rtweb.toml, rt.service
 #              runtime-web-<ver>/install.sh, VERSION
 #            reproducible tarball (SOURCE_DATE_EPOCH, sorted, numeric owner 0), SPDX SBOM (syft), trivy scan of the
 #            unpacked tree and the SBOM: any fixable HIGH/CRITICAL blocks the release
@@ -69,7 +69,7 @@ jobs:
           done
       - name: Required release inputs exist
         run: |
-          for f in server/scripts/install.mjs server/scripts/gen-assets.mjs server/sdk/rtctl/mod.ts server/rt.json deploy/Caddyfile deploy/rt.rtweb.toml install.sh; do
+          for f in server/scripts/install.mjs server/scripts/gen-assets.mjs server/sdk/rtctl/mod.ts server/rt.json deploy/Caddyfile deploy/rt.rtweb.toml deploy/rt.service install.sh; do
             [ -f "$f" ] || { echo "::error::missing $f"; exit 1; }
           done
       # No dependency cache in releases: a cache restored from another ref could poison the bundle.
@@ -100,7 +100,7 @@ jobs:
           rm -rf "$root/server/src/gen"
           cp server/rt.json server/package.json server/package-lock.json "$root/server/"
           cp -R web/dist "$root/web/dist"
-          cp deploy/Caddyfile deploy/rt.rtweb.toml "$root/deploy/"
+          cp deploy/Caddyfile deploy/rt.rtweb.toml deploy/rt.service "$root/deploy/"
           cp install.sh "$root/install.sh"
           chmod 0755 "$root/install.sh"
           printf '%s\n' "$VERSION" > "$root/VERSION"
