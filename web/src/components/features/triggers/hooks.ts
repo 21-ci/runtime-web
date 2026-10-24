@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from "@tansta
 import { appPath } from "@/components/features/app-header/hooks";
 import { api } from "@/lib/api";
 
-// Shapes from docs/api-web.md §8.3.
+// Shapes from docs/reference/api.md §8.3.
 export type Schedule = {
   id: string;
   kind: "interval" | "cron";

@@ -1,5 +1,5 @@
 // Prints "<first_route_gz> <editor_gz> <editor_chunks> <worker_gz> <worker_chunks>" for a Vite dist dir.
-// The lazy TS worker is measured separately from the editor chunk (docs/02-design-v1.md section 7.5).
+// The lazy TS worker is measured separately from the editor chunk.
 // Used by scripts/budget.sh (kept as a file: bash 3.2 on macOS mis-parses heredocs in <(...)).
 const fs = require("node:fs");
 const path = require("node:path");

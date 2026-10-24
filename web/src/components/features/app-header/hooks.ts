@@ -10,7 +10,7 @@ export type Ingress = {
   rate_limit?: object | null;
 };
 
-// AppView is the detail body of GET …/{app} (docs/api-web.md §8.1). Only the fields this UI reads.
+// AppView is the detail body of GET …/{app} (docs/reference/api.md §8.1). Only the fields this UI reads.
 export type AppView = AppSummary & {
   etag: string;
   access: "public" | "key" | "internal";

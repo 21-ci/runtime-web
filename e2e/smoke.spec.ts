@@ -1,6 +1,6 @@
-// Smoke journey for docs/02-design-v1.md section 7.1 (plus the 2FA, invite and custom-domain checks of
-// Task 18). Runs against a runtime-hosted console: RTWEB_URL (console) and RTWEB_RUNTIME_PUBLIC_URL
-// (the runtime invoke listener that serves apps at /s/{slug}/ and custom hosts). See Makefile target `e2e`.
+// Smoke journey (plus the 2FA, invite and custom-domain checks). Runs against a runtime-hosted console:
+// RTWEB_URL (console) and RTWEB_RUNTIME_PUBLIC_URL (the runtime invoke listener that serves apps at
+// /s/{slug}/ and custom hosts). See Makefile target `e2e`.
 import { createHmac } from "node:crypto";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 

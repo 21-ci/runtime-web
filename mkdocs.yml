@@ -1,0 +1,106 @@
+# Documentation site for Runtime Web. Built from this repository:
+#
+#   mkdocs build --strict    strict build (fails on any warning)
+#   mkdocs serve            live preview on http://127.0.0.1:8000
+#
+# Pages live in docs/. The HTTP API reference is docs/reference/api.md.
+site_name: Runtime Web
+site_description: >-
+  Self-hosted console for writing, deploying and running apps on 21 Cloud Runtime.
+site_author: 21 Cloud
+site_url: https://21-ci.github.io/runtime-web/
+repo_url: https://github.com/21-ci/runtime-web
+repo_name: 21-ci/runtime-web
+edit_uri: edit/main/docs/
+copyright: >-
+  Runtime Web is licensed under the
+  <a href="https://github.com/21-ci/runtime-web/blob/main/LICENSE">Apache License 2.0</a>.
+  Documentation built with <a href="https://squidfunk.github.io/mkdocs-material/">Material for MkDocs</a>.
+
+theme:
+  name: material
+  font:
+    text: Inter
+    code: JetBrains Mono
+  icon:
+    admonition:
+      note: material/pencil-circle
+      tip: material/lightbulb-on
+  palette:
+    - media: "(prefers-color-scheme: light)"
+      scheme: default
+      toggle:
+        icon: material/weather-sunny
+        name: Switch to dark mode
+    - media: "(prefers-color-scheme: dark)"
+      scheme: slate
+      toggle:
+        icon: material/weather-night
+        name: Switch to light mode
+  features:
+    - navigation.tabs
+    - navigation.sections
+    - navigation.indexes
+    - navigation.instant
+    - navigation.top
+    - search.suggest
+    - content.code.copy
+
+plugins:
+  - search
+
+markdown_extensions:
+  - admonition
+  - attr_list
+  - md_in_html
+  - tables
+  - toc:
+      permalink: true
+      toc_depth: 3
+  - pymdownx.details
+  - pymdownx.emoji:
+      emoji_index: !!python/name:material.extensions.emoji.twemoji
+      emoji_generator: !!python/name:material.extensions.emoji.to_svg
+  - pymdownx.highlight:
+      anchor_linenums: true
+  - pymdownx.inlinehilite
+  - pymdownx.snippets:
+      base_path: ['.']
+      check_paths: true
+  - pymdownx.superfences
+  - pymdownx.tabbed:
+      alternate_style: true
+  - pymdownx.tasklist:
+      custom_checkbox: true
+
+validation:
+  omitted_files: warn
+  absolute_links: warn
+  unrecognized_links: warn
+  anchors: warn
+
+nav:
+  - Home: index.md
+  - Get started:
+      - getting-started/install.md
+      - Configuration: configuration.md
+  - User guide:
+      - user-guide/index.md
+      - Orgs: user-guide/orgs.md
+      - Projects: user-guide/projects.md
+      - Apps: user-guide/apps.md
+      - Editor: user-guide/editor.md
+      - Logs: user-guide/logs.md
+      - Triggers: user-guide/triggers.md
+      - Tokens and keys: user-guide/tokens.md
+      - Domains: user-guide/domains.md
+      - Members: user-guide/members.md
+      - Two-factor auth and OAuth: user-guide/two-factor-and-oauth.md
+  - Admin guide: admin-guide.md
+  - Security model: security-model.md
+  - Reference:
+      - HTTP API: reference/api.md
+  - Contributing:
+      - contributing/index.md
+      - Code style: contributing/code-style.md
+      - Design tokens: contributing/design-tokens.md

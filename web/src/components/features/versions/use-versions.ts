@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import type { LogLine } from "@/components/features/logs/use-log-stream";
 import { api } from "@/lib/api";
 
-// Shapes from docs/api-web.md §8.1 and §8.2.
+// Shapes from docs/reference/api.md §8.1 and §8.2.
 export type BuildState = "pending" | "building" | "ready" | "failed";
 
 export type Version = {

@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { api } from "@/lib/api";
 import type { OrgRole } from "@/lib/types";
 
-// Shape from docs/api-web.md §5.2. Pending invites only.
+// Shape from docs/reference/api.md §5.2. Pending invites only.
 export type Invite = {
   id: string;
   email: string;

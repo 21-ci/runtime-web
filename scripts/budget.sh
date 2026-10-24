@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Budget gate (docs/02-design-v1.md section 7; Global Constraints). Each check is reported and
+# Budget gate (budget constraints). Each check is reported and
 # asserted separately; the script exits non-zero if any asserted check is over budget.
 #
 #   web first route      <= 250 KB gzip                   (index.html entry + its modulepreload/CSS)

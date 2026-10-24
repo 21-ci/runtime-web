@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useOrgs, useProjects, type AppSummary } from "@/hooks/orgs";
 import { api } from "@/lib/api";
 
-// Shapes from docs/api-web.md §1.4, §8.1 and §8.2.
+// Shapes from docs/reference/api.md §1.4, §8.1 and §8.2.
 export type AppView = AppSummary & { etag: string; runtime: string; url: string };
 export type Diagnostic = { file?: string; line?: number; column?: number; message: string; severity?: string };
 export type BuildDetails = { reason: string; message: string; diagnostics?: Diagnostic[]; version?: number };

@@ -21,9 +21,12 @@ React console plus a TypeScript backend that runs as a 21 Cloud Runtime service
 | `web/` | React console (built to `web/dist`, embedded by `gen-assets`) |
 | `deploy/` | Node `rt.toml` fragment and Caddy relay |
 | `e2e/` | Playwright smoke against a hosted console (`RTWEB_URL`) |
-| `docs/api-web.md` | HTTP contract (guarded by `server/test/contract.test.ts`) |
-| `docs/CODESTYLE.md` | Binding code style (read before writing code) |
+| `docs/reference/api.md` | HTTP contract (guarded by `server/test/contract.test.ts`) |
+| `docs/contributing/code-style.md` | Binding code style (read before writing code) |
 | `docs/ui-reference/` | Read-only UI reference copied from the earlier prototype |
+| `docs/` | User, admin, security and API docs (MkDocs site, `mkdocs.yml`); contributor guides in `docs/contributing/` |
+| `install.sh`, `.github/` | Host installer; CI, security scans and signed releases (`docs/contributing/ci-cd.md`) |
+| `AGENTS.md` | Guide for AI coding agents working on this repo |
 
 ## Commands
 
@@ -31,4 +34,5 @@ React console plus a TypeScript backend that runs as a 21 Cloud Runtime service
 - `make ci`: web lint/test, web budgets, server typecheck/lint/tests
 - `make server-test`: server unit tests (`cd server && npm test`)
 - `make server-install`: idempotent install onto a runtime node (needs `RT_ROOT_TOKEN`)
+- `make coverage`: web + server tests with v8 coverage thresholds
 - `make e2e`: Playwright smoke (needs `RTWEB_URL`)

@@ -4,7 +4,7 @@ import type { Org } from "@/hooks/orgs";
 import { ApiError, api } from "@/lib/api";
 import type { OrgRole, User } from "@/lib/types";
 
-// Shapes from docs/api-web.md §2, §5.2 and §6. Timestamps are unix milliseconds.
+// Shapes from docs/reference/api.md §2, §5.2 and §6. Timestamps are unix milliseconds.
 export type Page<T> = { items: T[]; next_cursor: string | null };
 
 export type AdminUser = User;

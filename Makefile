@@ -23,7 +23,7 @@ coverage: ## Web + server tests with v8 coverage and thresholds (reports in */co
 	cd web && npm run coverage
 	cd server && npm run coverage
 
-budget: ## Check the web gzip budgets of web/dist (docs/02 section 7); with RTWEB_URL also the service health
+budget: ## Check the web gzip budgets of web/dist; with RTWEB_URL also the service health
 	node --test scripts/budget-measure.test.js
 	scripts/budget.sh
 

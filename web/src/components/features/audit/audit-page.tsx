@@ -10,7 +10,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { api } from "@/lib/api";
 
-// Shape from docs/api-web.md §1.6 and §7 (AuditEntry). Pages are cursor based.
+// Shape from docs/reference/api.md §1.6 and §7 (AuditEntry). Pages are cursor based.
 export type AuditEntry = {
   id: string;
   at: number;

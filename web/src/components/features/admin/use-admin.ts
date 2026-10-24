@@ -2,7 +2,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
 
-// Shapes from docs/api-web.md §6. Runtime passthroughs (node status, scheduler, cache) are opaque.
+// Shapes from docs/reference/api.md §6. Runtime passthroughs (node status, scheduler, cache) are opaque.
 export type Json = Record<string, unknown>;
 
 export type DomainRow = {
