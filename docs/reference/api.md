@@ -112,7 +112,7 @@ object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`,
 | 403 | `<code>` | `apperr.Forbidden{Code}`: `setup_token_invalid`, `password_login_disabled`, `plan_limit` |
 | 404 | `not_found` | `apperr.ErrNotFound`, runtime 404, unknown `/api/*` path |
 | 404 | `invite_invalid` | expired, used or revoked invite |
-| 409 | `<code>` | `apperr.Conflict{Code}`: `already_set_up`, `last_owner`, `last_admin`, `slug_taken`, `org_not_empty`, `host_taken`, `stale`, `version_not_ready`, `totp_already_enabled`, `totp_not_enabled` |
+| 409 | `<code>` | `apperr.Conflict{Code}`: `already_set_up`, `last_owner`, `last_admin`, `slug_taken`, `org_not_empty`, `host_taken`, `pending_limit`, `stale`, `version_not_ready`, `totp_already_enabled`, `totp_not_enabled` |
 | 409 | `stale` | runtime `412` (ETag mismatch) |
 | 422 | `invalid` | `apperr.ErrInvalid` (+ `details.fields`) |
 | 422 | `<runtime code>` | runtime 422 with its `code` and `details` |
@@ -611,8 +611,8 @@ schedule count.
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
 | GET | `…/{app}/domains` | `app.read` | | `200 {items: Domain[]}` | `404` |
-| POST | `…/{app}/domains` | `domains.manage` | `{host: string}` | `201 Domain` (`pending`) | `403`, `409 host_taken` (already active anywhere), `422 invalid` (IP, wildcard, port, single label, numeric TLD, the console host, > 253 chars) |
-| POST | `…/{app}/domains/{id}/verify` | `domains.manage` | | `200 Domain` (`active`, or still `pending` when the TXT does not match yet) | `403`, `404`, `409 host_taken` |
+| POST | `…/{app}/domains` | `domains.manage` | `{host: string}` | `201 Domain` (`pending`) | `403`, `409 host_taken` (held by any non-failed claim in any org; one generic message that does not reveal the holder; failed claims are purged on re-claim), `409 pending_limit` (org already has 20 unverified domains), `422 invalid` (IP, wildcard, port, single label, numeric TLD, the console host, > 253 chars) |
+| POST | `…/{app}/domains/{id}/verify` | `domains.manage` | | `200 Domain` (`active`, or still `pending` when the TXT does not match yet) | `403`, `404`, `409 host_taken` (generic message; the row becomes `failed`) |
 | DELETE | `…/{app}/domains/{id}` | `domains.manage` | | `204` | `403`, `404` |
 
 ```ts

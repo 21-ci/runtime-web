@@ -207,7 +207,7 @@ export async function activate(deps: DomainDeps, d: DomainRow, actor: AuditActor
   } catch (e) {
     if (isRuntimeError(e) && e.status === 409) {
       await setStatus(deps.storage.db, d.id, STATUS_FAILED);
-      throw conflict("host_taken", "This host is already in use.");
+      throw hostTaken();
     }
     throw e;
   }
