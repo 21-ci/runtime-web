@@ -17,10 +17,15 @@ export async function migrate(db: Db): Promise<number> {
   let current = await currentVersion(db);
   for (const m of migrations) {
     if (m.version <= current) continue;
-    await db.batch([
-      ...m.statements.map((sql) => ({ sql })),
-      { sql: "INSERT OR IGNORE INTO schema_version (v) VALUES (?)", args: [m.version] },
-    ]);
+    try {
+      await db.batch([
+        ...m.statements.map((sql) => ({ sql })),
+        { sql: "INSERT OR IGNORE INTO schema_version (v) VALUES (?)", args: [m.version] },
+      ]);
+    } catch (err) {
+      // A concurrent runner may have applied this version first (non-idempotent ALTERs then fail here).
+      if ((await currentVersion(db)) < m.version) throw err;
+    }
     current = await currentVersion(db);
   }
   return current;
