@@ -14,27 +14,55 @@
  * checked for WCAG AA (4.5:1) in src/styles/contrast.test.ts.
  */
 :root {
-  --bg: #eeefeb;
-  --panel: #e6e7e2;
-  --panel-2: #dcded8;
-  --surface: #f9f9f7;
-  --line: #d2d4cd;
-  --line-strong: #b4b8b0;
-  --text: #1b1e1c;
-  --muted: #555b56;
+  /* Surfaces: Notion-like warm neutrals. Page and cards are white; chrome is off-white. */
+  --bg: #ffffff;
+  --panel: #f9f8f7;
+  --panel-2: #f1f0ee;
+  --surface: #ffffff;
+  --line: rgba(55, 53, 47, 0.12);
+  --line-strong: rgba(55, 53, 47, 0.22);
+  --hover: rgba(55, 53, 47, 0.06);
+  --active: rgba(55, 53, 47, 0.1);
+  --text: #2c2c2b;
+  /* Darkened from Notion's #787774 so secondary text passes AA on every surface. */
+  --muted: #5f5e5b;
   --accent: #8a560a;
   --accent-hover: #6f4507;
   --on-primary: #ffffff;
   --accent-soft: #f0dcb2;
   --accent-pale: #f6ecd8;
-  --overlay: #1b1e1c;
+  --overlay: #0f0f0f;
   --green: #2c6a3a;
   --on-success: #ffffff;
   --danger: #b3261e;
   --danger-text: #8c1d17;
-  --danger-soft: #f5d9d4;
+  --danger-soft: #fbe4e2;
   --focus: color-mix(in srgb, var(--accent) 55%, transparent);
-  --radius: 4px;
+  --menu-shadow: 0 0 0 1px rgba(15, 15, 15, 0.05), 0 3px 6px rgba(15, 15, 15, 0.1), 0 9px 24px rgba(15, 15, 15, 0.2);
+
+  /* Tags: tinted fills for badges. Each text/bg pair is AA-checked. */
+  --tag-gray-bg: #f1f1ef;
+  --tag-gray-text: #5f5e5b;
+  --tag-brown-bg: #f4eeee;
+  --tag-brown-text: #74503a;
+  --tag-orange-bg: #fbecdd;
+  --tag-orange-text: #8a4b0f;
+  --tag-yellow-bg: #fbf3db;
+  --tag-yellow-text: #735400;
+  --tag-green-bg: #edf3ec;
+  --tag-green-text: #2c6a3a;
+  --tag-blue-bg: #e7f3f8;
+  --tag-blue-text: #1f5f8b;
+  --tag-purple-bg: #f6f3f9;
+  --tag-purple-text: #6a3f92;
+  --tag-pink-bg: #faf1f5;
+  --tag-pink-text: #8e2f5e;
+  --tag-red-bg: #fdebec;
+  --tag-red-text: #9f2f2d;
+
+  --motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
+  --motion-fast: 120ms;
+  --motion-base: 160ms;
 
   color-scheme: light;
   font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -42,19 +70,21 @@
   background: var(--bg);
   font-size: 14px;
   font-synthesis: none;
-  font-feature-settings: "ss02", "tnum";
-  line-height: 1.45;
+  font-feature-settings: "ss02";
+  line-height: 1.5;
 }
 
 .dark {
-  --bg: #141614;
-  --panel: #1c1f1d;
-  --panel-2: #252926;
-  --surface: #181b19;
-  --line: #2e332f;
-  --line-strong: #434a45;
-  --text: #e5e6e1;
-  --muted: #9ba19a;
+  --bg: #191919;
+  --panel: #202020;
+  --panel-2: #2a2a2a;
+  --surface: #191919;
+  --line: rgba(255, 255, 255, 0.094);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --hover: rgba(255, 255, 255, 0.055);
+  --active: rgba(255, 255, 255, 0.09);
+  --text: #e3e2e0;
+  --muted: #9b9a97;
   --accent: #e0a43a;
   --accent-hover: #ecbb5f;
   --on-primary: #1a1405;
@@ -65,8 +95,28 @@
   --on-success: #0f1a12;
   --danger: #ee8679;
   --danger-text: #f3a69c;
-  --danger-soft: #45201b;
+  --danger-soft: #3e2422;
   --focus: color-mix(in srgb, var(--accent) 60%, transparent);
+  --menu-shadow: 0 0 0 1px rgba(15, 15, 15, 0.2), 0 3px 6px rgba(15, 15, 15, 0.4), 0 9px 24px rgba(15, 15, 15, 0.6);
+
+  --tag-gray-bg: #2f2f2f;
+  --tag-gray-text: #b4b3af;
+  --tag-brown-bg: #352a24;
+  --tag-brown-text: #c9a88c;
+  --tag-orange-bg: #3d2a1b;
+  --tag-orange-text: #e8a56a;
+  --tag-yellow-bg: #3a3120;
+  --tag-yellow-text: #e3c26a;
+  --tag-green-bg: #243d30;
+  --tag-green-text: #7cc48f;
+  --tag-blue-bg: #1f3442;
+  --tag-blue-text: #7fb8de;
+  --tag-purple-bg: #2e2638;
+  --tag-purple-text: #c2a3e0;
+  --tag-pink-bg: #3a2530;
+  --tag-pink-text: #e39cc0;
+  --tag-red-bg: #3e2524;
+  --tag-red-text: #f09a93;
 
   color-scheme: dark;
 }
@@ -78,6 +128,8 @@
   --color-surface: var(--surface);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
+  --color-hover: var(--hover);
+  --color-active: var(--active);
   --color-text: var(--text);
   --color-muted: var(--muted);
   --color-accent: var(--accent);
@@ -92,13 +144,40 @@
   --color-danger-text: var(--danger-text);
   --color-danger-soft: var(--danger-soft);
   --color-focus: var(--focus);
-  --radius-app: var(--radius);
+  --color-tag-gray-bg: var(--tag-gray-bg);
+  --color-tag-gray-text: var(--tag-gray-text);
+  --color-tag-brown-bg: var(--tag-brown-bg);
+  --color-tag-brown-text: var(--tag-brown-text);
+  --color-tag-orange-bg: var(--tag-orange-bg);
+  --color-tag-orange-text: var(--tag-orange-text);
+  --color-tag-yellow-bg: var(--tag-yellow-bg);
+  --color-tag-yellow-text: var(--tag-yellow-text);
+  --color-tag-green-bg: var(--tag-green-bg);
+  --color-tag-green-text: var(--tag-green-text);
+  --color-tag-blue-bg: var(--tag-blue-bg);
+  --color-tag-blue-text: var(--tag-blue-text);
+  --color-tag-purple-bg: var(--tag-purple-bg);
+  --color-tag-purple-text: var(--tag-purple-text);
+  --color-tag-pink-bg: var(--tag-pink-bg);
+  --color-tag-pink-text: var(--tag-pink-text);
+  --color-tag-red-bg: var(--tag-red-bg);
+  --color-tag-red-text: var(--tag-red-text);
+  --radius-sm: 4px;
+  --radius-md: 6px;
+  --shadow-menu: var(--menu-shadow);
+  --ease-ui: var(--motion-ease);
+  --default-transition-duration: 140ms;
+  --default-transition-timing-function: var(--motion-ease);
   --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
 * {
   box-sizing: border-box;
+}
+
+html {
+  scrollbar-gutter: stable;
 }
 
 html,
@@ -111,6 +190,12 @@ body,
 body {
   background: var(--bg);
   color: var(--text);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+.lucide {
+  stroke-width: 1.75;
 }
 
 button,

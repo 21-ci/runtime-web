@@ -5,19 +5,20 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-[4px] border text-sm font-semibold transition-colors disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg [&_svg]:size-4 [&_svg]:shrink-0",
+  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-sm border border-transparent text-sm font-medium transition-colors duration-[120ms] ease-ui disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:stroke-[1.75]",
   {
     variants: {
       variant: {
-        default: "border-accent bg-accent text-on-primary hover:border-accent-hover hover:bg-accent-hover",
-        secondary: "border-line bg-panel text-text hover:border-line-strong hover:bg-panel-2",
-        ghost: "border-transparent bg-transparent text-text hover:bg-panel-2",
-        danger: "border-transparent bg-danger-soft text-danger-text hover:brightness-95",
+        default: "bg-accent text-on-primary hover:bg-accent-hover",
+        secondary: "border-line-strong bg-surface text-text shadow-[0_1px_2px_rgba(15,15,15,0.06)] hover:bg-hover",
+        ghost: "bg-transparent text-text hover:bg-hover active:bg-active",
+        danger: "bg-danger-soft text-danger-text hover:bg-danger-soft/80",
       },
       size: {
-        default: "h-[34px] px-3",
-        sm: "h-8 px-2",
-        icon: "size-[34px] px-0",
+        default: "h-7 px-2.5",
+        sm: "h-6 gap-1.5 px-2 text-[13px]",
+        icon: "size-7 px-0",
+        "icon-sm": "size-6 px-0",
       },
     },
     defaultVariants: {
