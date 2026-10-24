@@ -64,7 +64,7 @@ export function SchedulesCard({ org, app }: { org: string; app: string }) {
       ) : schedules.isPending ? (
         <Skeleton className="h-20 w-full" />
       ) : schedules.data.length === 0 ? (
-        <EmptyState
+        <EmptyState entity="triggers"
           title="No schedules yet"
           description="Add one to run this app on a timer."
           action={<Button onClick={() => setAdding(true)}>Add schedule</Button>}

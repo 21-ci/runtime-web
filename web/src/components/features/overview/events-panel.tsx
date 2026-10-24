@@ -22,7 +22,7 @@ export function EventsPanel({ org, app }: { org: string; app: string }) {
 
   const items = events.data.pages.flatMap((p) => p.items);
   if (items.length === 0) {
-    return <EmptyState title="No events yet" description="Runtime events for this app appear here." />;
+    return <EmptyState entity="overview" title="No events yet" description="Runtime events for this app appear here." />;
   }
 
   return (

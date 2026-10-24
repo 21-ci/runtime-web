@@ -5,20 +5,20 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 const buttonVariants = cva(
-  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-sm border border-transparent text-sm font-medium transition-colors duration-[120ms] ease-ui disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:stroke-[1.75]",
+  "inline-flex shrink-0 cursor-pointer items-center justify-center gap-2 whitespace-nowrap rounded-full border-0 text-sm font-medium transition-[background-color,color,box-shadow,transform] duration-[160ms] active:scale-[0.98] ease-ui disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus focus-visible:ring-offset-2 focus-visible:ring-offset-bg [&_svg]:size-4 [&_svg]:shrink-0 [&_svg]:stroke-[1.75]",
   {
     variants: {
       variant: {
         default: "bg-accent text-on-primary hover:bg-accent-hover",
-        secondary: "border-line-strong bg-surface text-text shadow-[0_1px_2px_rgba(15,15,15,0.06)] hover:bg-hover",
+        secondary: "bg-secondary text-text hover:bg-secondary-hover",
         ghost: "bg-transparent text-text hover:bg-hover active:bg-active",
         danger: "bg-danger-soft text-danger-text hover:bg-danger-soft/80",
       },
       size: {
-        default: "h-7 px-2.5",
-        sm: "h-6 gap-1.5 px-2 text-[13px]",
-        icon: "size-7 px-0",
-        "icon-sm": "size-6 px-0",
+        default: "h-8 px-3.5",
+        sm: "h-7 gap-1.5 px-3 text-[13px]",
+        icon: "size-8 px-0",
+        "icon-sm": "size-7 px-0",
       },
     },
     defaultVariants: {

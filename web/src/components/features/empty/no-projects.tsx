@@ -7,7 +7,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 // NoProjects is the org overview empty state: one explanation and one primary action.
 export function NoProjects({ org }: { org: string }) {
   return (
-    <EmptyState
+    <EmptyState entity="projects"
       icon={FolderPlus}
       title="No projects yet"
       description="A project groups apps and the environments they deploy to. Create one to start."

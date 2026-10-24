@@ -1,3 +1,5 @@
+import { House as HomeTile } from "lucide-react";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { NoProjects } from "@/components/features/empty/no-projects";
@@ -21,7 +23,7 @@ function OrgOverview() {
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_320px]">
       <div className="min-w-0">
-        <h1 className="mb-4 text-xl font-semibold">Overview</h1>
+        <h1 className="mb-5 flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]"><IconTile icon={HomeTile} entity="overview" size="md" />Overview</h1>
         <section aria-labelledby="projects-heading" className="flex flex-col gap-3">
           <h2 id="projects-heading" className="text-sm font-semibold">
             Projects

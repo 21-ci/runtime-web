@@ -61,7 +61,7 @@ export function VersionsView({ org, app }: { org: string; app: string }) {
   const items = versions.data;
   if (items.length === 0) {
     return (
-      <EmptyState title="No versions yet" description="Save the app's code to create its first version." />
+      <EmptyState entity="versions" title="No versions yet" description="Save the app's code to create its first version." />
     );
   }
 

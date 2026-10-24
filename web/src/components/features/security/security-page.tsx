@@ -1,3 +1,5 @@
+import { ShieldCheck as ShieldCheckTile } from "lucide-react";
+import { IconTile } from "@/components/ui/icon-tile";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
@@ -33,7 +35,7 @@ export function SecurityPage() {
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-4 py-8">
       <header>
-        <h1 className="text-2xl font-semibold">Account security</h1>
+        <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]"><IconTile icon={ShieldCheckTile} entity="security" size="md" />Account security</h1>
         <p className="text-sm text-muted">{me.data.user.email}</p>
       </header>
 
@@ -247,7 +249,7 @@ function LoginHistorySection() {
       ) : logins.isPending ? (
         <Skeleton className="h-24 w-full" />
       ) : logins.data.length === 0 ? (
-        <EmptyState title="No sign-ins yet" />
+        <EmptyState entity="security" title="No sign-ins yet" />
       ) : (
         <Table>
           <TableHeader>

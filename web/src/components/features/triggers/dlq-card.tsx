@@ -54,7 +54,7 @@ export function DlqCard({ org, app }: { org: string; app: string }) {
       </div>
 
       {count === 0 ? (
-        <EmptyState title="Dead-letter queue is empty" description="Failed messages show up here." />
+        <EmptyState entity="triggers" title="Dead-letter queue is empty" description="Failed messages show up here." />
       ) : (
         <ul className="divide-y divide-line rounded-md border border-line bg-surface">
           {items.map((m) => (

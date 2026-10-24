@@ -1,3 +1,5 @@
+import { Boxes as BoxesTile } from "lucide-react";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Link } from "@tanstack/react-router";
 
 import { Badge } from "@/components/ui/badge";
@@ -33,7 +35,7 @@ export function AppHeader({ org, app }: { org: string; app: AppSummary }) {
         {app.environment}
       </p>
       <div className="flex flex-wrap items-center gap-3">
-        <h1 className="text-2xl font-semibold">{app.name ?? app.slug}</h1>
+        <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]"><IconTile icon={BoxesTile} entity="apps" size="md" />{app.name ?? app.slug}</h1>
         <Badge variant={PILL[build_state] ?? "default"} title={`Tier ${tier}`}>
           {build_state}
         </Badge>

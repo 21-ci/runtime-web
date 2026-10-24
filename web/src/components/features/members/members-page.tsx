@@ -84,7 +84,7 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
         ) : members.isPending ? (
           <Skeleton className="h-32 w-full" />
         ) : members.data.length === 0 ? (
-          <EmptyState icon={Users} title="No members" description="Invite a teammate to get started." />
+          <EmptyState entity="members" icon={Users} title="No members" description="Invite a teammate to get started." />
         ) : (
           <ul aria-label="Members" className="divide-y divide-line rounded-md border border-line bg-surface">
             {members.data.map((m) => {

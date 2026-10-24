@@ -15,7 +15,7 @@ export const TEMPLATES: { id: Template; title: string; blurb: string; Icon: type
 // NoApps is the empty project state: a create-app CTA that preselects the project.
 export function NoApps({ org, project }: { org: string; project: string }) {
   return (
-    <EmptyState
+    <EmptyState entity="apps"
       icon={Boxes}
       title="No apps in this project"
       description="Create an app from a template to deploy code to one of the project's environments."

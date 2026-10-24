@@ -54,7 +54,7 @@ function InvitePage() {
 
   if (invite.isPending) {
     return (
-      <AuthShell title="Accept invite">
+      <AuthShell title="Accept invite" description="You have been invited to join a team on Runtime.">
         <div className="flex flex-col gap-3" aria-busy="true">
           <Skeleton className="h-8 w-full" />
           <Skeleton className="h-8 w-full" />
@@ -79,7 +79,7 @@ function InvitePage() {
   const { email, org_name } = invite.data;
 
   return (
-    <AuthShell title="Accept invite">
+    <AuthShell title="Accept invite" description="You have been invited to join a team on Runtime.">
       <div className="mb-4 text-sm">
         <p className="text-muted">Email</p>
         <p className="font-medium">{email}</p>

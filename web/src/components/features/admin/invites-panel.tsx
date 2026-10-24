@@ -41,7 +41,7 @@ export function InvitesPanel() {
       ) : invites.isPending ? (
         <Skeleton className="h-12" />
       ) : (invites.data ?? []).length === 0 ? (
-        <EmptyState
+        <EmptyState entity="invites"
           icon={Mail}
           title="No pending invites"
           description="Create an invite link to add someone without setting a password for them."

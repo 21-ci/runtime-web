@@ -15,7 +15,7 @@ const DialogOverlay = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DialogPrimitive.Overlay
     ref={ref}
-    className={cn("fixed inset-0 z-50 bg-overlay/40 backdrop-blur-[1px]", className)}
+    className={cn("fixed inset-0 z-50 bg-overlay/35 data-[state=open]:animate-[fade-in_180ms_var(--motion-ease)]", className)}
     {...props}
   />
 ));
@@ -30,14 +30,14 @@ const DialogContent = React.forwardRef<
     <DialogPrimitive.Content
       ref={ref}
       className={cn(
-        "fixed left-1/2 top-1/2 z-50 flex w-[min(440px,calc(100%-32px))] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 rounded-md border border-line bg-surface p-5 text-text shadow-menu focus-visible:outline-none",
+        "fixed left-1/2 top-1/2 z-50 flex w-[min(440px,calc(100%-32px))] -translate-x-1/2 -translate-y-1/2 flex-col gap-4 rounded-2xl border border-line bg-surface p-6 text-text shadow-menu data-[state=open]:animate-[pop-in_180ms_var(--motion-ease)] focus-visible:outline-none",
         className,
       )}
       {...props}
     >
       {children}
       <DialogPrimitive.Close
-        className="absolute right-3 top-3 inline-flex size-7 cursor-pointer items-center justify-center rounded-sm text-muted hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
+        className="absolute right-3 top-3 inline-flex size-8 cursor-pointer items-center justify-center rounded-full text-muted transition-colors hover:bg-hover focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-focus"
       >
         <X className="size-4" aria-hidden="true" />
         <span className="sr-only">Close</span>
@@ -59,7 +59,7 @@ const DialogTitle = React.forwardRef<
   React.ComponentRef<typeof DialogPrimitive.Title>,
   React.ComponentPropsWithoutRef<typeof DialogPrimitive.Title>
 >(({ className, ...props }, ref) => (
-  <DialogPrimitive.Title ref={ref} className={cn("text-[15px] font-semibold", className)} {...props} />
+  <DialogPrimitive.Title ref={ref} className={cn("text-base font-semibold tracking-[-0.01em]", className)} {...props} />
 ));
 DialogTitle.displayName = "DialogTitle";
 

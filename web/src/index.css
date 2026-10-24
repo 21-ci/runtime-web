@@ -1,7 +1,7 @@
 @import "tailwindcss";
-@import "@fontsource/ibm-plex-sans/latin-400.css";
-@import "@fontsource/ibm-plex-sans/latin-500.css";
-@import "@fontsource/ibm-plex-sans/latin-600.css";
+@import "@fontsource/inter/latin-400.css";
+@import "@fontsource/inter/latin-500.css";
+@import "@fontsource/inter/latin-600.css";
 @import "@fontsource/ibm-plex-mono/latin-400.css";
 @import "@fontsource/ibm-plex-mono/latin-500.css";
 
@@ -14,109 +14,122 @@
  * checked for WCAG AA (4.5:1) in src/styles/contrast.test.ts.
  */
 :root {
-  /* Surfaces: Notion-like warm neutrals. Page and cards are white; chrome is off-white. */
-  --bg: #ffffff;
-  --panel: #f9f8f7;
-  --panel-2: #f1f0ee;
+  /* Surfaces: warm off-whites. Page is near-white, chrome a touch warmer, cards pure white. */
+  --bg: #fdfcfa;
+  --panel: #f9f8f6;
+  --panel-2: #f1efec;
   --surface: #ffffff;
-  --line: rgba(55, 53, 47, 0.12);
-  --line-strong: rgba(55, 53, 47, 0.22);
-  --hover: rgba(55, 53, 47, 0.06);
-  --active: rgba(55, 53, 47, 0.1);
-  --text: #2c2c2b;
-  /* Darkened from Notion's #787774 so secondary text passes AA on every surface. */
-  --muted: #5f5e5b;
-  --accent: #8a560a;
-  --accent-hover: #6f4507;
+  --field: #fbfaf8;
+  --secondary: #efeeec;
+  --secondary-hover: #e6e4e1;
+  --line: rgba(64, 52, 40, 0.1);
+  --line-strong: rgba(64, 52, 40, 0.18);
+  --hover: rgba(64, 52, 40, 0.05);
+  --active: rgba(64, 52, 40, 0.085);
+  --text: #2b2926;
+  --muted: #625d56;
+  /* Accent: warm tomato coral. Primary buttons, links, focus. */
+  --accent: #c2432a;
+  --accent-hover: #b03c24;
   --on-primary: #ffffff;
-  --accent-soft: #f0dcb2;
-  --accent-pale: #f6ecd8;
-  --overlay: #0f0f0f;
+  --accent-soft: #fbe1d7;
+  --accent-pale: #fdf0ea;
+  --overlay: #1a1410;
   --green: #2c6a3a;
   --on-success: #ffffff;
-  --danger: #b3261e;
-  --danger-text: #8c1d17;
-  --danger-soft: #fbe4e2;
-  --focus: color-mix(in srgb, var(--accent) 55%, transparent);
-  --menu-shadow: 0 0 0 1px rgba(15, 15, 15, 0.05), 0 3px 6px rgba(15, 15, 15, 0.1), 0 9px 24px rgba(15, 15, 15, 0.2);
+  --danger: #c0362c;
+  --danger-text: #9e2a22;
+  --danger-soft: #fce6e3;
+  --focus: color-mix(in srgb, var(--accent) 45%, transparent);
+  --menu-shadow: 0 0 0 1px rgba(60, 45, 30, 0.05), 0 4px 10px rgba(60, 45, 30, 0.08), 0 14px 32px rgba(60, 45, 30, 0.12);
+  --card-shadow: 0 1px 2px rgba(60, 45, 30, 0.05), 0 2px 6px rgba(60, 45, 30, 0.035);
 
-  /* Tags: tinted fills for badges. Each text/bg pair is AA-checked. */
-  --tag-gray-bg: #f1f1ef;
-  --tag-gray-text: #5f5e5b;
-  --tag-brown-bg: #f4eeee;
-  --tag-brown-text: #74503a;
-  --tag-orange-bg: #fbecdd;
-  --tag-orange-text: #8a4b0f;
-  --tag-yellow-bg: #fbf3db;
-  --tag-yellow-text: #735400;
-  --tag-green-bg: #edf3ec;
-  --tag-green-text: #2c6a3a;
-  --tag-blue-bg: #e7f3f8;
-  --tag-blue-text: #1f5f8b;
-  --tag-purple-bg: #f6f3f9;
-  --tag-purple-text: #6a3f92;
-  --tag-pink-bg: #faf1f5;
-  --tag-pink-text: #8e2f5e;
-  --tag-red-bg: #fdebec;
-  --tag-red-text: #9f2f2d;
+  /* Tags: soft tinted fills for badges and icon tiles. Each text/bg pair is AA-checked. */
+  --tag-gray-bg: #f1efec;
+  --tag-gray-text: #5c5751;
+  --tag-brown-bg: #f5ece6;
+  --tag-brown-text: #7a4e33;
+  --tag-orange-bg: #fde9de;
+  --tag-orange-text: #a33d1c;
+  --tag-yellow-bg: #fcf1d2;
+  --tag-yellow-text: #7a5600;
+  --tag-green-bg: #e6f3e6;
+  --tag-green-text: #2b6a35;
+  --tag-blue-bg: #e3effa;
+  --tag-blue-text: #1f5c91;
+  --tag-purple-bg: #efe9f8;
+  --tag-purple-text: #643c9a;
+  --tag-pink-bg: #fbe8f0;
+  --tag-pink-text: #9a2d60;
+  --tag-red-bg: #fde6e4;
+  --tag-red-text: #a12d27;
+  --tag-teal-bg: #e1f3ef;
+  --tag-teal-text: #1d665a;
 
-  --motion-ease: cubic-bezier(0.4, 0, 0.2, 1);
-  --motion-fast: 120ms;
-  --motion-base: 160ms;
+  --motion-ease: cubic-bezier(0.3, 0, 0.2, 1);
+  --motion-fast: 150ms;
+  --motion-base: 180ms;
 
   color-scheme: light;
-  font-family: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   color: var(--text);
   background: var(--bg);
   font-size: 14px;
   font-synthesis: none;
-  font-feature-settings: "ss02";
+  font-feature-settings: "cv11", "ss01";
   line-height: 1.5;
 }
 
+/* Dark stays warm: brown-black, never blue-black. */
 .dark {
-  --bg: #191919;
-  --panel: #202020;
-  --panel-2: #2a2a2a;
-  --surface: #191919;
-  --line: rgba(255, 255, 255, 0.094);
-  --line-strong: rgba(255, 255, 255, 0.16);
-  --hover: rgba(255, 255, 255, 0.055);
-  --active: rgba(255, 255, 255, 0.09);
-  --text: #e3e2e0;
-  --muted: #9b9a97;
-  --accent: #e0a43a;
-  --accent-hover: #ecbb5f;
-  --on-primary: #1a1405;
-  --accent-soft: #4a3612;
-  --accent-pale: #2a2214;
-  --overlay: #000000;
+  --bg: #1f1e1c;
+  --panel: #252422;
+  --panel-2: #2d2b28;
+  --surface: #242321;
+  --field: #2a2826;
+  --secondary: #353330;
+  --secondary-hover: #3e3b37;
+  --line: rgba(255, 244, 228, 0.09);
+  --line-strong: rgba(255, 244, 228, 0.16);
+  --hover: rgba(255, 244, 228, 0.055);
+  --active: rgba(255, 244, 228, 0.09);
+  --text: #ece9e4;
+  --muted: #aaa49b;
+  --accent: #f2845f;
+  --accent-hover: #f69b7c;
+  --on-primary: #2a120a;
+  --accent-soft: #4c2b1f;
+  --accent-pale: #35251e;
+  --overlay: #0c0a08;
   --green: #74c08a;
   --on-success: #0f1a12;
-  --danger: #ee8679;
-  --danger-text: #f3a69c;
-  --danger-soft: #3e2422;
-  --focus: color-mix(in srgb, var(--accent) 60%, transparent);
-  --menu-shadow: 0 0 0 1px rgba(15, 15, 15, 0.2), 0 3px 6px rgba(15, 15, 15, 0.4), 0 9px 24px rgba(15, 15, 15, 0.6);
+  --danger: #ef8a7c;
+  --danger-text: #f4a99e;
+  --danger-soft: #42261f;
+  --focus: color-mix(in srgb, var(--accent) 55%, transparent);
+  --menu-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), 0 4px 10px rgba(0, 0, 0, 0.3), 0 14px 32px rgba(0, 0, 0, 0.45);
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
 
-  --tag-gray-bg: #2f2f2f;
-  --tag-gray-text: #b4b3af;
-  --tag-brown-bg: #352a24;
-  --tag-brown-text: #c9a88c;
-  --tag-orange-bg: #3d2a1b;
-  --tag-orange-text: #e8a56a;
-  --tag-yellow-bg: #3a3120;
-  --tag-yellow-text: #e3c26a;
-  --tag-green-bg: #243d30;
-  --tag-green-text: #7cc48f;
-  --tag-blue-bg: #1f3442;
-  --tag-blue-text: #7fb8de;
-  --tag-purple-bg: #2e2638;
-  --tag-purple-text: #c2a3e0;
-  --tag-pink-bg: #3a2530;
-  --tag-pink-text: #e39cc0;
-  --tag-red-bg: #3e2524;
-  --tag-red-text: #f09a93;
+  --tag-gray-bg: #33312e;
+  --tag-gray-text: #bdb7ae;
+  --tag-brown-bg: #3a2d25;
+  --tag-brown-text: #d4ae90;
+  --tag-orange-bg: #432a1e;
+  --tag-orange-text: #f1a07c;
+  --tag-yellow-bg: #3d3220;
+  --tag-yellow-text: #e8c66e;
+  --tag-green-bg: #263a2b;
+  --tag-green-text: #8acb98;
+  --tag-blue-bg: #24323d;
+  --tag-blue-text: #8dbde3;
+  --tag-purple-bg: #312838;
+  --tag-purple-text: #c7aae4;
+  --tag-pink-bg: #3c2731;
+  --tag-pink-text: #eaa3c4;
+  --tag-red-bg: #432725;
+  --tag-red-text: #f3a09a;
+  --tag-teal-bg: #213834;
+  --tag-teal-text: #84cdbd;
 
   color-scheme: dark;
 }
@@ -162,13 +175,22 @@
   --color-tag-pink-text: var(--tag-pink-text);
   --color-tag-red-bg: var(--tag-red-bg);
   --color-tag-red-text: var(--tag-red-text);
-  --radius-sm: 4px;
-  --radius-md: 6px;
+  --color-tag-teal-bg: var(--tag-teal-bg);
+  --color-tag-teal-text: var(--tag-teal-text);
+  --color-field: var(--field);
+  --color-secondary: var(--secondary);
+  --color-secondary-hover: var(--secondary-hover);
+  --radius-sm: 6px;
+  --radius-md: 10px;
+  --radius-lg: 10px;
+  --radius-xl: 14px;
+  --radius-2xl: 16px;
   --shadow-menu: var(--menu-shadow);
+  --shadow-card: var(--card-shadow);
   --ease-ui: var(--motion-ease);
-  --default-transition-duration: 140ms;
+  --default-transition-duration: 160ms;
   --default-transition-timing-function: var(--motion-ease);
-  --font-sans: "IBM Plex Sans", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
 }
 
@@ -216,6 +238,19 @@ pre {
 ::selection {
   background: var(--accent-soft);
   color: var(--text);
+}
+
+@keyframes fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes pop-in {
+  from {
+    opacity: 0;
+    scale: 0.97;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {

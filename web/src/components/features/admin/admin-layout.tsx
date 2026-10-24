@@ -1,3 +1,5 @@
+import { Shield as ShieldTile } from "lucide-react";
+import { IconTile } from "@/components/ui/icon-tile";
 import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
@@ -10,7 +12,7 @@ export function AdminLayout({ children }: { children: ReactNode }) {
     <div className="min-h-dvh bg-bg text-text">
       <header className="border-b border-line bg-surface px-4 py-3 md:px-10">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3">
-          <h1 className="text-2xl font-semibold">Instance admin</h1>
+          <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]"><IconTile icon={ShieldTile} entity="admin" size="md" />Instance admin</h1>
           <Link to="/" className="ml-auto text-sm text-muted hover:text-text">
             Back to console
           </Link>

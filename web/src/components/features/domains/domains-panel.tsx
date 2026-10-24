@@ -189,7 +189,7 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
       ) : domains.isPending ? (
         <Skeleton className="h-32 w-full" />
       ) : domains.data.length === 0 ? (
-        <EmptyState
+        <EmptyState entity="domains"
           icon={Globe}
           title="No custom domains"
           description="Add a host name to point your own domain at this app."

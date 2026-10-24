@@ -6,6 +6,7 @@ const root = resolve(__dirname, "../..");
 const css = readFileSync(resolve(root, "src/index.css"), "utf8");
 const buttonSrc = readFileSync(resolve(root, "src/components/ui/button.tsx"), "utf8");
 const badgeSrc = readFileSync(resolve(root, "src/components/ui/badge.tsx"), "utf8");
+const iconTileSrc = readFileSync(resolve(root, "src/components/ui/icon-tile.tsx"), "utf8");
 
 /** Returns the body of the first rule whose selector is exactly `selector`. */
 function block(selector: string): string {
@@ -54,7 +55,14 @@ const pairs = [
   { name: "info badge", fg: "text", bg: "accent-soft" },
   { name: "danger text on panel", fg: "danger-text", bg: "panel" },
   { name: "muted text on panel", fg: "muted", bg: "panel" },
-  ...["gray", "brown", "orange", "yellow", "green", "blue", "purple", "pink", "red"].map((c) => ({
+  { name: "secondary button", fg: "text", bg: "secondary" },
+  { name: "secondary button hover", fg: "text", bg: "secondary-hover" },
+  { name: "muted on secondary (tabs, search)", fg: "muted", bg: "secondary" },
+  { name: "input text", fg: "text", bg: "field" },
+  { name: "input placeholder", fg: "muted", bg: "field" },
+  { name: "accent link on panel", fg: "accent", bg: "panel" },
+  { name: "text on accent-soft selection", fg: "text", bg: "accent-soft" },
+  ...["gray", "brown", "orange", "yellow", "green", "blue", "purple", "pink", "red", "teal"].map((c) => ({
     name: `${c} tag`,
     fg: `tag-${c}-text`,
     bg: `tag-${c}-bg`,
@@ -80,11 +88,22 @@ describe("contrast: WCAG AA (4.5:1) for filled controls and badges", () => {
 
   it("components use the token pairs that were checked", () => {
     expect(buttonSrc).toMatch(/default:\s*"[^"]*bg-accent[^"]*text-on-primary/);
+    expect(buttonSrc).toMatch(/secondary:\s*"[^"]*bg-secondary[^"]*text-text/);
+    expect(buttonSrc).toMatch(/rounded-full/);
+    expect(iconTileSrc).toMatch(/teal:\s*"bg-tag-teal-bg text-tag-teal-text"/);
     expect(buttonSrc).toMatch(/danger:\s*"[^"]*bg-danger-soft[^"]*text-danger-text/);
     expect(badgeSrc).toMatch(/success:\s*"[^"]*bg-tag-green-bg[^"]*text-tag-green-text/);
     expect(badgeSrc).toMatch(/info:\s*"[^"]*bg-accent-soft[^"]*text-text/);
     expect(badgeSrc).toMatch(/danger:\s*"[^"]*bg-tag-red-bg[^"]*text-tag-red-text/);
     expect(badgeSrc).not.toMatch(/bg-green\b|text-on-success/);
+  });
+
+  it("keeps dark mode warm: red channel at or above blue on the base surfaces", () => {
+    const t = tokens(".dark");
+    for (const k of ["bg", "panel", "panel-2", "surface"]) {
+      const hex = t[k];
+      expect(parseInt(hex.slice(1, 3), 16), `--${k} ${hex}`).toBeGreaterThanOrEqual(parseInt(hex.slice(5, 7), 16));
+    }
   });
 
   it("defines the dark set once, with no duplicated prefers-color-scheme copy", () => {
