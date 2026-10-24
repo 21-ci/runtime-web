@@ -601,7 +601,7 @@ schedule count.
 
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
-| GET | `…/{app}/stats` | `app.logs.read` | `?window=5m\|1h\|24h` (default `5m`) | `200 object` (runtime stats passthrough: counts, error rate, p50/p95/p99, `admission`) | `404` |
+| GET | `…/{app}/stats` | `app.logs.read` | `?window=5m\|1h\|24h` (default `5m`) | `200 object`: runtime stats passthrough (`count`, `errors`, `error_rate`, `outcomes`, `queue`/`init`/`exec`/`total` percentiles, `admission`) plus `window` and flat `requests` (= `count`), `p50_ms`/`p95_ms`/`p99_ms` (= `total.*`) | `404` |
 | GET | `…/{app}/events` | `app.logs.read` | `?cursor&limit` | `200 Page<{id: string; ts: number; kind: string; data: unknown}>` | `404` |
 | GET | `…/{app}/logs` | `app.logs.read` | SSE, see §8.6 | `text/event-stream` | `404`, `429 rate_limited` (org upstream cap) |
 | GET | `…/{app}/export` | `app.data.export` | | `200 application/vnd.sqlite3`, `Content-Disposition: attachment; filename="<app>.sqlite"` (streamed) | `403`, `404` |

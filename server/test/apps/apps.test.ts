@@ -279,7 +279,9 @@ describe("config: env, secrets, schedules, queue", () => {
     const w = await world();
     await createApp(w.admin);
     const s = await w.admin.call("GET", `${APPS}/hello/stats`);
-    expect(await s.json()).toMatchObject({ window: "5m" });
+    expect(await s.json()).toMatchObject({ window: "5m", count: 3, requests: 3, errors: 1, p50_ms: 12, p95_ms: 40, p99_ms: 90, total: { p95_ms: 40 } });
+    const day = await w.admin.call("GET", `${APPS}/hello/stats?window=24h`);
+    expect(await day.json()).toMatchObject({ window: "24h", requests: 30 });
     expect((await w.admin.call("GET", `${APPS}/hello/stats?window=7d`)).status).toBe(422);
     const ev = (await (await w.admin.call("GET", `${APPS}/hello/events`)).json()) as { items: { kind: string }[]; next_cursor: unknown };
     expect(ev.items.map((e) => e.kind)).toContain("service.created");
@@ -412,5 +414,12 @@ describe("pure helpers", () => {
     expect(unpack(b64("PK\x03\x04rest"), "application/octet-stream", true)).toMatchObject({ kind: "bundle", read_only: true });
     expect(unpack(b64("\x00asm\x01"), "application/octet-stream", true)).toMatchObject({ kind: "wasm", read_only: true });
     expect(() => unpack('{"entry":"../a","files":{"../a":"1"}}', "application/json")).toThrow();
+  });
+});
+
+describe("statsView", () => {
+  it("zero-fills when the runtime body has no counts", async () => {
+    const { statsView } = await import("../../src/routes/apps.ts");
+    expect(statsView(null, "1h")).toEqual({ window: "1h", requests: 0, errors: 0, error_rate: 0, p50_ms: 0, p95_ms: 0, p99_ms: 0 });
   });
 });

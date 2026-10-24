@@ -538,7 +538,7 @@ export class FakeRtCtl implements RtCtl {
       s.dlq = [];
       return ok({ redriven: n });
     }
-    if (at("GET", "stats")) return need("logs:read"), ok({ window: q.window ?? "1h", invocations: 0, errors: 0, p50_ms: 0, p95_ms: 0 });
+    if (at("GET", "stats")) return need("logs:read"), ok(fakeStats(q.window ?? "5m"));
     return notFound();
   }
 
@@ -751,4 +751,11 @@ function refusal(status: number, reason: string, retryAfter?: number): CtlRes {
   const headers: Record<string, string> = { "content-type": "text/plain", "x-rt-reason": reason };
   if (retryAfter !== undefined) headers["retry-after"] = String(retryAfter);
   return { status, headers, body: reason };
+}
+
+/** Shape of rt-obs ServiceStats plus `admission` (runtime docs/api.md, GET /v1/services/{s}/stats). */
+export function fakeStats(window: string) {
+  const n = window === "24h" ? 30 : window === "1h" ? 7 : 3;
+  const pct = { p50_ms: 10, p95_ms: 20, p99_ms: 30 };
+  return { count: n, errors: 1, error_rate: 1 / n, outcomes: { ok: n - 1, guest_error: 1 }, queue: pct, init: pct, exec: pct, total: { p50_ms: 12, p95_ms: 40, p99_ms: 90 }, admission: {} };
 }

@@ -253,7 +253,7 @@ export function registerApps(router: Router, deps: Deps): void {
     const window = ctx.url.searchParams.get("window") || "5m";
     if (!["5m", "1h", "24h"].includes(window)) throw invalid({ window: "not_one_of" });
     const app = await A.appFor(c, slug(ctx), "app.logs.read");
-    return json(await rt(() => c.cli.stats(app.id, window)));
+    return json(statsView(await rt(() => c.cli.stats(app.id, window)), window));
   }));
 
   router.get(`${one}/events`, route(async (c, ctx) => {
@@ -375,6 +375,27 @@ async function readBig(req: Request, max: number): Promise<Record<string, unknow
   } catch {
     throw badRequest("bad_request", "malformed JSON body");
   }
+}
+
+/**
+ * Runtime stats (rt-obs ServiceStats: `count`, `errors`, `error_rate`, phase percentiles
+ * under `total`/`exec`/…, plus `admission`) pass through, with the window echoed and the
+ * console's flat keys added: `requests` = `count`, `p50_ms`/`p95_ms`/`p99_ms` = `total.*`.
+ */
+export function statsView(raw: unknown, window: string): Record<string, unknown> {
+  const o = raw && typeof raw === "object" && !Array.isArray(raw) ? (raw as Record<string, unknown>) : {};
+  const total = o.total && typeof o.total === "object" ? (o.total as Record<string, unknown>) : {};
+  const num = (v: unknown) => (typeof v === "number" ? v : 0);
+  return {
+    ...o,
+    window,
+    requests: num(o.count),
+    errors: num(o.errors),
+    error_rate: num(o.error_rate),
+    p50_ms: num(total.p50_ms),
+    p95_ms: num(total.p95_ms),
+    p99_ms: num(total.p99_ms),
+  };
 }
 
 async function audit(c: A.OrgCtx, action: string, target: string, detail: unknown): Promise<void> {
