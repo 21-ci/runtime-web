@@ -171,6 +171,24 @@ func TestUpdateSchedulePatchKeepsOtherFields(t *testing.T) {
 	}
 }
 
+func TestOnceSchedules(t *testing.T) {
+	f := newFixture(t)
+	ctx := context.Background()
+	v := f.app(t, f.org.ID, "default", "production", "o1")
+	got, err := f.svc.OnceSchedules(ctx, owner, f.org.ID, "o1")
+	if err != nil || got == nil || len(got) != 0 {
+		t.Fatalf("empty = %v, %v", got, err)
+	}
+	id := f.fake.AddOnceSchedule(v.Raw.ID, 99)
+	got, err = f.svc.OnceSchedules(ctx, owner, f.org.ID, "o1")
+	if err != nil || len(got) != 1 || got[0].ID != id || got[0].RunAt != 99 {
+		t.Fatalf("once = %+v, %v", got, err)
+	}
+	if _, err := f.svc.OnceSchedules(ctx, owner, f.org.ID, "missing"); !errors.Is(err, apperr.ErrNotFound) {
+		t.Fatalf("missing app err = %v, want ErrNotFound", err)
+	}
+}
+
 func TestQueueFullThrottled(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()

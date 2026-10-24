@@ -110,6 +110,7 @@ function LogRow({ line }: { line: LogLine }) {
       </time>
       <span className="shrink-0 text-muted">{line.level}</span>
       <span className="break-all">{line.msg}</span>
+      {line.fields ? <code className="break-all text-muted">{JSON.stringify(line.fields)}</code> : null}
     </li>
   );
 }

@@ -218,6 +218,17 @@ func TestSetLiveIfMatch(t *testing.T) {
 	}
 }
 
+func TestListOnceSchedules(t *testing.T) {
+	c, got := stub(t, 200, nil, `{"items":[{"id":"sch_1","kind":"once","run_at":9}],"next_cursor":"c2"}`)
+	p, err := c.With(TenantKeyCred{Secret: "k"}).ListOnceSchedules(context.Background(), "svc_1", "c1")
+	if err != nil || len(p.Items) != 1 || p.NextCursor == nil || *p.NextCursor != "c2" {
+		t.Fatalf("ListOnceSchedules = %+v %v", p, err)
+	}
+	if got.method != http.MethodGet || got.path != "/v1/services/svc_1/schedules/once" || got.query != "cursor=c1&limit=200" {
+		t.Errorf("request = %s %s ?%s", got.method, got.path, got.query)
+	}
+}
+
 func TestStreamLogs(t *testing.T) {
 	c, got := stub(t, 200, map[string]string{"Content-Type": "text/event-stream"}, "id: 1\nevent: log\ndata: {}\n\n")
 	rc, err := c.With(TenantKeyCred{Secret: "k"}).StreamLogs(context.Background(), "svc_1", "41")
@@ -269,16 +280,30 @@ func TestDecodeNullableFields(t *testing.T) {
 	})
 	t.Run("me operator", func(t *testing.T) {
 		var m Me
-		raw := `{"principal":"operator","tenant_id":null,"key_id":null,"scopes":["*"],"service_ids":null,"plan":null,"version":"0.1.0"}`
+		raw := `{"principal":"operator","tenant_id":null,"key_id":null,"scopes":["*"],"project_ids":null,"environments":null,"plan":null,"version":"0.1.0"}`
 		if err := json.Unmarshal([]byte(raw), &m); err != nil || m.Plan != nil || m.TenantID != nil {
 			t.Errorf("me = %+v %v", m, err)
 		}
 	})
 	t.Run("key created", func(t *testing.T) {
 		var k KeyCreated
-		raw := `{"id":"key_1","name":null,"scopes":["deploy"],"service_ids":null,"created_at":1,"expires_at":null,"last_used_at":null,"secret":"rtk_key_1_s"}`
-		if err := json.Unmarshal([]byte(raw), &k); err != nil || k.Secret != "rtk_key_1_s" || k.ID != "key_1" || k.ExpiresAt != nil {
+		raw := `{"id":"key_1","name":null,"scopes":["deploy"],"project_ids":["prj_1"],"environments":null,"created_at":1,"expires_at":null,"last_used_at":null,"secret":"rtk_key_1_s"}`
+		if err := json.Unmarshal([]byte(raw), &k); err != nil || k.Secret != "rtk_key_1_s" || k.ID != "key_1" || k.ExpiresAt != nil || len(k.ProjectIDs) != 1 || k.Environments != nil {
 			t.Errorf("key = %+v %v", k, err)
+		}
+	})
+	t.Run("service v0.1.1 fields", func(t *testing.T) {
+		var sv Service
+		raw := `{"id":"svc_1","tenant_id":"ten_1","slug":"a","runtime":"deno","name":null,"profile":null,"project_id":"prj_1","project":"default","environment":"production","live_version":null,"etag":"1","access":"public","durable":true,"ws":{"warm":true},"status":{"build_state":"ready","tier":"T1","inflight":0,"last_error":null,"admission":null}}`
+		if err := json.Unmarshal([]byte(raw), &sv); err != nil || sv.ProjectID != "prj_1" || !sv.Durable || string(sv.WS) != `{"warm":true}` {
+			t.Errorf("service = %+v %v", sv, err)
+		}
+	})
+	t.Run("once page", func(t *testing.T) {
+		var p OncePage
+		raw := `{"items":[{"id":"sch_1","kind":"once","run_at":5}],"next_cursor":null}`
+		if err := json.Unmarshal([]byte(raw), &p); err != nil || len(p.Items) != 1 || p.Items[0].RunAt != 5 || p.NextCursor != nil {
+			t.Errorf("once = %+v %v", p, err)
 		}
 	})
 	t.Run("limits unlimited", func(t *testing.T) {

@@ -7,7 +7,8 @@ export type Token = {
   id: string;
   name: string;
   scopes: string[];
-  apps: string[];
+  projects: string[]; // project slugs; empty = all projects
+  environments: string[]; // empty = all environments
   created_by: { id: string; name: string };
   created_at: number;
   expires_at: number | null;
@@ -17,7 +18,8 @@ export type Token = {
 export type TokenRequest = {
   name: string;
   scopes: string[];
-  apps: string[];
+  projects: string[];
+  environments: string[];
   expires_at: number | null;
 };
 

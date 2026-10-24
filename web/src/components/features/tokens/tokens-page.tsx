@@ -19,7 +19,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { useApps } from "@/hooks/orgs";
+import { useProjects } from "@/hooks/orgs";
 import { ApiError } from "@/lib/api";
 import type { OrgRole } from "@/lib/types";
 
@@ -87,7 +87,7 @@ export function TokensPage({ org, role }: { org: string; role: OrgRole }) {
             <TableRow>
               <TableHead>Name</TableHead>
               <TableHead>Scopes</TableHead>
-              <TableHead>Apps</TableHead>
+              <TableHead>Access</TableHead>
               <TableHead>Expires</TableHead>
               <TableHead>Last used</TableHead>
               <TableHead>
@@ -111,7 +111,7 @@ export function TokensPage({ org, role }: { org: string; role: OrgRole }) {
                     ))}
                   </span>
                 </TableCell>
-                <TableCell>{t.apps.length === 0 ? "All apps" : t.apps.join(", ")}</TableCell>
+                <TableCell>{describeAccess(t.projects, t.environments)}</TableCell>
                 <TableCell>{t.expires_at ? new Date(t.expires_at).toLocaleDateString() : "Never"}</TableCell>
                 <TableCell>{t.last_used_at ? new Date(t.last_used_at).toLocaleString() : "Not yet"}</TableCell>
                 <TableCell className="text-right">
@@ -152,9 +152,18 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
   const [created, setCreated] = useState<{ name: string; secret: string } | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [scopes, setScopes] = useState<string[]>([]);
-  const [apps, setApps] = useState<string[]>([]);
+  const [projects, setProjects] = useState<string[]>([]);
+  const [environments, setEnvironments] = useState<string[]>([]);
   const create = useCreateToken(org);
-  const appList = useApps(org);
+  const projectList = useProjects(org);
+  // Environments offered are those of the picked projects, or of every project when none is picked.
+  const envOptions = [
+    ...new Set(
+      (projectList.data ?? [])
+        .filter((p) => projects.length === 0 || projects.includes(p.slug))
+        .flatMap((p) => p.environments),
+    ),
+  ];
   const scopeOptions = scopesForRole(role);
   const expiryId = useId();
 
@@ -162,7 +171,8 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
     setCreated(null);
     setErrors({});
     setScopes([]);
-    setApps([]);
+    setProjects([]);
+    setEnvironments([]);
   }
 
   function onOpenChange(next: boolean) {
@@ -189,7 +199,8 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
       {
         name,
         scopes,
-        apps,
+        projects,
+        environments: environments.filter((e) => envOptions.includes(e)),
         expires_at: expiry?.days ? Date.now() + expiry.days * DAY_MS : null,
       },
       {
@@ -257,20 +268,38 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
                   ))}
                 </div>
               </fieldset>
-              {appList.data && appList.data.length > 0 ? (
+              {projectList.data && projectList.data.length > 0 ? (
                 <fieldset className="flex flex-col gap-2">
-                  <legend className="mb-1 text-sm font-medium">Apps (leave empty for all)</legend>
-                  {appList.data.map((a) => (
-                    <label key={a.slug} className="flex items-center gap-2 text-sm">
+                  <legend className="mb-1 text-sm font-medium">Projects (leave empty for all)</legend>
+                  {projectList.data.map((p) => (
+                    <label key={p.slug} className="flex items-center gap-2 text-sm">
                       <input
                         type="checkbox"
-                        name="apps"
-                        value={a.slug}
-                        checked={apps.includes(a.slug)}
-                        onChange={() => toggle(apps, a.slug, setApps)}
+                        name="projects"
+                        value={p.slug}
+                        checked={projects.includes(p.slug)}
+                        onChange={() => toggle(projects, p.slug, setProjects)}
                         className="size-4 accent-accent"
                       />
-                      {a.name ?? a.slug}
+                      {p.name || p.slug}
+                    </label>
+                  ))}
+                </fieldset>
+              ) : null}
+              {envOptions.length > 0 ? (
+                <fieldset className="flex flex-col gap-2">
+                  <legend className="mb-1 text-sm font-medium">Environments (leave empty for all)</legend>
+                  {envOptions.map((env) => (
+                    <label key={env} className="flex items-center gap-2 text-sm">
+                      <input
+                        type="checkbox"
+                        name="environments"
+                        value={env}
+                        checked={environments.includes(env)}
+                        onChange={() => toggle(environments, env, setEnvironments)}
+                        className="size-4 accent-accent"
+                      />
+                      {env}
                     </label>
                   ))}
                 </fieldset>
@@ -301,4 +330,10 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
       </DialogContent>
     </Dialog>
   );
+}
+
+// describeAccess summarizes a token's project and environment restriction for the table.
+function describeAccess(projects: string[], environments: string[]): string {
+  const p = projects.length === 0 ? "All projects" : projects.join(", ");
+  return environments.length === 0 ? p : `${p} (${environments.join(", ")})`;
 }

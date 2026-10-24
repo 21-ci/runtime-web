@@ -22,7 +22,13 @@ function renderPage(role: "owner" | "admin" | "member") {
 function baseHandlers(created: { body?: unknown }) {
   server.use(
     http.get("/api/orgs/acme/tokens", () => HttpResponse.json({ items: [] })),
-    http.get("/api/orgs/acme/apps", () => HttpResponse.json({ items: [], next_cursor: null })),
+    http.get("/api/orgs/acme/projects", () =>
+      HttpResponse.json({
+        items: [
+          { slug: "shop", name: "Shop", environments: ["production", "staging"], created_at: 1, updated_at: 1, role: "admin" },
+        ],
+      }),
+    ),
     http.post("/api/orgs/acme/tokens", async ({ request }) => {
       created.body = await request.json();
       return HttpResponse.json(
@@ -31,7 +37,8 @@ function baseHandlers(created: { body?: unknown }) {
             id: "tok_1",
             name: "CI",
             scopes: ["services:read"],
-            apps: [],
+            projects: [],
+            environments: [],
             created_by: { id: "usr_1", name: "Ada" },
             created_at: 1,
             expires_at: null,
@@ -59,11 +66,34 @@ describe("TokensPage", () => {
 
     // The secret is visible once, in the dialog that follows creation.
     expect(await screen.findByText(SECRET)).toBeInTheDocument();
-    expect(created.body).toEqual({ name: "CI", scopes: ["services:read"], apps: [], expires_at: null });
+    expect(created.body).toEqual({
+      name: "CI",
+      scopes: ["services:read"],
+      projects: [],
+      environments: [],
+      expires_at: null,
+    });
 
     await user.click(screen.getByRole("button", { name: "Done" }));
     await waitFor(() => expect(screen.queryByText(SECRET)).toBeNull());
     expect(document.body.textContent ?? "").not.toContain(SECRET);
+  });
+
+  it("token restricted to a project and environment", async () => {
+    const user = userEvent.setup();
+    const created: { body?: unknown } = {};
+    baseHandlers(created);
+    renderPage("owner");
+
+    await user.click(await screen.findByRole("button", { name: "New token" }));
+    await user.type(screen.getByLabelText("Name"), "CI");
+    await user.click(screen.getByRole("checkbox", { name: "deploy" }));
+    await user.click(await screen.findByRole("checkbox", { name: "Shop" }));
+    await user.click(screen.getByRole("checkbox", { name: "staging" }));
+    await user.click(screen.getByRole("button", { name: "Create token" }));
+
+    await screen.findByText(SECRET);
+    expect(created.body).toMatchObject({ projects: ["shop"], environments: ["staging"] });
   });
 
   it("token form limits scopes to role", async () => {

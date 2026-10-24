@@ -33,12 +33,14 @@ const (
 	retryBatch    = 100
 )
 
-// TokenRequest describes a custom token. Services are app slugs; empty means all apps.
+// TokenRequest describes a custom token. Projects are project slugs and Environments environment
+// names; empty means all.
 type TokenRequest struct {
-	Name      string
-	Scopes    []string
-	Services  []string
-	ExpiresAt *time.Time
+	Name         string
+	Scopes       []string
+	Projects     []string
+	Environments []string
+	ExpiresAt    *time.Time
 }
 
 // Creator is the user who created a token.
@@ -49,14 +51,15 @@ type Creator struct {
 
 // Token is a custom token's metadata. It never carries the secret.
 type Token struct {
-	ID         string   `json:"id"`
-	Name       string   `json:"name"`
-	Scopes     []string `json:"scopes"`
-	Apps       []string `json:"apps"`
-	CreatedBy  Creator  `json:"created_by"`
-	CreatedAt  int64    `json:"created_at"`
-	ExpiresAt  *int64   `json:"expires_at"`
-	LastUsedAt *int64   `json:"last_used_at"`
+	ID           string   `json:"id"`
+	Name         string   `json:"name"`
+	Scopes       []string `json:"scopes"`
+	Projects     []string `json:"projects"`     // project slugs; empty = all projects
+	Environments []string `json:"environments"` // empty = all environments
+	CreatedBy    Creator  `json:"created_by"`
+	CreatedAt    int64    `json:"created_at"`
+	ExpiresAt    *int64   `json:"expires_at"`
+	LastUsedAt   *int64   `json:"last_used_at"`
 }
 
 // Service manages custom tokens and default key rotation.
@@ -83,7 +86,8 @@ func (s *Service) log() audit.Writer { return audit.Writer{Now: s.now} }
 
 // CreateToken mints a custom token for orgID with the root credential and returns its metadata and the
 // one-time secret. Needs tokens.manage (org owner/admin). Scopes must be tenant scopes other than
-// keys:write; Services are app slugs resolved to runtime service ids.
+// keys:write; Projects are project slugs resolved to runtime project ids. The runtime enforces the
+// project and environment restriction.
 func (s *Service) CreateToken(ctx context.Context, actor audit.Actor, sub authz.Subject, orgID string, req TokenRequest) (Token, string, error) {
 	if !authz.Can(sub, authz.TokensManage, "") {
 		return Token{}, "", fmt.Errorf("keys: create token: %w", apperr.ErrForbidden)
@@ -120,18 +124,25 @@ func (s *Service) CreateToken(ctx context.Context, actor audit.Actor, sub authz.
 	if err != nil {
 		return Token{}, "", err
 	}
-	apps := []string{}
-	if len(req.Services) > 0 {
-		ids, err := s.resolveApps(ctx, orgID, req.Services)
-		if err != nil {
-			return Token{}, "", err
+	envs := []string{}
+	for _, e := range req.Environments {
+		e = strings.TrimSpace(e)
+		if e == "" {
+			return Token{}, "", fmt.Errorf("keys: create token: blank environment: %w", apperr.ErrInvalid)
 		}
-		in.Services = ids
-		for _, a := range req.Services {
-			if !slices.Contains(apps, a) {
-				apps = append(apps, a)
-			}
+		if !slices.Contains(envs, e) {
+			envs = append(envs, e)
 		}
+	}
+	in.Environments = envs
+	projects := []string{}
+	for _, p := range req.Projects {
+		if !slices.Contains(projects, p) {
+			projects = append(projects, p)
+		}
+	}
+	if in.ProjectIDs, err = s.resolveProjects(ctx, org.TenantID, projects); err != nil {
+		return Token{}, "", err
 	}
 	creator, err := s.st.Q().GetUserByID(ctx, actor.UserID)
 	if err != nil {
@@ -142,16 +153,20 @@ func (s *Service) CreateToken(ctx context.Context, actor audit.Actor, sub authz.
 	if err != nil {
 		return Token{}, "", fmt.Errorf("keys: create token: encode scopes: %w", err)
 	}
-	appsJSON, err := json.Marshal(apps)
+	projectsJSON, err := json.Marshal(projects)
 	if err != nil {
-		return Token{}, "", fmt.Errorf("keys: create token: encode apps: %w", err)
+		return Token{}, "", fmt.Errorf("keys: create token: encode projects: %w", err)
+	}
+	envsJSON, err := json.Marshal(envs)
+	if err != nil {
+		return Token{}, "", fmt.Errorf("keys: create token: encode environments: %w", err)
 	}
 	key, err := s.rt.With(s.root).CreateTenantKey(ctx, org.TenantID, in)
 	if err != nil {
 		return Token{}, "", fmt.Errorf("keys: create token: mint: %w", err)
 	}
 	tok := Token{
-		ID: store.NewID("tok_"), Name: req.Name, Scopes: scopes, Apps: apps,
+		ID: store.NewID("tok_"), Name: req.Name, Scopes: scopes, Projects: projects, Environments: envs,
 		CreatedBy: Creator{ID: creator.ID, Name: creator.Name}, CreatedAt: now.UnixMilli(),
 	}
 	if expiresAt.Valid {
@@ -161,11 +176,11 @@ func (s *Service) CreateToken(ctx context.Context, actor audit.Actor, sub authz.
 	err = s.st.Tx(ctx, func(q *db.Queries) error {
 		if err := q.CreateToken(ctx, db.CreateTokenParams{
 			ID: tok.ID, OrgID: orgID, RuntimeKeyID: key.ID, Name: tok.Name, Scopes: string(scopesJSON),
-			Apps: string(appsJSON), ExpiresAt: expiresAt, CreatedBy: actor.UserID, CreatedAt: tok.CreatedAt,
+			Projects: string(projectsJSON), Environments: string(envsJSON), ExpiresAt: expiresAt, CreatedBy: actor.UserID, CreatedAt: tok.CreatedAt,
 		}); err != nil {
 			return err
 		}
-		return s.log().Log(ctx, q, actor, orgID, "token.create", tok.ID, map[string]any{"name": tok.Name, "scopes": scopes, "apps": apps})
+		return s.log().Log(ctx, q, actor, orgID, "token.create", tok.ID, map[string]any{"name": tok.Name, "scopes": scopes, "projects": projects, "environments": envs})
 	})
 	if err != nil {
 		if rerr := s.rt.With(s.root).RevokeTenantKey(ctx, org.TenantID, key.ID); rerr != nil && !runtime.IsNotFound(rerr) {
@@ -176,18 +191,19 @@ func (s *Service) CreateToken(ctx context.Context, actor audit.Actor, sub authz.
 	return tok, key.Secret, nil
 }
 
-// resolveApps maps app slugs to runtime service ids through apps.Resolve. An unknown slug, or one held
-// by another tenant, is apperr.ErrNotFound.
-func (s *Service) resolveApps(ctx context.Context, orgID string, slugs []string) ([]string, error) {
+// resolveProjects maps project slugs of tenantID to runtime prj_ ids. An unknown slug is
+// apperr.ErrNotFound.
+func (s *Service) resolveProjects(ctx context.Context, tenantID string, slugs []string) ([]string, error) {
+	cli := s.rt.With(runtime.RootCred{Token: s.root.Token, Tenant: tenantID})
 	var ids []string
 	for _, slug := range slugs {
-		app, err := s.apps.Resolve(ctx, orgID, slug)
-		if err != nil {
-			return nil, fmt.Errorf("keys: resolve app %s: %w", slug, err)
+		p, err := cli.GetProject(ctx, slug)
+		if runtime.IsNotFound(err) {
+			return nil, fmt.Errorf("keys: project %s: %w", slug, apperr.ErrNotFound)
+		} else if err != nil {
+			return nil, fmt.Errorf("keys: resolve project %s: %w", slug, err)
 		}
-		if !slices.Contains(ids, app.SvcID) {
-			ids = append(ids, app.SvcID)
-		}
+		ids = append(ids, p.ID)
 	}
 	return ids, nil
 }
@@ -201,14 +217,17 @@ func (s *Service) ListTokens(ctx context.Context, orgID string) ([]Token, error)
 	out := make([]Token, 0, len(rows))
 	for _, r := range rows {
 		t := Token{
-			ID: r.ID, Name: r.Name, Scopes: []string{}, Apps: []string{},
+			ID: r.ID, Name: r.Name, Scopes: []string{}, Projects: []string{}, Environments: []string{},
 			CreatedBy: Creator{ID: r.CreatedBy, Name: r.CreatorName}, CreatedAt: r.CreatedAt,
 		}
 		if err := json.Unmarshal([]byte(r.Scopes), &t.Scopes); err != nil {
 			return nil, fmt.Errorf("keys: list tokens: scopes of %s: %w", r.ID, err)
 		}
-		if err := json.Unmarshal([]byte(r.Apps), &t.Apps); err != nil {
-			return nil, fmt.Errorf("keys: list tokens: apps of %s: %w", r.ID, err)
+		if err := json.Unmarshal([]byte(r.Projects), &t.Projects); err != nil {
+			return nil, fmt.Errorf("keys: list tokens: projects of %s: %w", r.ID, err)
+		}
+		if err := json.Unmarshal([]byte(r.Environments), &t.Environments); err != nil {
+			return nil, fmt.Errorf("keys: list tokens: environments of %s: %w", r.ID, err)
 		}
 		if r.ExpiresAt.Valid {
 			ms := r.ExpiresAt.Int64

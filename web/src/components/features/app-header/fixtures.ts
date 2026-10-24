@@ -33,6 +33,8 @@ export const schedules = [
   },
 ];
 
+export const onceSchedules = [{ id: "sch_once_1", kind: "once", run_at: 1_800_000_000_000 }];
+
 export const events = [
   { id: "ev_1", ts: 1_700_000_000_000, kind: "version.live", data: { version: 1 } },
   { id: "ev_2", ts: 1_700_000_100_000, kind: "build.failed", data: { reason: "syntax" } },
@@ -59,6 +61,7 @@ export function useAppHandlers(opts: Opts = {}) {
       HttpResponse.json({ items: opts.events ?? events, next_cursor: null }),
     ),
     http.get("/api/orgs/:org/apps/:app/schedules", () => HttpResponse.json({ items: schedules })),
+    http.get("/api/orgs/:org/apps/:app/schedules/once", () => HttpResponse.json({ items: onceSchedules })),
     http.get("/api/orgs/:org/apps/:app/queue", () =>
       HttpResponse.json({ depth: 3, in_flight: 1, oldest_age_ms: 500, dlq: (opts.dlq ?? dlqItems).length }),
     ),

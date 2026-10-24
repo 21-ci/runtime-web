@@ -326,33 +326,52 @@ func TestTokenScopesSubsetOfCreator(t *testing.T) {
 	}
 }
 
-func TestTokenServiceRestriction(t *testing.T) {
+func TestTokenProjectRestriction(t *testing.T) {
 	f := newFixture(t)
 	ctx := context.Background()
 	tenantRoot := f.rt.With(runtime.RootCred{Token: f.root.Token, Tenant: f.org.TenantID})
-	var ids []string
-	for _, slug := range []string{"acme-web", "acme-api"} {
-		svc, err := tenantRoot.CreateService(ctx, runtime.ServiceCreate{Slug: slug, Runtime: "deno"})
-		if err != nil {
-			t.Fatalf("CreateService(%s): %v", slug, err)
+	shop, err := tenantRoot.CreateProject(ctx, runtime.ProjectCreate{Slug: "shop", Environments: []string{"production", "staging"}})
+	if err != nil {
+		t.Fatalf("CreateProject: %v", err)
+	}
+	str := func(v string) *string { return &v }
+	for _, in := range []runtime.ServiceCreate{
+		{Slug: "shop-web", Runtime: "deno", Project: str("shop"), Environment: str("staging")},
+		{Slug: "shop-api", Runtime: "deno", Project: str("shop"), Environment: str("production")},
+		{Slug: "other", Runtime: "deno"},
+	} {
+		if _, err := tenantRoot.CreateService(ctx, in); err != nil {
+			t.Fatalf("CreateService(%s): %v", in.Slug, err)
 		}
-		ids = append(ids, svc.ID)
 	}
-	tok, secret := f.token(t, TokenRequest{Name: "web", Scopes: []string{"services:read"}, Services: []string{"acme-web"}})
-	if len(tok.Apps) != 1 || tok.Apps[0] != "acme-web" {
-		t.Fatalf("Apps = %v", tok.Apps)
+	tok, secret := f.token(t, TokenRequest{Name: "web", Scopes: []string{"services:read"}, Projects: []string{"shop"}, Environments: []string{"staging"}})
+	if len(tok.Projects) != 1 || tok.Projects[0] != "shop" || len(tok.Environments) != 1 || tok.Environments[0] != "staging" {
+		t.Fatalf("token = %+v", tok)
 	}
-	me, err := f.rt.With(runtime.TenantKeyCred{Secret: secret}).Me(ctx)
-	if err != nil || len(me.ServiceIDs) != 1 || me.ServiceIDs[0] != ids[0] {
-		t.Fatalf("token service_ids = %v, %v; want [%s]", me.ServiceIDs, err, ids[0])
+	cli := f.rt.With(runtime.TenantKeyCred{Secret: secret})
+	me, err := cli.Me(ctx)
+	if err != nil || len(me.ProjectIDs) != 1 || me.ProjectIDs[0] != shop.ID || len(me.Environments) != 1 || me.Environments[0] != "staging" {
+		t.Fatalf("me = %+v, %v; want project_ids [%s] environments [staging]", me, err, shop.ID)
+	}
+	page, err := cli.ListServices(ctx, runtime.ServiceFilter{})
+	if err != nil || len(page.Items) != 1 || page.Items[0].Slug != "shop-web" {
+		t.Fatalf("visible services = %+v, %v; want only shop-web", page.Items, err)
 	}
 	list, _ := f.svc.ListTokens(ctx, f.org.ID)
-	if len(list) != 1 || len(list[0].Apps) != 1 {
-		t.Fatalf("listed apps = %+v", list)
+	if len(list) != 1 || len(list[0].Projects) != 1 || len(list[0].Environments) != 1 {
+		t.Fatalf("listed = %+v", list)
 	}
-	_, _, err = f.svc.CreateToken(ctx, f.actor, f.owner, f.org.ID, TokenRequest{Name: "x", Scopes: []string{"deploy"}, Services: []string{"nope"}})
+	all, _ := f.token(t, TokenRequest{Name: "all", Scopes: []string{"deploy"}})
+	if all.Projects == nil || len(all.Projects) != 0 || all.Environments == nil || len(all.Environments) != 0 {
+		t.Fatalf("unrestricted token = %+v, want empty lists", all)
+	}
+	_, _, err = f.svc.CreateToken(ctx, f.actor, f.owner, f.org.ID, TokenRequest{Name: "x", Scopes: []string{"deploy"}, Projects: []string{"nope"}})
 	if !errors.Is(err, apperr.ErrNotFound) {
-		t.Fatalf("unknown app: err = %v, want ErrNotFound", err)
+		t.Fatalf("unknown project: err = %v, want ErrNotFound", err)
+	}
+	_, _, err = f.svc.CreateToken(ctx, f.actor, f.owner, f.org.ID, TokenRequest{Name: "x", Scopes: []string{"deploy"}, Environments: []string{" "}})
+	if !errors.Is(err, apperr.ErrInvalid) {
+		t.Fatalf("blank environment: err = %v, want ErrInvalid", err)
 	}
 }
 

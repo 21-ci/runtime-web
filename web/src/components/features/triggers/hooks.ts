@@ -24,6 +24,9 @@ export type ScheduleBody = {
   enabled?: boolean;
 };
 
+// A pending one-off task from std:schedule (read-only).
+export type OnceSchedule = { id: string; kind: "once"; run_at: number };
+
 export type QueueStats = { depth: number; in_flight: number; oldest_age_ms: number; dlq: number };
 export type DlqItem = { id: string; body: unknown; attempts: number; failed_at: number };
 export type EnqueueBody = { body: unknown; delay_seconds?: number; dedup_id?: string };
@@ -40,6 +43,14 @@ export function useSchedules(org: string, app: string) {
   return useQuery({
     queryKey: ["schedules", org, app],
     queryFn: () => api.get<{ items: Schedule[] }>(`${appPath(org, app)}/schedules`).then((r) => r.items),
+  });
+}
+
+export function useOnceSchedules(org: string, app: string) {
+  return useQuery({
+    queryKey: ["schedules-once", org, app],
+    queryFn: () =>
+      api.get<{ items: OnceSchedule[] }>(`${appPath(org, app)}/schedules/once`).then((r) => r.items),
   });
 }
 
