@@ -5,9 +5,16 @@ import { AuthForm, FormField } from "@/components/auth/auth-form";
 import { TEMPLATES } from "@/components/features/empty/no-apps";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useCreateApp, useEnvironments, useProjects, type Template } from "@/hooks/orgs";
 import { ApiError } from "@/lib/api";
-import { handleApiError } from "@/lib/query";
+import { handleMutationError } from "@/lib/query";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -63,7 +70,7 @@ function NewAppPage() {
           }
           if (err.code === "slug_taken") setErrors({ slug: "This app name is taken on this runtime." });
           else if (Object.keys(err.fieldErrors()).length > 0) setErrors(err.fieldErrors());
-          else handleApiError(err);
+          else handleMutationError(err);
         },
       },
     );
@@ -80,42 +87,42 @@ function NewAppPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="project">Project</Label>
-            <select
-              id="project"
+            <Select
               name="project"
               value={project}
-              onChange={(e) => {
-                setProjectChoice(e.target.value);
+              onValueChange={(v) => {
+                setProjectChoice(v);
                 setEnvChoice("");
               }}
-              className="h-9 rounded-[8px] border border-line-strong bg-surface px-3 text-sm"
             >
-              {(projects.data ?? []).map((p) => (
-                <option key={p.slug} value={p.slug}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="project" className="h-9 px-3 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(projects.data ?? []).map((p) => (
+                  <SelectItem key={p.slug} value={p.slug}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {errors.project ? <p className="text-sm text-danger">{errors.project}</p> : null}
           </div>
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="environment">Environment</Label>
-            <select
-              id="environment"
-              name="environment"
-              aria-label="Environment"
-              value={environment}
-              onChange={(e) => setEnvChoice(e.target.value)}
-              aria-invalid={errors.environment ? true : undefined}
-              className="h-9 rounded-[8px] border border-line-strong bg-surface px-3 text-sm"
-            >
-              {(envs.data ?? []).map((e) => (
-                <option key={e} value={e}>
-                  {e}
-                </option>
-              ))}
-            </select>
+            <Select name="environment" value={environment} onValueChange={setEnvChoice}>
+              <SelectTrigger id="environment" aria-label="Environment" aria-invalid={errors.environment ? true : undefined} className="h-9 px-3 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(envs.data ?? []).map((e) => (
+                  <SelectItem key={e} value={e}>
+                    {e}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {errors.environment ? <p className="text-sm text-danger">{errors.environment}</p> : null}
           </div>
         </div>
@@ -136,8 +143,8 @@ function NewAppPage() {
                   aria-checked={checked}
                   onClick={() => setTemplate(id)}
                   className={cn(
-                    "flex items-start gap-3 rounded-[10px] border bg-surface p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-focus",
-                    checked ? "border-blue ring-1 ring-blue" : "border-line hover:border-line-strong",
+                    "flex items-start gap-3 rounded-md border bg-surface p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-focus",
+                    checked ? "border-accent ring-1 ring-accent" : "border-line hover:border-line-strong",
                   )}
                 >
                   <Icon className="mt-0.5 size-4 text-muted" aria-hidden="true" />
@@ -152,7 +159,7 @@ function NewAppPage() {
         </fieldset>
 
         <div className="flex justify-end">
-          <Button type="submit" disabled={create.isPending || !project}>
+          <Button type="submit" variant="default" disabled={create.isPending || !project}>
             Create app
           </Button>
         </div>

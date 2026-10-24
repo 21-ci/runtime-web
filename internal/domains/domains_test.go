@@ -508,7 +508,7 @@ func TestDevResolverOverride(t *testing.T) {
 	if got, _ := r.LookupTXT(context.Background(), "_rtweb.b.test"); len(got) != 1 || got[0] != "x" {
 		t.Fatalf("LookupTXT b = %v", got)
 	}
-	if _, ok := NewResolver(false, func(k string) string { return env[k] }).(DevResolver); ok {
+	if _, ok := NewResolver(false, func(k string) string { return env[k] }).(*DevResolver); ok {
 		t.Fatal("non-dev resolver honours the override")
 	}
 }
@@ -643,4 +643,26 @@ func TestReconcileRuntimeStatuses(t *testing.T) {
 	if !f.runtimeHosts(t, v.Raw.ID)["shop.example.com"] {
 		t.Fatal("pending_verification host not re-PUT active")
 	}
+}
+
+func TestDevResolverSetIsReadOnEachLookup(t *testing.T) {
+	r, ok := NewResolver(true, func(string) string { return "" }).(*DevResolver)
+	if !ok {
+		t.Fatal("dev resolver must be a *DevResolver even without RTWEB_DEV_DNS_OVERRIDE")
+	}
+	r.Next = failResolver{}
+	r.Set("_rtweb.New.Test.", []string{"tok"})
+	if got, err := r.LookupTXT(context.Background(), "_rtweb.new.test"); err != nil || len(got) != 1 || got[0] != "tok" {
+		t.Fatalf("LookupTXT after Set = %v, %v", got, err)
+	}
+	r.Set("_rtweb.new.test", nil)
+	if _, err := r.LookupTXT(context.Background(), "_rtweb.new.test"); err == nil {
+		t.Fatal("cleared override should fall through to Next")
+	}
+}
+
+type failResolver struct{}
+
+func (failResolver) LookupTXT(context.Context, string) ([]string, error) {
+	return nil, errors.New("no such host")
 }

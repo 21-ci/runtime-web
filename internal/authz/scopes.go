@@ -3,7 +3,7 @@ package authz
 var (
 	viewerScopes    = []string{"services:read", "logs:read"}
 	developerScopes = append(append([]string{}, viewerScopes...), "services:write", "deploy", "env:write", "queue:write", "invoke")
-	adminScopes     = append(append([]string{}, developerScopes...), "secrets:write", "data:admin", "keys:write")
+	adminScopes     = append(append([]string{}, developerScopes...), "secrets:write", "data:admin", "sockets:write", "keys:write")
 )
 
 // DefaultKeyScopes returns the scopes of an org's default runtime key: every tenant scope except

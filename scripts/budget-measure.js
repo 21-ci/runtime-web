@@ -1,4 +1,5 @@
-// Prints "<first_route_gzip_bytes> <editor_gzip_bytes> <editor_chunk_count>" for a Vite dist dir.
+// Prints "<first_route_gz> <editor_gz> <editor_chunks> <worker_gz> <worker_chunks>" for a Vite dist dir.
+// The lazy TS worker is measured separately from the editor chunk (docs/02-design-v1.md section 7.5).
 // Used by scripts/budget.sh (kept as a file: bash 3.2 on macOS mis-parses heredocs in <(...)).
 const fs = require("node:fs");
 const path = require("node:path");
@@ -17,10 +18,10 @@ const assets = path.join(dist, "assets");
 const all = fs.existsSync(assets)
   ? fs.readdirSync(assets).filter((f) => f.endsWith(".js")).map((f) => path.join(assets, f))
   : [];
-const editor = all.filter((f) => {
-  if (firstFiles.includes(f)) return false;
-  if (/worker/i.test(path.basename(f))) return true;
-  return fs.readFileSync(f, "utf8").includes("cm-editor");
-});
-const editorGz = editor.reduce((sum, f) => sum + gz(f), 0);
-console.log(`${first} ${editorGz} ${editor.length}`);
+const isWorker = (f) => /worker/i.test(path.basename(f));
+const workers = all.filter((f) => !firstFiles.includes(f) && isWorker(f));
+const editor = all.filter(
+  (f) => !firstFiles.includes(f) && !isWorker(f) && fs.readFileSync(f, "utf8").includes("cm-editor"),
+);
+const sum = (files) => files.reduce((n, f) => n + gz(f), 0);
+console.log(`${first} ${sum(editor)} ${editor.length} ${sum(workers)} ${workers.length}`);

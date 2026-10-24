@@ -421,14 +421,16 @@ There is no plan field anywhere: every org uses `RUNTIME_DEFAULT_PLAN`.
 type TokenReq = {
   name: string;
   scopes: string[];          // ⊆ runtime tenant scopes (minus keys:write)
-  apps?: string[];           // app slugs → runtime service_ids restriction (optional)
+  projects?: string[];       // project slugs → runtime project_ids restriction (optional; 404 if unknown)
+  environments?: string[];   // runtime environments restriction (optional)
   expires_at?: number | null;
 };
 type Token = {
   id: string;                // tok_…
   name: string;
   scopes: string[];
-  apps: string[];            // empty = all apps
+  projects: string[];        // empty = all projects
+  environments: string[];    // empty = all environments
   created_by: Pick<User, "id" | "name">;
   created_at: number;
   expires_at: number | null;
@@ -537,6 +539,7 @@ A save never activates a failed build. On `422 build_failed` the live version is
 | PUT | `…/{app}/secrets/{name}` | `app.secrets.write` | `{value: string}` (write-only) | `204` | `403`, `422` |
 | DELETE | `…/{app}/secrets/{name}` | `app.secrets.write` | | `204` | `403`, `404` |
 | GET | `…/{app}/schedules` | `app.read` | | `200 {items: Schedule[]}` | `404` |
+| GET | `…/{app}/schedules/once` | `app.read` | | `200 {items: OnceSchedule[]}` (pending `std:schedule` tasks, read-only) | `404` |
 | POST | `…/{app}/schedules` | `app.schedules.write` | `ScheduleBody` | `201 Schedule` | `403`, `403 plan_limit`, `422` |
 | PATCH | `…/{app}/schedules/{id}` | `app.schedules.write` | `Partial<ScheduleBody>` | `200 Schedule` | `403`, `404`, `422` |
 | DELETE | `…/{app}/schedules/{id}` | `app.schedules.write` | | `204` | `403`, `404` |
@@ -558,6 +561,7 @@ type Schedule = Required<Pick<ScheduleBody, "kind">> & {
   id: string; cron: string | null; every_seconds: number | null; timezone: string | null;
   payload: unknown; enabled: boolean; next_due: number | null;
 };
+type OnceSchedule = { id: string; kind: "once"; run_at: number /* unix ms */ };
 ```
 
 `403 plan_limit` means the configured plan does not allow the trigger (runtime `trigger_not_allowed`) or the
@@ -629,6 +633,7 @@ type LogLine = {
   version: number | null; task_id: string | null; trigger: string | null;
   kind: "runtime" | "build" | "system";
   msg: string; truncated: boolean;
+  fields?: Record<string, unknown>; // structured std:log fields; absent on plain records
 };
 ```
 

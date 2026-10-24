@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/21cloud/runtime-web/internal/apperr"
@@ -33,41 +34,66 @@ type Resolver interface {
 	LookupTXT(ctx context.Context, name string) ([]string, error)
 }
 
-// DevResolver answers TXT lookups from RTWEB_DEV_DNS_OVERRIDE (`name=value;…`, a name may repeat)
-// and falls back to Next for other names.
+// DevResolver answers TXT lookups from dev overrides (seeded from RTWEB_DEV_DNS_OVERRIDE,
+// `name=value;…`, a name may repeat; changed at runtime with Set) and falls back to Next.
+// It exists only in dev mode.
 type DevResolver struct {
-	Overrides map[string][]string
+	mu        sync.RWMutex
+	overrides map[string][]string
 	Next      Resolver
 }
 
+// NewDevResolver returns a DevResolver over overrides that falls back to the system resolver.
+func NewDevResolver(overrides map[string][]string) *DevResolver {
+	o := map[string][]string{}
+	for k, v := range overrides {
+		o[devName(k)] = v
+	}
+	return &DevResolver{overrides: o, Next: net.DefaultResolver}
+}
+
+func devName(name string) string {
+	return strings.ToLower(strings.TrimSuffix(strings.TrimSpace(name), "."))
+}
+
+// Set replaces the values for name; empty values remove the override.
+func (r *DevResolver) Set(name string, values []string) {
+	r.mu.Lock()
+	defer r.mu.Unlock()
+	if len(values) == 0 {
+		delete(r.overrides, devName(name))
+		return
+	}
+	r.overrides[devName(name)] = append([]string(nil), values...)
+}
+
 // LookupTXT returns the overridden values for name, or asks Next.
-func (r DevResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
-	if v, ok := r.Overrides[strings.ToLower(strings.TrimSuffix(name, "."))]; ok {
+func (r *DevResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
+	r.mu.RLock()
+	v, ok := r.overrides[devName(name)]
+	r.mu.RUnlock()
+	if ok {
 		return v, nil
 	}
 	return r.Next.LookupTXT(ctx, name)
 }
 
-// NewResolver returns the system resolver, wrapped in a DevResolver only when dev is set and
-// RTWEB_DEV_DNS_OVERRIDE is non-empty. The override is never read outside dev mode.
+// NewResolver returns the system resolver, or a *DevResolver when dev is set (seeded from
+// RTWEB_DEV_DNS_OVERRIDE). Overrides are never honoured outside dev mode.
 func NewResolver(dev bool, getenv func(string) string) Resolver {
 	if !dev {
 		return net.DefaultResolver
 	}
-	raw := getenv("RTWEB_DEV_DNS_OVERRIDE")
-	if raw == "" {
-		return net.DefaultResolver
-	}
 	o := map[string][]string{}
-	for _, pair := range strings.Split(raw, ";") {
+	for _, pair := range strings.Split(getenv("RTWEB_DEV_DNS_OVERRIDE"), ";") {
 		name, val, ok := strings.Cut(pair, "=")
-		name = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(name), "."))
+		name = devName(name)
 		if !ok || name == "" {
 			continue
 		}
 		o[name] = append(o[name], strings.TrimSpace(val))
 	}
-	return DevResolver{Overrides: o, Next: net.DefaultResolver}
+	return NewDevResolver(o)
 }
 
 // txtMatches reports whether the TXT record at _rtweb.<host> holds token. Lookup errors count as a miss.

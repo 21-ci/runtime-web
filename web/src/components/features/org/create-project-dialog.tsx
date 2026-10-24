@@ -14,7 +14,7 @@ import {
 import { AuthForm, FormField } from "@/components/auth/auth-form";
 import { useCreateProject } from "@/hooks/orgs";
 import { ApiError } from "@/lib/api";
-import { handleApiError } from "@/lib/query";
+import { handleMutationError } from "@/lib/query";
 
 // CreateProjectDialog creates a project with its environments. It is controlled when `open` is
 // passed (the ⌘K menu), otherwise it owns its state behind `trigger`. The default environments
@@ -64,7 +64,7 @@ export function CreateProjectDialog({
           }
           const fields = err.fieldErrors();
           if (Object.keys(fields).length > 0) setErrors(fields);
-          else handleApiError(err);
+          else handleMutationError(err);
         },
       },
     );
@@ -89,7 +89,7 @@ export function CreateProjectDialog({
             error={errors.environments}
           />
           <DialogFooter>
-            <Button type="submit" disabled={create.isPending}>
+            <Button type="submit" variant="default" disabled={create.isPending}>
               Create project
             </Button>
           </DialogFooter>

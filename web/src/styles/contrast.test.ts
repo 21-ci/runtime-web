@@ -38,12 +38,28 @@ function contrast(a: string, b: string): number {
 
 // Each pair: [component, text token, background token]. Used by a component class.
 const pairs = [
-  { name: "primary button", fg: "on-primary", bg: "blue" },
+  { name: "primary button", fg: "on-primary", bg: "accent" },
+  { name: "primary button hover", fg: "on-primary", bg: "accent-hover" },
+  { name: "body text", fg: "text", bg: "bg" },
+  { name: "body text on surface", fg: "text", bg: "surface" },
+  { name: "muted text", fg: "muted", bg: "bg" },
+  { name: "muted text on surface", fg: "muted", bg: "surface" },
+  { name: "muted text on panel-2", fg: "muted", bg: "panel-2" },
+  { name: "accent link", fg: "accent", bg: "surface" },
+  { name: "accent link on bg", fg: "accent", bg: "bg" },
+  { name: "selected nav", fg: "text", bg: "accent-pale" },
+  { name: "danger text", fg: "danger-text", bg: "surface" },
   { name: "danger button", fg: "danger-text", bg: "danger-soft" },
-  { name: "success badge", fg: "on-success", bg: "green" },
-  { name: "info badge", fg: "text", bg: "blue-soft" },
-  { name: "danger badge", fg: "danger-text", bg: "danger-soft" },
-] as const;
+  { name: "success solid", fg: "on-success", bg: "green" },
+  { name: "info badge", fg: "text", bg: "accent-soft" },
+  { name: "danger text on panel", fg: "danger-text", bg: "panel" },
+  { name: "muted text on panel", fg: "muted", bg: "panel" },
+  ...["gray", "brown", "orange", "yellow", "green", "blue", "purple", "pink", "red"].map((c) => ({
+    name: `${c} tag`,
+    fg: `tag-${c}-text`,
+    bg: `tag-${c}-bg`,
+  })),
+];
 
 describe("contrast: WCAG AA (4.5:1) for filled controls and badges", () => {
   for (const theme of [
@@ -63,11 +79,12 @@ describe("contrast: WCAG AA (4.5:1) for filled controls and badges", () => {
   }
 
   it("components use the token pairs that were checked", () => {
-    expect(buttonSrc).toMatch(/default:\s*"[^"]*bg-blue[^"]*text-on-primary/);
+    expect(buttonSrc).toMatch(/default:\s*"[^"]*bg-accent[^"]*text-on-primary/);
     expect(buttonSrc).toMatch(/danger:\s*"[^"]*bg-danger-soft[^"]*text-danger-text/);
-    expect(badgeSrc).toMatch(/success:\s*"[^"]*bg-green[^"]*text-on-success/);
-    expect(badgeSrc).toMatch(/info:\s*"[^"]*bg-blue-soft[^"]*text-text/);
-    expect(badgeSrc).toMatch(/danger:\s*"[^"]*bg-danger-soft[^"]*text-danger-text/);
+    expect(badgeSrc).toMatch(/success:\s*"[^"]*bg-tag-green-bg[^"]*text-tag-green-text/);
+    expect(badgeSrc).toMatch(/info:\s*"[^"]*bg-accent-soft[^"]*text-text/);
+    expect(badgeSrc).toMatch(/danger:\s*"[^"]*bg-tag-red-bg[^"]*text-tag-red-text/);
+    expect(badgeSrc).not.toMatch(/bg-green\b|text-on-success/);
   });
 
   it("defines the dark set once, with no duplicated prefers-color-scheme copy", () => {

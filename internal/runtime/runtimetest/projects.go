@@ -88,12 +88,12 @@ func (f *Fake) projectRoutes(mux *http.ServeMux) {
 }
 
 // projectTenant returns the acting tenant. Writes also need a key that is not
-// limited to some services.
+// limited to some projects or environments.
 func projectTenant(p principal, write bool) (string, *apiError) {
 	if p.tenant == "" {
 		return "", invalid("x-rt-tenant is required")
 	}
-	if write && p.key != nil && len(p.key.serviceIDs) > 0 {
+	if write && p.key.restricted() {
 		return "", insufficientScope(nil)
 	}
 	return p.tenant, nil

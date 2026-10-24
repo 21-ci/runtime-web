@@ -160,10 +160,7 @@ func (p principal) sees(s *service) bool {
 	if p.tenant != "" && s.tenantID != p.tenant {
 		return false
 	}
-	if p.key != nil && len(p.key.serviceIDs) > 0 && !contains(p.key.serviceIDs, s.id) {
-		return false
-	}
-	return true
+	return p.key.allows(s.projectID, s.environment)
 }
 
 func (f *Fake) authenticate(r *http.Request) (principal, *apiError) {

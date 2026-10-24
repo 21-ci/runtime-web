@@ -67,6 +67,12 @@ const testRouterSecret = "test-router-secret"
 
 func newTestEnv(t *testing.T) *testEnv {
 	t.Helper()
+	return newTestEnvWith(t, nil)
+}
+
+// newTestEnvWith is newTestEnv with mod applied to the Deps before New.
+func newTestEnvWith(t *testing.T, mod func(*Deps)) *testEnv {
+	t.Helper()
 	st, err := store.Open(context.Background(), ":memory:")
 	if err != nil {
 		t.Fatalf("store.Open: %v", err)
@@ -98,7 +104,7 @@ func newTestEnv(t *testing.T) *testEnv {
 	domainSvc := domains.New(st, rt, root, appSvc, domains.Options{
 		BaseDomain: "apps.test", ConsoleHost: "console.test", RuntimeHost: "runtime.test", CNAMETarget: "console.test",
 	})
-	srv := New(Deps{
+	deps := Deps{
 		Logs:             logs,
 		Domains:          domainSvc,
 		RouterSecret:     testRouterSecret,
@@ -114,7 +120,11 @@ func newTestEnv(t *testing.T) *testEnv {
 		PublicURL:        testPublicURL,
 		RuntimePublicURL: testRuntimeURL,
 		SPA:              spa,
-	})
+	}
+	if mod != nil {
+		mod(&deps)
+	}
+	srv := New(deps)
 	return &testEnv{t: t, st: st, auth: authSvc, srv: srv, fake: fake, orgs: orgSvc, appSvc: appSvc, domains: domainSvc, logs: logs}
 }
 

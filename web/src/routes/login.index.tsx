@@ -87,8 +87,8 @@ function LoginPage() {
 
       {providers.isPending ? (
         <div className="flex flex-col gap-3" aria-busy="true">
-          <Skeleton className="h-[38px] w-full" />
-          <Skeleton className="h-[38px] w-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
         </div>
       ) : null}
 
@@ -125,7 +125,7 @@ function LoginPage() {
               {formError}
             </p>
           ) : null}
-          <Button type="submit" disabled={login.isPending}>
+          <Button type="submit" variant="default" disabled={login.isPending}>
             {login.isPending ? "Signing in…" : "Sign in"}
           </Button>
         </AuthForm>

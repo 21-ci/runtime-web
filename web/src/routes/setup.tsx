@@ -59,8 +59,8 @@ function SetupPage() {
     <AuthShell title="Set up Runtime">
       {status.isPending ? (
         <div className="flex flex-col gap-3" aria-busy="true">
-          <Skeleton className="h-[38px] w-full" />
-          <Skeleton className="h-[38px] w-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
         </div>
       ) : (
         <>
@@ -90,7 +90,7 @@ function SetupPage() {
                 {formError}
               </p>
             ) : null}
-            <Button type="submit" disabled={setup.isPending}>
+            <Button type="submit" variant="default" disabled={setup.isPending}>
               {setup.isPending ? "Creating…" : "Create admin"}
             </Button>
           </AuthForm>

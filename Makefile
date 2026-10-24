@@ -5,7 +5,7 @@ LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.dat
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build test vet vuln fmt fmt-check ci clean web web-test web-lint web-audit web-embed e2e budget docker compose-up compose-down
+.PHONY: help build test vet vuln fmt fmt-check ci ci-full clean web web-test web-lint web-audit web-embed e2e budget docker compose-up compose-down
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -30,7 +30,9 @@ fmt: ## Format Go code
 fmt-check: ## Fail if any Go file is not gofmt-clean
 	@test -z "$$(gofmt -l .)" || { gofmt -l .; echo "gofmt: files above need formatting"; exit 1; }
 
-ci: fmt-check vet test vuln web-test web-lint build e2e budget ## Run the full CI chain (needs docker for e2e)
+ci: fmt-check vet test vuln web-lint web-test build budget ## Run the CI chain (no docker; e2e is separate)
+
+ci-full: ci e2e ## Run ci plus the docker compose Playwright smoke (needs docker)
 
 web: ## Install web deps (npm ci) and build the console (web/dist)
 	cd web && npm ci && npm run build
@@ -50,6 +52,7 @@ web-embed: web ## Copy web/dist into internal/api/dist for go:embed
 	cp -R web/dist internal/api/dist
 
 budget: build ## Check binary size, idle RSS and web gzip budgets (docs/02 section 7)
+	node --test scripts/budget-measure.test.js
 	scripts/budget.sh
 
 docker: ## Build the rtweb and rtrouter images (rtweb:dev, rtrouter:dev)

@@ -402,12 +402,13 @@ func (s *Server) listTokens(w http.ResponseWriter, r *http.Request, c orgCall) e
 	return nil
 }
 
-// tokenReq is TokenReq of api-web.md §7. Apps are app slugs; expires_at is unix ms.
+// tokenReq is TokenReq of api-web.md §7. Projects are project slugs; expires_at is unix ms.
 type tokenReq struct {
-	Name      string   `json:"name"`
-	Scopes    []string `json:"scopes"`
-	Apps      []string `json:"apps"`
-	ExpiresAt *int64   `json:"expires_at"`
+	Name         string   `json:"name"`
+	Scopes       []string `json:"scopes"`
+	Projects     []string `json:"projects"`
+	Environments []string `json:"environments"`
+	ExpiresAt    *int64   `json:"expires_at"`
 }
 
 func (s *Server) createToken(w http.ResponseWriter, r *http.Request, c orgCall) error {
@@ -415,7 +416,7 @@ func (s *Server) createToken(w http.ResponseWriter, r *http.Request, c orgCall) 
 	if err := decodeJSON(w, r, &in); err != nil {
 		return err
 	}
-	req := keys.TokenRequest{Name: in.Name, Scopes: in.Scopes, Services: in.Apps}
+	req := keys.TokenRequest{Name: in.Name, Scopes: in.Scopes, Projects: in.Projects, Environments: in.Environments}
 	if in.ExpiresAt != nil {
 		t := time.UnixMilli(*in.ExpiresAt)
 		req.ExpiresAt = &t

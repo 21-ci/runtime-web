@@ -14,8 +14,8 @@ function UsageCardBody({ org }: { org: string }) {
   const total = rows.reduce((sum, r) => sum + r.invocations, 0);
 
   return (
-    <section aria-label="Usage" className="rounded-[10px] border border-line bg-surface p-4">
-      <h2 className="mb-3 text-sm font-semibold">Usage today</h2>
+    <section aria-label="Usage" className="rounded-md border border-line bg-surface p-4">
+      <h2 className="mb-3 text-base font-semibold">Usage today</h2>
       {usage.isPending ? (
         <Skeleton className="h-16 w-full" />
       ) : rows.length === 0 ? (
@@ -23,7 +23,7 @@ function UsageCardBody({ org }: { org: string }) {
       ) : (
         <>
           <p className="mb-3 text-sm">
-            <span className="tabular-nums font-semibold">{total}</span> invocations across {rows.length}{" "}
+            <span className="tabular-nums font-medium">{total}</span> invocations across {rows.length}{" "}
             {rows.length === 1 ? "app" : "apps"}
           </p>
           <ul className="flex flex-col gap-1 text-sm">

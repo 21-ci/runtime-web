@@ -20,7 +20,7 @@ export function NoApps({ org, project }: { org: string; project: string }) {
       title="No apps in this project"
       description="Create an app from a template to deploy code to one of the project's environments."
       action={
-        <Button asChild>
+        <Button asChild variant="default">
           <Link to="/$org/apps/new" params={{ org }} search={{ project }}>
             Create app
           </Link>

@@ -93,6 +93,27 @@ func (s *Service) Schedules(ctx context.Context, sub authz.Subject, orgID, slug 
 	return items, nil
 }
 
+// OnceSchedules returns the app's pending one-off std:schedule tasks (app.read), following every page.
+func (s *Service) OnceSchedules(ctx context.Context, sub authz.Subject, orgID, slug string) ([]runtime.OnceSchedule, error) {
+	app, cli, err := s.app(ctx, sub, orgID, slug, authz.AppRead)
+	if err != nil {
+		return nil, err
+	}
+	out := []runtime.OnceSchedule{}
+	cursor := ""
+	for {
+		page, err := cli.ListOnceSchedules(ctx, app.SvcID, cursor)
+		if err != nil {
+			return nil, mapErr("list one-off schedules "+slug, err)
+		}
+		out = append(out, page.Items...)
+		if page.NextCursor == nil || *page.NextCursor == "" || *page.NextCursor == cursor {
+			return out, nil
+		}
+		cursor = *page.NextCursor
+	}
+}
+
 // CreateSchedule adds a schedule. A trigger kind the app's plan does not allow, or a schedule count
 // over the plan, is apperr.Forbidden{plan_limit}.
 func (s *Service) CreateSchedule(ctx context.Context, sub authz.Subject, orgID, slug string, in runtime.ScheduleBody) (runtime.Schedule, error) {

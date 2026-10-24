@@ -69,6 +69,34 @@ describe("ui kit", () => {
     expect(button.className).toMatch(/focus-visible:outline-none/);
   });
 
+  it("empty state uses a solid hairline, not a dashed box", () => {
+    render(<EmptyState title="No apps" description="Create one to start." />);
+    const title = screen.getByText("No apps");
+    const box = title.parentElement as HTMLElement;
+    expect(box.className).toMatch(/rounded-md/);
+    expect(box.className).toMatch(/border-line/);
+    expect(box.className).not.toMatch(/border-dashed/);
+  });
+
+  it("table uses 36px rows and muted light headers", () => {
+    render(
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead>Name</TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow>
+            <TableCell>billing</TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>,
+    );
+    expect(screen.getByRole("columnheader", { name: "Name" }).className).toMatch(/text-muted/);
+    expect(screen.getByRole("cell", { name: "billing" }).className).toMatch(/h-9/);
+  });
+
   it("dialog opens from its trigger and shows title and description", async () => {
     const user = userEvent.setup();
     render(

@@ -94,7 +94,7 @@ export function useUsage(org: string, enabled: boolean) {
 export function useCreateProject(org: string) {
   const qc = useQueryClient();
   return useMutation({
-    // The form decides what to toast (field errors inline, others via handleApiError).
+    // The form decides what to toast (field errors inline, others via handleMutationError).
     meta: { skipGlobalError: true },
     mutationFn: (body: { slug: string; name?: string; environments: string[] }) =>
       api.post<Project>(`/orgs/${enc(org)}/projects`, body),

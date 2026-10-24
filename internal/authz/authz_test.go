@@ -103,7 +103,7 @@ func TestCrossOrgIsolation(t *testing.T) {
 }
 
 func TestDefaultKeyScopes(t *testing.T) {
-	want := []string{"services:read", "logs:read", "services:write", "deploy", "env:write", "queue:write", "invoke", "secrets:write", "data:admin"}
+	want := []string{"services:read", "logs:read", "services:write", "deploy", "env:write", "queue:write", "invoke", "secrets:write", "data:admin", "sockets:write"}
 	if got := DefaultKeyScopes(); !slices.Equal(got, want) {
 		t.Errorf("DefaultKeyScopes() = %v, want %v", got, want)
 	}
@@ -116,8 +116,8 @@ func TestScopesFor(t *testing.T) {
 	}{
 		{"viewer", []string{"services:read", "logs:read"}},
 		{"developer", []string{"services:read", "logs:read", "services:write", "deploy", "env:write", "queue:write", "invoke"}},
-		{"admin", []string{"services:read", "logs:read", "services:write", "deploy", "env:write", "queue:write", "invoke", "secrets:write", "data:admin", "keys:write"}},
-		{"owner", []string{"services:read", "logs:read", "services:write", "deploy", "env:write", "queue:write", "invoke", "secrets:write", "data:admin", "keys:write"}},
+		{"admin", []string{"services:read", "logs:read", "services:write", "deploy", "env:write", "queue:write", "invoke", "secrets:write", "data:admin", "sockets:write", "keys:write"}},
+		{"owner", []string{"services:read", "logs:read", "services:write", "deploy", "env:write", "queue:write", "invoke", "secrets:write", "data:admin", "sockets:write", "keys:write"}},
 		{"member", nil},
 		{"", nil},
 	}

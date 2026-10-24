@@ -61,7 +61,7 @@ func (s *Scoped) VersionSource(ctx context.Context, svcID string, v int) ([]byte
 
 // BuildLogs: GET /v1/services/{s}/versions/{v}/build/logs (raw SSE body).
 func (s *Scoped) BuildLogs(ctx context.Context, svcID string, v int) (io.ReadCloser, error) {
-	resp, err := s.send(ctx, req{method: http.MethodGet, path: versionPath(svcID, v) + "/build/logs", header: map[string]string{"Accept": "text/event-stream"}})
+	resp, err := s.send(ctx, req{method: http.MethodGet, path: versionPath(svcID, v) + "/build/logs", header: map[string]string{"Accept": "text/event-stream"}, stream: true})
 	if err != nil {
 		return nil, err
 	}
@@ -92,7 +92,7 @@ func (s *Scoped) StreamLogs(ctx context.Context, svcID, lastEventID string) (io.
 	if lastEventID != "" {
 		h["Last-Event-ID"] = lastEventID
 	}
-	resp, err := s.send(ctx, req{method: http.MethodGet, path: svcPath(svcID) + "/logs", query: url.Values{"follow": {"1"}}, header: h})
+	resp, err := s.send(ctx, req{method: http.MethodGet, path: svcPath(svcID) + "/logs", query: url.Values{"follow": {"1"}}, header: h, stream: true})
 	if err != nil {
 		return nil, err
 	}

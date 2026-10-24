@@ -34,6 +34,8 @@ type LogLine struct {
 	Kind      string  `json:"kind"`
 	Msg       string  `json:"msg"`
 	Truncated bool    `json:"truncated"`
+	// Fields are the structured fields of a std:log record; absent on plain records.
+	Fields json.RawMessage `json:"fields,omitempty"`
 }
 
 // Files returns the source of version (0 = live). Wasm comes back read-only with no files.

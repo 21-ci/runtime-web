@@ -307,3 +307,41 @@ func TestPlanTriggersForbidden403(t *testing.T) {
 		t.Fatalf("queue code = %q, want plan_limit", got)
 	}
 }
+
+func TestOnceSchedulesRoute(t *testing.T) {
+	a := newAppEnv(t)
+	app, err := a.srv.deps.Apps.Resolve(context.Background(), a.orgID, "shop")
+	if err != nil {
+		t.Fatalf("Resolve: %v", err)
+	}
+	id := a.fake.AddOnceSchedule(app.SvcID, 1234)
+	rec := a.send(http.MethodGet, a.appURL("shop")+"/schedules/once", nil, withCookie(a.cookie))
+	expectStatus(t, rec, http.StatusOK)
+	items, _ := decode(t, rec)["items"].([]any)
+	if len(items) != 1 {
+		t.Fatalf("items = %v", items)
+	}
+	it, _ := items[0].(map[string]any)
+	if it["id"] != id || it["kind"] != "once" || it["run_at"] != float64(1234) {
+		t.Fatalf("item = %v", it)
+	}
+}
+
+func TestTokenProjectsAndEnvironments(t *testing.T) {
+	a := newAppEnv(t)
+	rec := a.send(http.MethodPost, "/api/orgs/"+a.org+"/tokens",
+		map[string]any{"name": "ci", "scopes": []string{"services:read"}, "projects": []string{"default"}, "environments": []string{"production"}},
+		withCookie(a.cookie), withCSRF(a.csrf))
+	expectStatus(t, rec, http.StatusCreated)
+	tok, _ := decode(t, rec)["token"].(map[string]any)
+	if p, _ := tok["projects"].([]any); len(p) != 1 || p[0] != "default" {
+		t.Fatalf("projects = %v", tok["projects"])
+	}
+	if e, _ := tok["environments"].([]any); len(e) != 1 || e[0] != "production" {
+		t.Fatalf("environments = %v", tok["environments"])
+	}
+	rec = a.send(http.MethodPost, "/api/orgs/"+a.org+"/tokens",
+		map[string]any{"name": "ci", "scopes": []string{"services:read"}, "projects": []string{"nope"}},
+		withCookie(a.cookie), withCSRF(a.csrf))
+	expectStatus(t, rec, http.StatusNotFound)
+}

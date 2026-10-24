@@ -167,6 +167,30 @@ test("smoke: setup, org, 2FA, app, invite, custom domain", async ({ browser }) =
       .toBe(200);
   });
 
+  await test.step("owner: save edited code (PUT files); the new version is served", async () => {
+    const appRes = await api(ownerPage, "GET", `/api/orgs/${ORG}/apps/${APP}`);
+    expect(appRes.status()).toBe(200);
+    const etag = appRes.headers()["etag"];
+    expect(etag).toBeTruthy();
+    const cur = await (await api(ownerPage, "GET", `/api/orgs/${ORG}/apps/${APP}/files`)).json();
+    const marker = `smoke-saved-${Date.now()}`;
+    const files: Record<string, string> = { ...cur.files };
+    files[cur.entry] = `export default { fetch() { return new Response(${JSON.stringify(marker)}); } };\n`;
+    const saved = await api(ownerPage, "PUT", `/api/orgs/${ORG}/apps/${APP}/files`, {
+      csrf: ownerCsrf,
+      headers: { "If-Match": etag },
+      data: { entry: cur.entry, files },
+    });
+    expect(saved.status()).toBe(200);
+    expect((await saved.json()).version.version).toBeGreaterThan(1);
+    await expect
+      .poll(async () => (await ownerPage.request.get(`${RUNTIME}/s/${APP}/`)).text(), {
+        timeout: 15_000,
+        intervals: [500],
+      })
+      .toContain(marker);
+  });
+
   await test.step("owner invites a member; invitee accepts and signs in", async () => {
     const ownerCsrfNow = (await (await api(ownerPage, "GET", "/api/me")).json()).csrf as string;
     const inv = await api(ownerPage, "POST", `/api/orgs/${ORG}/invites`, {
@@ -213,9 +237,25 @@ test("smoke: setup, org, 2FA, app, invite, custom domain", async ({ browser }) =
       headers: { Host: `${APP}.${BASE_DOMAIN}` },
     });
     expect(base.status()).toBe(200);
+
+    // Positive path: publish the server-generated token through the dev-only resolver
+    // (RTWEB_DEV=1, instance admin), verify, and the router now serves the custom host.
+    const set = await api(admin, "PUT", "/api/admin/dev/dns-override", {
+      csrf: adminCsrf,
+      data: { name: txtName, values: [txtValue] },
+    });
+    expect(set.status()).toBe(204);
+    const verified = await api(ownerPage, "POST", `/api/orgs/${ORG}/apps/${APP}/domains/${id}/verify`, {
+      csrf: ownerCsrf,
+    });
+    expect((await verified.json()).status).toBe("active");
+    await expect
+      .poll(async () => (await ownerPage.request.get(`${ROUTER}/`, { headers: { Host: CUSTOM_HOST } })).status(), {
+        timeout: 30_000,
+        intervals: [1_000],
+      })
+      .toBe(200);
   });
-  // TODO(Task 18 follow-up): the verified custom-domain positive path needs the TXT token at boot
-  // (RTWEB_DEV_DNS_OVERRIDE is read once by rtweb), so it is not covered yet.
 
   await adminCtx.close();
   await ownerCtx.close();

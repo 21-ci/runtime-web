@@ -1,6 +1,6 @@
 -- name: CreateToken :exec
-INSERT INTO tokens (id, org_id, runtime_key_id, name, scopes, apps, expires_at, created_by, created_at)
-VALUES (sqlc.arg(id), sqlc.arg(org_id), sqlc.arg(runtime_key_id), sqlc.arg(name), sqlc.arg(scopes), sqlc.arg(apps), sqlc.arg(expires_at), sqlc.arg(created_by), sqlc.arg(created_at));
+INSERT INTO tokens (id, org_id, runtime_key_id, name, scopes, projects, environments, expires_at, created_by, created_at)
+VALUES (sqlc.arg(id), sqlc.arg(org_id), sqlc.arg(runtime_key_id), sqlc.arg(name), sqlc.arg(scopes), sqlc.arg(projects), sqlc.arg(environments), sqlc.arg(expires_at), sqlc.arg(created_by), sqlc.arg(created_at));
 
 -- name: GetToken :one
 SELECT * FROM tokens WHERE id = sqlc.arg(id) AND org_id = sqlc.arg(org_id);

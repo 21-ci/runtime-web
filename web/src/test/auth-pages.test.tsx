@@ -7,11 +7,16 @@ import { api, setCsrfToken } from "@/lib/api";
 import { renderAt } from "@/test/render";
 import { apiError, server, testUser } from "@/test/msw";
 
+// Pages are code-split, so the first render of a route (and each navigation to a new one) waits on
+// a module import that can take seconds under a parallel run. Waits for those use LOAD; the
+// per-test budget is raised for this file only so a LOAD wait cannot outlast the test.
+const LOAD = { timeout: 5000 };
+
 function session() {
   return HttpResponse.json({ mfa_required: false, user: testUser, csrf: "csrf-1" });
 }
 
-describe("auth pages", () => {
+describe("auth pages", { timeout: 15_000 }, () => {
   it("after a reload, a mutation sends the CSRF token from GET /api/me", async () => {
     setCsrfToken(null); // fresh module state, as after a reload
     server.use(
@@ -43,29 +48,29 @@ describe("auth pages", () => {
   it("login submits and redirects to next", async () => {
     server.use(http.post("/api/auth/login", session));
     const router = renderAt("/login?next=/orgs/acme/apps");
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
-    await user.type(await screen.findByLabelText("Email"), "ada@example.test");
+    await user.type(await screen.findByLabelText("Email", undefined, LOAD), "ada@example.test");
     await user.type(screen.getByLabelText("Password"), "correct horse battery");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe("/orgs/acme/apps"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/orgs/acme/apps"), LOAD);
   });
 
   it("login asks for TOTP code when mfa_required (recovery-code link too)", async () => {
     server.use(http.post("/api/auth/login", () => HttpResponse.json({ mfa_required: true })));
     const router = renderAt("/login?next=/orgs/acme/apps");
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
-    await user.type(await screen.findByLabelText("Email"), "ada@example.test");
+    await user.type(await screen.findByLabelText("Email", undefined, LOAD), "ada@example.test");
     await user.type(screen.getByLabelText("Password"), "correct horse battery");
     await user.click(screen.getByRole("button", { name: "Sign in" }));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe("/login/mfa"));
-    expect(await screen.findByLabelText("Authentication code")).toBeInTheDocument();
+    await waitFor(() => expect(router.state.location.pathname).toBe("/login/mfa"), LOAD);
+    expect(await screen.findByLabelText("Authentication code", undefined, LOAD)).toBeInTheDocument();
 
     await user.click(screen.getByRole("button", { name: "Use a recovery code" }));
-    expect(screen.getByLabelText("Recovery code")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Recovery code")).toBeInTheDocument();
   });
 
   it("mfa page posts the code and lands on next", async () => {
@@ -77,12 +82,12 @@ describe("auth pages", () => {
       }),
     );
     const router = renderAt("/login/mfa?next=/orgs/acme/apps");
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
-    await user.type(await screen.findByLabelText("Authentication code"), "123456");
+    await user.type(await screen.findByLabelText("Authentication code", undefined, LOAD), "123456");
     await user.click(screen.getByRole("button", { name: "Verify" }));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe("/orgs/acme/apps"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/orgs/acme/apps"), LOAD);
     expect(body).toEqual({ code: "123456" });
   });
 
@@ -96,20 +101,20 @@ describe("auth pages", () => {
       ),
     );
     renderAt("/login");
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
-    const sso = await screen.findByRole("link", { name: "Continue with GitHub" });
+    const sso = await screen.findByRole("link", { name: "Continue with GitHub" }, LOAD);
     expect(sso).toHaveAttribute("href", "/api/auth/oauth/github/start?next=%2F");
     expect(screen.queryByLabelText("Password")).not.toBeInTheDocument();
 
     // Break-glass for instance admins.
     await user.click(screen.getByRole("button", { name: "Sign in with password" }));
-    expect(screen.getByLabelText("Password")).toBeInTheDocument();
+    expect(await screen.findByLabelText("Password")).toBeInTheDocument();
   });
 
   it("setup page only when GET /api/setup says needed", async () => {
     const router = renderAt("/setup");
-    await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/login"), LOAD);
   });
 
   it("setup asks for setup token", async () => {
@@ -122,17 +127,17 @@ describe("auth pages", () => {
       }),
     );
     const router = renderAt("/setup");
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
-    await user.type(await screen.findByLabelText("Setup token"), "tok-abc");
+    await user.type(await screen.findByLabelText("Setup token", undefined, LOAD), "tok-abc");
     await user.type(screen.getByLabelText("Email"), "ada@example.test");
     await user.type(screen.getByLabelText("Name"), "Ada");
     await user.type(screen.getByLabelText("Password"), "correct horse battery");
     await user.click(screen.getByRole("button", { name: "Create admin" }));
 
-    await waitFor(() => expect(body).not.toBeNull());
+    await waitFor(() => expect(body).not.toBeNull(), LOAD);
     expect(body).toMatchObject({ setup_token: "tok-abc", email: "ada@example.test" });
-    await waitFor(() => expect(router.state.location.pathname).toBe("/"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/"), LOAD);
   });
 
   it("invite link sets password", async () => {
@@ -147,14 +152,14 @@ describe("auth pages", () => {
       }),
     );
     const router = renderAt("/invite/tok-1");
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
-    expect(await screen.findByText("new@example.test")).toBeInTheDocument();
+    expect(await screen.findByText("new@example.test", undefined, LOAD)).toBeInTheDocument();
     await user.type(screen.getByLabelText("Name"), "New Person");
     await user.type(screen.getByLabelText("Password"), "correct horse battery");
     await user.click(screen.getByRole("button", { name: "Accept invite" }));
 
-    await waitFor(() => expect(router.state.location.pathname).toBe("/login"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/login"), LOAD);
     expect(body).toEqual({ name: "New Person", password: "correct horse battery" });
   });
 
@@ -166,13 +171,13 @@ describe("auth pages", () => {
       http.post("/api/invites/accept/tok-2", () => apiError(403, "invite_login_required")),
     );
     renderAt("/invite/tok-2");
-    const user = userEvent.setup();
+    const user = userEvent.setup({ delay: null });
 
-    await user.type(await screen.findByLabelText("Name"), "Old Person");
+    await user.type(await screen.findByLabelText("Name", undefined, LOAD), "Old Person");
     await user.type(screen.getByLabelText("Password"), "correct horse battery");
     await user.click(screen.getByRole("button", { name: "Accept invite" }));
 
-    const alert = await screen.findByRole("alert");
+    const alert = await screen.findByRole("alert", undefined, LOAD);
     expect(within(alert).getByRole("link", { name: "Sign in to accept" })).toBeInTheDocument();
   });
 });

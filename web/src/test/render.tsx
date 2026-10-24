@@ -2,7 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { createMemoryHistory, createRouter, RouterProvider } from "@tanstack/react-router";
 import { render } from "@testing-library/react";
 
-import { setNavigator } from "@/lib/api";
+import { setNavigator, setOnSignedOut } from "@/lib/api";
 import { createQueryClient } from "@/lib/query";
 import { routeTree } from "@/routeTree.gen";
 
@@ -15,6 +15,7 @@ export function renderAt(path: string) {
     history: createMemoryHistory({ initialEntries: [path] }),
     context: { queryClient },
   });
+  setOnSignedOut(() => queryClient.clear());
   setNavigator((to) => {
     void router.navigate({ href: to });
   });

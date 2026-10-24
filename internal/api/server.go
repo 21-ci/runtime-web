@@ -43,6 +43,9 @@ type Deps struct {
 	PublicURL string
 	// RuntimePublicURL is RUNTIME_PUBLIC_URL, the only allowed frame source.
 	RuntimePublicURL string
+	// DevDNS is the dev-mode TXT resolver (RTWEB_DEV=1 only). When set, instance admins can
+	// change overrides at runtime via PUT /api/admin/dev/dns-override (e2e). nil = no route.
+	DevDNS *domains.DevResolver
 	// SPA is the console build. nil serves the embedded build.
 	SPA fs.FS
 }
@@ -71,6 +74,7 @@ func New(d Deps) *Server {
 	s := &Server{deps: d, mux: http.NewServeMux(), sseHeartbeat: 15 * time.Second}
 	s.registerAuthRoutes()
 	s.registerAdminRoutes()
+	s.registerDevRoutes()
 	s.registerOrgRoutes()
 	s.registerAccountRoutes()
 	s.registerInviteRoutes()
@@ -150,7 +154,7 @@ func (s *Server) securityHeaders(next http.Handler) http.Handler {
 	if o := originOf(s.deps.RuntimePublicURL); o != "" {
 		frame = o
 	}
-	csp := "default-src 'self'; frame-src " + frame + "; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
+	csp := "default-src 'self'; img-src 'self' data:; style-src 'self' 'unsafe-inline'; frame-src " + frame + "; frame-ancestors 'none'; base-uri 'none'; form-action 'self'; object-src 'none'"
 	return http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		h := w.Header()
 		h.Set("Content-Security-Policy", csp)

@@ -12,12 +12,13 @@ import (
 
 // logLine is one runtime log record. Its seq is the SSE event id.
 type logLine struct {
-	Seq       int64  `json:"seq"`
-	TS        int64  `json:"ts"`
-	Level     string `json:"level"`
-	ServiceID string `json:"service_id"`
-	Kind      string `json:"kind"`
-	Msg       string `json:"msg"`
+	Seq       int64           `json:"seq"`
+	TS        int64           `json:"ts"`
+	Level     string          `json:"level"`
+	ServiceID string          `json:"service_id"`
+	Kind      string          `json:"kind"`
+	Msg       string          `json:"msg"`
+	Fields    json.RawMessage `json:"fields,omitempty"`
 }
 
 // logRoutes registers the log route outside f.route: a follow stream blocks,
@@ -144,7 +145,10 @@ func (f *Fake) OpenStreams(key string) int {
 
 // EmitLog appends an info line to svc's log and wakes its streams. An unknown
 // service is ignored.
-func (f *Fake) EmitLog(svc, line string) {
+func (f *Fake) EmitLog(svc, line string) { f.EmitLogFields(svc, line, nil) }
+
+// EmitLogFields is EmitLog for a std:log record with structured fields.
+func (f *Fake) EmitLogFields(svc, line string, fields json.RawMessage) {
 	f.mu.Lock()
 	defer f.mu.Unlock()
 	s := f.services[svc]
@@ -152,7 +156,7 @@ func (f *Fake) EmitLog(svc, line string) {
 		return
 	}
 	s.logSeq++
-	s.logs = append(s.logs, logLine{Seq: s.logSeq, TS: nowMS(), Level: "info", ServiceID: s.id, Kind: "runtime", Msg: line})
+	s.logs = append(s.logs, logLine{Seq: s.logSeq, TS: nowMS(), Level: "info", ServiceID: s.id, Kind: "runtime", Msg: line, Fields: fields})
 	close(s.notify)
 	s.notify = make(chan struct{})
 }

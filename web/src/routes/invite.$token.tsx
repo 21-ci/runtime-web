@@ -56,8 +56,8 @@ function InvitePage() {
     return (
       <AuthShell title="Accept invite">
         <div className="flex flex-col gap-3" aria-busy="true">
-          <Skeleton className="h-[38px] w-full" />
-          <Skeleton className="h-[38px] w-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
         </div>
       </AuthShell>
     );
@@ -110,7 +110,7 @@ function InvitePage() {
               {formError}
             </p>
           ) : null}
-          <Button type="submit" disabled={accept.isPending}>
+          <Button type="submit" variant="default" disabled={accept.isPending}>
             {accept.isPending ? "Accepting…" : "Accept invite"}
           </Button>
         </AuthForm>
