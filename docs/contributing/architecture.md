@@ -76,7 +76,7 @@ marked (live), on a local node. Installing and releasing it: [Install](../gettin
 `server/scripts/install.mjs` run once by the operator with `RT_ROOT_TOKEN`; idempotent; prints next steps:
 
 1. Ensure plan `rtweb` exists in node config (prints the `[plans.rtweb]` and two `[[binding]]` fragments if missing; the
-   operator pastes them into `rt.toml`, exports `RTWEB_OP_TOKEN` (an operator key) and `RTWEB_RELAY_SECRET`, restarts `rt`).
+   operator pastes them into `rt.toml`, exports `RTWEB_OP_TOKEN` (`Bearer <root token>`, the runtime's operator credential) and `RTWEB_RELAY_SECRET`, restarts `rt`).
 2. Writes `deploy/Caddyfile` snippet (relay :8082 + console host + on-demand TLS `ask`).
 3. `POST /v1/tenants {name:"runtime-web", plan:"rtweb"}` (reuse if present).
 4. `POST /v1/sdks {name:"rtctl", version, source}` from `server/sdk/rtctl/mod.ts`; `PUT /v1/sdk-grants {scope:"tenant:<id>", sdk:"rtctl"}` and a `deny` at `scope:"node"`.

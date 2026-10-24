@@ -35,29 +35,40 @@ and the [security model](../security-model.md).
 
     Options: `--version X.Y.Z` (default: the latest release), `--runtime-version X.Y.Z`, `--public-url URL`
     (public base of app URLs, default `https://<domain>`), `--default-plan NAME` (plan for new orgs, default `free`)
-    and `--verify-signature` (fail when cosign is missing).
+    and `--insecure-skip-signature` (install without the Sigstore check; by default the installer refuses to run
+    when `cosign` is not on `PATH`).
 
 4. Copy the setup token that the installer prints (it is shown once), open `https://console.example.com/setup` and
    continue with [First run](../admin-guide.md#first-run).
 
 Re-running the installer is safe: it upgrades to the requested release, keeps the existing secrets and only uploads
-a new service version when the bundle changed. `sh install.sh --uninstall` removes the Runtime Web files and the
-Caddy site; the runtime node and its data stay.
+a new service version when the bundle changed. `sh install.sh --uninstall` removes the Runtime Web files, `/etc/rtweb`
+(secrets and `caddy.env`), the Caddy site and drop-in, `RTWEB_OP_TOKEN` / `RTWEB_RELAY_SECRET` from the rt
+environment file and the managed block (plan and bindings) from `rt.toml`; the runtime node and its data stay.
 
 ## What the installer does
 
 1. Checks the platform and tools.
-2. Installs the runtime node (`rt`) with the runtime's own installer, pinned to a release tag, when it is missing.
-3. Downloads `runtime-web-<version>.tar.gz` and `SHA256SUMS`, verifies the checksum and, when cosign is present, the
-   Sigstore signature of the release workflow, then unpacks to `/opt/runtime-web/<version>`.
-4. Generates `RTWEB_OP_TOKEN` and `RTWEB_RELAY_SECRET` into `/etc/rtweb/rtweb.env` (0600, never printed), merges
-   `deploy/rt.rtweb.toml` (the `rtweb` plan and the `rtctl-op` / `rtctl-tenant` bindings) into `/etc/rt/rt.toml`
-   and restarts `rt`.
-5. Installs `deploy/Caddyfile` as a Caddy site: the console host, on-demand TLS for app custom domains (gated by
-   the console's `tls-ask` endpoint) and the loopback relay for tenant-scoped control-API calls.
+2. Downloads `runtime-web-<version>.tar.gz`, `SHA256SUMS` and `SHA256SUMS.sigstore.json`, verifies the Sigstore
+   signature of the release workflow with `cosign` (required unless `--insecure-skip-signature`) and the tarball
+   against `SHA256SUMS`, then unpacks to `/opt/runtime-web/<version>`.
+3. When `rt` is missing, installs it from the runtime's GitHub release assets of a pinned version: the release's
+   `SHA256SUMS` and the `rt` tarball must match sha256 values pinned in `install.sh` (another `--runtime-version`
+   needs cosign). Nothing is fetched from a branch or a raw file at a git ref. The unit is `deploy/rt.service`.
+4. Generates `RTWEB_RELAY_SECRET` (64 hex chars, never empty, never printed) into `/etc/rtweb/rtweb.env` (0600),
+   sets `RTWEB_OP_TOKEN="Bearer <root token>"` (the runtime's single operator credential) and the relay secret in the
+   rt environment file, merges `deploy/rt.rtweb.toml` (the `rtweb` plan and the `rtctl-op` / `rtctl-tenant`
+   bindings) into `/etc/rt/rt.toml`, adds `ingress.trusted_proxies = ["127.0.0.1/32", "::1/128"]` so client IPs come
+   from Caddy's `X-Forwarded-For`, and restarts `rt`.
+5. Installs `deploy/Caddyfile` as a Caddy site: the console host (with HSTS), on-demand TLS for app custom domains
+   (gated by the console's `tls-ask` endpoint, called over loopback only; `/api/internal/*` answers 404 from
+   outside) and the loopback relay for tenant-scoped control-API calls, which requires the exact relay secret. Caddy
+   overwrites `X-Forwarded-For` with the real peer and drops client `X-Real-IP` / `Forwarded`. A failing
+   `caddy validate` stops the install.
 6. Runs `server/scripts/install.mjs` with the node's root token: creates the `runtime-web` tenant, publishes the
    `rtctl` SDK, creates the `rtweb` service with its secrets and env, uploads the bundle with the embedded console,
-   maps the console host and runs a smoke check.
+   checks each asset part's sha256, deletes the one-run `RTWEB_ASSET_TOKEN`
+   secret, maps the console host and runs a smoke check.
 
 ## What runs
 

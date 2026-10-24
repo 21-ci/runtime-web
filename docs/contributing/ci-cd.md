@@ -5,7 +5,7 @@
 | Workflow | Trigger | What it gates |
 |----------|---------|---------------|
 | `ci.yml` | PR, push to `main` | web: lint, Vitest + v8 coverage thresholds, build, gzip budget; server: lint, `tsc`, Vitest + coverage; shellcheck + `install.sh --dry-run`; `mkdocs build --strict` |
-| `security.yml` | PR, push to `main`, weekly | Trivy fs (vuln, secret, misconfig; HIGH/CRITICAL fail; SARIF to code scanning), `npm audit --omit=dev`, CodeQL (javascript-typescript), OpenSSF Scorecard |
+| `security.yml` | PR, push to `main`, weekly | Trivy fs (vuln, secret, misconfig; HIGH/CRITICAL fail; SARIF to code scanning), `npm audit` (runtime deps and all deps incl. dev; high/critical fail), CodeQL (javascript-typescript), OpenSSF Scorecard |
 | `release.yml` | tag `vX.Y.Z[-pre]` | tarball, SBOM, Trivy scan of the artifact, SHA256SUMS, cosign keyless signature, SLSA provenance, GitHub Release, post-publish verification |
 
 Every action is pinned by full commit SHA with a version comment; Dependabot (`.github/dependabot.yml`) bumps them
@@ -53,9 +53,10 @@ sudo sh install.sh \
   --domain console.example.com --email ops@example.com
 ```
 
-It installs the runtime node with the runtime's own installer when `rt` is missing, verifies the tarball against
-`SHA256SUMS` (and the Sigstore signature when `cosign` is on `PATH`; `--verify-signature` makes that mandatory),
-generates `RTWEB_OP_TOKEN` and `RTWEB_RELAY_SECRET` into `/etc/rtweb/rtweb.env` (0600) and the rt environment file,
+It verifies the Sigstore signature on `SHA256SUMS` (cosign required; `--insecure-skip-signature` skips it) and the
+tarball against it, installs `rt` when missing from a pinned runtime release whose `SHA256SUMS` and tarball sha256 are
+pinned in `install.sh`, generates `RTWEB_RELAY_SECRET` into `/etc/rtweb/rtweb.env` (0600) and sets it plus
+`RTWEB_OP_TOKEN="Bearer <root token>"` in the rt environment file,
 wires the plan and bindings (`deploy/rt.rtweb.toml`) into `/etc/rt/rt.toml`, installs the Caddy site and runs
 `server/scripts/install.mjs` with `RT_ROOT_TOKEN` (from the rt environment file), `RTWEB_ORIGIN=https://<domain>`,
 `RTWEB_HOST=<domain>`, `RTWEB_RUNTIME_PUBLIC_URL` (`--public-url`, default `https://<domain>`), `RTWEB_DEFAULT_PLAN`
