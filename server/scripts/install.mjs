@@ -118,6 +118,10 @@ async function ensureSdk(tenantId) {
   const source = Buffer.from((await readFile(src, "utf8")).replaceAll("__RTWEB_TENANT_ID__", tenantId)).toString("base64");
   const r = await api("POST", "/v1/sdks", { body: { name: "rtctl", version: SDK_VERSION, source, description: "Runtime Web control API" }, ok: [409] });
   step(4, r.status === 409 ? `sdk rtctl ${SDK_VERSION} already published` : `published sdk rtctl ${SDK_VERSION}`);
+  // Only the first release becomes `stable` on its own: point the channel at this one, or an upgrade keeps
+  // running the old SDK.
+  await api("PUT", `/v1/sdks/rtctl/channels/stable`, { body: { version: SDK_VERSION } });
+  step(4, `sdk rtctl channel stable -> ${SDK_VERSION}`);
   await api("PUT", "/v1/sdk-grants", { body: { scope: `tenant:${tenantId}`, sdk: "rtctl", effect: "allow" } });
   // Nothing is granted by default, and a deny at any level wins (a node-wide deny would also block the
   // tenant allow above). Clear the node grant older installs wrote: a PUT with no effect deletes it.
