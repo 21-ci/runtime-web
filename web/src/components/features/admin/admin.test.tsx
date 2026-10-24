@@ -148,7 +148,7 @@ describe("admin pages", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: /actions for grace/i }));
     await userEvent.click(await screen.findByRole("menuitem", { name: /reset 2fa/i }));
-    const dialog = await screen.findByRole("dialog", { name: /reset 2fa for grace/i });
+    const dialog = await screen.findByRole("alertdialog", { name: /reset 2fa for grace/i });
     expect(resets).toBe(0);
 
     await userEvent.click(within(dialog).getByRole("button", { name: /reset 2fa/i }));
@@ -161,7 +161,7 @@ describe("admin pages", () => {
 
     await userEvent.click(await screen.findByRole("button", { name: /actions for grace/i }));
     await userEvent.click(await screen.findByRole("menuitem", { name: /delete user/i }));
-    const dialog = await screen.findByRole("dialog", { name: /delete grace/i });
+    const dialog = await screen.findByRole("alertdialog", { name: /delete grace/i });
     expect(within(dialog).getByText(/disables the account/i)).toBeInTheDocument();
     expect(within(dialog).getByText(/anonymizes/i)).toBeInTheDocument();
   });

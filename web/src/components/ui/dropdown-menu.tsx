@@ -17,7 +17,7 @@ const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 min-w-[180px] overflow-hidden rounded-[6px] border border-line bg-surface p-1 text-text shadow-[0_8px_24px_-12px_rgb(0_0_0_/0.35)]",
+        "z-50 min-w-[180px] overflow-hidden rounded-md border border-line bg-surface p-1 text-text shadow-menu",
         className,
       )}
       {...props}
@@ -33,7 +33,7 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex min-h-8 cursor-pointer select-none items-center gap-2 rounded-[4px] px-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-panel-2",
+      "relative flex h-7 cursor-pointer select-none items-center gap-2 rounded-sm px-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-hover",
       destructive && "text-danger",
       className,
     )}
@@ -49,7 +49,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex min-h-8 cursor-pointer select-none items-center gap-2 rounded-[4px] py-1 pl-7 pr-2 text-sm outline-none data-[highlighted]:bg-panel-2",
+      "relative flex h-7 cursor-pointer select-none items-center gap-2 rounded-sm py-1 pl-7 pr-2 text-sm outline-none data-[highlighted]:bg-hover",
       className,
     )}
     {...props}
@@ -70,11 +70,19 @@ const DropdownMenuLabel = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <DropdownMenuPrimitive.Label
     ref={ref}
-    className={cn("px-2 py-1.5 text-xs font-semibold text-muted", className)}
+    className={cn("px-2 py-1.5 text-[12px] font-medium text-muted", className)}
     {...props}
   />
 ));
 DropdownMenuLabel.displayName = "DropdownMenuLabel";
+
+const DropdownMenuShortcut = ({ className, ...props }: React.HTMLAttributes<HTMLSpanElement>) => (
+  <span
+    className={cn("ml-auto rounded-sm border border-line bg-panel px-1 font-mono text-[11px] text-muted", className)}
+    {...props}
+  />
+);
+DropdownMenuShortcut.displayName = "DropdownMenuShortcut";
 
 const DropdownMenuSeparator = React.forwardRef<
   React.ComponentRef<typeof DropdownMenuPrimitive.Separator>,
@@ -92,5 +100,6 @@ export {
   DropdownMenuItem,
   DropdownMenuLabel,
   DropdownMenuSeparator,
+  DropdownMenuShortcut,
   DropdownMenuTrigger,
 };
