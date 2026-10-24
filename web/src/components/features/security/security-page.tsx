@@ -14,6 +14,7 @@ import { ApiError } from "@/lib/api";
 import { describeUserAgent } from "@/lib/user-agent";
 
 import { EnrollTotp, RecoveryCodes } from "./enroll-2fa";
+import { LinkedSignInSection } from "./linked-sign-in";
 import {
   useDisableTotp,
   useLogins,
@@ -47,6 +48,7 @@ export function SecurityPage() {
       ) : null}
 
       <TwoFactorSection enabled={me.data.user.totp_enabled} />
+      <LinkedSignInSection />
       <SessionsSection />
       <LoginHistorySection />
     </div>

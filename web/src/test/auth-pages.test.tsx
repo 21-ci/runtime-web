@@ -86,6 +86,15 @@ describe("auth pages", { timeout: 15_000 }, () => {
     expect(body).toEqual({ code: "123456" });
   });
 
+  it("login explains link_required and how to link the provider", async () => {
+    renderAt("/login?error=link_required");
+    expect(
+      await screen.findByText(
+        "Sign in with your password first, then link this provider from Account → Security.",
+      ),
+    ).toBeInTheDocument();
+  });
+
   it("password form hidden when SSO-only", async () => {
     server.use(
       http.get("/api/auth/providers", () =>

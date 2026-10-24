@@ -14,6 +14,7 @@ const OAUTH_ERRORS: Record<string, string> = {
   no_account: "No account uses that email. Ask an admin for an invite.",
   account_disabled: "This account is disabled. Contact an admin.",
   oauth_failed: "Sign-in failed. Try again.",
+  link_required: "Sign in with your password first, then link this provider from Account → Security.",
 };
 
 type LoginSearch = { next?: string; error?: string };

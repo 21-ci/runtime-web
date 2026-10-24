@@ -79,12 +79,28 @@ describe("SecurityPage", () => {
       http.get("/api/me", () => HttpResponse.json(me)),
       http.get("/api/me/sessions", () => HttpResponse.json({ items: [] })),
       http.get("/api/me/logins", () => HttpResponse.json({ items: [] })),
-      http.post("/api/me/totp/enroll", () => HttpResponse.json({ otpauth_url: OTPAUTH })),
+      http.post("/api/me/totp/enroll", async ({ request }) => {
+        const body = (await request.json()) as { password: string };
+        if (body.password !== "correct-horse") {
+          return HttpResponse.json({ error: { code: "invalid_credentials", message: "Wrong password." } }, { status: 401 });
+        }
+        return HttpResponse.json({ otpauth_url: OTPAUTH });
+      }),
       http.post("/api/me/totp/confirm", () => HttpResponse.json({ recovery_codes: CODES })),
     );
     renderPage();
 
     await user.click(await screen.findByRole("button", { name: "Set up two-factor authentication" }));
+
+    // Step zero: the password is required before the secret is issued.
+    await user.type(screen.getByLabelText("Current password"), "wrong-password");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
+    expect(await screen.findByText("Wrong password. Try again.")).toBeInTheDocument();
+    expect(screen.queryByRole("img", { name: "QR code for your authenticator app" })).toBeNull();
+
+    await user.clear(screen.getByLabelText("Current password"));
+    await user.type(screen.getByLabelText("Current password"), "correct-horse");
+    await user.click(screen.getByRole("button", { name: "Continue" }));
 
     // Step one: the QR code and the manual secret, no codes yet.
     expect(await screen.findByRole("img", { name: "QR code for your authenticator app" })).toBeInTheDocument();
@@ -101,5 +117,62 @@ describe("SecurityPage", () => {
 
     await user.click(screen.getByRole("button", { name: "I have saved my recovery codes" }));
     await waitFor(() => expect(screen.queryByText(CODES[0])).toBeNull());
+  });
+  it("linked sign-in lists providers, starts a link, and reports identity_taken", async () => {
+    const user = userEvent.setup();
+    const linkBodies: unknown[] = [];
+    server.use(
+      http.get("/api/me", () => HttpResponse.json(me)),
+      http.get("/api/me/sessions", () => HttpResponse.json({ items: [] })),
+      http.get("/api/me/logins", () => HttpResponse.json({ items: [] })),
+      http.get("/api/auth/providers", () =>
+        HttpResponse.json({
+          password_login_disabled: false,
+          providers: [
+            { id: "github", name: "GitHub" },
+            { id: "google", name: "Google" },
+          ],
+        }),
+      ),
+      http.post("/api/me/oauth/:provider/link", async ({ request, params }) => {
+        linkBodies.push({ provider: params.provider, body: await request.json() });
+        if (params.provider === "google") {
+          return HttpResponse.json({ error: { code: "identity_taken", message: "taken" } }, { status: 409 });
+        }
+        return HttpResponse.json({ location: "https://github.example.test/login/oauth" });
+      }),
+    );
+    renderPage();
+
+    const section = await screen.findByRole("region", { name: "Linked sign-in" });
+    expect(await within(section).findByText("GitHub")).toBeInTheDocument();
+    expect(within(section).getByText("Google")).toBeInTheDocument();
+
+    await user.click(within(section).getByRole("button", { name: "Link Google" }));
+    expect(
+      await screen.findByText("That account is already linked to another Runtime Web user."),
+    ).toBeInTheDocument();
+
+    // A successful start navigates away to the provider, so the button stays disabled here.
+    await user.click(within(section).getByRole("button", { name: "Link GitHub" }));
+    await waitFor(() => expect(linkBodies).toContainEqual({ provider: "github", body: {} }));
+  });
+
+  it("linked sign-in shows identity_taken after the callback redirect", async () => {
+    window.history.replaceState(null, "", "/me/security?error=identity_taken");
+    server.use(
+      http.get("/api/me", () => HttpResponse.json(me)),
+      http.get("/api/me/sessions", () => HttpResponse.json({ items: [] })),
+      http.get("/api/me/logins", () => HttpResponse.json({ items: [] })),
+      http.get("/api/auth/providers", () =>
+        HttpResponse.json({ password_login_disabled: false, providers: [{ id: "github", name: "GitHub" }] }),
+      ),
+    );
+    renderPage();
+
+    expect(
+      await screen.findByText("That account is already linked to another Runtime Web user."),
+    ).toBeInTheDocument();
+    window.history.replaceState(null, "", "/");
   });
 });

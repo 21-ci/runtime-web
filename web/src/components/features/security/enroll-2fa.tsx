@@ -62,6 +62,7 @@ export function EnrollTotp({ onDone }: { onDone?: () => void }) {
   const [qr, setQr] = useState<string | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [askPassword, setAskPassword] = useState(false);
 
   useEffect(() => {
     if (!otpauth) return;
@@ -78,11 +79,28 @@ export function EnrollTotp({ onDone }: { onDone?: () => void }) {
 
   const secret = otpauth ? new URL(otpauth).searchParams.get("secret") : null;
 
-  function start() {
-    enroll.mutate(undefined, {
-      onSuccess: (res) => setOtpauth(res.otpauth_url),
-      onError: () => setError("Could not start 2FA setup. Try again."),
-    });
+  function onPasswordSubmit(e: FormEvent<HTMLFormElement>) {
+    e.preventDefault();
+    const password = String(new FormData(e.currentTarget).get("password") ?? "");
+    if (!password) {
+      setError("Enter your current password.");
+      return;
+    }
+    setError(null);
+    enroll.mutate(
+      { password },
+      {
+        onSuccess: (res) => {
+          setAskPassword(false);
+          setOtpauth(res.otpauth_url);
+        },
+        onError: (err) => {
+          if (err instanceof ApiError && err.code === "invalid_credentials") setError("Wrong password. Try again.");
+          else if (err instanceof ApiError && err.code === "rate_limited") setError("Too many attempts. Wait and try again.");
+          else setError("Could not start 2FA setup. Try again.");
+        },
+      },
+    );
   }
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -118,11 +136,36 @@ export function EnrollTotp({ onDone }: { onDone?: () => void }) {
     );
   }
 
-  if (!otpauth) {
+  if (!otpauth && !askPassword) {
     return (
-      <Button onClick={start} disabled={enroll.isPending}>
+      <Button
+        onClick={() => {
+          setError(null);
+          setAskPassword(true);
+        }}
+      >
         Set up two-factor authentication
       </Button>
+    );
+  }
+
+  if (!otpauth) {
+    return (
+      <AuthForm errors={error ? { password: error } : {}} onSubmit={onPasswordSubmit}>
+        <p className="text-sm">Enter your current password to start 2FA setup.</p>
+        <FormField
+          label="Current password"
+          name="password"
+          type="password"
+          autoComplete="current-password"
+          error={error ?? undefined}
+        />
+        <div>
+          <Button type="submit" disabled={enroll.isPending}>
+            Continue
+          </Button>
+        </div>
+      </AuthForm>
     );
   }
 

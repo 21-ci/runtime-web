@@ -43,6 +43,19 @@ export function useLogins() {
   });
 }
 
+// useLinkProvider starts the OAuth link flow. The server returns the provider URL to navigate to;
+// the callback then attaches the identity and redirects back to /me/security.
+export function useLinkProvider() {
+  return useMutation({
+    meta: { skipGlobalError: true },
+    mutationFn: (provider: string) =>
+      api.post<{ location: string }>(`/me/oauth/${encodeURIComponent(provider)}/link`, {}),
+    onSuccess: (res) => {
+      window.location.assign(res.location);
+    },
+  });
+}
+
 export function useRevokeSession() {
   const qc = useQueryClient();
   return useMutation({
@@ -59,9 +72,11 @@ export function useRevokeOtherSessions() {
   });
 }
 
+// useEnrollTotp needs the current password: the server answers 401 invalid_credentials otherwise.
 export function useEnrollTotp() {
   return useMutation({
-    mutationFn: () => api.post<{ otpauth_url: string }>("/me/totp/enroll"),
+    meta: { skipGlobalError: true },
+    mutationFn: (body: { password: string }) => api.post<{ otpauth_url: string }>("/me/totp/enroll", body),
   });
 }
 
