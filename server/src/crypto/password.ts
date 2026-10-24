@@ -1,12 +1,13 @@
-// argon2id password hashing. Same params as the earlier Go backend
-// (m=64 MiB, t=3, p=2, 16-byte salt, 32-byte key), PHC string output, so hashes
-// written by either implementation verify in the other.
+// argon2id password hashing, PHC string output. New hashes use the OWASP minimum
+// (m=19 MiB, t=2, p=1) so a few concurrent logins fit the 128 MB guest; hashes from the
+// earlier Go backend (m=64 MiB, t=3, p=2) still verify and are replaced at the next login
+// (needsRehash).
 
 import { argon2id } from "hash-wasm";
 import { constantTimeEqual } from "./hash.ts";
 import { randomBytes } from "./random.ts";
 
-export const ARGON2_PARAMS = { memoryKiB: 64 * 1024, iterations: 3, parallelism: 2, saltBytes: 16, keyBytes: 32 } as const;
+export const ARGON2_PARAMS = { memoryKiB: 19 * 1024, iterations: 2, parallelism: 1, saltBytes: 16, keyBytes: 32 } as const;
 
 // Limits from Go Verify: refuse parameters that could exhaust memory on a corrupt row.
 const MAX_MEMORY_KIB = 1 << 20;
@@ -48,6 +49,13 @@ export async function verifyPassword(phc: string, password: string): Promise<boo
     outputType: "binary",
   });
   return constantTimeEqual(got, p.key);
+}
+
+/** True for a well-formed hash whose parameters differ from ARGON2_PARAMS. */
+export function needsRehash(phc: string): boolean {
+  const p = parsePhc(phc);
+  if (!p) return false;
+  return p.memoryKiB !== ARGON2_PARAMS.memoryKiB || p.iterations !== ARGON2_PARAMS.iterations || p.parallelism !== ARGON2_PARAMS.parallelism;
 }
 
 interface Phc {

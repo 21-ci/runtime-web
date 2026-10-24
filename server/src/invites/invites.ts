@@ -3,6 +3,7 @@
 // loginUser (2FA policy applies); an existing account must be the caller and only gets
 // the bound membership. Revoking deletes the row (unknown == revoked to the public).
 
+import { withHashSlot } from "../auth/ratelimit.ts";
 import type { Deps } from "../app.ts";
 import { passwordProblem } from "../auth/password.ts";
 import { dbOf, hasherOf, normalizeEmail } from "../auth/types.ts";
@@ -169,7 +170,8 @@ export async function acceptInvite(deps: InviteDeps, token: string, callerId: st
     const pw = passwordProblem(body.password);
     if (pw) fields.password = pw;
     if (Object.keys(fields).length) throw invalid(fields);
-    hash = await hasherOf(deps).hash(body.password as string);
+    const h = hasherOf(deps);
+    hash = await withHashSlot(deps.storage.kv, () => h.hash(body.password as string));
   }
   return db.tx(async (q) => {
     const row = await byToken(q, token, now);

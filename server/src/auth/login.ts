@@ -7,7 +7,23 @@ import type { Db } from "../storage/types.ts";
 import { recordLogin, type LoginEventIn, type LoginMethod } from "./events.ts";
 import { passwordProblem, type Hasher } from "./password.ts";
 import { getPolicy } from "./policy.ts";
-import { isBlocked, loginKey, MAX_LOGIN_FAILURES, rateLimited, recordFailure, resetFailures } from "./ratelimit.ts";
+import {
+  accountDelaySeconds,
+  accountKey,
+  globalAttempt,
+  IP_FAILURE_LIMIT,
+  ipKey,
+  isBlocked,
+  KNOWN_IP_SECONDS,
+  WINDOW_SECONDS,
+  knownKey,
+  loginKey,
+  MAX_LOGIN_FAILURES,
+  rateLimited,
+  recordFailure,
+  resetFailures,
+  withHashSlot,
+} from "./ratelimit.ts";
 import { createSession, lookupSession, revokeAllForUser, revokeSession } from "./session.ts";
 import { InvalidCodeError, invalidCredentials, normalizeCode, totpEnabled, useRecoveryCode, validCodeShape, verifyTotpCode } from "./totp.ts";
 import { dbOf, getUserByEmail, getUserById, hasherOf, normalizeEmail, userFromRow, type AuthDeps, type SessionUser } from "./types.ts";
@@ -90,9 +106,10 @@ function dummyHash(h: Hasher): Promise<string> {
 
 /**
  * Password login. Unknown user, wrong password and disabled user are all 401
- * invalid_credentials; 10 failures per 15 min per (ip, email) give 429. When
- * password login is disabled by policy, non-admins get 403 password_login_disabled.
- * Every attempt is recorded in login_events.
+ * invalid_credentials. Throttles (see ratelimit.ts): per (ip, email), per IP, a
+ * progressive per-account delay for IPs that never signed into the account, a global
+ * per-minute cap and an argon2 concurrency cap. When password login is disabled by
+ * policy, non-admins get 403 password_login_disabled. Every attempt is recorded.
  */
 export async function login(deps: AuthDeps, emailIn: unknown, password: unknown, c: Client): Promise<LoginOutcome> {
   const db = await dbOf(deps);
@@ -102,26 +119,51 @@ export async function login(deps: AuthDeps, emailIn: unknown, password: unknown,
   const pw = typeof password === "string" ? password : "";
   const ev: LoginEventIn = { userId: "", email, ip: c.ip, ua: c.ua, method: "password", result: "ok" };
   const key = await loginKey(c.ip, email);
+  const ipK = await ipKey(c.ip);
+  const acctK = await accountKey(email);
+  const nextK = `${acctK}:next`;
   const row = email ? await getUserByEmail(db, email) : null;
   if (row) ev.userId = row.id;
+  const known = row ? (await kv.get(await knownKey(c.ip, row.id))) !== null : false;
 
-  if (await isBlocked(kv, key, MAX_LOGIN_FAILURES)) {
+  const limited = async (retry?: number): Promise<never> => {
     await recordLogin(db, now, { ...ev, result: "rate_limited" });
-    throw rateLimited();
+    throw rateLimited(retry);
+  };
+  if ((await isBlocked(kv, key, MAX_LOGIN_FAILURES)) || (await isBlocked(kv, ipK, IP_FAILURE_LIMIT))) return limited();
+  if (!known) {
+    const next = await kv.get<number>(nextK);
+    if (typeof next === "number" && next > now) return limited(Math.ceil((next - now) / 1000));
+    try {
+      await globalAttempt(kv, now);
+    } catch (err) {
+      await recordLogin(db, now, { ...ev, result: "rate_limited" });
+      throw err;
+    }
   }
   const fail = async (result: LoginEventIn["result"]): Promise<never> => {
     await recordFailure(kv, key);
+    await recordFailure(kv, ipK);
+    const n = await recordFailure(kv, acctK);
+    const d = accountDelaySeconds(n);
+    if (d > 0) await kv.set(nextK, now + d * 1000, { ttlSeconds: WINDOW_SECONDS });
     await recordLogin(db, now, { ...ev, result });
     throw invalidCredentials();
   };
   const hasher = hasherOf(deps);
   if (!row || pw.length > 1024) {
-    await hasher.verify(await dummyHash(hasher), pw.slice(0, 1024));
+    const dh = await dummyHash(hasher);
+    await withHashSlot(kv, () => hasher.verify(dh, pw.slice(0, 1024)));
     return fail("bad_password");
   }
-  if (!(await hasher.verify(row.pw_hash, pw))) return fail("bad_password");
+  if (!(await withHashSlot(kv, () => hasher.verify(row.pw_hash, pw)))) return fail("bad_password");
   if (Number(row.disabled)) return fail("disabled");
   await resetFailures(kv, key);
+  await kv.set(await knownKey(c.ip, row.id), 1, { ttlSeconds: KNOWN_IP_SECONDS });
+  if (hasher.needsRehash?.(row.pw_hash)) {
+    const fresh = await hasher.hash(pw);
+    await db.run("UPDATE users SET pw_hash = ? WHERE id = ? AND pw_hash = ?", [fresh, row.id, row.pw_hash]);
+  }
   if (!Number(row.instance_admin) && (await getPolicy(db)).passwordLoginDisabled) {
     await recordLogin(db, now, { ...ev, result: "sso_only" });
     throw forbidden("password_login_disabled", "password login is disabled; use single sign-on");

@@ -223,7 +223,7 @@ type AuditEntry = {
 | GET | `/api/setup` | public | | `200 {needed: boolean}` | |
 | POST | `/api/setup` | public (Origin) | `SetupReq` | `201 SessionResp` + session cookie | `403 setup_token_invalid`, `409 already_set_up`, `422 invalid` |
 | GET | `/api/auth/providers` | public | | `200 AuthConfig` | |
-| POST | `/api/auth/login` | public (Origin) | `LoginReq` | `200 LoginResp` + cookie (full or MFA-pending) | `401 invalid_credentials`, `403 password_login_disabled`, `429 rate_limited` |
+| POST | `/api/auth/login` | public (Origin) | `LoginReq` | `200 LoginResp` + cookie (full or MFA-pending) | `401 invalid_credentials`, `403 password_login_disabled`, `429 rate_limited`, `503 busy` |
 | POST | `/api/auth/mfa` | MFA-pending session cookie; no CSRF (there is no token yet); Origin enforced | `{code: string}` | `200 SessionResp` + full session cookie | `401 unauthenticated` (no/expired pending), `401 invalid_code`, `429 rate_limited` |
 | POST | `/api/auth/logout` | session | | `204` + cookie cleared | |
 | GET | `/api/me` | session (gate-exempt) | | `200 Me` | |
@@ -257,6 +257,14 @@ Notes:
 - The login error never reveals whether the account exists: unknown user, wrong password and disabled user
   are all `401 invalid_credentials`.
 - `password_login_disabled` applies to everyone except instance admins (break-glass).
+- Login throttling. The client address is the runtime's `ctx.client.ip` (= `x-rt-client-ip`, which the
+  runtime resolves behind `ingress.trusted_proxies` and clients cannot set); `X-Forwarded-For` is never read.
+  Limits: 10 failures per (IP, email) and 30 failures per IP per 15 min give `429 rate_limited`. Account-wide
+  failures past 10 give an IP that never signed into that account a growing delay (1 s doubling up to 60 s,
+  `429` with `Retry-After`), never a lock; IPs with a correct password for the account in the last 30 days
+  skip that delay and the instance-wide cap of 60 unauthenticated attempts per minute. At most 2 argon2
+  runs happen at once for unauthenticated requests; beyond that `503 busy` with `Retry-After: 1`. New
+  hashes use argon2id m=19 MiB, t=2, p=1; older hashes are replaced at the next successful login.
 - After a login with `must_change_password`, the UI goes to `/change-password`. With
   `mfa_enrollment_required`, it goes to `/me/security`.
 
