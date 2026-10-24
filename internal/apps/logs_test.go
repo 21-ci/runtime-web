@@ -121,6 +121,19 @@ func TestLogLineDropsServiceID(t *testing.T) {
 	}
 }
 
+func TestLogLineKeepsFields(t *testing.T) {
+	f := newFixture(t)
+	h := newHub(t, f)
+	v := f.app(t, f.org.ID, "default", "production", "lf")
+	ch := subscribe(t, h, viewer, f.org.ID, "lf", "")
+	f.fake.EmitLogFields(v.Raw.ID, "order placed", json.RawMessage(`{"order":7}`))
+	ev := next(t, ch)
+	var line LogLine
+	if err := json.Unmarshal(ev.Data, &line); err != nil || string(line.Fields) != `{"order":7}` {
+		t.Fatalf("line = %s (%v), want fields {\"order\":7}", ev.Data, err)
+	}
+}
+
 func TestLogResumeLastEventID(t *testing.T) {
 	f := newFixture(t)
 	h := newHub(t, f)

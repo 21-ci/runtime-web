@@ -1,0 +1,183 @@
+diff --git a/docs/02-design-v1.md b/docs/02-design-v1.md
+index ad14c3c..5e3ba94 100644
+--- a/docs/02-design-v1.md
++++ b/docs/02-design-v1.md
+@@ -24,7 +24,7 @@ Supersedes the open choices in [00-research-and-design.md](00-research-and-desig
+ 
+ | Role | Scope | Can |
+ |---|---|---|
+-| Instance admin | instance | Operator pages (node status/config/scheduler/cache/drain), orgs CRUD, users CRUD + invites + 2FA reset, instance settings (OAuth providers, public URL, require 2FA, SSO-only login), instance audit log, all domains, impersonating an org (acts as org owner, audited) |
++| Instance admin | instance | Operator pages (node status/config/scheduler/cache/drain), orgs CRUD, users CRUD + invites + 2FA reset, instance settings (OAuth providers, public URL, require 2FA, SSO-only login), instance audit log, all domains; acts as owner in any org (audited) |
+ | Org owner | org | Everything in the org: projects, apps, members, invites, project grants, custom tokens, domains, rotating the default key, org audit log, own org usage |
+ | Org admin | org | Same as owner except deleting the org and changing owners (`members.owners`) |
+ | Org member | org | Only the projects granted to them, at the granted project role |
+diff --git a/web/src/components/features/org/rotate-default-key.tsx b/web/src/components/features/org/rotate-default-key.tsx
+new file mode 100644
+index 0000000..1baa2c9
+--- /dev/null
++++ b/web/src/components/features/org/rotate-default-key.tsx
+@@ -0,0 +1,82 @@
++import { useMutation } from "@tanstack/react-query";
++import { useState } from "react";
++import { toast } from "sonner";
++
++import { Button } from "@/components/ui/button";
++import {
++  Dialog,
++  DialogContent,
++  DialogDescription,
++  DialogFooter,
++  DialogHeader,
++  DialogTitle,
++} from "@/components/ui/dialog";
++import { Input } from "@/components/ui/input";
++import { Label } from "@/components/ui/label";
++import { api } from "@/lib/api";
++
++// RotateDefaultKey replaces the org's default runtime key (owner/admin, defaultkey.rotate).
++// Custom tokens keep working. Errors use the global mutation toast.
++export function RotateDefaultKey({ org }: { org: string }) {
++  const [open, setOpen] = useState(false);
++  const [typed, setTyped] = useState("");
++  const rotate = useMutation({
++    mutationFn: () => api.post<void>(`/orgs/${encodeURIComponent(org)}/default-key/rotate`),
++  });
++  const matches = typed === org;
++
++  function onConfirm() {
++    if (!matches) return;
++    rotate.mutate(undefined, {
++      onSuccess: () => {
++        setOpen(false);
++        setTyped("");
++        toast.success("Default key rotated. Custom tokens keep working.");
++      },
++    });
++  }
++
++  return (
++    <section aria-labelledby="default-key-title" className="flex max-w-xl flex-col gap-3 rounded-[10px] border border-line bg-surface p-4">
++      <h2 id="default-key-title" className="text-base font-semibold">
++        Default key
++      </h2>
++      <p className="text-sm text-muted">
++        The console uses the org's default key to manage apps. Rotate it if it may have leaked. Custom tokens are not
++        affected.
++      </p>
++      <div>
++        <Button variant="secondary" onClick={() => setOpen(true)}>
++          Rotate default key
++        </Button>
++      </div>
++
++      <Dialog
++        open={open}
++        onOpenChange={(v) => {
++          setOpen(v);
++          if (!v) setTyped("");
++        }}
++      >
++        <DialogContent>
++          <DialogHeader>
++            <DialogTitle>Rotate the default key of {org}?</DialogTitle>
++            <DialogDescription>The old default key stops working. Type the org slug to confirm.</DialogDescription>
++          </DialogHeader>
++          <div className="flex flex-col gap-1">
++            <Label htmlFor="confirm-rotate">Type {org} to confirm</Label>
++            <Input id="confirm-rotate" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
++          </div>
++          <DialogFooter>
++            <Button variant="secondary" onClick={() => setOpen(false)}>
++              Cancel
++            </Button>
++            <Button variant="danger" disabled={!matches || rotate.isPending} onClick={onConfirm}>
++              Rotate key
++            </Button>
++          </DialogFooter>
++        </DialogContent>
++      </Dialog>
++    </section>
++  );
++}
+diff --git a/web/src/routes/$org.settings.general.tsx b/web/src/routes/$org.settings.general.tsx
+index 4829190..3621463 100644
+--- a/web/src/routes/$org.settings.general.tsx
++++ b/web/src/routes/$org.settings.general.tsx
+@@ -1,6 +1,8 @@
+ import { createFileRoute } from "@tanstack/react-router";
+ 
+ import { QuotaBar } from "@/components/features/org/quota-bar";
++import { RotateDefaultKey } from "@/components/features/org/rotate-default-key";
++import { useCan } from "@/hooks/authz";
+ import { useOrgs } from "@/hooks/orgs";
+ import { Skeleton } from "@/components/ui/skeleton";
+ 
+@@ -8,10 +10,12 @@ export const Route = createFileRoute("/$org/settings/general")({
+   component: GeneralRoute,
+ });
+ 
+-// General shows the org's identity and its quota. Renaming and deleting are not in v1 UI.
++// General shows the org's identity and its quota, and lets owners/admins rotate the default key.
++// Renaming and deleting are not in v1 UI.
+ function GeneralRoute() {
+   const { org } = Route.useParams();
+   const orgs = useOrgs();
++  const can = useCan(org);
+   if (orgs.isPending) return <Skeleton className="h-40 w-full" />;
+   const current = orgs.data?.find((o) => o.slug === org);
+   return (
+@@ -24,6 +28,7 @@ function GeneralRoute() {
+         <dd className="font-mono">{org}</dd>
+       </dl>
+       <QuotaBar org={org} />
++      {can("defaultkey.rotate") === true ? <RotateDefaultKey org={org} /> : null}
+     </div>
+   );
+ }
+diff --git a/web/src/test/rotate-default-key.test.tsx b/web/src/test/rotate-default-key.test.tsx
+new file mode 100644
+index 0000000..622b886
+--- /dev/null
++++ b/web/src/test/rotate-default-key.test.tsx
+@@ -0,0 +1,41 @@
++import { screen, waitFor, within } from "@testing-library/react";
++import userEvent from "@testing-library/user-event";
++import { http, HttpResponse } from "msw";
++import { describe, expect, it, vi } from "vitest";
++
++import { server } from "./msw";
++import { renderAt } from "./render";
++import { orgs, useShellHandlers } from "./shell-fixtures";
++
++const LOAD = { timeout: 5000 };
++
++describe("rotate default key", { timeout: 15_000 }, () => {
++  it("owner rotates after typing the org slug and sees a success toast", async () => {
++    useShellHandlers();
++    const rotate = vi.fn();
++    server.use(
++      http.post("/api/orgs/acme/default-key/rotate", () => {
++        rotate();
++        return new HttpResponse(null, { status: 204 });
++      }),
++    );
++    renderAt("/acme/settings/general");
++    await userEvent.click(await screen.findByRole("button", { name: /rotate default key/i }, LOAD));
++    const dialog = await screen.findByRole("dialog");
++    const confirm = within(dialog).getByRole("button", { name: /^rotate key$/i });
++    expect(confirm).toBeDisabled();
++    await userEvent.type(within(dialog).getByLabelText(/type acme to confirm/i), "acme");
++    await userEvent.click(confirm);
++    await waitFor(() => expect(rotate).toHaveBeenCalledTimes(1));
++    expect(await screen.findByText(/default key rotated/i)).toBeInTheDocument();
++  });
++
++  it("members do not see the control", async () => {
++    useShellHandlers();
++    server.use(http.get("/api/orgs", () => HttpResponse.json({ items: [{ ...orgs[0], role: "member" }] })));
++    renderAt("/acme/settings/general");
++    expect(await screen.findByRole("heading", { name: /organization settings/i }, LOAD)).toBeInTheDocument();
++    await new Promise((r) => setTimeout(r, 100));
++    expect(screen.queryByRole("button", { name: /rotate default key/i })).toBeNull();
++  });
++});

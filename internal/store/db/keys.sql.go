@@ -27,8 +27,8 @@ func (q *Queries) AddPendingKeyRevoke(ctx context.Context, arg AddPendingKeyRevo
 }
 
 const createToken = `-- name: CreateToken :exec
-INSERT INTO tokens (id, org_id, runtime_key_id, name, scopes, apps, expires_at, created_by, created_at)
-VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9)
+INSERT INTO tokens (id, org_id, runtime_key_id, name, scopes, projects, environments, expires_at, created_by, created_at)
+VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8, ?9, ?10)
 `
 
 type CreateTokenParams struct {
@@ -37,7 +37,8 @@ type CreateTokenParams struct {
 	RuntimeKeyID string
 	Name         string
 	Scopes       string
-	Apps         string
+	Projects     string
+	Environments string
 	ExpiresAt    sql.NullInt64
 	CreatedBy    string
 	CreatedAt    int64
@@ -50,7 +51,8 @@ func (q *Queries) CreateToken(ctx context.Context, arg CreateTokenParams) error 
 		arg.RuntimeKeyID,
 		arg.Name,
 		arg.Scopes,
-		arg.Apps,
+		arg.Projects,
+		arg.Environments,
 		arg.ExpiresAt,
 		arg.CreatedBy,
 		arg.CreatedAt,
@@ -71,7 +73,7 @@ func (q *Queries) DeletePendingKeyRevoke(ctx context.Context, keyID string) (int
 }
 
 const getToken = `-- name: GetToken :one
-SELECT id, org_id, runtime_key_id, name, scopes, expires_at, created_by, created_at, revoked_at, apps FROM tokens WHERE id = ?1 AND org_id = ?2
+SELECT id, org_id, runtime_key_id, name, scopes, expires_at, created_by, created_at, revoked_at, projects, environments FROM tokens WHERE id = ?1 AND org_id = ?2
 `
 
 type GetTokenParams struct {
@@ -92,7 +94,8 @@ func (q *Queries) GetToken(ctx context.Context, arg GetTokenParams) (Token, erro
 		&i.CreatedBy,
 		&i.CreatedAt,
 		&i.RevokedAt,
-		&i.Apps,
+		&i.Projects,
+		&i.Environments,
 	)
 	return i, err
 }
@@ -110,7 +113,7 @@ func (q *Queries) IncPendingKeyRevokeAttempts(ctx context.Context, keyID string)
 }
 
 const listLiveTokensByOrg = `-- name: ListLiveTokensByOrg :many
-SELECT t.id, t.org_id, t.runtime_key_id, t.name, t.scopes, t.expires_at, t.created_by, t.created_at, t.revoked_at, t.apps, u.name AS creator_name FROM tokens t JOIN users u ON u.id = t.created_by
+SELECT t.id, t.org_id, t.runtime_key_id, t.name, t.scopes, t.expires_at, t.created_by, t.created_at, t.revoked_at, t.projects, t.environments, u.name AS creator_name FROM tokens t JOIN users u ON u.id = t.created_by
 WHERE t.org_id = ?1 AND t.revoked_at IS NULL ORDER BY t.created_at, t.id
 `
 
@@ -124,7 +127,8 @@ type ListLiveTokensByOrgRow struct {
 	CreatedBy    string
 	CreatedAt    int64
 	RevokedAt    sql.NullInt64
-	Apps         string
+	Projects     string
+	Environments string
 	CreatorName  string
 }
 
@@ -147,7 +151,8 @@ func (q *Queries) ListLiveTokensByOrg(ctx context.Context, orgID string) ([]List
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.RevokedAt,
-			&i.Apps,
+			&i.Projects,
+			&i.Environments,
 			&i.CreatorName,
 		); err != nil {
 			return nil, err
@@ -196,7 +201,7 @@ func (q *Queries) ListPendingKeyRevokes(ctx context.Context, limit int64) ([]Pen
 }
 
 const listTokensByOrg = `-- name: ListTokensByOrg :many
-SELECT id, org_id, runtime_key_id, name, scopes, expires_at, created_by, created_at, revoked_at, apps FROM tokens WHERE org_id = ?1 ORDER BY created_at, id
+SELECT id, org_id, runtime_key_id, name, scopes, expires_at, created_by, created_at, revoked_at, projects, environments FROM tokens WHERE org_id = ?1 ORDER BY created_at, id
 `
 
 func (q *Queries) ListTokensByOrg(ctx context.Context, orgID string) ([]Token, error) {
@@ -218,7 +223,8 @@ func (q *Queries) ListTokensByOrg(ctx context.Context, orgID string) ([]Token, e
 			&i.CreatedBy,
 			&i.CreatedAt,
 			&i.RevokedAt,
-			&i.Apps,
+			&i.Projects,
+			&i.Environments,
 		); err != nil {
 			return nil, err
 		}

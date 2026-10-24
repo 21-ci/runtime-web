@@ -1,0 +1,406 @@
+diff --git a/.env.example b/.env.example
+index 2e0962f..7720892 100644
+--- a/.env.example
++++ b/.env.example
+@@ -40,7 +40,8 @@ RTWEB_TRUSTED_PROXIES=172.28.0.10/32
+ # 64 hex chars in production; dev-insecure-* is accepted only with RTWEB_DEV=1.
+ RTWEB_SECRET_KEY=dev-insecure-secret-key
+ # Dev only (RTWEB_DEV=1): TXT answers for custom-domain verification, `name=value;name=value`.
+-# Leave empty to use the system resolver.
++# Leave empty to use the system resolver. In dev, instance admins can also change overrides at
++# runtime with PUT /api/admin/dev/dns-override {name, values} (used by the e2e smoke).
+ RTWEB_DEV_DNS_OVERRIDE=
+ # Log level: debug, info, warn, error.
+ LOG_LEVEL=info
+diff --git a/Makefile b/Makefile
+index 02aef69..c9a0b40 100644
+--- a/Makefile
++++ b/Makefile
+@@ -5,7 +5,7 @@ LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.dat
+ 
+ .DEFAULT_GOAL := help
+ 
+-.PHONY: help build test vet vuln fmt fmt-check ci clean web web-test web-lint web-audit web-embed e2e budget docker compose-up compose-down
++.PHONY: help build test vet vuln fmt fmt-check ci ci-full clean web web-test web-lint web-audit web-embed e2e budget docker compose-up compose-down
+ 
+ help: ## Show this help
+ 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
+@@ -30,7 +30,9 @@ fmt: ## Format Go code
+ fmt-check: ## Fail if any Go file is not gofmt-clean
+ 	@test -z "$$(gofmt -l .)" || { gofmt -l .; echo "gofmt: files above need formatting"; exit 1; }
+ 
+-ci: fmt-check vet test vuln web-test web-lint build e2e budget ## Run the full CI chain (needs docker for e2e)
++ci: fmt-check vet test vuln web-lint web-test build budget ## Run the CI chain (no docker; e2e is separate)
++
++ci-full: ci e2e ## Run ci plus the docker compose Playwright smoke (needs docker)
+ 
+ web: ## Install web deps (npm ci) and build the console (web/dist)
+ 	cd web && npm ci && npm run build
+diff --git a/cmd/rtweb/serve.go b/cmd/rtweb/serve.go
+index 7fd306e..bf23493 100644
+--- a/cmd/rtweb/serve.go
++++ b/cmd/rtweb/serve.go
+@@ -50,7 +50,9 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger, webVersi
+ 	usersSvc := users.New(st, auth.Argon2{})
+ 	invitesSvc := invites.New(st, auth.Argon2{}, authSvc, cfg.PublicURL)
+ 	logHub := apps.NewLogHub(appSvc)
+-	domainSvc := domains.New(st, rt, root, appSvc, domains.OptionsFromConfig(cfg, os.Getenv))
++	domOpts := domains.OptionsFromConfig(cfg, os.Getenv)
++	devDNS, _ := domOpts.Resolver.(*domains.DevResolver) // non-nil only when RTWEB_DEV=1
++	domainSvc := domains.New(st, rt, root, appSvc, domOpts)
+ 	go keySvc.RunRetrier(ctx)
+ 	go domainSvc.RunChecker(ctx)
+ 
+@@ -71,6 +73,7 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger, webVersi
+ 			Logger:           logger,
+ 			PublicURL:        cfg.PublicURL,
+ 			RuntimePublicURL: cfg.RuntimePublicURL,
++			DevDNS:           devDNS,
+ 		}),
+ 		ReadHeaderTimeout: 10 * time.Second,
+ 		// No WriteTimeout: log streams (SSE) are long-lived.
+diff --git a/e2e/smoke.spec.ts b/e2e/smoke.spec.ts
+index 466dcfa..5b3f196 100644
+--- a/e2e/smoke.spec.ts
++++ b/e2e/smoke.spec.ts
+@@ -167,6 +167,30 @@ test("smoke: setup, org, 2FA, app, invite, custom domain", async ({ browser }) =
+       .toBe(200);
+   });
+ 
++  await test.step("owner: save edited code (PUT files); the new version is served", async () => {
++    const appRes = await api(ownerPage, "GET", `/api/orgs/${ORG}/apps/${APP}`);
++    expect(appRes.status()).toBe(200);
++    const etag = appRes.headers()["etag"];
++    expect(etag).toBeTruthy();
++    const cur = await (await api(ownerPage, "GET", `/api/orgs/${ORG}/apps/${APP}/files`)).json();
++    const marker = `smoke-saved-${Date.now()}`;
++    const files: Record<string, string> = { ...cur.files };
++    files[cur.entry] = `export default { fetch() { return new Response(${JSON.stringify(marker)}); } };\n`;
++    const saved = await api(ownerPage, "PUT", `/api/orgs/${ORG}/apps/${APP}/files`, {
++      csrf: ownerCsrf,
++      headers: { "If-Match": etag },
++      data: { entry: cur.entry, files },
++    });
++    expect(saved.status()).toBe(200);
++    expect((await saved.json()).version.version).toBeGreaterThan(1);
++    await expect
++      .poll(async () => (await ownerPage.request.get(`${RUNTIME}/s/${APP}/`)).text(), {
++        timeout: 15_000,
++        intervals: [500],
++      })
++      .toContain(marker);
++  });
++
+   await test.step("owner invites a member; invitee accepts and signs in", async () => {
+     const ownerCsrfNow = (await (await api(ownerPage, "GET", "/api/me")).json()).csrf as string;
+     const inv = await api(ownerPage, "POST", `/api/orgs/${ORG}/invites`, {
+@@ -213,9 +237,25 @@ test("smoke: setup, org, 2FA, app, invite, custom domain", async ({ browser }) =
+       headers: { Host: `${APP}.${BASE_DOMAIN}` },
+     });
+     expect(base.status()).toBe(200);
++
++    // Positive path: publish the server-generated token through the dev-only resolver
++    // (RTWEB_DEV=1, instance admin), verify, and the router now serves the custom host.
++    const set = await api(admin, "PUT", "/api/admin/dev/dns-override", {
++      csrf: adminCsrf,
++      data: { name: txtName, values: [txtValue] },
++    });
++    expect(set.status()).toBe(204);
++    const verified = await api(ownerPage, "POST", `/api/orgs/${ORG}/apps/${APP}/domains/${id}/verify`, {
++      csrf: ownerCsrf,
++    });
++    expect((await verified.json()).status).toBe("active");
++    await expect
++      .poll(async () => (await ownerPage.request.get(`${ROUTER}/`, { headers: { Host: CUSTOM_HOST } })).status(), {
++        timeout: 30_000,
++        intervals: [1_000],
++      })
++      .toBe(200);
+   });
+-  // TODO(Task 18 follow-up): the verified custom-domain positive path needs the TXT token at boot
+-  // (RTWEB_DEV_DNS_OVERRIDE is read once by rtweb), so it is not covered yet.
+ 
+   await adminCtx.close();
+   await ownerCtx.close();
+diff --git a/internal/api/helpers_test.go b/internal/api/helpers_test.go
+index 4e4729a..993be62 100644
+--- a/internal/api/helpers_test.go
++++ b/internal/api/helpers_test.go
+@@ -66,6 +66,12 @@ type testEnv struct {
+ const testRouterSecret = "test-router-secret"
+ 
+ func newTestEnv(t *testing.T) *testEnv {
++	t.Helper()
++	return newTestEnvWith(t, nil)
++}
++
++// newTestEnvWith is newTestEnv with mod applied to the Deps before New.
++func newTestEnvWith(t *testing.T, mod func(*Deps)) *testEnv {
+ 	t.Helper()
+ 	st, err := store.Open(context.Background(), ":memory:")
+ 	if err != nil {
+@@ -98,7 +104,7 @@ func newTestEnv(t *testing.T) *testEnv {
+ 	domainSvc := domains.New(st, rt, root, appSvc, domains.Options{
+ 		BaseDomain: "apps.test", ConsoleHost: "console.test", RuntimeHost: "runtime.test", CNAMETarget: "console.test",
+ 	})
+-	srv := New(Deps{
++	deps := Deps{
+ 		Logs:             logs,
+ 		Domains:          domainSvc,
+ 		RouterSecret:     testRouterSecret,
+@@ -114,7 +120,11 @@ func newTestEnv(t *testing.T) *testEnv {
+ 		PublicURL:        testPublicURL,
+ 		RuntimePublicURL: testRuntimeURL,
+ 		SPA:              spa,
+-	})
++	}
++	if mod != nil {
++		mod(&deps)
++	}
++	srv := New(deps)
+ 	return &testEnv{t: t, st: st, auth: authSvc, srv: srv, fake: fake, orgs: orgSvc, appSvc: appSvc, domains: domainSvc, logs: logs}
+ }
+ 
+diff --git a/internal/api/routes_dev.go b/internal/api/routes_dev.go
+new file mode 100644
+index 0000000..df4c0bb
+--- /dev/null
++++ b/internal/api/routes_dev.go
+@@ -0,0 +1,36 @@
++package api
++
++import (
++	"fmt"
++	"net/http"
++
++	"github.com/21cloud/runtime-web/internal/apperr"
++	"github.com/21cloud/runtime-web/internal/authz"
++)
++
++// registerDevRoutes adds dev-only routes; they exist only when Deps.DevDNS is set (RTWEB_DEV=1).
++func (s *Server) registerDevRoutes() {
++	if s.deps.DevDNS == nil {
++		return
++	}
++	s.route(http.MethodPut, "/api/admin/dev/dns-override", authz.InstanceAdmin, s.putDevDNSOverride)
++}
++
++type devDNSReq struct {
++	Name   string   `json:"name"`
++	Values []string `json:"values"`
++}
++
++// putDevDNSOverride sets (or, with no values, clears) a TXT override in the dev resolver.
++func (s *Server) putDevDNSOverride(w http.ResponseWriter, r *http.Request) error {
++	var in devDNSReq
++	if err := decodeJSON(w, r, &in); err != nil {
++		return err
++	}
++	if in.Name == "" {
++		return fmt.Errorf("api: dev dns override: name required: %w", apperr.ErrInvalid)
++	}
++	s.deps.DevDNS.Set(in.Name, in.Values)
++	w.WriteHeader(http.StatusNoContent)
++	return nil
++}
+diff --git a/internal/api/routes_dev_test.go b/internal/api/routes_dev_test.go
+new file mode 100644
+index 0000000..1346436
+--- /dev/null
++++ b/internal/api/routes_dev_test.go
+@@ -0,0 +1,41 @@
++package api
++
++import (
++	"context"
++	"net/http"
++	"testing"
++
++	"github.com/21cloud/runtime-web/internal/domains"
++)
++
++func TestDevDNSOverrideRoute(t *testing.T) {
++	dev := domains.NewDevResolver(nil)
++	e := newTestEnvWith(t, func(d *Deps) { d.DevDNS = dev })
++	e.mkAdmin("admin@example.com")
++	cookie, csrf := e.session("admin@example.com")
++
++	body := map[string]any{"name": "_rtweb.Docs.Custom.Test.", "values": []string{"tok"}}
++	rec := e.send(http.MethodPut, "/api/admin/dev/dns-override", body, withCookie(cookie), withCSRF(csrf))
++	expectStatus(t, rec, http.StatusNoContent)
++	got, err := dev.LookupTXT(context.Background(), "_rtweb.docs.custom.test")
++	if err != nil || len(got) != 1 || got[0] != "tok" {
++		t.Fatalf("LookupTXT = %v, %v", got, err)
++	}
++
++	// Non-admins are refused.
++	e.mkUser("user@example.com", "user-passphrase-123")
++	uc, ucsrf := e.login("user@example.com", "user-passphrase-123")
++	rec = e.send(http.MethodPut, "/api/admin/dev/dns-override", body, withCookie(uc), withCSRF(ucsrf))
++	if rec.Code != http.StatusForbidden && rec.Code != http.StatusNotFound {
++		t.Fatalf("non-admin status = %d, want 403/404", rec.Code)
++	}
++}
++
++func TestDevDNSOverrideRouteAbsentOutsideDev(t *testing.T) {
++	e := newTestEnv(t)
++	e.mkAdmin("admin@example.com")
++	cookie, csrf := e.session("admin@example.com")
++	rec := e.send(http.MethodPut, "/api/admin/dev/dns-override",
++		map[string]any{"name": "_rtweb.x.test", "values": []string{"t"}}, withCookie(cookie), withCSRF(csrf))
++	expectStatus(t, rec, http.StatusNotFound)
++}
+diff --git a/internal/api/server.go b/internal/api/server.go
+index afd3b90..445364e 100644
+--- a/internal/api/server.go
++++ b/internal/api/server.go
+@@ -43,6 +43,9 @@ type Deps struct {
+ 	PublicURL string
+ 	// RuntimePublicURL is RUNTIME_PUBLIC_URL, the only allowed frame source.
+ 	RuntimePublicURL string
++	// DevDNS is the dev-mode TXT resolver (RTWEB_DEV=1 only). When set, instance admins can
++	// change overrides at runtime via PUT /api/admin/dev/dns-override (e2e). nil = no route.
++	DevDNS *domains.DevResolver
+ 	// SPA is the console build. nil serves the embedded build.
+ 	SPA fs.FS
+ }
+@@ -71,6 +74,7 @@ func New(d Deps) *Server {
+ 	s := &Server{deps: d, mux: http.NewServeMux(), sseHeartbeat: 15 * time.Second}
+ 	s.registerAuthRoutes()
+ 	s.registerAdminRoutes()
++	s.registerDevRoutes()
+ 	s.registerOrgRoutes()
+ 	s.registerAccountRoutes()
+ 	s.registerInviteRoutes()
+diff --git a/internal/domains/domains_test.go b/internal/domains/domains_test.go
+index e1a1033..88e2e04 100644
+--- a/internal/domains/domains_test.go
++++ b/internal/domains/domains_test.go
+@@ -508,7 +508,7 @@ func TestDevResolverOverride(t *testing.T) {
+ 	if got, _ := r.LookupTXT(context.Background(), "_rtweb.b.test"); len(got) != 1 || got[0] != "x" {
+ 		t.Fatalf("LookupTXT b = %v", got)
+ 	}
+-	if _, ok := NewResolver(false, func(k string) string { return env[k] }).(DevResolver); ok {
++	if _, ok := NewResolver(false, func(k string) string { return env[k] }).(*DevResolver); ok {
+ 		t.Fatal("non-dev resolver honours the override")
+ 	}
+ }
+@@ -644,3 +644,25 @@ func TestReconcileRuntimeStatuses(t *testing.T) {
+ 		t.Fatal("pending_verification host not re-PUT active")
+ 	}
+ }
++
++func TestDevResolverSetIsReadOnEachLookup(t *testing.T) {
++	r, ok := NewResolver(true, func(string) string { return "" }).(*DevResolver)
++	if !ok {
++		t.Fatal("dev resolver must be a *DevResolver even without RTWEB_DEV_DNS_OVERRIDE")
++	}
++	r.Next = failResolver{}
++	r.Set("_rtweb.New.Test.", []string{"tok"})
++	if got, err := r.LookupTXT(context.Background(), "_rtweb.new.test"); err != nil || len(got) != 1 || got[0] != "tok" {
++		t.Fatalf("LookupTXT after Set = %v, %v", got, err)
++	}
++	r.Set("_rtweb.new.test", nil)
++	if _, err := r.LookupTXT(context.Background(), "_rtweb.new.test"); err == nil {
++		t.Fatal("cleared override should fall through to Next")
++	}
++}
++
++type failResolver struct{}
++
++func (failResolver) LookupTXT(context.Context, string) ([]string, error) {
++	return nil, errors.New("no such host")
++}
+diff --git a/internal/domains/verify.go b/internal/domains/verify.go
+index 839fe30..22e61a7 100644
+--- a/internal/domains/verify.go
++++ b/internal/domains/verify.go
+@@ -7,6 +7,7 @@ import (
+ 	"net"
+ 	"net/http"
+ 	"strings"
++	"sync"
+ 	"time"
+ 
+ 	"github.com/21cloud/runtime-web/internal/apperr"
+@@ -33,41 +34,66 @@ type Resolver interface {
+ 	LookupTXT(ctx context.Context, name string) ([]string, error)
+ }
+ 
+-// DevResolver answers TXT lookups from RTWEB_DEV_DNS_OVERRIDE (`name=value;…`, a name may repeat)
+-// and falls back to Next for other names.
++// DevResolver answers TXT lookups from dev overrides (seeded from RTWEB_DEV_DNS_OVERRIDE,
++// `name=value;…`, a name may repeat; changed at runtime with Set) and falls back to Next.
++// It exists only in dev mode.
+ type DevResolver struct {
+-	Overrides map[string][]string
++	mu        sync.RWMutex
++	overrides map[string][]string
+ 	Next      Resolver
+ }
+ 
++// NewDevResolver returns a DevResolver over overrides that falls back to the system resolver.
++func NewDevResolver(overrides map[string][]string) *DevResolver {
++	o := map[string][]string{}
++	for k, v := range overrides {
++		o[devName(k)] = v
++	}
++	return &DevResolver{overrides: o, Next: net.DefaultResolver}
++}
++
++func devName(name string) string {
++	return strings.ToLower(strings.TrimSuffix(strings.TrimSpace(name), "."))
++}
++
++// Set replaces the values for name; empty values remove the override.
++func (r *DevResolver) Set(name string, values []string) {
++	r.mu.Lock()
++	defer r.mu.Unlock()
++	if len(values) == 0 {
++		delete(r.overrides, devName(name))
++		return
++	}
++	r.overrides[devName(name)] = append([]string(nil), values...)
++}
++
+ // LookupTXT returns the overridden values for name, or asks Next.
+-func (r DevResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
+-	if v, ok := r.Overrides[strings.ToLower(strings.TrimSuffix(name, "."))]; ok {
++func (r *DevResolver) LookupTXT(ctx context.Context, name string) ([]string, error) {
++	r.mu.RLock()
++	v, ok := r.overrides[devName(name)]
++	r.mu.RUnlock()
++	if ok {
+ 		return v, nil
+ 	}
+ 	return r.Next.LookupTXT(ctx, name)
+ }
+ 
+-// NewResolver returns the system resolver, wrapped in a DevResolver only when dev is set and
+-// RTWEB_DEV_DNS_OVERRIDE is non-empty. The override is never read outside dev mode.
++// NewResolver returns the system resolver, or a *DevResolver when dev is set (seeded from
++// RTWEB_DEV_DNS_OVERRIDE). Overrides are never honoured outside dev mode.
+ func NewResolver(dev bool, getenv func(string) string) Resolver {
+ 	if !dev {
+ 		return net.DefaultResolver
+ 	}
+-	raw := getenv("RTWEB_DEV_DNS_OVERRIDE")
+-	if raw == "" {
+-		return net.DefaultResolver
+-	}
+ 	o := map[string][]string{}
+-	for _, pair := range strings.Split(raw, ";") {
++	for _, pair := range strings.Split(getenv("RTWEB_DEV_DNS_OVERRIDE"), ";") {
+ 		name, val, ok := strings.Cut(pair, "=")
+-		name = strings.ToLower(strings.TrimSuffix(strings.TrimSpace(name), "."))
++		name = devName(name)
+ 		if !ok || name == "" {
+ 			continue
+ 		}
+ 		o[name] = append(o[name], strings.TrimSpace(val))
+ 	}
+-	return DevResolver{Overrides: o, Next: net.DefaultResolver}
++	return NewDevResolver(o)
+ }
+ 
+ // txtMatches reports whether the TXT record at _rtweb.<host> holds token. Lookup errors count as a miss.

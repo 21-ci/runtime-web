@@ -2,7 +2,7 @@ package runtime
 
 import "encoding/json"
 
-// Types mirror openapi.json component schemas (runtime b52766e). Nullable
+// Types mirror openapi.json component schemas (runtime v0.1.1). Nullable
 // scalars are pointers; free-form objects are json.RawMessage. Timestamps are
 // unix ms.
 
@@ -23,23 +23,26 @@ type TenantCreate struct {
 	Overrides json.RawMessage `json:"overrides,omitempty"`
 }
 
-// KeyCreate is CreateKeyBody. Services maps to service_ids.
+// KeyCreate is CreateKeyBody. Empty ProjectIDs or Environments are omitted
+// (sent as null: no restriction); the runtime's explicit [] (nothing) is never sent.
 type KeyCreate struct {
-	Name      string   `json:"name,omitempty"`
-	Scopes    []string `json:"scopes"`
-	Services  []string `json:"service_ids,omitempty"`
-	ExpiresAt string   `json:"expires_at,omitempty"` // RFC 3339
+	Name         string   `json:"name,omitempty"`
+	Scopes       []string `json:"scopes"`
+	ProjectIDs   []string `json:"project_ids,omitempty"`
+	Environments []string `json:"environments,omitempty"`
+	ExpiresAt    string   `json:"expires_at,omitempty"` // RFC 3339
 }
 
 // Key is KeyView.
 type Key struct {
-	ID         string   `json:"id"`
-	Name       *string  `json:"name"`
-	Scopes     []string `json:"scopes"`
-	ServiceIDs []string `json:"service_ids"`
-	CreatedAt  int64    `json:"created_at"`
-	ExpiresAt  *int64   `json:"expires_at"`
-	LastUsedAt *int64   `json:"last_used_at"`
+	ID           string   `json:"id"`
+	Name         *string  `json:"name"`
+	Scopes       []string `json:"scopes"`
+	ProjectIDs   []string `json:"project_ids"`  // nil = every project
+	Environments []string `json:"environments"` // nil = every environment
+	CreatedAt    int64    `json:"created_at"`
+	ExpiresAt    *int64   `json:"expires_at"`
+	LastUsedAt   *int64   `json:"last_used_at"`
 }
 
 // KeyCreated is KeyView plus the one-time secret.
@@ -86,13 +89,14 @@ type Plan struct {
 
 // Me is MeView.
 type Me struct {
-	Principal  string   `json:"principal"`
-	TenantID   *string  `json:"tenant_id"`
-	KeyID      *string  `json:"key_id"`
-	Scopes     []string `json:"scopes"`
-	ServiceIDs []string `json:"service_ids"`
-	Plan       *Plan    `json:"plan"`
-	Version    string   `json:"version"`
+	Principal    string   `json:"principal"`
+	TenantID     *string  `json:"tenant_id"`
+	KeyID        *string  `json:"key_id"`
+	Scopes       []string `json:"scopes"`
+	ProjectIDs   []string `json:"project_ids"`  // nil = every project
+	Environments []string `json:"environments"` // nil = every environment
+	Plan         *Plan    `json:"plan"`
+	Version      string   `json:"version"`
 }
 
 // Project is ProjectView.
@@ -127,9 +131,12 @@ type Service struct {
 	Runtime     string          `json:"runtime"`
 	Name        *string         `json:"name"`
 	Profile     *string         `json:"profile"`
+	ProjectID   string          `json:"project_id"`
 	Project     string          `json:"project"`
 	Environment string          `json:"environment"`
 	LiveVersion *int            `json:"live_version"`
+	Durable     bool            `json:"durable"`
+	WS          json.RawMessage `json:"ws,omitempty"`
 	ETag        string          `json:"etag"`
 	Limits      json.RawMessage `json:"limits,omitempty"`
 	Scaling     json.RawMessage `json:"scaling,omitempty"`
@@ -257,6 +264,16 @@ type SetLiveBody struct {
 	Version int `json:"version"`
 }
 
+// OnceSchedule is OnceScheduleView: a pending one-off std:schedule task.
+type OnceSchedule struct {
+	ID    string `json:"id"`
+	Kind  string `json:"kind"`
+	RunAt int64  `json:"run_at"`
+}
+
+// OncePage is OncePage.
+type OncePage = Page[OnceSchedule]
+
 // SecretName is SecretNameView.
 type SecretName struct {
 	Name      string `json:"name"`
@@ -355,6 +372,7 @@ type NodeStatus struct {
 	Kinds          json.RawMessage `json:"kinds"`
 	Memory         json.RawMessage `json:"memory"`
 	Inflight       int             `json:"inflight"`
+	Sockets        json.RawMessage `json:"sockets,omitempty"` // {open, objects, pending, max}
 }
 
 // NodeConfigUpdate is NodeConfigUpdate.

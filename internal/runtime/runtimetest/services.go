@@ -30,7 +30,8 @@ const (
 type service struct {
 	id, tenantID, slug, runtime string
 	name, profile               *string
-	project, environment        string
+	projectID, project          string
+	environment                 string
 	access                      string
 	etag                        int
 	liveVersion                 *int
@@ -42,6 +43,7 @@ type service struct {
 	env       map[string]string
 	secrets   map[string]int64 // name -> updated_at; values are write-only and not kept
 	schedules []*schedule
+	once      []runtime.OnceSchedule // pending std:schedule tasks (AddOnceSchedule)
 	queue     []*message
 	dlq       []*message
 	dedup     map[string]string // dedup_id -> message id
@@ -89,7 +91,7 @@ func (s *service) view() runtime.Service {
 	}
 	return runtime.Service{
 		ID: s.id, TenantID: s.tenantID, Slug: s.slug, Runtime: s.runtime,
-		Name: s.name, Profile: s.profile, Project: s.project, Environment: s.environment,
+		Name: s.name, Profile: s.profile, ProjectID: s.projectID, Project: s.project, Environment: s.environment,
 		LiveVersion: s.liveVersion, ETag: s.etagValue(), Access: s.access,
 		Limits: s.limits, Scaling: s.scaling, Triggers: s.triggers,
 		Ingress: s.ingress, Egress: s.egress, Call: s.call, Deno: s.deno, Wasm: s.wasm,
@@ -158,6 +160,7 @@ func (f *Fake) serviceRoutes(mux *http.ServeMux) {
 	f.route(mux, "DELETE /v1/services/{s}/secrets/{name}", "secrets:write", f.deleteSecret)
 
 	f.route(mux, "GET /v1/services/{s}/schedules", "services:read", f.listSchedules)
+	f.route(mux, "GET /v1/services/{s}/schedules/once", "services:read", f.listOnceSchedules)
 	f.route(mux, "POST /v1/services/{s}/schedules", "services:write", f.createSchedule)
 	f.route(mux, "PATCH /v1/services/{s}/schedules/{id}", "services:write", f.updateSchedule)
 	f.route(mux, "DELETE /v1/services/{s}/schedules/{id}", "services:write", f.deleteSchedule)
@@ -248,6 +251,9 @@ func (f *Fake) createService(p principal, w http.ResponseWriter, r *http.Request
 			return conflict("slug_taken", "service slug is already in use on this node")
 		}
 	}
+	if !p.key.allows(pr.id, environment) {
+		return insufficientScope(nil)
+	}
 	plan := f.plans[f.tenants[p.tenant].plan]
 	if err := checkTriggers(plan.Triggers, in.Triggers); err != nil {
 		return err
@@ -258,7 +264,7 @@ func (f *Fake) createService(p principal, w http.ResponseWriter, r *http.Request
 	s := &service{
 		id: newID("svc_"), tenantID: p.tenant, slug: in.Slug, runtime: in.Runtime,
 		name: in.Name, profile: in.Profile,
-		project: pr.slug, environment: environment, access: access,
+		projectID: pr.id, project: pr.slug, environment: environment, access: access,
 		etag:   1,
 		limits: in.Limits, scaling: in.Scaling, triggers: in.Triggers,
 		ingress: in.Ingress, egress: in.Egress, call: in.Call, deno: in.Deno, wasm: in.Wasm,
@@ -485,6 +491,28 @@ func (f *Fake) listSchedules(p principal, w http.ResponseWriter, r *http.Request
 	}
 	writeJSON(w, http.StatusOK, items)
 	return nil
+}
+
+// listOnceSchedules returns every pending one-off task in one page.
+func (f *Fake) listOnceSchedules(p principal, w http.ResponseWriter, r *http.Request) *apiError {
+	s, e := f.serviceFor(p, r.PathValue("s"))
+	if e != nil {
+		return e
+	}
+	writeJSON(w, http.StatusOK, runtime.OncePage{Items: append([]runtime.OnceSchedule{}, s.once...)})
+	return nil
+}
+
+// AddOnceSchedule records a pending one-off task due at runAt (unix ms), as std:schedule.after
+// would, and returns its id. An unknown service is ignored.
+func (f *Fake) AddOnceSchedule(svc string, runAt int64) string {
+	f.mu.Lock()
+	defer f.mu.Unlock()
+	id := newID("sch_")
+	if s := f.services[svc]; s != nil {
+		s.once = append(s.once, runtime.OnceSchedule{ID: id, Kind: "once", RunAt: runAt})
+	}
+	return id
 }
 
 func (f *Fake) createSchedule(p principal, w http.ResponseWriter, r *http.Request) *apiError {

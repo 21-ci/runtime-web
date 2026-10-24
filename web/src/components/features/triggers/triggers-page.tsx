@@ -5,6 +5,7 @@ import { useCan } from "@/hooks/authz";
 
 import { DlqCard } from "./dlq-card";
 import { HttpRouteCard } from "./http-route-card";
+import { OnceSchedulesCard } from "./once-schedules-card";
 import { QueueCard } from "./queue-card";
 import { SchedulesCard } from "./schedules-card";
 
@@ -28,6 +29,7 @@ export function TriggersPage({ org, app }: { org: string; app: string }) {
       <fieldset disabled={can("app.schedules.write") !== true} className="contents">
         <SchedulesCard org={org} app={app} />
       </fieldset>
+      <OnceSchedulesCard org={org} app={app} />
       <fieldset disabled={can("app.queue.write") !== true} className="contents">
         <QueueCard org={org} app={app} />
         <DlqCard org={org} app={app} />

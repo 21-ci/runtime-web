@@ -11,6 +11,8 @@ export type LogLine = {
   kind: "runtime" | "build" | "system";
   msg: string;
   truncated: boolean;
+  // Structured std:log fields; absent on plain records.
+  fields?: Record<string, unknown> | null;
 };
 
 export type LogLevel = "" | "debug" | "info" | "warn" | "error";

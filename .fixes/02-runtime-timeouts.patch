@@ -1,0 +1,210 @@
+diff --git a/cmd/rtweb/serve.go b/cmd/rtweb/serve.go
+index de6d964..7fd306e 100644
+--- a/cmd/rtweb/serve.go
++++ b/cmd/rtweb/serve.go
+@@ -40,7 +40,8 @@ func serve(ctx context.Context, cfg config.Config, logger *slog.Logger, webVersi
+ 		ps, err := auth.NewOAuth(authSvc, cfg.PublicURL).Providers(ctx)
+ 		return err == nil && len(ps) > 0
+ 	}
+-	rt := runtime.New(cfg.RuntimeURL, &http.Client{})
++	control, stream := runtime.HTTPClients()
++	rt := runtime.NewWithStream(cfg.RuntimeURL, control, stream)
+ 	root := runtime.RootCred{Token: cfg.RuntimeRootToken}
+ 	orgSvc := orgs.New(st, rt, root, sealer, cfg.RuntimeDefaultPlan)
+ 	appSvc := apps.New(rt, orgSvc, st)
+diff --git a/internal/runtime/client.go b/internal/runtime/client.go
+index aa4fad6..70bf966 100644
+--- a/internal/runtime/client.go
++++ b/internal/runtime/client.go
+@@ -8,15 +8,41 @@ import (
+ 	"encoding/json"
+ 	"fmt"
+ 	"io"
++	"net"
+ 	"net/http"
+ 	"net/url"
+ 	"strings"
++	"time"
+ )
+ 
++// Runtime HTTP timeouts. Control calls are bounded end to end; streams
++// (SSE logs, build logs, data export) are bounded only until headers arrive.
++const (
++	ControlTimeout      = 30 * time.Second
++	StreamHeaderTimeout = 15 * time.Second
++	DialTimeout         = 5 * time.Second
++)
++
++func transport() *http.Transport {
++	tr := http.DefaultTransport.(*http.Transport).Clone()
++	tr.DialContext = (&net.Dialer{Timeout: DialTimeout, KeepAlive: 30 * time.Second}).DialContext
++	tr.TLSHandshakeTimeout = DialTimeout
++	return tr
++}
++
++// HTTPClients returns the production control client (30 s overall timeout)
++// and stream client (no overall timeout, 15 s response-header timeout).
++func HTTPClients() (control, stream *http.Client) {
++	st := transport()
++	st.ResponseHeaderTimeout = StreamHeaderTimeout
++	return &http.Client{Timeout: ControlTimeout, Transport: transport()}, &http.Client{Transport: st}
++}
++
+ // Client talks to one runtime node. It holds no credential; use With.
+ type Client struct {
+-	base string
+-	hc   *http.Client
++	base   string
++	hc     *http.Client
++	stream *http.Client
+ }
+ 
+ // New returns a client for baseURL (e.g. "http://runtime:8080"). A nil hc
+@@ -25,7 +51,18 @@ func New(baseURL string, hc *http.Client) *Client {
+ 	if hc == nil {
+ 		hc = http.DefaultClient
+ 	}
+-	return &Client{base: strings.TrimRight(baseURL, "/"), hc: hc}
++	return NewWithStream(baseURL, hc, hc)
++}
++
++// NewWithStream is New with a separate client for long-lived streams.
++func NewWithStream(baseURL string, control, stream *http.Client) *Client {
++	if control == nil {
++		control = http.DefaultClient
++	}
++	if stream == nil {
++		stream = control
++	}
++	return &Client{base: strings.TrimRight(baseURL, "/"), hc: control, stream: stream}
+ }
+ 
+ // With binds a credential; all API methods live on *Scoped.
+@@ -54,6 +91,7 @@ type req struct {
+ 	ctype   string
+ 	ifMatch string
+ 	header  map[string]string
++	stream  bool // long-lived body: use the stream client
+ }
+ 
+ func jsonBody(v any) (io.Reader, error) {
+@@ -91,7 +129,11 @@ func (s *Scoped) send(ctx context.Context, r req) (*http.Response, error) {
+ 	if s.cred != nil {
+ 		s.cred.apply(hr)
+ 	}
+-	resp, err := s.c.hc.Do(hr)
++	hc := s.c.hc
++	if r.stream {
++		hc = s.c.stream
++	}
++	resp, err := hc.Do(hr)
+ 	if err != nil {
+ 		if ctx.Err() != nil {
+ 			return nil, fmt.Errorf("runtime: %s %s: %w", r.method, r.path, ctx.Err())
+diff --git a/internal/runtime/config.go b/internal/runtime/config.go
+index 85c3095..efe1ae5 100644
+--- a/internal/runtime/config.go
++++ b/internal/runtime/config.go
+@@ -141,7 +141,7 @@ func (s *Scoped) Events(ctx context.Context, svcID, cursor string) (Page[Event],
+ // ExportData: GET /v1/services/{s}/data/export (SQLite snapshot stream).
+ // The caller closes the body.
+ func (s *Scoped) ExportData(ctx context.Context, svcID string) (io.ReadCloser, error) {
+-	resp, err := s.send(ctx, req{method: http.MethodGet, path: svcPath(svcID) + "/data/export", header: map[string]string{"Accept": "application/vnd.sqlite3"}})
++	resp, err := s.send(ctx, req{method: http.MethodGet, path: svcPath(svcID) + "/data/export", header: map[string]string{"Accept": "application/vnd.sqlite3"}, stream: true})
+ 	if err != nil {
+ 		return nil, err
+ 	}
+diff --git a/internal/runtime/timeout_test.go b/internal/runtime/timeout_test.go
+new file mode 100644
+index 0000000..8510777
+--- /dev/null
++++ b/internal/runtime/timeout_test.go
+@@ -0,0 +1,66 @@
++package runtime
++
++import (
++	"context"
++	"io"
++	"net/http"
++	"net/http/httptest"
++	"testing"
++	"time"
++)
++
++func TestDefaultHTTPClientsHaveTimeouts(t *testing.T) {
++	control, stream := HTTPClients()
++	if control.Timeout != ControlTimeout {
++		t.Fatalf("control Timeout = %v, want %v", control.Timeout, ControlTimeout)
++	}
++	if stream.Timeout != 0 {
++		t.Fatalf("stream Timeout = %v, want 0 (no overall limit)", stream.Timeout)
++	}
++	for name, hc := range map[string]*http.Client{"control": control, "stream": stream} {
++		tr, ok := hc.Transport.(*http.Transport)
++		if !ok {
++			t.Fatalf("%s transport = %T, want *http.Transport", name, hc.Transport)
++		}
++		if tr.DialContext == nil || tr.TLSHandshakeTimeout != DialTimeout {
++			t.Fatalf("%s: dial/TLS timeouts not set (tls=%v)", name, tr.TLSHandshakeTimeout)
++		}
++	}
++	if tr := stream.Transport.(*http.Transport); tr.ResponseHeaderTimeout != StreamHeaderTimeout {
++		t.Fatalf("stream ResponseHeaderTimeout = %v, want %v", tr.ResponseHeaderTimeout, StreamHeaderTimeout)
++	}
++}
++
++// slowBody answers headers at once and then dribbles the body past the
++// control client's timeout.
++func slowBody(t *testing.T) *httptest.Server {
++	t.Helper()
++	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
++		w.Header().Set("Content-Type", "application/json")
++		w.WriteHeader(http.StatusOK)
++		w.(http.Flusher).Flush()
++		time.Sleep(300 * time.Millisecond)
++		_, _ = io.WriteString(w, `{"status":"ok"}`)
++	}))
++	t.Cleanup(srv.Close)
++	return srv
++}
++
++func TestControlCallTimesOutButStreamDoesNot(t *testing.T) {
++	srv := slowBody(t)
++	c := NewWithStream(srv.URL, &http.Client{Timeout: 100 * time.Millisecond}, &http.Client{})
++	s := c.With(nil)
++
++	if _, err := s.NodeStatus(context.Background()); err == nil {
++		t.Fatalf("control call err = %v, want timeout", err)
++	}
++
++	body, err := s.StreamLogs(context.Background(), "svc_1", "")
++	if err != nil {
++		t.Fatalf("StreamLogs: %v", err)
++	}
++	defer body.Close()
++	if _, err := io.ReadAll(body); err != nil {
++		t.Fatalf("stream read: %v (stream must not use the control timeout)", err)
++	}
++}
+diff --git a/internal/runtime/versions.go b/internal/runtime/versions.go
+index 862e77d..0a6303f 100644
+--- a/internal/runtime/versions.go
++++ b/internal/runtime/versions.go
+@@ -61,7 +61,7 @@ func (s *Scoped) VersionSource(ctx context.Context, svcID string, v int) ([]byte
+ 
+ // BuildLogs: GET /v1/services/{s}/versions/{v}/build/logs (raw SSE body).
+ func (s *Scoped) BuildLogs(ctx context.Context, svcID string, v int) (io.ReadCloser, error) {
+-	resp, err := s.send(ctx, req{method: http.MethodGet, path: versionPath(svcID, v) + "/build/logs", header: map[string]string{"Accept": "text/event-stream"}})
++	resp, err := s.send(ctx, req{method: http.MethodGet, path: versionPath(svcID, v) + "/build/logs", header: map[string]string{"Accept": "text/event-stream"}, stream: true})
+ 	if err != nil {
+ 		return nil, err
+ 	}
+@@ -92,7 +92,7 @@ func (s *Scoped) StreamLogs(ctx context.Context, svcID, lastEventID string) (io.
+ 	if lastEventID != "" {
+ 		h["Last-Event-ID"] = lastEventID
+ 	}
+-	resp, err := s.send(ctx, req{method: http.MethodGet, path: svcPath(svcID) + "/logs", query: url.Values{"follow": {"1"}}, header: h})
++	resp, err := s.send(ctx, req{method: http.MethodGet, path: svcPath(svcID) + "/logs", query: url.Values{"follow": {"1"}}, header: h, stream: true})
+ 	if err != nil {
+ 		return nil, err
+ 	}

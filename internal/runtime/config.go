@@ -49,6 +49,15 @@ func (s *Scoped) ListSchedules(ctx context.Context, svcID string) ([]Schedule, e
 	return out, err
 }
 
+// ListOnceSchedules: GET /v1/services/{s}/schedules/once?cursor=&limit=200 (pending std:schedule tasks).
+func (s *Scoped) ListOnceSchedules(ctx context.Context, svcID, cursor string) (OncePage, error) {
+	q := pageQuery(cursor)
+	q.Set("limit", "200")
+	var out OncePage
+	_, err := s.do(ctx, req{method: http.MethodGet, path: svcPath(svcID) + "/schedules/once", query: q}, &out)
+	return out, err
+}
+
 // CreateSchedule: POST /v1/services/{s}/schedules.
 func (s *Scoped) CreateSchedule(ctx context.Context, svcID string, in ScheduleBody) (Schedule, error) {
 	var out Schedule

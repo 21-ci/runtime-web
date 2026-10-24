@@ -22,6 +22,14 @@ beforeEach(() => {
 });
 
 describe("triggers", () => {
+  it("lists pending one-off tasks", async () => {
+    useAppHandlers();
+    renderAt(TRIGGERS);
+
+    const section = await screen.findByRole("region", { name: "One-off tasks" });
+    expect(await within(section).findByText("sch_once_1")).toBeInTheDocument();
+  });
+
   it("dlq redrive requires confirmation", async () => {
     const redrive = vi.fn();
     useAppHandlers({ onRedrive: redrive });

@@ -59,11 +59,22 @@ func TestFakeRestrictedKeyScope(t *testing.T) {
 	ctx := context.Background()
 	op := operator(f)
 	ten := newTenant(t, op, "acme", "free")
-	svc, err := asTenant(f, ten.ID).CreateService(ctx, runtime.ServiceCreate{Slug: "api", Runtime: "deno"})
+	def, err := asTenant(f, ten.ID).GetProject(ctx, "default")
 	must(t, err)
 	admin := newKey(t, op, ten.ID, "keys:write", "services:read")
-	restricted, err := op.CreateTenantKey(ctx, ten.ID, runtime.KeyCreate{Scopes: []string{"keys:write", "services:read"}, Services: []string{svc.ID}})
+	restricted, err := op.CreateTenantKey(ctx, ten.ID, runtime.KeyCreate{Scopes: []string{"keys:write", "services:read"}, ProjectIDs: []string{def.ID}, Environments: []string{"production"}})
 	must(t, err)
+	if len(restricted.ProjectIDs) != 1 || restricted.ProjectIDs[0] != def.ID || len(restricted.Environments) != 1 {
+		t.Fatalf("restricted key = %+v", restricted.Key)
+	}
+	_, err = withKey(f, restricted.Secret).CreateKey(ctx, runtime.KeyCreate{Scopes: []string{"services:read"}, Environments: []string{"staging"}})
+	wantAPIErr(t, err, 403, "insufficient_scope")
+	child, err := withKey(f, restricted.Secret).CreateKey(ctx, runtime.KeyCreate{Scopes: []string{"services:read"}})
+	must(t, err)
+	if len(child.ProjectIDs) != 1 || len(child.Environments) != 1 {
+		t.Fatalf("child key does not inherit restriction: %+v", child.Key)
+	}
+	must(t, withKey(f, restricted.Secret).RevokeKey(ctx, child.ID))
 
 	keys, err := withKey(f, restricted.Secret).ListKeys(ctx)
 	must(t, err)
@@ -71,6 +82,26 @@ func TestFakeRestrictedKeyScope(t *testing.T) {
 		t.Fatalf("restricted caller lists %d keys, want only itself", len(keys))
 	}
 	wantAPIErr(t, withKey(f, restricted.Secret).RevokeKey(ctx, admin.ID), 404, "not_found")
+}
+
+func TestFakeOnceSchedules(t *testing.T) {
+	f := runtimetest.NewServer(t)
+	ctx := context.Background()
+	ten := newTenant(t, operator(f), "acme", "free")
+	cl := asTenant(f, ten.ID)
+	svc, err := cl.CreateService(ctx, runtime.ServiceCreate{Slug: "api", Runtime: "deno"})
+	must(t, err)
+	page, err := cl.ListOnceSchedules(ctx, svc.ID, "")
+	must(t, err)
+	if page.Items == nil || len(page.Items) != 0 {
+		t.Fatalf("empty once page = %+v", page)
+	}
+	id := f.AddOnceSchedule(svc.ID, 42)
+	page, err = cl.ListOnceSchedules(ctx, svc.ID, "")
+	must(t, err)
+	if len(page.Items) != 1 || page.Items[0].ID != id || page.Items[0].Kind != "once" || page.Items[0].RunAt != 42 {
+		t.Fatalf("once page = %+v", page)
+	}
 }
 
 func TestFakeSelfServiceKeyQuota(t *testing.T) {

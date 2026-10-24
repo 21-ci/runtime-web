@@ -42,6 +42,16 @@ describe("LogsView", () => {
     vi.unstubAllGlobals();
   });
 
+  it("shows structured log fields", () => {
+    renderLogs();
+    act(() => {
+      latest().open();
+      latest().emit("log", { ...line(1, "order placed"), fields: { order: 7 } }, "1");
+    });
+    expect(screen.getByText("order placed")).toBeInTheDocument();
+    expect(screen.getByText('{"order":7}')).toBeInTheDocument();
+  });
+
   it("logs resume after reconnect", () => {
     renderLogs();
     const es = FakeEventSource.instances[0];

@@ -18,7 +18,7 @@ const maxSelfServiceKeys = 200
 var validScopes = map[string]bool{
 	"services:read": true, "services:write": true, "deploy": true, "invoke": true,
 	"logs:read": true, "env:write": true, "secrets:write": true, "queue:write": true,
-	"data:admin": true, "keys:write": true,
+	"data:admin": true, "keys:write": true, "sockets:write": true,
 }
 
 type tenant struct {
@@ -41,7 +41,7 @@ func (t *tenant) view() runtime.Tenant {
 type apiKey struct {
 	id, tenantID, name, secret, parent string
 	scopes                             []string
-	serviceIDs                         []string
+	projectIDs, environments           []string // nil = all
 	createdAt                          int64
 	expiresAt                          *time.Time
 	revoked                            bool
@@ -54,17 +54,40 @@ func (k *apiKey) active(now time.Time) bool {
 	return !k.revoked && (k.expiresAt == nil || now.Before(*k.expiresAt))
 }
 
-// canManage reports whether p may see or revoke k: a key limited to some
-// services manages only keys limited to a subset of those.
-func (p principal) canManage(k *apiKey) bool {
-	if p.key == nil || len(p.key.serviceIDs) == 0 {
+// restricted reports whether k is limited to some projects or environments. A nil key
+// (the operator) is not.
+func (k *apiKey) restricted() bool {
+	return k != nil && (k.projectIDs != nil || k.environments != nil)
+}
+
+// allows reports whether k may touch a service in projectID and environment. A nil key allows all.
+func (k *apiKey) allows(projectID, environment string) bool {
+	if k == nil {
 		return true
 	}
-	if len(k.serviceIDs) == 0 {
+	return (k.projectIDs == nil || contains(k.projectIDs, projectID)) &&
+		(k.environments == nil || contains(k.environments, environment))
+}
+
+// canManage reports whether p may see or revoke k: a restricted key manages only keys
+// whose projects and environments are subsets of its own.
+func (p principal) canManage(k *apiKey) bool {
+	if p.key == nil {
+		return true
+	}
+	return subset(k.projectIDs, p.key.projectIDs) && subset(k.environments, p.key.environments)
+}
+
+// subset reports whether child ⊆ parent, where nil means all.
+func subset(child, parent []string) bool {
+	if parent == nil {
+		return true
+	}
+	if child == nil {
 		return false
 	}
-	for _, id := range k.serviceIDs {
-		if !contains(p.key.serviceIDs, id) {
+	for _, v := range child {
+		if !contains(parent, v) {
 			return false
 		}
 	}
@@ -72,10 +95,7 @@ func (p principal) canManage(k *apiKey) bool {
 }
 
 func (k *apiKey) view() runtime.Key {
-	v := runtime.Key{ID: k.id, Scopes: k.scopes, ServiceIDs: k.serviceIDs, CreatedAt: k.createdAt}
-	if v.ServiceIDs == nil {
-		v.ServiceIDs = []string{}
-	}
+	v := runtime.Key{ID: k.id, Scopes: k.scopes, ProjectIDs: k.projectIDs, Environments: k.environments, CreatedAt: k.createdAt}
 	if k.name != "" {
 		name := k.name
 		v.Name = &name
@@ -344,7 +364,15 @@ func (f *Fake) issueKey(tenantID string, in runtime.KeyCreate, creator *apiKey) 
 			return nil, escalation()
 		}
 	}
-	services, e := f.keyServices(tenantID, in.Services, creator)
+	projects, e := f.keyProjects(tenantID, in.ProjectIDs, creator)
+	if e != nil {
+		return nil, e
+	}
+	var parentEnvs []string
+	if creator != nil {
+		parentEnvs = creator.environments
+	}
+	envs, e := narrow(in.Environments, parentEnvs)
 	if e != nil {
 		return nil, e
 	}
@@ -353,14 +381,15 @@ func (f *Fake) issueKey(tenantID string, in runtime.KeyCreate, creator *apiKey) 
 		return nil, e
 	}
 	k := &apiKey{
-		id:         newID("key_"),
-		tenantID:   tenantID,
-		name:       in.Name,
-		secret:     randHex(16),
-		scopes:     slices.Clone(in.Scopes),
-		serviceIDs: services,
-		createdAt:  nowMS(),
-		expiresAt:  expires,
+		id:           newID("key_"),
+		tenantID:     tenantID,
+		name:         in.Name,
+		secret:       randHex(16),
+		scopes:       slices.Clone(in.Scopes),
+		projectIDs:   projects,
+		environments: envs,
+		createdAt:    nowMS(),
+		expiresAt:    expires,
 	}
 	if creator != nil {
 		k.parent = creator.id
@@ -369,22 +398,28 @@ func (f *Fake) issueKey(tenantID string, in runtime.KeyCreate, creator *apiKey) 
 	return k, nil
 }
 
-func (f *Fake) keyServices(tenantID string, asked []string, creator *apiKey) ([]string, *apiError) {
-	if creator != nil && len(creator.serviceIDs) > 0 {
-		if len(asked) == 0 {
-			return slices.Clone(creator.serviceIDs), nil
-		}
-		for _, id := range asked {
-			if !contains(creator.serviceIDs, id) {
-				return nil, escalation()
-			}
-		}
-		return slices.Clone(asked), nil
-	}
+// keyProjects checks asked project ids against tenantID and the creator's own restriction.
+func (f *Fake) keyProjects(tenantID string, asked []string, creator *apiKey) ([]string, *apiError) {
 	for _, id := range asked {
-		if s := f.services[id]; s == nil || s.tenantID != tenantID {
-			return nil, invalid("service %s is not in this tenant", id)
+		if pr := f.projects[id]; pr == nil || pr.tenantID != tenantID {
+			return nil, invalid("project %s is not in this tenant", id)
 		}
+	}
+	var parent []string
+	if creator != nil {
+		parent = creator.projectIDs
+	}
+	return narrow(asked, parent)
+}
+
+// narrow returns the asked list capped by parent (nil = all): an empty ask inherits parent, and
+// asking for anything outside parent is an escalation.
+func narrow(asked, parent []string) ([]string, *apiError) {
+	if len(asked) == 0 {
+		return slices.Clone(parent), nil
+	}
+	if !subset(asked, parent) {
+		return nil, escalation()
 	}
 	return slices.Clone(asked), nil
 }
@@ -451,16 +486,14 @@ func (f *Fake) tenantUsage(p principal, w http.ResponseWriter, r *http.Request) 
 }
 
 func (f *Fake) me(p principal, w http.ResponseWriter, _ *http.Request) *apiError {
-	out := runtime.Me{Principal: "operator", Scopes: []string{}, ServiceIDs: []string{}, Version: fakeVersion}
+	out := runtime.Me{Principal: "operator", Scopes: []string{}, Version: fakeVersion}
 	if p.key != nil {
 		kid := p.key.id
 		out.Principal = "tenant"
 		out.KeyID = &kid
 		out.Scopes = p.key.scopes
-		out.ServiceIDs = p.key.serviceIDs
-		if out.ServiceIDs == nil {
-			out.ServiceIDs = []string{}
-		}
+		out.ProjectIDs = p.key.projectIDs
+		out.Environments = p.key.environments
 	}
 	if p.tenant != "" {
 		tid := p.tenant

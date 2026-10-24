@@ -50,6 +50,7 @@ func (s *Server) registerAppRoutes() {
 	s.appRoute(http.MethodPut, appPath+"/secrets/{name}", authz.AppSecretsWrite, s.putSecret)
 	s.appRoute(http.MethodDelete, appPath+"/secrets/{name}", authz.AppSecretsWrite, s.deleteSecret)
 	s.appRoute(http.MethodGet, appPath+"/schedules", authz.AppRead, s.listSchedules)
+	s.appRoute(http.MethodGet, appPath+"/schedules/once", authz.AppRead, s.listOnceSchedules)
 	s.appRoute(http.MethodPost, appPath+"/schedules", authz.AppSchedulesWrite, s.createSchedule)
 	s.appRoute(http.MethodPatch, appPath+"/schedules/{id}", authz.AppSchedulesWrite, s.patchSchedule)
 	s.appRoute(http.MethodDelete, appPath+"/schedules/{id}", authz.AppSchedulesWrite, s.deleteSchedule)
@@ -588,6 +589,16 @@ func (s *Server) deleteSecret(w http.ResponseWriter, r *http.Request, c orgCall)
 		return err
 	}
 	w.WriteHeader(http.StatusNoContent)
+	return nil
+}
+
+// listOnceSchedules lists the app's pending one-off std:schedule tasks.
+func (s *Server) listOnceSchedules(w http.ResponseWriter, r *http.Request, c orgCall) error {
+	list, err := s.deps.Apps.OnceSchedules(r.Context(), c.sub, c.org.ID, r.PathValue("app"))
+	if err != nil {
+		return err
+	}
+	writeJSON(w, http.StatusOK, itemsJSON[runtime.OnceSchedule]{Items: nonNil(list)})
 	return nil
 }
 

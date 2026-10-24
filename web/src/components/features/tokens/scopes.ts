@@ -12,6 +12,7 @@ export const TOKEN_SCOPES = [
   "invoke",
   "secrets:write",
   "data:admin",
+  "sockets:write",
 ] as const;
 
 const READ_ONLY: string[] = ["services:read", "logs:read"];

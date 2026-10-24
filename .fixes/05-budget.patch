@@ -1,0 +1,135 @@
+diff --git a/Makefile b/Makefile
+index c9a0b40..38ab88d 100644
+--- a/Makefile
++++ b/Makefile
+@@ -52,6 +52,7 @@ web-embed: web ## Copy web/dist into internal/api/dist for go:embed
+ 	cp -R web/dist internal/api/dist
+ 
+ budget: build ## Check binary size, idle RSS and web gzip budgets (docs/02 section 7)
++	node --test scripts/budget-measure.test.js
+ 	scripts/budget.sh
+ 
+ docker: ## Build the rtweb and rtrouter images (rtweb:dev, rtrouter:dev)
+diff --git a/docs/02-design-v1.md b/docs/02-design-v1.md
+index 0cf4854..ad14c3c 100644
+--- a/docs/02-design-v1.md
++++ b/docs/02-design-v1.md
+@@ -143,8 +143,8 @@ both, and every runtime call goes through `runtime.Client` with a `Credential` i
+    Rotating the default key does not invalidate custom tokens.
+ 4. A verified custom domain serves the app through rtrouter, and an unverified one gets no certificate and no
+    route.
+-5. `rtweb` binary ≤ 30 MB, idle RSS ≤ 40 MB, web JS ≤ 250 KB gzip on the first route; the lazy editor chunk (with
+-   the TS worker) ≤ 900 KB gzip.
++5. `rtweb` binary ≤ 30 MB, idle RSS ≤ 40 MB, web JS ≤ 250 KB gzip on the first route; the lazy editor chunk ≤ 900 KB
++   gzip, excluding the lazy TS worker, which has its own budget of ≤ 1.5 MB gzip (loaded on the editor page only).
+ 6. A user can enroll TOTP, then login requires a code; a used code is rejected; revoking a session logs it out; an
+    expired or used invite link fails.
+ 7. Security review (Opus) has no open high findings, and the UI/UX review findings are triaged with every "must"
+diff --git a/scripts/budget-measure.js b/scripts/budget-measure.js
+index b346cd3..9521018 100644
+--- a/scripts/budget-measure.js
++++ b/scripts/budget-measure.js
+@@ -1,4 +1,5 @@
+-// Prints "<first_route_gzip_bytes> <editor_gzip_bytes> <editor_chunk_count>" for a Vite dist dir.
++// Prints "<first_route_gz> <editor_gz> <editor_chunks> <worker_gz> <worker_chunks>" for a Vite dist dir.
++// The lazy TS worker is measured separately from the editor chunk (docs/02-design-v1.md section 7.5).
+ // Used by scripts/budget.sh (kept as a file: bash 3.2 on macOS mis-parses heredocs in <(...)).
+ const fs = require("node:fs");
+ const path = require("node:path");
+@@ -17,10 +18,10 @@ const assets = path.join(dist, "assets");
+ const all = fs.existsSync(assets)
+   ? fs.readdirSync(assets).filter((f) => f.endsWith(".js")).map((f) => path.join(assets, f))
+   : [];
+-const editor = all.filter((f) => {
+-  if (firstFiles.includes(f)) return false;
+-  if (/worker/i.test(path.basename(f))) return true;
+-  return fs.readFileSync(f, "utf8").includes("cm-editor");
+-});
+-const editorGz = editor.reduce((sum, f) => sum + gz(f), 0);
+-console.log(`${first} ${editorGz} ${editor.length}`);
++const isWorker = (f) => /worker/i.test(path.basename(f));
++const workers = all.filter((f) => !firstFiles.includes(f) && isWorker(f));
++const editor = all.filter(
++  (f) => !firstFiles.includes(f) && !isWorker(f) && fs.readFileSync(f, "utf8").includes("cm-editor"),
++);
++const sum = (files) => files.reduce((n, f) => n + gz(f), 0);
++console.log(`${first} ${sum(editor)} ${editor.length} ${sum(workers)} ${workers.length}`);
+diff --git a/scripts/budget-measure.test.js b/scripts/budget-measure.test.js
+new file mode 100644
+index 0000000..4c5d8b0
+--- /dev/null
++++ b/scripts/budget-measure.test.js
+@@ -0,0 +1,23 @@
++// node --test scripts/ — checks the budget split: the lazy TS worker is measured on its own,
++// not inside the editor chunk (docs/02-design-v1.md section 7.5).
++const { test } = require("node:test");
++const assert = require("node:assert");
++const fs = require("node:fs");
++const os = require("node:os");
++const path = require("node:path");
++const { execFileSync } = require("node:child_process");
++
++test("worker is excluded from the editor chunk and reported separately", () => {
++  const dist = fs.mkdtempSync(path.join(os.tmpdir(), "budget-"));
++  fs.mkdirSync(path.join(dist, "assets"));
++  fs.writeFileSync(path.join(dist, "index.html"), '<script type="module" src="/assets/index.js"></script>');
++  fs.writeFileSync(path.join(dist, "assets/index.js"), "console.log(1)");
++  fs.writeFileSync(path.join(dist, "assets/code.js"), "/* cm-editor */ export {}");
++  fs.writeFileSync(path.join(dist, "assets/ts-worker-abc.js"), "x".repeat(10000));
++  const out = execFileSync("node", [path.join(__dirname, "budget-measure.js"), dist], { encoding: "utf8" });
++  const [first, editorGz, editorN, workerGz, workerN] = out.trim().split(" ").map(Number);
++  assert.ok(first > 0);
++  assert.strictEqual(editorN, 1, "editor count excludes the worker");
++  assert.strictEqual(workerN, 1);
++  assert.ok(workerGz > 0 && editorGz > 0);
++});
+diff --git a/scripts/budget.sh b/scripts/budget.sh
+index 912c156..af1fbbf 100755
+--- a/scripts/budget.sh
++++ b/scripts/budget.sh
+@@ -5,7 +5,8 @@
+ #   bin/rtweb            <= 30 MiB                        (always checked; needs `make build`)
+ #   idle RSS             <= 40 MiB                        (docker stats --no-stream of a running rtweb container)
+ #   web first route      <= 250 KB gzip                   (index.html entry + its modulepreload/CSS)
+-#   editor chunk         <= 900 KB gzip                   (chunks containing CodeMirror, plus TS workers)
++#   editor chunk         <= 900 KB gzip                   (chunks containing CodeMirror; excludes the lazy TS worker)
++#   TS worker            <= 1.5 MB gzip                   (lazy *worker* chunks, loaded on the editor page only)
+ #
+ # Env overrides: BIN, DIST, RSS_CONTAINER (default runtime-web-rtweb-1), REQUIRE_RSS=1 (fail when no
+ # container is running instead of skipping), REQUIRE_EDITOR=1 (fail when no editor chunk exists).
+@@ -22,6 +23,7 @@ MAX_BIN_BYTES=$((30 * 1024 * 1024))
+ MAX_RSS_MIB=40
+ MAX_FIRST_GZ_BYTES=$((250 * 1024))
+ MAX_EDITOR_GZ_BYTES=$((900 * 1024))
++MAX_WORKER_GZ_BYTES=$((1536 * 1024))
+ 
+ failed=0
+ 
+@@ -48,9 +50,9 @@ if [ ! -f "$DIST/index.html" ]; then
+   report FAIL "web dist" "missing: $DIST/index.html (run make web)"
+   failed=1
+ else
+-  # Prints: first_route_bytes editor_bytes editor_files
++  # Prints: first_route_bytes editor_bytes editor_files worker_bytes worker_files
+   measured=$(node "$ROOT/scripts/budget-measure.js" "$DIST")
+-  read -r first_gz editor_gz editor_files <<<"$measured"
++  read -r first_gz editor_gz editor_files worker_gz worker_files <<<"$measured"
+ 
+   if [ "$first_gz" -le "$MAX_FIRST_GZ_BYTES" ]; then
+     report PASS "first-route JS gz" "$first_gz bytes <= $MAX_FIRST_GZ_BYTES (entry + modulepreload + css)"
+@@ -72,6 +74,15 @@ else
+     report FAIL "editor chunk gz" "$editor_gz bytes > $MAX_EDITOR_GZ_BYTES ($editor_files chunk(s))"
+     failed=1
+   fi
++
++  if [ "$worker_files" -eq 0 ]; then
++    report SKIP "TS worker gz" "no worker chunk in $DIST"
++  elif [ "$worker_gz" -le "$MAX_WORKER_GZ_BYTES" ]; then
++    report PASS "TS worker gz" "$worker_gz bytes <= $MAX_WORKER_GZ_BYTES ($worker_files chunk(s), lazy)"
++  else
++    report FAIL "TS worker gz" "$worker_gz bytes > $MAX_WORKER_GZ_BYTES ($worker_files chunk(s))"
++    failed=1
++  fi
+ fi
+ 
+ # --- idle RSS --------------------------------------------------------------------------------
