@@ -8,7 +8,7 @@ import { RuntimeError, RuntimeUnavailable } from "./client.ts";
 
 /** The AppError for a runtime failure, or null when e is not one. */
 export function runtimeAppError(e: unknown): AppError | null {
-  if (e instanceof RuntimeUnavailable) return new AppError(502, "runtime_unavailable", "runtime unavailable");
+  if (e instanceof RuntimeUnavailable) return unavailable(e);
   if (!(e instanceof RuntimeError)) return null;
   const retry = { retry_after: e.retryAfter ?? 1 };
   const msg = bare(e);
@@ -23,6 +23,12 @@ export function runtimeAppError(e: unknown): AppError | null {
   if (e.status === 400 || e.status === 422) return new AppError(422, e.code, msg, asDetails(e.details));
   if (e.status >= 400 && e.status < 500) return new AppError(e.status, e.code, msg, asDetails(e.details));
   // control_disabled and every other runtime 5xx: the runtime cannot serve us.
+  return unavailable(e);
+}
+
+/** The client only sees "runtime unavailable": keep the cause in the service log for the operator. */
+function unavailable(e: Error): AppError {
+  console.error("runtime unavailable:", e.message);
   return new AppError(502, "runtime_unavailable", "runtime unavailable");
 }
 

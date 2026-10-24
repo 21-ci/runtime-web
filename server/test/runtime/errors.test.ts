@@ -1,4 +1,4 @@
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { Router } from "../../src/http/router.ts";
 import { RuntimeError, RuntimeUnavailable } from "../../src/runtime/client.ts";
 import { mapRuntimeError, runtimeAppError } from "../../src/runtime/errors.ts";
@@ -23,6 +23,19 @@ describe("runtime error mapping", () => {
     const m = runtimeAppError(e);
     expect(m?.status).toBe(status);
     expect(m?.code).toBe(code);
+  });
+
+  it("logs the underlying cause when it answers runtime_unavailable (the envelope hides it)", () => {
+    const spy = vi.spyOn(console, "error").mockImplementation(() => {});
+    try {
+      runtimeAppError(new RuntimeUnavailable("POST /v1/tenants: binding_upstream"));
+      runtimeAppError(new RuntimeError(500, "boom", "kaput", {}));
+      const lines = spy.mock.calls.map((c) => c.join(" "));
+      expect(lines.some((l) => l.includes("POST /v1/tenants: binding_upstream"))).toBe(true);
+      expect(lines.some((l) => l.includes("boom"))).toBe(true);
+    } finally {
+      spy.mockRestore();
+    }
   });
 
   it("carries retry_after", () => {
