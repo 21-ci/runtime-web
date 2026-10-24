@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import { readFileSync } from "node:fs";
 
 // sdk/rtctl/mod.ts runs in the runtime; stub its std modules for Node.
 const kvStore = new Map<string, unknown>();
@@ -104,5 +105,24 @@ describe("rtctl SDK", () => {
     respond = () => new Response(new Uint8Array([0, 255, 1]), { headers: { "content-type": "application/vnd.sqlite3" } });
     const r = (await m().tenant!({ method: "GET", path: "/v1/services/s/data/export", key: "rtk_key_abcdef0123" }, ctx())) as { body: string; encoding: string };
     expect([r.body, r.encoding]).toEqual(["AP8B", "base64"]);
+  });
+});
+
+describe("allow-lists match deploy/rt.rtweb.toml bindings", () => {
+  // Single source check: the SDK path lists must equal the runtime binding allow-lists.
+  const toml = readFileSync(new URL("../../../deploy/rt.rtweb.toml", import.meta.url), "utf8");
+  const binding = (name: string, key: string): string[] => {
+    const block = toml.split("[[binding]]").find((b) => new RegExp(`^\\s*name\\s*=\\s*"${name}"`, "m").test(b));
+    const m = block?.match(new RegExp(`^\\s*${key}\\s*=\\s*\\[([^\\]]*)\\]`, "m"));
+    if (!m) throw new Error(`rt.rtweb.toml: ${name}.${key} missing`);
+    return [...(m[1] ?? "").matchAll(/"([^"]*)"/g)].map((x) => x[1] as string);
+  };
+
+  it("rtctl-op paths == OP_PATHS", () => {
+    expect([...mod.OP_PATHS].sort()).toEqual(binding("rtctl-op", "allowed_paths").sort());
+  });
+
+  it("rtctl-tenant paths == TENANT_PATHS", () => {
+    expect([...mod.TENANT_PATHS].sort()).toEqual(binding("rtctl-tenant", "allowed_paths").sort());
   });
 });
