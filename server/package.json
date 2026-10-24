@@ -3,14 +3,20 @@
   "private": true,
   "version": "0.0.0",
   "type": "module",
-  "engines": { "node": ">=22.5" },
+  "engines": {
+    "node": ">=22.5"
+  },
   "scripts": {
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run --project unit",
     "test:int": "vitest run --project integration",
     "deploy": "node scripts/deploy.mjs",
-    "ci": "npm run typecheck && npm run lint && npm test"
+    "ci": "npm run typecheck && npm run lint && npm test",
+    "gen-assets": "node scripts/gen-assets.mjs",
+    "pretypecheck": "node scripts/gen-assets.mjs",
+    "pretest": "node scripts/gen-assets.mjs",
+    "rt-install": "node scripts/install.mjs"
   },
   "devDependencies": {
     "@eslint/js": "9.37.0",

@@ -5,7 +5,7 @@ LDFLAGS := -s -w -X main.version=$(VERSION) -X main.commit=$(COMMIT) -X main.dat
 
 .DEFAULT_GOAL := help
 
-.PHONY: help build test vet vuln fmt fmt-check ci ci-full clean web web-test web-lint web-audit web-embed e2e budget docker compose-up compose-down
+.PHONY: help build test vet vuln fmt fmt-check ci ci-full clean web web-test web-lint web-audit web-embed e2e budget docker compose-up compose-down server-deps server-assets server-ci server-test server-deploy server-install
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-12s %s\n", $$1, $$2}'
@@ -30,7 +30,7 @@ fmt: ## Format Go code
 fmt-check: ## Fail if any Go file is not gofmt-clean
 	@test -z "$$(gofmt -l .)" || { gofmt -l .; echo "gofmt: files above need formatting"; exit 1; }
 
-ci: fmt-check vet test vuln web-lint web-test build budget ## Run the CI chain (no docker; e2e is separate)
+ci: fmt-check vet test vuln web-lint web-test build budget server-ci ## Run the CI chain (no docker; e2e is separate)
 
 ci-full: ci e2e ## Run ci plus the docker compose Playwright smoke (needs docker)
 
@@ -70,3 +70,21 @@ e2e: compose-up ## Run the Playwright smoke suite against docker compose
 
 clean: ## Remove build output
 	rm -rf bin e2e/test-results e2e/playwright-report
+
+server-deps: ## Install server deps (npm ci in server/)
+	cd server && npm ci
+
+server-assets: web ## Build web/dist and embed it as server/src/gen (gitignored)
+	cd server && node scripts/gen-assets.mjs
+
+server-test: server-deps ## Run server unit tests (Vitest)
+	cd server && npm test
+
+server-ci: server-deps ## Server typecheck + lint + unit tests
+	cd server && node scripts/gen-assets.mjs && npm run ci
+
+server-deploy: server-deps ## Dev deploy of server/ to the local runtime (needs RT_ROOT_TOKEN)
+	cd server && node scripts/gen-assets.mjs && node scripts/deploy.mjs
+
+server-install: server-assets ## Idempotent install onto a runtime node (needs RT_ROOT_TOKEN)
+	cd server && node scripts/install.mjs
