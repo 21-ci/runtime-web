@@ -21,6 +21,11 @@ export const SETTINGS_REGISTRY: SettingsEntry[] = [
 ];
 
 // visibleSettings keeps entries whose route exists and hides admin entries from non-admins.
-export function visibleSettings(routes: object, isAdmin: boolean): SettingsEntry[] {
-  return SETTINGS_REGISTRY.filter((e) => e.path in routes && (!e.admin || isAdmin));
+export function visibleSettings(
+  routes: object,
+  isAdmin: boolean,
+): SettingsEntry[] {
+  return SETTINGS_REGISTRY.filter(
+    (e) => e.path in routes && (!e.admin || isAdmin),
+  );
 }

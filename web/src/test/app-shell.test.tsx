@@ -136,8 +136,47 @@ describe("app shell", { timeout: 15_000 }, () => {
     renderAt("/beta");
     await screen.findByText(/no projects yet/i, undefined, LOAD);
     fireEvent.keyDown(document, { key: "k", metaKey: true });
-    await screen.findByRole("option", { name: /New app/ }, LOAD);
+    await screen.findByRole("option", { name: /Toggle theme/ }, LOAD);
     expect(screen.queryByRole("option", { name: /New project/ })).toBeNull();
+    // Members with no developer project role cannot create apps either.
+    expect(screen.queryByRole("option", { name: /New app/ })).toBeNull();
+  });
+
+  it("command menu offers New app, Overview and Toggle theme to owners", async () => {
+    useShellHandlers();
+    renderAt("/acme");
+    await screen.findByRole("link", { name: "Hello" }, LOAD);
+    fireEvent.keyDown(document, { key: "k", metaKey: true });
+    expect(await screen.findByRole("option", { name: /New app/ }, LOAD)).toBeDefined();
+    expect(screen.getByRole("option", { name: /Go to Overview/ })).toBeDefined();
+    expect(screen.getByRole("option", { name: /Toggle theme/ })).toBeDefined();
+  });
+
+  it("search button opens the command menu", async () => {
+    useShellHandlers();
+    renderAt("/acme");
+    await screen.findByRole("link", { name: "Hello" }, LOAD);
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
+    expect(await screen.findByRole("option", { name: /Go to Overview/ }, LOAD)).toBeDefined();
+  });
+
+  it("breadcrumbs show org, project and app on an app page", async () => {
+    useShellHandlers();
+    renderAt("/acme/apps/hello");
+    const crumbs = await screen.findByRole("navigation", { name: "Breadcrumb" }, LOAD);
+    await within(crumbs).findByRole("link", { name: "Web" }, LOAD);
+    expect(within(crumbs).getByRole("link", { name: "Acme" })).toBeDefined();
+    expect(within(crumbs).getByText("Hello").getAttribute("aria-current")).toBe("page");
+  });
+
+  it("sidebar offers New app per project to owners and collapses", async () => {
+    useShellHandlers();
+    renderAt("/acme");
+    const nav = await screen.findByRole("navigation", { name: /sidebar/i }, LOAD);
+    expect(await within(nav).findByRole("button", { name: "New app in Web" }, LOAD)).toBeDefined();
+    await userEvent.click(within(nav).getByRole("button", { name: "Collapse sidebar" }));
+    expect(await screen.findByRole("button", { name: "Expand sidebar" }, LOAD)).toBeDefined();
+    await userEvent.click(screen.getByRole("button", { name: "Expand sidebar" }));
   });
 
   it("command menu hides admin settings from non-admins", async () => {
