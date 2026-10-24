@@ -44,7 +44,7 @@ function AdminSettingsPage() {
 
   return (
     <div className="mx-auto flex max-w-3xl flex-col gap-6">
-      <h1 className="text-xl font-semibold">Instance settings</h1>
+      <h1 className="text-2xl font-semibold">Instance settings</h1>
       {settings.isError ? (
         <QueryError error={settings.error} onRetry={() => void settings.refetch()} notFoundTitle="Not available" />
       ) : settings.isPending ? (
@@ -124,7 +124,7 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
   return (
     <form aria-label="Instance settings" onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
       <section aria-labelledby="public-url-heading" className="flex flex-col gap-1.5">
-        <h2 id="public-url-heading" className="text-sm font-semibold">
+        <h2 id="public-url-heading" className="text-base font-semibold">
           Public URL
         </h2>
         <Label htmlFor="public_url">Public URL</Label>
@@ -135,7 +135,7 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
       </section>
 
       <section aria-labelledby="policy-heading" className="flex flex-col gap-3">
-        <h2 id="policy-heading" className="text-sm font-semibold">
+        <h2 id="policy-heading" className="text-base font-semibold">
           Sign-in policy
         </h2>
         <label className="flex items-center gap-2 text-sm">
@@ -175,15 +175,15 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
       </section>
 
       <section aria-labelledby="providers-heading" className="flex flex-col gap-4">
-        <h2 id="providers-heading" className="text-sm font-semibold">
+        <h2 id="providers-heading" className="text-base font-semibold">
           OAuth providers
         </h2>
         {draft.providers.map((p) => {
           const name = p.id === "oidc" ? (p.name || PROVIDER_LABEL.oidc) : PROVIDER_LABEL[p.id];
           const secretId = `${p.id}-client-secret`;
           return (
-            <fieldset key={p.id} className="flex flex-col gap-3 rounded-[6px] border border-line bg-surface p-4">
-              <legend className="px-1 text-sm font-semibold">{name}</legend>
+            <fieldset key={p.id} className="flex flex-col gap-3 rounded-md border border-line bg-surface p-4">
+              <legend className="px-1 text-[13px] font-medium">{name}</legend>
               <label className="flex items-center gap-2 text-sm">
                 <input
                   type="checkbox"

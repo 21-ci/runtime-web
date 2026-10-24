@@ -5,18 +5,18 @@ import type { ReactNode } from "react";
 // header with section tabs and a way back to the console.
 export function AdminLayout({ children }: { children: ReactNode }) {
   const tabClass =
-    "inline-flex h-8 items-center rounded-[4px] px-3 text-sm font-semibold text-muted hover:bg-panel-2 hover:text-text aria-[current=page]:bg-panel-2 aria-[current=page]:text-text";
+    "inline-flex h-7 items-center rounded-sm px-2.5 text-sm font-medium text-muted hover:bg-text/[0.05] hover:text-text aria-[current=page]:bg-text/[0.07] aria-[current=page]:text-text";
   return (
     <div className="min-h-dvh bg-bg text-text">
-      <header className="border-b border-line bg-surface px-4 py-3 md:px-6">
+      <header className="border-b border-line bg-surface px-4 py-3 md:px-10">
         <div className="mx-auto flex max-w-6xl flex-wrap items-center gap-3">
-          <Link to="/" className="text-sm text-muted hover:text-text">
+          <h1 className="text-2xl font-semibold">Instance admin</h1>
+          <Link to="/" className="ml-auto text-sm text-muted hover:text-text">
             Back to console
           </Link>
-          <h1 className="ml-auto text-base font-semibold">Instance admin</h1>
         </div>
       </header>
-      <div className="mx-auto flex max-w-6xl flex-col gap-6 p-4 md:p-6">
+      <div className="mx-auto flex max-w-6xl flex-col gap-5 p-4 md:px-10 md:py-8">
         <nav aria-label="Admin sections" className="flex flex-wrap gap-1">
           <Link to="/admin/users" className={tabClass} activeProps={{ "aria-current": "page" }}>
             Users

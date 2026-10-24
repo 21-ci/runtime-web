@@ -41,7 +41,7 @@ function AdminDomainsPage() {
 
   return (
     <div className="mx-auto flex max-w-5xl flex-col gap-6">
-      <h1 className="text-xl font-semibold">Domains</h1>
+      <h1 className="text-2xl font-semibold">Domains</h1>
       {domains.isError ? (
         <QueryError error={domains.error} onRetry={() => void domains.refetch()} notFoundTitle="Not available" />
       ) : domains.isPending ? (
@@ -51,7 +51,7 @@ function AdminDomainsPage() {
       ) : (domains.data ?? []).length === 0 ? (
         <p className="text-sm text-muted">No custom domains yet.</p>
       ) : (
-        <div className="overflow-x-auto rounded-[6px] border border-line bg-surface">
+        <div className="overflow-x-auto rounded-md border border-line bg-surface">
           <Table>
             <caption className="sr-only">Custom domains across all orgs</caption>
             <TableHeader>

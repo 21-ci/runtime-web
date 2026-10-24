@@ -18,7 +18,7 @@ function TokensRoute() {
   }
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">Tokens</h1>
+      <h1 className="text-2xl font-semibold">Tokens</h1>
       <TokensPage org={org} role={role} />
     </div>
   );

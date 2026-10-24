@@ -18,7 +18,7 @@ function MembersRoute() {
   }
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="text-xl font-semibold">Members</h1>
+      <h1 className="text-2xl font-semibold">Members</h1>
       <MembersPage org={org} role={role} />
     </div>
   );

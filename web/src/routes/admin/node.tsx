@@ -49,15 +49,15 @@ function AdminNodePage() {
 
   return (
     <div className="mx-auto flex max-w-4xl flex-col gap-6">
-      <h1 className="text-xl font-semibold">Node</h1>
+      <h1 className="text-2xl font-semibold">Node</h1>
 
       <div className="grid gap-4 md:grid-cols-2">
         <KeyValueCard title="Status" query={status} />
         <KeyValueCard title="Scheduler" query={scheduler} />
       </div>
 
-      <section aria-labelledby="node-config-heading" className="rounded-[6px] border border-line bg-surface p-4">
-        <h2 id="node-config-heading" className="mb-3 text-sm font-semibold">
+      <section aria-labelledby="node-config-heading" className="rounded-md border border-line bg-surface p-4">
+        <h2 id="node-config-heading" className="mb-3 text-base font-semibold">
           Configuration
         </h2>
         {config.isError ? (
@@ -157,7 +157,7 @@ function NodeConfigForm({ initial }: { initial: NodeConfig }) {
           value={rateLimit}
           onChange={(e) => setRateLimit(e.target.value)}
           aria-invalid={errors.rate_limit ? true : undefined}
-          className="rounded-[6px] border border-line-strong bg-surface p-2 font-mono text-sm"
+          className="rounded-sm border border-line-strong bg-surface p-2 font-mono text-sm"
         />
         {errors.rate_limit ? <p className="text-sm text-danger">{errors.rate_limit}</p> : null}
       </div>
@@ -194,8 +194,8 @@ function DrainSection() {
   }
 
   return (
-    <section aria-labelledby="drain-heading" className="rounded-[6px] border border-line bg-surface p-4">
-      <h2 id="drain-heading" className="mb-1 text-sm font-semibold">
+    <section aria-labelledby="drain-heading" className="rounded-md border border-line bg-surface p-4">
+      <h2 id="drain-heading" className="mb-1 text-base font-semibold">
         Drain
       </h2>
       <p className="mb-3 text-sm text-muted">Stop the node from accepting new work. Existing work finishes first.</p>

@@ -31,14 +31,14 @@ export function SecurityPage() {
   if (me.isPending) return <Skeleton className="h-64 w-full" />;
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-10 px-4 py-8">
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-4 py-8">
       <header>
-        <h1 className="text-xl font-semibold">Account security</h1>
+        <h1 className="text-2xl font-semibold">Account security</h1>
         <p className="text-sm text-muted">{me.data.user.email}</p>
       </header>
 
       {me.data.mfa_enrollment_required ? (
-        <p role="alert" className="rounded-[6px] border border-line bg-panel p-3 text-sm">
+        <p role="alert" className="rounded-md border border-line bg-surface p-3 text-sm">
           This instance requires two-factor authentication. Set it up to keep using Runtime Web.
         </p>
       ) : null}
@@ -106,7 +106,7 @@ function RegenerateCodes() {
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-sm font-semibold">Recovery codes</h3>
+      <h3 className="text-[13px] font-medium text-muted">Recovery codes</h3>
       <p className="text-sm text-muted">Creating new codes makes your old codes stop working.</p>
       <AuthForm errors={error ? { password: error } : {}} onSubmit={onSubmit}>
         <FormField label="Password" name="password" type="password" autoComplete="current-password" error={error ?? undefined} />
@@ -152,7 +152,7 @@ function DisableTotp() {
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-sm font-semibold">Turn off two-factor authentication</h3>
+      <h3 className="text-[13px] font-medium text-muted">Turn off two-factor authentication</h3>
       <AuthForm errors={error ? { code: error } : {}} onSubmit={onSubmit}>
         <FormField label="Password" name="password" type="password" autoComplete="current-password" />
         <FormField label="Authentication code" name="code" inputMode="numeric" autoComplete="one-time-code" error={error ?? undefined} />
@@ -200,9 +200,9 @@ function SessionsSection() {
       ) : sessions.isPending ? (
         <Skeleton className="h-24 w-full" />
       ) : (
-        <ul aria-label="Sessions" className="divide-y divide-line rounded-[6px] border border-line bg-surface">
+        <ul aria-label="Sessions" className="divide-y divide-line rounded-md border border-line bg-surface">
           {sessions.data.map((s) => (
-            <li key={s.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+            <li key={s.id} className="group flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
               <span>
                 <span className="font-medium">{s.ua}</span>
                 <span className="block text-muted">
@@ -215,6 +215,7 @@ function SessionsSection() {
                 <Button
                   variant="ghost"
                   size="sm"
+                  className="opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
                   aria-label={`Revoke session ${s.ua}`}
                   disabled={revoke.isPending}
                   onClick={() => revoke.mutate(s.id)}
