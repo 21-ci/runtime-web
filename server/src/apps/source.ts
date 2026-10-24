@@ -39,10 +39,17 @@ function kindOf(ct: string): string {
   return "";
 }
 
-function sniff(body: string): string {
+/** "archive" / "wasm" by magic bytes (a binary string), else "". */
+function binaryKind(body: string): string {
   if (body.startsWith("PK\x03\x04")) return "archive";
   if (body.startsWith("\x00asm")) return "wasm";
   if (body.length >= 262 && body.slice(257, 262) === "ustar") return "archive";
+  return "";
+}
+
+function sniff(body: string): string {
+  const bin = binaryKind(body);
+  if (bin) return bin;
   try {
     const v: unknown = JSON.parse(body);
     if (v && typeof v === "object" && !Array.isArray(v) && "entry" in v) return "json";
@@ -56,9 +63,12 @@ function sniff(body: string): string {
 export function unpack(body: string, contentType: string, base64 = false): Files {
   let kind = kindOf(contentType);
   if (base64 && kind !== "wasm" && kind !== "archive") {
-    body = new TextDecoder().decode(Uint8Array.from(atob(body), (c) => c.charCodeAt(0)));
+    const raw = atob(body);
+    // No useful type (the runtime serves stored source as application/octet-stream): sniff the bytes.
+    if (!kind) kind = binaryKind(raw);
+    if (!kind) body = new TextDecoder().decode(Uint8Array.from(raw, (c) => c.charCodeAt(0)));
   }
-  if (!kind) kind = base64 ? "archive" : sniff(body);
+  if (!kind) kind = sniff(body);
   switch (kind) {
     case "wasm":
       return { entry: "", files: {}, read_only: true, kind: "wasm" };

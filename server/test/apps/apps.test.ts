@@ -405,6 +405,12 @@ describe("pure helpers", () => {
     expect(unpack("x", "text/javascript")).toMatchObject({ kind: "js", entry: "main.js" });
     expect(unpack('{"entry":"a.ts","files":{"a.ts":"1"}}', "")).toMatchObject({ kind: "bundle", entry: "a.ts" });
     expect(unpack("AGFzbQ==", "application/wasm", true)).toMatchObject({ kind: "wasm", read_only: true, files: {} });
+    // The runtime serves stored source as application/octet-stream; the SDK hands it over base64.
+    const b64 = (t: string) => Buffer.from(t, "latin1").toString("base64");
+    expect(unpack(b64("export default {}"), "application/octet-stream", true)).toMatchObject({ kind: "ts", entry: "main.ts", read_only: false });
+    expect(unpack(b64('{"entry":"a.ts","files":{"a.ts":"1"}}'), "application/octet-stream", true)).toMatchObject({ kind: "bundle", entry: "a.ts" });
+    expect(unpack(b64("PK\x03\x04rest"), "application/octet-stream", true)).toMatchObject({ kind: "bundle", read_only: true });
+    expect(unpack(b64("\x00asm\x01"), "application/octet-stream", true)).toMatchObject({ kind: "wasm", read_only: true });
     expect(() => unpack('{"entry":"../a","files":{"../a":"1"}}', "application/json")).toThrow();
   });
 });
