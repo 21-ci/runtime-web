@@ -2,9 +2,9 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-// Card is the soft, large-radius container: hairline plus a faint shadow, no hard border.
+// Card is the default container: hairline, 10px radius, faint shadow, 20px padding.
 function Card({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
-  return <div className={cn("rounded-2xl border border-line bg-surface p-5 shadow-card", className)} {...props} />;
+  return <div className={cn("rounded-lg border border-line bg-surface p-5 shadow-card", className)} {...props} />;
 }
 
 function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement>) {
@@ -12,7 +12,7 @@ function CardHeader({ className, ...props }: React.HTMLAttributes<HTMLDivElement
 }
 
 function CardTitle({ className, ...props }: React.HTMLAttributes<HTMLHeadingElement>) {
-  return <h2 className={cn("text-base font-semibold text-text", className)} {...props} />;
+  return <h2 className={cn("text-[15px] font-semibold text-text", className)} {...props} />;
 }
 
 function CardDescription({ className, ...props }: React.HTMLAttributes<HTMLParagraphElement>) {

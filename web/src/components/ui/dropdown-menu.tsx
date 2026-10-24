@@ -17,7 +17,7 @@ const DropdownMenuContent = React.forwardRef<
       ref={ref}
       sideOffset={sideOffset}
       className={cn(
-        "z-50 min-w-[180px] overflow-hidden rounded-xl border border-line bg-surface p-1.5 text-text shadow-menu",
+        "z-50 min-w-[180px] overflow-hidden rounded-lg border border-line bg-surface-2 p-1 text-text shadow-menu data-[state=open]:animate-[pop-in_140ms_var(--motion-ease)]",
         className,
       )}
       {...props}
@@ -33,7 +33,7 @@ const DropdownMenuItem = React.forwardRef<
   <DropdownMenuPrimitive.Item
     ref={ref}
     className={cn(
-      "relative flex h-8 cursor-pointer select-none items-center gap-2 rounded-lg transition-colors px-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-hover",
+      "relative flex h-8 cursor-pointer select-none [&_svg]:size-4 [&_svg]:text-muted items-center gap-2 rounded-md transition-colors px-2 text-sm outline-none data-[disabled]:pointer-events-none data-[disabled]:opacity-50 data-[highlighted]:bg-hover",
       destructive && "text-danger",
       className,
     )}
@@ -49,7 +49,7 @@ const DropdownMenuCheckboxItem = React.forwardRef<
   <DropdownMenuPrimitive.CheckboxItem
     ref={ref}
     className={cn(
-      "relative flex h-8 cursor-pointer select-none items-center gap-2 rounded-lg transition-colors py-1 pl-7 pr-2 text-sm outline-none data-[highlighted]:bg-hover",
+      "relative flex h-8 cursor-pointer select-none [&_svg]:size-4 [&_svg]:text-muted items-center gap-2 rounded-md transition-colors py-1 pl-7 pr-2 text-sm outline-none data-[highlighted]:bg-hover",
       className,
     )}
     {...props}
@@ -73,7 +73,7 @@ const DropdownMenuRadioItem = React.forwardRef<
   <DropdownMenuPrimitive.RadioItem
     ref={ref}
     className={cn(
-      "relative flex h-8 cursor-pointer select-none items-center gap-2 rounded-lg py-1 pl-7 pr-2 text-sm outline-none transition-colors data-[highlighted]:bg-hover",
+      "relative flex h-8 cursor-pointer select-none [&_svg]:size-4 [&_svg]:text-muted items-center gap-2 rounded-md py-1 pl-7 pr-2 text-sm outline-none transition-colors data-[highlighted]:bg-hover",
       className,
     )}
     {...props}

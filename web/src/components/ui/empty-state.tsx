@@ -13,8 +13,11 @@ export interface EmptyStateProps extends React.HTMLAttributes<HTMLDivElement> {
   /** Colours the icon tile by entity type (see ENTITY_HUE). */
   entity?: Entity;
   hue?: Hue;
+  /** Renders without its own frame, for use inside a card. */
+  bare?: boolean;
 }
 
+// EmptyState explains an empty list in one line and offers one action.
 function EmptyState({
   title,
   description,
@@ -22,20 +25,22 @@ function EmptyState({
   action,
   entity,
   hue,
+  bare = false,
   className,
   ...props
 }: EmptyStateProps) {
   return (
     <div
       className={cn(
-        "flex flex-col items-center gap-1.5 rounded-2xl border border-line bg-surface px-6 py-10 shadow-card text-center",
+        "flex flex-col items-center gap-1.5 px-6 py-10 text-center",
+        !bare && "rounded-lg border border-line bg-surface shadow-card",
         className,
       )}
       {...props}
     >
-      <IconTile icon={Icon} entity={entity} hue={hue ?? (entity ? undefined : "orange")} size="lg" className="mb-2" />
+      <IconTile icon={Icon} entity={entity} hue={hue ?? (entity ? undefined : "gray")} size="lg" className="mb-2" />
       <h3 className="text-[15px] font-semibold text-text">{title}</h3>
-      {description ? <p className="max-w-prose text-sm text-muted">{description}</p> : null}
+      {description ? <p className="max-w-[44ch] text-sm text-muted">{description}</p> : null}
       {action ? <div className="mt-3">{action}</div> : null}
     </div>
   );

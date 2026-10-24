@@ -62,6 +62,10 @@ const pairs = [
   { name: "input placeholder", fg: "muted", bg: "field" },
   { name: "accent link on panel", fg: "accent", bg: "panel" },
   { name: "text on accent-soft selection", fg: "text", bg: "accent-soft" },
+  { name: "body text on surface-2", fg: "text", bg: "surface-2" },
+  { name: "muted text on surface-2", fg: "muted", bg: "surface-2" },
+  { name: "solid danger button", fg: "on-danger", bg: "danger" },
+  { name: "danger text on bg", fg: "danger-text", bg: "bg" },
   ...["gray", "brown", "orange", "yellow", "green", "blue", "purple", "pink", "red", "teal"].map((c) => ({
     name: `${c} tag`,
     fg: `tag-${c}-text`,
@@ -88,8 +92,9 @@ describe("contrast: WCAG AA (4.5:1) for filled controls and badges", () => {
 
   it("components use the token pairs that were checked", () => {
     expect(buttonSrc).toMatch(/default:\s*"[^"]*bg-accent[^"]*text-on-primary/);
-    expect(buttonSrc).toMatch(/secondary:\s*"[^"]*bg-secondary[^"]*text-text/);
-    expect(buttonSrc).toMatch(/rounded-full/);
+    expect(buttonSrc).toMatch(/secondary:\s*"[^"]*bg-surface-2[^"]*text-text/);
+    expect(buttonSrc).toMatch(/"danger-solid":\s*"[^"]*bg-danger[^"]*text-on-danger/);
+    expect(buttonSrc).toMatch(/rounded-md/);
     expect(iconTileSrc).toMatch(/teal:\s*"bg-tag-teal-bg text-tag-teal-text"/);
     expect(buttonSrc).toMatch(/danger:\s*"[^"]*bg-danger-soft[^"]*text-danger-text/);
     expect(badgeSrc).toMatch(/success:\s*"[^"]*bg-tag-green-bg[^"]*text-tag-green-text/);
@@ -98,12 +103,17 @@ describe("contrast: WCAG AA (4.5:1) for filled controls and badges", () => {
     expect(badgeSrc).not.toMatch(/bg-green\b|text-on-success/);
   });
 
-  it("keeps dark mode warm: red channel at or above blue on the base surfaces", () => {
+  it("keeps dark mode neutral: equal channels on the base surfaces (no blue or brown tint)", () => {
     const t = tokens(".dark");
-    for (const k of ["bg", "panel", "panel-2", "surface"]) {
+    for (const k of ["bg", "panel", "panel-2", "surface", "surface-2"]) {
       const hex = t[k];
-      expect(parseInt(hex.slice(1, 3), 16), `--${k} ${hex}`).toBeGreaterThanOrEqual(parseInt(hex.slice(5, 7), 16));
+      const [r, g, b] = [1, 3, 5].map((i) => parseInt(hex.slice(i, i + 2), 16));
+      expect(r, `--${k} ${hex}`).toBe(g);
+      expect(g, `--${k} ${hex}`).toBe(b);
     }
+    // Elevation steps go up: canvas < chrome <= raised.
+    expect(parseInt(t.bg.slice(1, 3), 16)).toBeLessThan(parseInt(t.panel.slice(1, 3), 16));
+    expect(parseInt(t.surface.slice(1, 3), 16)).toBeLessThanOrEqual(parseInt(t["surface-2"].slice(1, 3), 16));
   });
 
   it("defines the dark set once, with no duplicated prefers-color-scheme copy", () => {

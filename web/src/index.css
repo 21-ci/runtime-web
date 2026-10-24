@@ -6,69 +6,80 @@
 @import "@fontsource/ibm-plex-mono/latin-500.css";
 
 /*
- * Design tokens.
- * Light values live on :root; the .dark block is the single dark set. The
- * class is applied to <html> before first paint by public/theme-init.js
- * when the OS prefers dark (external script: the server CSP forbids inline).
- * Filled controls pair a fill token with an --on-* text token; every pair is
- * checked for WCAG AA (4.5:1) in src/styles/contrast.test.ts.
+ * Design tokens (docs/contributing/design-tokens.md).
+ * Light values live on :root; the .dark block is the single dark set. The class is applied to
+ * <html> before first paint by public/theme-init.js when the OS prefers dark (external script:
+ * the server CSP forbids inline). Filled controls pair a fill token with an --on-* text token;
+ * every pair is checked for WCAG AA (4.5:1) in src/styles/contrast.test.ts.
  */
 :root {
-  /* Surfaces: warm off-whites. Page is near-white, chrome a touch warmer, cards pure white. */
-  --bg: #fdfcfa;
-  --panel: #f9f8f6;
-  --panel-2: #f1efec;
+  /* Surfaces: white canvas, soft off-white chrome. */
+  --bg: #ffffff;
+  --panel: #f7f7f5;
+  --panel-2: #efefec;
   --surface: #ffffff;
-  --field: #fbfaf8;
-  --secondary: #efeeec;
-  --secondary-hover: #e6e4e1;
-  --line: rgba(64, 52, 40, 0.1);
-  --line-strong: rgba(64, 52, 40, 0.18);
-  --hover: rgba(64, 52, 40, 0.05);
-  --active: rgba(64, 52, 40, 0.085);
-  --text: #2b2926;
-  --muted: #625d56;
-  /* Accent: warm tomato coral. Primary buttons, links, focus. */
-  --accent: #c2432a;
-  --accent-hover: #b03c24;
+  --surface-2: #ffffff;
+  --field: #ffffff;
+  --secondary: #f1f1ef;
+  --secondary-hover: #e8e8e5;
+  --line: rgba(0, 0, 0, 0.08);
+  --line-strong: rgba(0, 0, 0, 0.16);
+  --hover: rgba(0, 0, 0, 0.045);
+  --active: rgba(0, 0, 0, 0.08);
+  --text: #1f1f1f;
+  --muted: #6b6b6b;
+  /* Accent: one calm blue for the primary action, links and focus. */
+  --accent: #2563eb;
+  --accent-hover: #1d4ed8;
   --on-primary: #ffffff;
-  --accent-soft: #fbe1d7;
-  --accent-pale: #fdf0ea;
-  --overlay: #1a1410;
-  --green: #2c6a3a;
+  --accent-soft: #dbe7fe;
+  --accent-pale: #eef3ff;
+  --overlay: #000000;
+  --green: #15803d;
   --on-success: #ffffff;
-  --danger: #c0362c;
-  --danger-text: #9e2a22;
-  --danger-soft: #fce6e3;
-  --focus: color-mix(in srgb, var(--accent) 45%, transparent);
-  --menu-shadow: 0 0 0 1px rgba(60, 45, 30, 0.05), 0 4px 10px rgba(60, 45, 30, 0.08), 0 14px 32px rgba(60, 45, 30, 0.12);
-  --card-shadow: 0 1px 2px rgba(60, 45, 30, 0.05), 0 2px 6px rgba(60, 45, 30, 0.035);
+  --danger: #dc2626;
+  --danger-text: #b91c1c;
+  --danger-soft: #fee2e2;
+  --on-danger: #ffffff;
+  --focus: color-mix(in srgb, var(--accent) 50%, transparent);
+  --menu-shadow: 0 0 0 1px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.08), 0 16px 40px rgba(0, 0, 0, 0.1);
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.04);
 
-  /* Tags: soft tinted fills for badges and icon tiles. Each text/bg pair is AA-checked. */
-  --tag-gray-bg: #f1efec;
-  --tag-gray-text: #5c5751;
-  --tag-brown-bg: #f5ece6;
-  --tag-brown-text: #7a4e33;
-  --tag-orange-bg: #fde9de;
-  --tag-orange-text: #a33d1c;
-  --tag-yellow-bg: #fcf1d2;
-  --tag-yellow-text: #7a5600;
-  --tag-green-bg: #e6f3e6;
-  --tag-green-text: #2b6a35;
-  --tag-blue-bg: #e3effa;
-  --tag-blue-text: #1f5c91;
-  --tag-purple-bg: #efe9f8;
-  --tag-purple-text: #643c9a;
-  --tag-pink-bg: #fbe8f0;
-  --tag-pink-text: #9a2d60;
-  --tag-red-bg: #fde6e4;
-  --tag-red-text: #a12d27;
-  --tag-teal-bg: #e1f3ef;
-  --tag-teal-text: #1d665a;
+  /* Tags: soft tinted pairs for badges, icon tiles and avatars; -solid is the saturated tile fill. */
+  --tag-gray-bg: #f1f1ef;
+  --tag-gray-text: #5c5c5a;
+  --tag-gray-solid: #8a8a88;
+  --tag-brown-bg: #f3eeea;
+  --tag-brown-text: #7b4f36;
+  --tag-brown-solid: #a0735a;
+  --tag-orange-bg: #fcebdd;
+  --tag-orange-text: #9a3f0c;
+  --tag-orange-solid: #e8702a;
+  --tag-yellow-bg: #fbf2d2;
+  --tag-yellow-text: #735400;
+  --tag-yellow-solid: #e2a600;
+  --tag-green-bg: #e3f3e6;
+  --tag-green-text: #1f6b35;
+  --tag-green-solid: #2ea55a;
+  --tag-blue-bg: #e1eefb;
+  --tag-blue-text: #1c5b99;
+  --tag-blue-solid: #2e7be0;
+  --tag-purple-bg: #eee9f8;
+  --tag-purple-text: #603b96;
+  --tag-purple-solid: #8b5cf6;
+  --tag-pink-bg: #fae8f0;
+  --tag-pink-text: #96305f;
+  --tag-pink-solid: #e04e8f;
+  --tag-red-bg: #fce6e4;
+  --tag-red-text: #a1302a;
+  --tag-red-solid: #e5484d;
+  --tag-teal-bg: #dff3ef;
+  --tag-teal-text: #1b6558;
+  --tag-teal-solid: #1fa38e;
 
   --motion-ease: cubic-bezier(0.3, 0, 0.2, 1);
-  --motion-fast: 150ms;
-  --motion-base: 180ms;
+  --motion-fast: 120ms;
+  --motion-base: 160ms;
 
   color-scheme: light;
   font-family: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
@@ -80,56 +91,68 @@
   line-height: 1.5;
 }
 
-/* Dark stays warm: brown-black, never blue-black. */
+/* Dark: three neutral grey steps (canvas, chrome, raised) with white washes on top. */
 .dark {
-  --bg: #1f1e1c;
-  --panel: #252422;
-  --panel-2: #2d2b28;
-  --surface: #242321;
-  --field: #2a2826;
-  --secondary: #353330;
-  --secondary-hover: #3e3b37;
-  --line: rgba(255, 244, 228, 0.09);
-  --line-strong: rgba(255, 244, 228, 0.16);
-  --hover: rgba(255, 244, 228, 0.055);
-  --active: rgba(255, 244, 228, 0.09);
-  --text: #ece9e4;
-  --muted: #aaa49b;
-  --accent: #f2845f;
-  --accent-hover: #f69b7c;
-  --on-primary: #2a120a;
-  --accent-soft: #4c2b1f;
-  --accent-pale: #35251e;
-  --overlay: #0c0a08;
-  --green: #74c08a;
-  --on-success: #0f1a12;
-  --danger: #ef8a7c;
-  --danger-text: #f4a99e;
-  --danger-soft: #42261f;
-  --focus: color-mix(in srgb, var(--accent) 55%, transparent);
-  --menu-shadow: 0 0 0 1px rgba(0, 0, 0, 0.25), 0 4px 10px rgba(0, 0, 0, 0.3), 0 14px 32px rgba(0, 0, 0, 0.45);
-  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.25);
+  --bg: #191919;
+  --panel: #202020;
+  --panel-2: #2a2a2a;
+  --surface: #202020;
+  --surface-2: #262626;
+  --field: #1f1f1f;
+  --secondary: #2c2c2c;
+  --secondary-hover: #343434;
+  --line: rgba(255, 255, 255, 0.09);
+  --line-strong: rgba(255, 255, 255, 0.16);
+  --hover: rgba(255, 255, 255, 0.055);
+  --active: rgba(255, 255, 255, 0.09);
+  --text: #e6e6e6;
+  --muted: #a3a3a3;
+  --accent: #5b9bff;
+  --accent-hover: #78adff;
+  --on-primary: #0b1a33;
+  --accent-soft: #1e3a6b;
+  --accent-pale: #1a2a45;
+  --overlay: #000000;
+  --green: #4ade80;
+  --on-success: #052e16;
+  --danger: #f87171;
+  --danger-text: #fca5a5;
+  --danger-soft: #451a1a;
+  --on-danger: #2a0a0a;
+  --focus: color-mix(in srgb, var(--accent) 60%, transparent);
+  --menu-shadow: 0 0 0 1px rgba(255, 255, 255, 0.06), 0 4px 12px rgba(0, 0, 0, 0.4), 0 16px 40px rgba(0, 0, 0, 0.5);
+  --card-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 
-  --tag-gray-bg: #33312e;
-  --tag-gray-text: #bdb7ae;
-  --tag-brown-bg: #3a2d25;
-  --tag-brown-text: #d4ae90;
-  --tag-orange-bg: #432a1e;
-  --tag-orange-text: #f1a07c;
-  --tag-yellow-bg: #3d3220;
-  --tag-yellow-text: #e8c66e;
-  --tag-green-bg: #263a2b;
-  --tag-green-text: #8acb98;
-  --tag-blue-bg: #24323d;
-  --tag-blue-text: #8dbde3;
-  --tag-purple-bg: #312838;
-  --tag-purple-text: #c7aae4;
-  --tag-pink-bg: #3c2731;
-  --tag-pink-text: #eaa3c4;
-  --tag-red-bg: #432725;
-  --tag-red-text: #f3a09a;
-  --tag-teal-bg: #213834;
-  --tag-teal-text: #84cdbd;
+  --tag-gray-bg: #2e2e2e;
+  --tag-gray-text: #b8b8b5;
+  --tag-gray-solid: #7a7a78;
+  --tag-brown-bg: #332a24;
+  --tag-brown-text: #d1ae93;
+  --tag-brown-solid: #a77a60;
+  --tag-orange-bg: #3b2a1c;
+  --tag-orange-text: #f2a071;
+  --tag-orange-solid: #e07838;
+  --tag-yellow-bg: #3a3220;
+  --tag-yellow-text: #e6c565;
+  --tag-yellow-solid: #d9a62a;
+  --tag-green-bg: #22312a;
+  --tag-green-text: #7fcb92;
+  --tag-green-solid: #37b36a;
+  --tag-blue-bg: #1f2d3b;
+  --tag-blue-text: #85bbea;
+  --tag-blue-solid: #4a90e8;
+  --tag-purple-bg: #2e2838;
+  --tag-purple-text: #c3a5e6;
+  --tag-purple-solid: #9a6ff5;
+  --tag-pink-bg: #3a2731;
+  --tag-pink-text: #eba3c6;
+  --tag-pink-solid: #e25e9a;
+  --tag-red-bg: #402523;
+  --tag-red-text: #f39f99;
+  --tag-red-solid: #e5555a;
+  --tag-teal-bg: #203431;
+  --tag-teal-text: #82cfc0;
+  --tag-teal-solid: #2aad98;
 
   color-scheme: dark;
 }
@@ -139,6 +162,7 @@
   --color-panel: var(--panel);
   --color-panel-2: var(--panel-2);
   --color-surface: var(--surface);
+  --color-surface-2: var(--surface-2);
   --color-line: var(--line);
   --color-line-strong: var(--line-strong);
   --color-hover: var(--hover);
@@ -156,39 +180,50 @@
   --color-danger: var(--danger);
   --color-danger-text: var(--danger-text);
   --color-danger-soft: var(--danger-soft);
+  --color-on-danger: var(--on-danger);
   --color-focus: var(--focus);
   --color-tag-gray-bg: var(--tag-gray-bg);
   --color-tag-gray-text: var(--tag-gray-text);
+  --color-tag-gray-solid: var(--tag-gray-solid);
   --color-tag-brown-bg: var(--tag-brown-bg);
   --color-tag-brown-text: var(--tag-brown-text);
+  --color-tag-brown-solid: var(--tag-brown-solid);
   --color-tag-orange-bg: var(--tag-orange-bg);
   --color-tag-orange-text: var(--tag-orange-text);
+  --color-tag-orange-solid: var(--tag-orange-solid);
   --color-tag-yellow-bg: var(--tag-yellow-bg);
   --color-tag-yellow-text: var(--tag-yellow-text);
+  --color-tag-yellow-solid: var(--tag-yellow-solid);
   --color-tag-green-bg: var(--tag-green-bg);
   --color-tag-green-text: var(--tag-green-text);
+  --color-tag-green-solid: var(--tag-green-solid);
   --color-tag-blue-bg: var(--tag-blue-bg);
   --color-tag-blue-text: var(--tag-blue-text);
+  --color-tag-blue-solid: var(--tag-blue-solid);
   --color-tag-purple-bg: var(--tag-purple-bg);
   --color-tag-purple-text: var(--tag-purple-text);
+  --color-tag-purple-solid: var(--tag-purple-solid);
   --color-tag-pink-bg: var(--tag-pink-bg);
   --color-tag-pink-text: var(--tag-pink-text);
+  --color-tag-pink-solid: var(--tag-pink-solid);
   --color-tag-red-bg: var(--tag-red-bg);
   --color-tag-red-text: var(--tag-red-text);
+  --color-tag-red-solid: var(--tag-red-solid);
   --color-tag-teal-bg: var(--tag-teal-bg);
   --color-tag-teal-text: var(--tag-teal-text);
+  --color-tag-teal-solid: var(--tag-teal-solid);
   --color-field: var(--field);
   --color-secondary: var(--secondary);
   --color-secondary-hover: var(--secondary-hover);
-  --radius-sm: 6px;
-  --radius-md: 10px;
+  --radius-sm: 4px;
+  --radius-md: 6px;
   --radius-lg: 10px;
-  --radius-xl: 14px;
+  --radius-xl: 12px;
   --radius-2xl: 16px;
   --shadow-menu: var(--menu-shadow);
   --shadow-card: var(--card-shadow);
   --ease-ui: var(--motion-ease);
-  --default-transition-duration: 160ms;
+  --default-transition-duration: 140ms;
   --default-transition-timing-function: var(--motion-ease);
   --font-sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
   --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
@@ -227,6 +262,11 @@ select {
   font: inherit;
 }
 
+button:not(:disabled),
+[role="button"]:not([aria-disabled="true"]) {
+  cursor: pointer;
+}
+
 code,
 kbd,
 samp,
@@ -240,6 +280,26 @@ pre {
   color: var(--text);
 }
 
+/* Thin, quiet scrollbars (Dokploy/Notion style). */
+* {
+  scrollbar-width: thin;
+  scrollbar-color: var(--line-strong) transparent;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--line-strong);
+  border-radius: 6px;
+}
+
 @keyframes fade-in {
   from {
     opacity: 0;
@@ -249,7 +309,14 @@ pre {
 @keyframes pop-in {
   from {
     opacity: 0;
-    scale: 0.97;
+    scale: 0.98;
+    translate: 0 4px;
+  }
+}
+
+@keyframes slide-in-left {
+  from {
+    translate: -100% 0;
   }
 }
 

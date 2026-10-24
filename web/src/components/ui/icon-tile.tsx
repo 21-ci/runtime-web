@@ -4,7 +4,8 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
-// Hue is one of the tag palettes; each tile pairs tag-*-bg with tag-*-text (AA-checked).
+// Hue is one of the tag palettes; each tile pairs tag-*-bg with tag-*-text (AA-checked), or uses
+// tag-*-solid with a white glyph for the solid variant.
 export type Hue = "gray" | "brown" | "orange" | "yellow" | "green" | "blue" | "purple" | "pink" | "red" | "teal";
 
 const HUE: Record<Hue, string> = {
@@ -20,11 +21,25 @@ const HUE: Record<Hue, string> = {
   teal: "bg-tag-teal-bg text-tag-teal-text",
 };
 
+const SOLID: Record<Hue, string> = {
+  gray: "bg-tag-gray-solid text-white",
+  brown: "bg-tag-brown-solid text-white",
+  orange: "bg-tag-orange-solid text-white",
+  yellow: "bg-tag-yellow-solid text-white",
+  green: "bg-tag-green-solid text-white",
+  blue: "bg-tag-blue-solid text-white",
+  purple: "bg-tag-purple-solid text-white",
+  pink: "bg-tag-pink-solid text-white",
+  red: "bg-tag-red-solid text-white",
+  teal: "bg-tag-teal-solid text-white",
+};
+
 // ENTITY_HUE gives every entity type its own colour, used by the sidebar, page headers and
 // empty states so the same thing always looks the same.
 export const ENTITY_HUE = {
   overview: "orange",
   apps: "blue",
+  code: "blue",
   projects: "yellow",
   logs: "teal",
   triggers: "pink",
@@ -39,7 +54,7 @@ export const ENTITY_HUE = {
   audit: "gray",
   security: "teal",
   settings: "gray",
-  versions: "blue",
+  versions: "purple",
 } as const satisfies Record<string, Hue>;
 
 export type Entity = keyof typeof ENTITY_HUE;
@@ -47,10 +62,11 @@ export type Entity = keyof typeof ENTITY_HUE;
 const tileVariants = cva("inline-grid shrink-0 place-items-center [&_svg]:shrink-0 [&_svg]:stroke-2", {
   variants: {
     size: {
-      xs: "size-5 rounded-md [&_svg]:size-3",
+      xs: "size-5 rounded-[5px] [&_svg]:size-3",
       sm: "size-6 rounded-md [&_svg]:size-3.5",
       md: "size-8 rounded-lg [&_svg]:size-4",
       lg: "size-11 rounded-xl [&_svg]:size-5",
+      xl: "size-14 rounded-2xl [&_svg]:size-7",
     },
   },
   defaultVariants: { size: "sm" },
@@ -60,15 +76,48 @@ export interface IconTileProps extends React.HTMLAttributes<HTMLSpanElement>, Va
   icon: LucideIcon;
   hue?: Hue;
   entity?: Entity;
+  /** Saturated fill with a white glyph (Framer-style category icon). */
+  solid?: boolean;
 }
 
-function IconTile({ icon: Icon, hue, entity, size, className, ...props }: IconTileProps) {
+function IconTile({ icon: Icon, hue, entity, size, solid = false, className, ...props }: IconTileProps) {
   const h: Hue = hue ?? (entity ? ENTITY_HUE[entity] : "gray");
   return (
-    <span aria-hidden="true" className={cn(tileVariants({ size }), HUE[h], className)} {...props}>
+    <span aria-hidden="true" className={cn(tileVariants({ size }), solid ? SOLID[h] : HUE[h], className)} {...props}>
       <Icon />
     </span>
   );
 }
 
-export { IconTile };
+// LetterTile is the same square with an initial instead of an icon (apps, orgs).
+function LetterTile({
+  label,
+  hue = "gray",
+  size = "sm",
+  solid = false,
+  className,
+  ...props
+}: Omit<IconTileProps, "icon"> & { label: string }) {
+  const text = label.trim().charAt(0).toUpperCase() || "?";
+  const font =
+    size === "xl" ? "text-2xl" : size === "lg" ? "text-lg" : size === "md" ? "text-sm" : size === "xs" ? "text-[10px]" : "text-[12px]";
+  return (
+    <span
+      aria-hidden="true"
+      className={cn(tileVariants({ size }), "font-semibold", font, solid ? SOLID[hue] : HUE[hue], className)}
+      {...props}
+    >
+      {text}
+    </span>
+  );
+}
+
+// hueFor picks a stable hue for a name (org and app avatars).
+const HUES: Hue[] = ["blue", "green", "purple", "orange", "pink", "teal", "yellow", "red"];
+export function hueFor(name: string): Hue {
+  let h = 0;
+  for (const ch of name) h = (h * 31 + ch.charCodeAt(0)) >>> 0;
+  return HUES[h % HUES.length];
+}
+
+export { IconTile, LetterTile };

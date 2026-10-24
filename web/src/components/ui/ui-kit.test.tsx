@@ -73,7 +73,7 @@ describe("ui kit", () => {
     render(<EmptyState title="No apps" description="Create one to start." />);
     const title = screen.getByText("No apps");
     const box = title.parentElement as HTMLElement;
-    expect(box.className).toMatch(/rounded-2xl/);
+    expect(box.className).toMatch(/rounded-lg/);
     expect(box.className).toMatch(/border-line/);
     expect(box.className).not.toMatch(/border-dashed/);
   });
