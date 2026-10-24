@@ -275,9 +275,17 @@ Notes:
 | GET | `/api/auth/oauth/{provider}/start` | public | `?next=<path>` | `302` to the provider; sets the state+PKCE cookie (10 min) | `404 not_found` (provider not configured) |
 | GET | `/api/auth/oauth/{provider}/callback` | public | `?code&state` | `302` to `next` (full session), or to `/login/mfa` (MFA-pending cookie) | redirects to `/login?error=<code>` |
 
+| POST | `/api/me/oauth/{provider}/link` | session | `{next?: string}` (default `/me/security`) | `200 {location: string}` (navigate there) + state cookie; the callback attaches the identity to the signed-in user and redirects to `next` without a new session | `404 not_found` (provider not configured); callback redirects to `next?error=identity_taken` when the identity belongs to another user |
+
 `{provider}` is `github`, `google` or `oidc`. Callback error codes (shown on the login page):
 `oauth_state_invalid`, `email_unverified`, `no_account` (no user has that verified email; **no user is
-created**), `account_disabled`, `oauth_failed`.
+created**), `link_required` (a user has that email but this identity is not linked to it),
+`account_disabled`, `oauth_failed`.
+
+OAuth sign-in never links an identity to an account by email. An invite link can be redeemed by
+whoever holds it, so an account's email is not proof that its owner controls that mailbox; auto-linking
+would let an inviter pre-create `ceo@corp.com` and later receive the real owner's SSO sign-in. Linking
+happens only from a signed-in session via `POST /api/me/oauth/{provider}/link`.
 
 Security notes: `id_token` and `nonce` are intentionally not used. Identity comes from the userinfo endpoint
 (or GitHub's `/user` and `/user/emails`) over TLS, with a confidential client (`client_secret`) and PKCE (S256).

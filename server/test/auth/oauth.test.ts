@@ -59,6 +59,23 @@ async function flow(app: TestApp, provider = "oidc", next = "/orgs/x"): Promise<
 
 const loc = (r: Response) => r.headers.get("location");
 
+/** A user with an identity already linked (linking itself needs a session: see "links from a session"). */
+async function linkedUser(app: TestApp, email: string, provider = "oidc", subject = "sub-1"): Promise<string> {
+  const id = (await app.deps.storage.db.first<{ id: string }>("SELECT id FROM users WHERE email = ?", [email]))?.id ?? (await addUser(app, email));
+  await app.deps.storage.db.run("INSERT INTO identities (provider, subject, user_id, email) VALUES (?, ?, ?, ?)", [provider, subject, id, email]);
+  return id;
+}
+
+/** Runs the link flow for a signed-in client; returns the callback response. */
+async function linkFlow(app: TestApp, c: Client, provider = "oidc", next = "/me/security"): Promise<Response> {
+  const res = await c.call("POST", `/api/me/oauth/${provider}/link`, { next });
+  expect(res.status).toBe(200);
+  const start = ((await res.json()) as { location: string }).location;
+  const state = new URL(start).searchParams.get("state") as string;
+  const cookie = (res.headers.get("set-cookie") as string).split(";")[0] as string;
+  return app.call("GET", `/api/auth/oauth/${provider}/callback?code=c1&state=${state}`, { headers: { cookie: `${cookie}; ${c.cookie}` } });
+}
+
 describe("oauth", () => {
   let idp: ReturnType<typeof fakeIdp>;
   let app: TestApp;
@@ -81,20 +98,50 @@ describe("oauth", () => {
     expect((await app.call("GET", "/api/auth/oauth/bogus/start")).status).toBe(404);
   });
 
-  it("links an existing user by verified email and signs in", async () => {
+  it("signs in a linked user", async () => {
     await withProvider(app);
-    const uid = await addUser(app, "u@example.com");
+    await linkedUser(app, "u@example.com");
     const res = await flow(app);
     expect(loc(res)).toBe("/orgs/x");
     expect(res.headers.getSetCookie().some((c) => c.startsWith("__Host-rtw_session="))).toBe(true);
     expect(res.headers.getSetCookie().some((c) => c.startsWith("__Host-rtw_oauth=;"))).toBe(true);
     expect(idp.tokenForm?.get("code_verifier")).toBeTruthy();
     expect(idp.tokenForm?.get("client_secret")).toBe("csecret");
-    const row = await app.deps.storage.db.first<{ user_id: string }>("SELECT user_id FROM identities WHERE provider='oidc' AND subject='sub-1'");
-    expect(row?.user_id).toBe(uid);
     // linked identity wins even if the email changes upstream
     idp.userinfo = { sub: "sub-1", email: "other@example.com", email_verified: true };
     expect(loc(await flow(app))).toBe("/orgs/x");
+  });
+
+  it("never auto-links by email (M3): link_required, no identity row, no session", async () => {
+    await withProvider(app);
+    await addUser(app, "u@example.com");
+    const res = await flow(app);
+    expect(loc(res)).toBe("/login?error=link_required");
+    expect(res.headers.getSetCookie().some((c) => c.startsWith("__Host-rtw_session="))).toBe(false);
+    const n = await app.deps.storage.db.first<{ n: number }>("SELECT COUNT(*) AS n FROM identities");
+    expect(Number(n?.n)).toBe(0);
+  });
+
+  it("links from a signed-in session, then signs in with the provider", async () => {
+    await withProvider(app);
+    const admin = await setupAdmin(app);
+    idp.userinfo = { sub: "sub-9", email: "someone-else@example.com", email_verified: true };
+    const res = await linkFlow(app, admin);
+    expect(loc(res)).toBe("/me/security");
+    expect(res.headers.getSetCookie().some((c) => c.startsWith("__Host-rtw_session="))).toBe(false);
+    const row = await app.deps.storage.db.first<{ user_id: string }>("SELECT user_id FROM identities WHERE provider='oidc' AND subject='sub-9'");
+    expect(row?.user_id).toMatch(/^usr/);
+    expect(loc(await flow(app))).toBe("/orgs/x");
+  });
+
+  it("link needs a session and CSRF, and refuses an identity linked to someone else", async () => {
+    await withProvider(app);
+    expect((await app.call("POST", "/api/me/oauth/oidc/link", { body: {}, headers: { origin: "https://console.test" } })).status).toBe(401);
+    const admin = await setupAdmin(app);
+    expect((await admin.call("POST", "/api/me/oauth/oidc/link", {}, { "x-csrf-token": "bad" })).status).toBe(403);
+    expect((await admin.call("POST", "/api/me/oauth/bogus/link", {})).status).toBe(404);
+    await linkedUser(app, "u@example.com", "oidc", "sub-1");
+    expect(loc(await linkFlow(app, admin))).toBe("/me/security?error=identity_taken");
   });
 
   it("never creates a user: no_account", async () => {
@@ -111,9 +158,9 @@ describe("oauth", () => {
     expect(loc(await flow(app))).toBe("/login?error=email_unverified");
   });
 
-  it("disabled users are account_disabled (new and linked)", async () => {
+  it("disabled users are account_disabled", async () => {
     await withProvider(app);
-    await addUser(app, "u@example.com");
+    await linkedUser(app, "u@example.com");
     expect(loc(await flow(app))).toBe("/orgs/x");
     await app.deps.storage.db.run("UPDATE users SET disabled = 1");
     expect(loc(await flow(app))).toBe("/login?error=account_disabled");
@@ -121,7 +168,7 @@ describe("oauth", () => {
 
   it("state: forged, missing cookie, reused are oauth_state_invalid", async () => {
     await withProvider(app);
-    await addUser(app, "u@example.com");
+    await linkedUser(app, "u@example.com");
     const start = await app.call("GET", "/api/auth/oauth/oidc/start");
     const state = new URL(loc(start) as string).searchParams.get("state") as string;
     const cookie = (start.headers.get("set-cookie") as string).split(";")[0] as string;
@@ -136,13 +183,14 @@ describe("oauth", () => {
     await withProvider(app, {});
     const admin: Client = await setupAdmin(app);
     await enableTotp(app, admin);
+    await linkedUser(app, "admin@example.com", "oidc", "s");
     idp.userinfo = { sub: "s", email: "admin@example.com", email_verified: true };
     expect(loc(await flow(app))).toBe("/login/mfa");
   });
 
   it("github uses the primary verified email", async () => {
     await setProvider(app.deps, { id: "github", enabled: true, client_id: "gh", client_secret: "ghs" });
-    await addUser(app, "u@example.com");
+    await linkedUser(app, "u@example.com", "github", "42");
     idp.ghEmails = [{ email: "u@example.com", primary: true, verified: false }];
     expect(loc(await flow(app, "github"))).toBe("/login?error=email_unverified");
     idp.ghEmails = [{ email: "x@example.com", primary: false, verified: true }, { email: "u@example.com", primary: true, verified: true }];

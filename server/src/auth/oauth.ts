@@ -18,6 +18,7 @@ import { clearCookie, getCookie, oauthStateCookieName, setCookie } from "../http
 import { AppError, conflict, invalid, notFound } from "../http/errors.ts";
 import type { Db, Stmt } from "../storage/types.ts";
 import { loginUser, type Client, type LoginOutcome } from "./login.ts";
+import { lookupSession, sessionCookie } from "./session.ts";
 import { dbOf, getUserByEmail, normalizeEmail, sealerOf, type AuthDeps } from "./types.ts";
 
 export const PROVIDERS = ["github", "google", "oidc"] as const;
@@ -31,7 +32,14 @@ export const GITHUB_WEB = "https://github.com";
 export const GITHUB_API = "https://api.github.com";
 export const GOOGLE_ISSUER = "https://accounts.google.com";
 
-export type OAuthErrorCode = "oauth_state_invalid" | "email_unverified" | "no_account" | "account_disabled" | "oauth_failed";
+export type OAuthErrorCode =
+  | "oauth_state_invalid"
+  | "email_unverified"
+  | "no_account"
+  | "link_required"
+  | "identity_taken"
+  | "account_disabled"
+  | "oauth_failed";
 
 const isProvider = (id: string): id is ProviderId => (PROVIDERS as readonly string[]).includes(id);
 const settingKey = (id: string) => `oauth.${id}`;
@@ -277,16 +285,26 @@ interface StoredState {
   verifier: string;
   provider: ProviderId;
   next: string;
+  /** Set when a signed-in user links this provider (POST /api/me/oauth/{p}/link). */
+  linkUser?: string;
 }
 
-/** Builds the provider URL and the state cookie. Unconfigured providers are 404. */
-export async function oauthStart(deps: AuthDeps, providerId: string, next: string | null): Promise<{ location: string; setCookie: string }> {
+/**
+ * Builds the provider URL and the state cookie. Unconfigured providers are 404.
+ * With linkUser the callback attaches the identity to that user instead of signing in.
+ */
+export async function oauthStart(
+  deps: AuthDeps,
+  providerId: string,
+  next: string | null,
+  linkUser?: string,
+): Promise<{ location: string; setCookie: string }> {
   const p = await getProvider(deps, providerId);
   if (!p) throw notFound();
   const ep = await endpointsFor(deps, p);
   const state = randomToken(32);
   const verifier = randomToken(32);
-  const st: StoredState = { verifier, provider: p.id, next: safeNext(next) };
+  const st: StoredState = { verifier, provider: p.id, next: safeNext(next), ...(linkUser ? { linkUser } : {}) };
   await deps.storage.kv.set(`oauth:${state}`, st, { ttlSeconds: OAUTH_STATE_TTL_SECONDS });
   const q = new URLSearchParams({
     response_type: "code",
@@ -335,6 +353,19 @@ export async function oauthCallback(deps: AuthDeps, providerId: string, req: Req
   const ident = await identify(deps, p, code, st.verifier);
   if (typeof ident === "string") return done(loginError(ident));
 
+  if (st.linkUser) {
+    const db = await dbOf(deps);
+    const sc = sessionCookie(deps.config, req);
+    const cur = sc ? await lookupSession(db, deps.now(), sc) : null;
+    if (!cur || cur.user.id !== st.linkUser) return done(loginError("oauth_state_invalid"));
+    const back = safeNext(st.next);
+    const idn = await db.first<{ user_id: string }>("SELECT user_id FROM identities WHERE provider = ? AND subject = ?", [p.id, ident.subject]);
+    if (idn && idn.user_id !== st.linkUser) return done(`${back}${back.includes("?") ? "&" : "?"}error=identity_taken`);
+    if (!idn) {
+      await db.run("INSERT INTO identities (provider, subject, user_id, email) VALUES (?, ?, ?, ?)", [p.id, ident.subject, st.linkUser, ident.email]);
+    }
+    return done(back);
+  }
   const linked = await link(deps, p.id, ident);
   if (typeof linked !== "object") return done(loginError(linked));
   let outcome: LoginOutcome;
@@ -393,16 +424,18 @@ async function identify(deps: AuthDeps, p: ProviderConfig, code: string, verifie
   }
 }
 
-/** The linked user, or the existing user with that verified email (identity row inserted). Never creates a user. */
+/**
+ * The user already linked to this identity. Never links by email (audit M3: an invite
+ * accepted by someone else, or any password account, must not be taken over by whoever
+ * controls a matching IdP email); linking happens only from a signed-in session.
+ * Never creates a user.
+ */
 async function link(deps: AuthDeps, provider: ProviderId, ident: Identity): Promise<{ userId: string } | OAuthErrorCode> {
   const db = await dbOf(deps);
   const idn = await db.first<{ user_id: string }>("SELECT user_id FROM identities WHERE provider = ? AND subject = ?", [provider, ident.subject]);
   if (idn) return { userId: idn.user_id };
   const u = await getUserByEmail(db, ident.email);
-  if (!u) return "no_account";
-  if (Number(u.disabled)) return "account_disabled";
-  await db.run("INSERT OR IGNORE INTO identities (provider, subject, user_id, email) VALUES (?, ?, ?, ?)", [provider, ident.subject, u.id, ident.email]);
-  return { userId: u.id };
+  return u ? "link_required" : "no_account";
 }
 
 /** 409 sso_not_configured guard for callers saving policy + providers together. */
