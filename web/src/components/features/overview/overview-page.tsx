@@ -11,6 +11,7 @@ import { LetterTile, hueFor } from "@/components/ui/icon-tile";
 import { SectionCard, SMALL_CONTROL } from "@/components/ui/section-card";
 import { StatTile } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
+import { PreviewFrame } from "@/components/ui/preview-frame";
 import { UrlBar } from "@/components/ui/url-bar";
 import { useProjects } from "@/hooks/orgs";
 import { formatCount } from "@/lib/format";
@@ -119,13 +120,7 @@ export function OverviewPage({ org, app }: { org: string; app: string }) {
           badge={<Badge variant="success">HTTP</Badge>}
           onReload={() => setPreviewKey((k) => k + 1)}
         />
-        <iframe
-          key={previewKey}
-          title="Response preview"
-          src={a.url}
-          sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
-          className="h-[320px] w-full rounded-lg border border-line bg-white shadow-card"
-        />
+        <PreviewFrame url={a.url} title="Response preview" reloadKey={previewKey} className="h-[320px]" />
       </section>
 
       <section aria-labelledby="stats-heading" className="flex flex-col gap-2">

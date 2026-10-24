@@ -6,6 +6,7 @@ import { Badge } from "./badge";
 import { IconTile, LetterTile, hueFor } from "./icon-tile";
 import { Kbd, PageHeader, SectionLabel, StatTile } from "./page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs";
+import { PreviewFrame } from "./preview-frame";
 import { CopyButton, UrlBar } from "./url-bar";
 import { Boxes } from "lucide-react";
 
@@ -97,5 +98,19 @@ describe("page primitives", () => {
     expect(container.querySelector(".bg-tag-green-solid")).not.toBeNull();
     await userEvent.click(screen.getByRole("tab", { name: "Dark" }));
     expect(await screen.findByText("dark body")).toBeInTheDocument();
+  });
+});
+
+describe("PreviewFrame", () => {
+  it("falls back to an open link when the CSP blocks the frame", () => {
+    render(<PreviewFrame url="https://run.example.test/s/hello/" title="App preview" />);
+    expect(screen.getByTitle("App preview")).toHaveAttribute("src", "https://run.example.test/s/hello/");
+    act(() => {
+      const ev = new Event("securitypolicyviolation") as Event & { effectiveDirective: string; violatedDirective: string; blockedURI: string };
+      Object.assign(ev, { effectiveDirective: "frame-src", violatedDirective: "frame-src", blockedURI: "https://run.example.test" });
+      document.dispatchEvent(ev);
+    });
+    expect(screen.queryByTitle("App preview")).toBeNull();
+    expect(screen.getByRole("link", { name: /open app/i })).toHaveAttribute("href", "https://run.example.test/s/hello/");
   });
 });

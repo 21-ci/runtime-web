@@ -18,6 +18,7 @@ import {
 import { Kbd } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { PreviewFrame } from "@/components/ui/preview-frame";
 import { UrlBar } from "@/components/ui/url-bar";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
@@ -285,13 +286,7 @@ export function CodePage({ org, app }: { org: string; app: string }) {
           )}
         >
           <UrlBar url={view.data.url} badge={<Badge variant="success">HTTP</Badge>} onReload={() => setPreviewKey((k) => k + 1)} className="bg-surface" />
-          <iframe
-            key={previewKey}
-            title="App preview"
-            src={view.data.url}
-            sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
-            className="min-h-[260px] w-full flex-1 rounded-lg border border-line bg-white"
-          />
+          <PreviewFrame url={view.data.url} title="App preview" reloadKey={previewKey} className="min-h-[260px] flex-1 shadow-none" />
         </section>
       </div>
 
