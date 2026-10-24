@@ -1,5 +1,6 @@
 import { Router } from "./http/router.ts";
 import type { Storage } from "./storage/types.ts";
+import type { RtCtl } from "./runtime/types.ts";
 import { registerHealth } from "./routes/health.ts";
 import { registerSpa, type SpaDeps } from "./spa.ts";
 
@@ -10,6 +11,8 @@ export interface Deps {
   storage: Storage;
   version: string;
   now: () => number;
+  /** Control-API transport (sdk rtctl at runtime, FakeRtCtl in tests). */
+  rtctl?: RtCtl;
   /** Embedded console (src/gen/assets.ts); absent in most unit tests. */
   spa?: SpaDeps;
 }

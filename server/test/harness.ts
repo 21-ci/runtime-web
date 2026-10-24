@@ -1,4 +1,5 @@
 import { DatabaseSync } from "node:sqlite";
+import { FakeRtCtl } from "./fakes/rtctl.ts";
 import { createApp, type App, type Deps } from "../src/app.ts";
 import type { Db, Kv, Row, SqlArg, Storage, Tx } from "../src/storage/types.ts";
 
@@ -74,7 +75,7 @@ export interface TestApp extends App {
 export function testApp(overrides: Partial<Deps> = {}): TestApp {
   let t = 1_700_000_000_000;
   const now = () => t;
-  const deps: Deps = { storage: memoryStorage(now), version: "test", now, ...overrides };
+  const deps: Deps = { storage: memoryStorage(now), version: "test", now, rtctl: new FakeRtCtl(), ...overrides };
   const app = createApp(deps);
   return {
     ...app,
