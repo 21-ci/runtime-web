@@ -23,7 +23,7 @@ export default defineConfig({
       include: ["src/**/*.{ts,tsx}"],
       exclude: ["src/**/*.test.{ts,tsx}", "src/test/**", "src/routeTree.gen.ts"],
       // Floors at the current level rounded down; raise them, never lower them.
-      thresholds: { statements: 82, branches: 79, functions: 67, lines: 82 },
+      thresholds: { statements: 83, branches: 79, functions: 68, lines: 83 },
     },
   },
 });

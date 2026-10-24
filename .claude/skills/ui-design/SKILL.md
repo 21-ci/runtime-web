@@ -1,12 +1,13 @@
 ---
 name: ui-design
-description: Use when changing the Runtime Web console UI (web/): styling with the design tokens, buttons, badges and status chips, accessibility, or adding a page or feature with TanStack Query hooks and MSW-backed tests.
+description: Use when changing the Runtime Web console UI (web/): styling with the warm design tokens, pill buttons, cards, IconTile and ENTITY_HUE colours, badges and status chips, accessibility, or adding a page or feature with TanStack Query hooks and MSW-backed tests.
 ---
 
 # UI design in the Runtime Web console
 
-The console is calm, Notion-like and utilitarian. Start from the tokens and the existing primitives. Do not invent a
-new look per page.
+The console is warm, friendly and smooth: a warm off-white canvas, soft warm greys, rounded cards, pill buttons and
+colourful icon tiles. No gradients, glass, neon or blue-black darks. Start from the tokens and the existing
+primitives. Do not invent a new look per page.
 
 Source of truth: `web/src/index.css` (tokens on `:root` and `.dark`, mapped to Tailwind with `@theme inline`) and
 `docs/contributing/design-tokens.md` (the human-readable table).
@@ -21,55 +22,86 @@ Source of truth: `web/src/index.css` (tokens on `:root` and `.dark`, mapped to T
 
 ## Tokens
 
-Use token classes, never raw hex values in components.
+Use token classes, never raw hex values in components. Every text/fill pair is AA-checked in
+`web/src/styles/contrast.test.ts` (both themes); add a case there when you add a pair.
 
 | Need | Use |
 |---|---|
-| Page background | `bg-bg` |
-| Sidebar and chrome | `bg-panel` |
-| Recessed fill, table headers | `bg-panel-2` |
-| Cards, inputs, dialogs | `bg-surface` |
-| Hairlines | `border-line`; control borders `border-line-strong` |
+| Page background | `bg-bg` (warm off-white #FDFCFA / dark #1F1E1C) |
+| Sidebar, auth canvas, table headers | `bg-panel` |
+| Recessed fill | `bg-panel-2` |
+| Cards, dialogs, menus, active sidebar pill | `bg-surface` |
+| Input and select fill | `bg-field` |
+| Secondary button, tab track | `bg-secondary`, `hover:bg-secondary-hover` |
+| Hairlines | `border-line`; control hover `border-line-strong` |
 | Hover and ghost wash | `hover:bg-hover`, `active:bg-active` |
-| Primary and secondary text | `text-text`, `text-muted` (muted passes AA on every surface) |
-| Brass accent: primary button, links, focus | `bg-accent`, `hover:bg-accent-hover`, `text-on-primary` |
-| Selection, selected nav item | `bg-accent-soft`, `bg-accent-pale` |
+| Primary and secondary text | `text-text`, `text-muted` |
+| Tomato coral accent: primary button, links, focus | `bg-accent`, `hover:bg-accent-hover`, `text-on-primary` |
+| Selection, info badge | `bg-accent-soft`, `bg-accent-pale` |
 | Focus ring | `ring-focus` (the primitives already set it) |
 | Destructive and errors | `text-danger-text`, `bg-danger-soft`, `bg-danger` |
+| Soft tints (badges, icon tiles, org avatars) | `tag-{gray,brown,orange,yellow,green,blue,purple,pink,red,teal}-{bg,text}` |
 
 Shape and motion:
 
-- Radius: `rounded-sm` (4px) for controls, badges and skeletons; `rounded-md` (6px) for cards, menus and dialogs. Do not
-  go above 6px. `rounded-full` is used only for small status chips and the progress bar.
-- Depth: `shadow-menu` for popovers, dialogs and toasts. No gradients, no glass effects.
-- Motion: default transition is 140ms with `ease-ui`. Reduced motion already disables transitions globally.
-- Type: 14px base, IBM Plex Sans and Mono. Use `tabular-nums` for numeric columns. Headings follow the table in the
-  design tokens doc.
-- Control heights: buttons `h-7` (default) and `h-6` (sm), inputs `h-7`. Icons are `size-4`.
+- Radius: `rounded-full` for buttons, badges, tabs and the tab track; `rounded-lg` (10px) for inputs, selects, menu
+  items and sidebar rows; `rounded-xl` (14px) for menus, popovers and `SectionCard`; `rounded-2xl` (16px) for cards,
+  dialogs, tables, toasts and empty states; `rounded-sm` (6px) only for dense badges and kbd.
+- Depth: `shadow-card` (faint warm) for cards and the active sidebar pill; `shadow-menu` for popovers, dialogs and
+  toasts.
+- Motion: default transition 160ms with `ease-ui` (`--motion-ease`); dialogs `pop-in`, overlays `fade-in`. Reduced
+  motion disables transitions globally.
+- Type: 14px base, Inter (self-hosted, `cv11 ss01`) and IBM Plex Mono. `tabular-nums` for numeric columns. h1 is
+  `text-2xl font-semibold tracking-[-0.01em]` next to an `md` IconTile; h2 `text-base font-semibold`.
+- Control heights: buttons `h-8` (default) and `h-7` (sm); inputs and selects `h-9`, `rounded-lg`, `bg-field`.
+  Icons are `size-4`, stroke 1.75 (tiles use 2).
 
 ## Buttons
 
-Use `Button` from `web/src/components/ui/button.tsx`. Its `variant` and `size` props come from `cva`:
+Use `Button` from `web/src/components/ui/button.tsx`. Buttons are borderless **pills** (`rounded-full`) with a slight
+press scale. Its `variant` and `size` props come from `cva`:
 
-- `variant`: `default` (accent fill, for the one primary action per view), `secondary` (the default when omitted:
-  surface with a border), `ghost` (no border, hover wash) and `danger` (soft red, for destructive actions).
-- `size`: `default` (`h-7`), `sm` (`h-6`), `icon` (`size-7`) and `icon-sm` (`size-6`).
+- `variant`: `default` (coral fill, for the one primary action per view), `secondary` (the default when omitted: soft
+  grey fill), `ghost` (hover wash) and `danger` (soft red, for destructive actions).
+- `size`: `default` (`h-8`), `sm` (`h-7`), `icon` (`size-8`) and `icon-sm` (`size-7`).
 - Pass `asChild` to render a link with button styles.
 
-Do not hand-roll button classes. There are no pill-shaped buttons in this design; a button is a 4px-radius control.
-When a request says "pill buttons", check with the user: the current design uses 4px-radius controls.
+Do not hand-roll button classes. The one exception is small secondary controls inside a `SectionCard` header
+(filters, "View all", the ⋮ menu): use `SMALL_CONTROL` / `SMALL_ICON` from `ui/section-card.tsx` (lightly bordered,
+`rounded-md`, not pills).
+
+## Cards
+
+- `Card` (`ui/card.tsx`): `rounded-2xl`, hairline, `bg-surface`, `shadow-card`, `p-5`. The default container for a
+  settings block or a list.
+- `SectionCard` (`ui/section-card.tsx`): `rounded-xl` dashboard card with a bold title row and small controls. The org
+  overview (`features/overview/dashboard.tsx`) is built from these: quick-action cards (IconTile + title + subtitle),
+  then Apps tiles, Recent activity and Members.
+- `EmptyState` (`ui/empty-state.tsx`) with `entity=…` shows an `lg` IconTile.
+
+## Icon tiles and entity colours
+
+`IconTile` (`web/src/components/ui/icon-tile.tsx`) is a rounded square in a tag tint with a `lucide-react` icon:
+`<IconTile icon={Boxes} entity="apps" size="xs|sm|md|lg" />`. `ENTITY_HUE` in the same file gives every entity type
+one colour so the same thing always looks the same: overview orange, apps blue, projects yellow, logs teal, triggers
+pink, keys/tokens/secrets brown, env/domains green, members/invites purple, admin red, audit/settings gray, security
+teal, versions blue. Use `sm` in the sidebar's Projects section, `md` in page headers, `lg` in empty states. Add a new
+entity to `ENTITY_HUE` rather than picking a hue ad hoc; pass `hue=` only for things that are not entities.
+
+## Sidebar and shell
+
+Org switcher with collapse, a search field that opens ⌘K, plain line icons for the main nav, then a Projects
+section with small coloured tiles and nested apps. The top bar has the breadcrumb on the left and the user avatar
+with a chevron on the right. Shell fixtures for tests live in `web/src/test/shell-fixtures.ts`.
 
 ## Badges and status
 
-Use `Badge` (`web/src/components/ui/badge.tsx`) with its variants: `default`, `success`, `danger`, `warning`, `info`
-and `outline`. They map to the tinted tag tokens `tag-{gray,brown,orange,yellow,green,blue,purple,pink,red}-{bg,text}`,
-and each pair is contrast-checked. Use a tag token directly only when `Badge` cannot express the case.
+Use `Badge` (`web/src/components/ui/badge.tsx`), always a pill, with its variants: `default` (gray), `success`
+(green), `danger` (red), `warning` (yellow), `info` (accent), `accent` (orange) and `outline`. They map to the tag
+token pairs. Use a tag token directly only when `Badge` or `IconTile` cannot express the case.
 
 Status chips that show lifecycle state live next to their feature, for example
 `web/src/components/features/app-settings/status-pill.tsx`. Reuse one of those before adding another.
-
-There is no `IconTile` component in the codebase. If you need a tinted icon square, build it from a tag token pair and a
-`lucide-react` icon, and keep it to one place.
 
 ## Accessibility
 
@@ -130,4 +162,5 @@ Rules:
    - Test what the user sees: role-gated controls, the error path, and the success path that invalidates data.
    - Use `apiError(status, code)` from `msw.ts` for error responses.
 
-Run `make web-test` and `make web-lint` before you finish. `make ci` runs both.
+Run `make web-test` and `make web-lint` before you finish, and `cd web && npm run coverage` (CI fails below the
+thresholds in `web/vitest.config.ts`). `make ci` runs lint and tests.
