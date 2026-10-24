@@ -224,6 +224,7 @@ export function registerApps(router: Router, deps: Deps): void {
     if (typeof b.delay_seconds === "number") body.delay_seconds = b.delay_seconds;
     if (typeof b.dedup_id === "string") body.dedup_id = b.dedup_id;
     const out = await rt(() => c.cli.enqueue(app.id, body));
+    await audit(c, "app.queue.send", slug(ctx), { id: out.id });
     return json({ id: out.id }, 201);
   }));
 

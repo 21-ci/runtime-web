@@ -87,3 +87,28 @@ describe("projects", () => {
     expect((await p.member.call("DELETE", `/api/orgs/${org.slug}/projects/shop`)).status).toBe(403);
   });
 });
+
+describe("project audit", () => {
+  it("create, update and delete each write an org-scoped audit row with the actor", async () => {
+    const app = testApp();
+    const org = await seedOrg(app);
+    const p = await people(app, org);
+    const base = `/api/orgs/${org.slug}/projects`;
+    expect((await p.owner.call("POST", base, { slug: "shop" })).status).toBe(201);
+    expect((await p.owner.call("PATCH", `${base}/shop`, { name: "Shop" })).status).toBe(200);
+    expect((await p.owner.call("DELETE", `${base}/shop`)).status).toBe(204);
+    const rows = await app.deps.storage.db.all<{ action: string; target: string; org_id: string; actor_id: string | null }>(
+      "SELECT action, target, org_id, actor_id FROM audit WHERE action LIKE 'project.%' ORDER BY rowid",
+    );
+    expect(rows.map((r) => r.action)).toEqual(["project.create", "project.update", "project.delete"]);
+    for (const r of rows) expect(r).toMatchObject({ target: "shop", org_id: org.orgId, actor_id: expect.any(String) });
+  });
+
+  it("a rejected create writes no audit row", async () => {
+    const app = testApp();
+    const org = await seedOrg(app);
+    const p = await people(app, org);
+    await p.member.call("POST", `/api/orgs/${org.slug}/projects`, { slug: "nope" });
+    expect(await count(app, "SELECT COUNT(*) AS n FROM audit WHERE action LIKE 'project.%'")).toBe(0);
+  });
+});

@@ -16,13 +16,14 @@ import {
 import type { Router } from "../http/router.ts";
 import { withRuntimeErrors } from "../runtime/errors.ts";
 import { json, noContent, readJson } from "../http/json.ts";
+import { audit } from "../audit/audit.ts";
 
 export function registerProjects(r: Router, deps: Deps): void {
   const s = (h: Parameters<typeof requireSession>[1]) => requireSession(deps, withRuntimeErrors(h));
   const access = async (ctx: Parameters<Parameters<typeof requireSession>[1]>[0]) => {
     const { user } = authOf(ctx);
-    const { org, subject } = await orgAccess(deps, user, ctx.params.org as string);
-    return { org, sub: subject };
+    const { org, subject, actor } = await orgAccess(deps, user, ctx.params.org as string);
+    return { org, sub: subject, actor };
   };
 
   r.get(
@@ -36,9 +37,11 @@ export function registerProjects(r: Router, deps: Deps): void {
   r.post(
     "/api/orgs/:org/projects",
     s(async (ctx) => {
-      const { org, sub } = await access(ctx);
+      const { org, sub, actor } = await access(ctx);
       const req = parseCreate(await readJson<unknown>(ctx.req));
-      return json(await createProject(deps, org, sub, req), 201);
+      const out = await createProject(deps, org, sub, req);
+      await audit(deps, { actor, orgId: org.id, action: "project.create", target: req.slug, detail: { environments: out.environments } });
+      return json(out, 201);
     }),
   );
 
@@ -53,17 +56,20 @@ export function registerProjects(r: Router, deps: Deps): void {
   r.patch(
     "/api/orgs/:org/projects/:p",
     s(async (ctx) => {
-      const { org, sub } = await access(ctx);
+      const { org, sub, actor } = await access(ctx);
       const req = parsePatch(await readJson<unknown>(ctx.req));
-      return json(await updateProject(deps, org, sub, ctx.params.p as string, req));
+      const out = await updateProject(deps, org, sub, ctx.params.p as string, req);
+      await audit(deps, { actor, orgId: org.id, action: "project.update", target: ctx.params.p as string, detail: req });
+      return json(out);
     }),
   );
 
   r.delete(
     "/api/orgs/:org/projects/:p",
     s(async (ctx) => {
-      const { org, sub } = await access(ctx);
+      const { org, sub, actor } = await access(ctx);
       await deleteProject(deps, org, sub, ctx.params.p as string);
+      await audit(deps, { actor, orgId: org.id, action: "project.delete", target: ctx.params.p as string });
       return noContent();
     }),
   );
