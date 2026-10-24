@@ -21,6 +21,7 @@ import { registerInternal } from "./routes/internal.ts";
 import type { AppLookup, TxtLookup } from "./domains/types.ts";
 import { appLookup } from "./apps/service.ts";
 import type { RouteInfo } from "./http/router.ts";
+import { withSecurityHeaders } from "./http/security.ts";
 
 // Composition root, runtime-agnostic: main.ts passes runtime adapters, tests pass
 // in-memory ones. Each feature task adds one `registerX(router, deps)` line here.
@@ -69,11 +70,16 @@ export function createApp(deps: Deps): App {
   registerInternal(router, deps);
   registerSpa(router, deps); // keep last: installs the SPA fallback
   return {
-    fetch: (req, info) =>
-      router.handle(req, {
-        basePath: req.headers.get("x-rt-base-path") ?? "",
-        clientIp: info?.clientIp ?? req.headers.get("x-rt-client-ip") ?? undefined,
-      }),
+    fetch: async (req, info) =>
+      withSecurityHeaders(
+        await router.handle(req, {
+          basePath: req.headers.get("x-rt-base-path") ?? "",
+          // The runtime-resolved address only (ctx.client.ip, else its x-rt-client-ip, which
+          // clients cannot set). X-Forwarded-For is never consulted.
+          clientIp: info?.clientIp ?? req.headers.get("x-rt-client-ip") ?? undefined,
+        }),
+        deps.config.origin,
+      ),
     routes: () => router.describe(),
   };
 }

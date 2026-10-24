@@ -89,6 +89,16 @@ type ErrorBody = {
   ```
 - `429` and `503 busy` also set the `Retry-After` header (seconds) and `details.retry_after` (seconds).
 
+### 1.4a Security headers
+
+Every response (SPA, assets, API, errors) carries `Content-Security-Policy: default-src 'self'; script-src 'self';
+style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self';
+object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`, `X-Frame-Options: DENY`,
+`Referrer-Policy: strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`,
+`Cross-Origin-Opener-Policy: same-origin` and a deny-all `Permissions-Policy`; plus
+`Strict-Transport-Security: max-age=31536000; includeSubDomains` when `RTWEB_ORIGIN` is https.
+`'unsafe-inline'` applies to styles only (CodeMirror and sonner insert `<style>` at runtime); inline script is blocked.
+
 ### 1.5 Error codes (global mapping, `server/src/http/errors.ts`)
 
 | Status | `code` | Source |

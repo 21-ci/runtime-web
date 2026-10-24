@@ -4,6 +4,9 @@ import { fastHasher } from "../harness.ts";
 import type { Hasher } from "../../src/auth/password.ts";
 import { ACCOUNT_SOFT_LIMIT, GLOBAL_LOGINS_PER_MINUTE, IP_FAILURE_LIMIT, MAX_INFLIGHT_HASHES } from "../../src/auth/ratelimit.ts";
 
+const until = async (f: () => boolean) => {
+  for (let i = 0; i < 500 && !f(); i++) await new Promise((r) => setTimeout(r, 5));
+};
 const ip = (n: number | string) => ({ "x-rt-client-ip": typeof n === "string" ? n : `198.51.100.${n}` });
 
 describe("login throttling (H2)", () => {
@@ -86,7 +89,7 @@ describe("argon2 concurrency (M6)", () => {
     const app = testApp({ hasher: slow });
     await addUser(app, "u@example.com");
     const pending = Array.from({ length: MAX_INFLIGHT_HASHES }, (_, i) => loginAs(app, "u@example.com", PW, ip(20 + i)));
-    await new Promise((r) => setTimeout(r, 20));
+    await until(() => release.length === MAX_INFLIGHT_HASHES);
     const over = await loginAs(app, "u@example.com", PW, ip(40));
     expect(over.status).toBe(503);
     expect(await errCode(over)).toBe("busy");
@@ -94,8 +97,7 @@ describe("argon2 concurrency (M6)", () => {
     release.forEach((f) => f());
     for (const p of await Promise.all(pending)) expect(p.status).toBe(200);
     const again = loginAs(app, "u@example.com", PW, ip(41));
-    await new Promise((r) => setTimeout(r, 20));
-    expect(release.length).toBe(MAX_INFLIGHT_HASHES + 1);
+    await until(() => release.length === MAX_INFLIGHT_HASHES + 1);
     release[MAX_INFLIGHT_HASHES]?.();
     expect((await again).status).toBe(200);
   });
