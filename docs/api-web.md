@@ -108,8 +108,9 @@ type ErrorBody = {
 | 428 | `precondition_required` | `If-Match` missing (`apperr.ErrPreconditionRequired`) |
 | 429 | `rate_limited` | `apperr.ErrRateLimited` (login, MFA, log-stream cap) |
 | 429 | `rate_limited`, `build_quota`, `queue_full` | runtime 429, same code + `Retry-After` |
-| 502 | `runtime_unavailable` | runtime unreachable, or runtime `503 control_disabled` |
+| 502 | `runtime_unavailable` | runtime unreachable, or runtime `503 control_disabled` or any other runtime 5xx |
 | 503 | `busy` | runtime `503 queue_timeout` or `overloaded` (+ `Retry-After`) |
+| 500 | `default_plan_missing` | org create: the runtime has no plan named by `RTWEB_DEFAULT_PLAN` (`details: {plan, available}`) |
 | 500 | `internal` | anything else (logged; message is generic) |
 
 The UI shows `busy`, 429 and `runtime_unavailable` as a toast plus `<RuntimeStatusBanner/>`, never as a code
@@ -233,7 +234,7 @@ type LoginResp =
   | { mfa_required: true }                                   // pending cookie set; go to /login/mfa
   | ({ mfa_required: false } & SessionResp);
 type SessionResp = { user: User; csrf: string };
-// code: a 6-digit TOTP code or a recovery code (format xxxxx-xxxxx; dashes and spaces ignored)
+// code: a 6-digit TOTP code or a recovery code (format xxxx-xxxx-xxxx-xxxx; dashes and spaces ignored)
 
 type AuthConfig = {
   password_login_disabled: boolean;   // hide the password form (instance admins can still use it)
