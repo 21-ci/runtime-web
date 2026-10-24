@@ -164,6 +164,27 @@ export const migrations: readonly Migration[] = [
       )`,
     ],
   },
+  {
+    // Domains need the runtime service id (host mapping), the project (authz), checker state,
+    // and a pending runtime-unmap queue; audit needs the instance-admin flag. ALTERs are not
+    // IF-NOT-EXISTS, so this migration relies on its batch being atomic and applied once.
+    version: 2,
+    name: "domains-checks-audit-flag",
+    statements: [
+      `ALTER TABLE domains ADD COLUMN project_slug TEXT NOT NULL DEFAULT ''`,
+      `ALTER TABLE domains ADD COLUMN service_id TEXT NOT NULL DEFAULT ''`,
+      `ALTER TABLE domains ADD COLUMN last_checked_at INTEGER`,
+      `ALTER TABLE domains ADD COLUMN txt_misses INTEGER NOT NULL DEFAULT 0`,
+      `ALTER TABLE audit ADD COLUMN as_instance_admin INTEGER NOT NULL DEFAULT 0`,
+      `CREATE TABLE IF NOT EXISTS pending_unmaps (
+        id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL,
+        service_id TEXT NOT NULL,
+        host TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )`,
+    ],
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = migrations.reduce((max, m) => Math.max(max, m.version), 0);

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { LATEST_VERSION, migrate } from "../../src/db/migrate.ts";
 import { memoryStorage } from "../harness.ts";
+import { migrations } from "../../src/db/schema.ts";
 
 const tables = async (db: ReturnType<typeof memoryStorage>["db"]) =>
   (await db.all<{ name: string }>("SELECT name FROM sqlite_master WHERE type='table'")).map((r) => r.name);
@@ -43,7 +44,7 @@ describe("migrations (0001 schema)", () => {
     await migrate(db);
     expect(await migrate(db)).toBe(LATEST_VERSION);
     const rows = await db.all<{ v: number }>("SELECT v FROM schema_version");
-    expect(rows.map((r) => r.v)).toEqual([LATEST_VERSION]);
+    expect(rows.map((r) => r.v)).toEqual(migrations.map((m) => m.version));
   });
 
   it("keeps existing rows across a rerun", async () => {
