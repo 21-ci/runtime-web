@@ -34,6 +34,15 @@ declare module "std:sql" {
   };
 }
 
+declare module "std:blob" {
+  export const blob: {
+    put(key: string, body: string | Uint8Array | ArrayBuffer | ReadableStream<Uint8Array>, opts?: { contentType?: string }): Promise<void>;
+    get(key: string): Promise<{ body: ReadableStream<Uint8Array>; size: number; contentType: string } | null>;
+    head(key: string): Promise<{ size: number; contentType: string } | null>;
+    delete(key: string): Promise<boolean>;
+  };
+}
+
 declare module "std:sdk" {
   export class SdkError extends Error {
     code: string;

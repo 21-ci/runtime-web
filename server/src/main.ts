@@ -1,4 +1,6 @@
 import { createApp } from "./app.ts";
+import { blob } from "std:blob";
+import { assets } from "./gen/assets.ts";
 import { runtimeStorage } from "./storage/runtime.ts";
 
 // Runtime entry (rt.json "entry"). Form B handler: `fetch` for HTTP, `scheduled`
@@ -8,6 +10,7 @@ const app = createApp({
   storage: runtimeStorage(),
   version: Deno.env.get("RTWEB_VERSION") ?? "dev",
   now: () => Date.now(),
+  spa: { assets, blobs: blob, assetToken: () => Deno.env.get("RTWEB_ASSET_TOKEN") },
 });
 
 export default {

@@ -1,0 +1,47 @@
+# Runtime Web edge for a 21 Cloud Runtime node (docs/design/backend-on-runtime.md D5, D10, D11).
+# Env: RTWEB_RELAY_SECRET (same value the node exports for binding rtctl-tenant),
+#      RTWEB_CONSOLE_HOST (e.g. console.example.com), ACME_EMAIL.
+# The runtime never terminates TLS: Caddy does, and forwards plain HTTP to the invoke listener :8080,
+# which routes by Host (custom hosts mapped to services).
+
+{
+	email {$ACME_EMAIL}
+	on_demand_tls {
+		# 200 only for an `active` custom domain (T8); localhost-only, reached from Caddy itself.
+		ask http://127.0.0.1:8080/s/rtweb/api/internal/tls-ask
+	}
+}
+
+# Relay (loopback only): the rtctl-tenant binding calls here with x-relay-auth; the per-org
+# tenant key travels as x-rtweb-key and becomes Authorization. Both headers are dropped upstream.
+http://127.0.0.1:8082 {
+	bind 127.0.0.1
+	@authed {
+		header x-relay-auth {$RTWEB_RELAY_SECRET}
+		header_regexp key x-rtweb-key ^rtk_[A-Za-z0-9_-]+$
+	}
+	handle @authed {
+		reverse_proxy 127.0.0.1:8081 {
+			header_up Authorization "Bearer {http.request.header.x-rtweb-key}"
+			header_up -x-rtweb-key
+			header_up -x-relay-auth
+			header_up -x-rt-tenant
+		}
+	}
+	handle {
+		respond "forbidden" 403
+	}
+}
+
+# Console host: mapped by the operator to service rtweb (PUT /v1/services/{s}/hosts/{host}).
+{$RTWEB_CONSOLE_HOST} {
+	reverse_proxy 127.0.0.1:8080
+}
+
+# Every other host: app custom domains, certificates issued on demand after `ask` says yes.
+https:// {
+	tls {
+		on_demand
+	}
+	reverse_proxy 127.0.0.1:8080
+}

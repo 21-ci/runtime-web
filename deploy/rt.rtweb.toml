@@ -1,0 +1,33 @@
+# Runtime Web fragment for the node's rt.toml (docs/design/backend-on-runtime.md D2, D4).
+# Merge into rt.toml, export RTWEB_OP_TOKEN (operator/root token) and RTWEB_RELAY_SECRET (random,
+# same value as in the Caddy relay) in the node's environment, then restart rt (SIGHUP reloads
+# plans and bindings). server/scripts/install.mjs checks both and prints this reminder when missing.
+# Unknown keys fail startup: keep to the documented keys.
+
+[plans.rtweb]
+max_services = 2
+max_schedules = 3
+min_schedule_seconds = 60
+storage_mb = 1024
+allowed_triggers = ["http", "interval", "cron", "call"]
+limits_max = { wall_ms = 30000, cpu_ms = 2000, memory_mb = 128 }
+
+# Operator routes, called with the root/operator token. Reachable only from the rtctl SDK service.
+[[binding]]
+name            = "rtctl-op"
+base_url        = "http://127.0.0.1:8081"
+inject_headers  = { authorization = "env:RTWEB_OP_TOKEN" }
+allowed_plans   = ["rtweb"]
+allowed_methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
+allowed_paths   = ["/v1/tenants", "/v1/tenants/*", "/v1/plans", "/v1/plans/*", "/v1/node/*", "/v1/version", "/v1/hosts", "/v1/hosts/*", "/v1/services/*/hosts/*"]
+rate_limit      = { rps = 50, burst = 100 }
+
+# Tenant-scoped routes through the Caddy relay (:8082), which maps x-rtweb-key -> Authorization.
+[[binding]]
+name            = "rtctl-tenant"
+base_url        = "http://127.0.0.1:8082"
+inject_headers  = { x-relay-auth = "env:RTWEB_RELAY_SECRET" }
+allowed_plans   = ["rtweb"]
+allowed_methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
+allowed_paths   = ["/v1/services", "/v1/services/*", "/v1/projects", "/v1/projects/*", "/v1/keys", "/v1/keys/*", "/v1/tenants/*/usage"]
+rate_limit      = { rps = 100, burst = 200 }
