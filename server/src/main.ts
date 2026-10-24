@@ -1,4 +1,6 @@
 import { createApp } from "./app.ts";
+import { blob } from "std:blob";
+import { assets } from "./gen/assets.ts";
 import { runtimeStorage } from "./storage/runtime.ts";
 import { loadConfig } from "./config.ts";
 
@@ -10,6 +12,7 @@ const app = createApp({
   version: Deno.env.get("RTWEB_VERSION") ?? "dev",
   now: () => Date.now(),
   config: loadConfig((n) => Deno.env.get(n)),
+  spa: { assets, blobs: blob, assetToken: () => Deno.env.get("RTWEB_ASSET_TOKEN") },
 });
 
 export default {

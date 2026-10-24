@@ -8,3 +8,7 @@ data/
 # build output
 bin/
 .claude/
+
+# runtime-web server: generated SPA embedding (scripts/gen-assets.mjs)
+server/src/gen/
+server/.gen-blobs.json
