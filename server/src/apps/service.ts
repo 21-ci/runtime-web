@@ -144,7 +144,8 @@ export async function createApp(c: OrgCtx, b: { project: string; environment: st
     throw e;
   }
   try {
-    await rt(() => c.cli.uploadVersion(svc.id, src, "application/typescript", { activate: true, compile: "eager" }));
+    const v = await rt(() => c.cli.uploadVersion(svc.id, src, "application/typescript", { activate: true, compile: "eager" }));
+    await recordAuthor(c, svc.id, v.version);
   } catch (e) {
     // Best effort: do not leave an empty app holding the slug.
     await c.cli.deleteService(svc.id).catch((d: unknown) => console.error("apps: cleanup after failed upload", String(d)));
@@ -278,13 +279,18 @@ export async function saveFiles(c: OrgCtx, slug: string, entry: unknown, files: 
   let up = await rt(() => c.cli.uploadVersion(app.id, body, "application/json", { compile: "eager" }));
   up = await awaitBuild(c, app.id, up);
   if (up.build_state === "failed") throw buildFailed(up);
-  await c.deps.storage.db.run(
-    "INSERT INTO version_authors (org_id, app_slug, version, user_id) VALUES (?, ?, ?, ?) ON CONFLICT (org_id, app_slug, version) DO UPDATE SET user_id = excluded.user_id",
-    [c.org.id, app.id, String(up.version), c.sub.userId],
-  );
+  await recordAuthor(c, app.id, up.version);
   const svc = await rt(() => c.cli.setLive(app.id, up.version, etag));
   const name = await userName(c, c.sub.userId);
   return { version: { ...versionView(up, up.version, { user_id: c.sub.userId, name }) }, etag: svc.etag };
+}
+
+/** Records the caller as author of version v of service id (version_authors.app_slug holds the service id). */
+async function recordAuthor(c: OrgCtx, id: string, v: number): Promise<void> {
+  await c.deps.storage.db.run(
+    "INSERT INTO version_authors (org_id, app_slug, version, user_id) VALUES (?, ?, ?, ?) ON CONFLICT (org_id, app_slug, version) DO UPDATE SET user_id = excluded.user_id",
+    [c.org.id, id, String(v), c.sub.userId],
+  );
 }
 
 async function userName(c: OrgCtx, id: string): Promise<string> {

@@ -191,7 +191,8 @@ describe("files and versions", () => {
     const vs = (await (await w.admin.call("GET", `${APPS}/hello/versions`)).json()) as { items: { version: number; live: boolean; author: unknown }[] };
     expect(vs.items.map((v) => [v.version, v.live])).toEqual([[2, true], [1, false]]);
     expect(vs.items[0]?.author).toMatchObject({ name: "Admin" });
-    expect(vs.items[1]?.author).toBeNull();
+    // The template's first version is authored by the user who created the app.
+    expect(vs.items[1]?.author).toMatchObject({ name: "Admin" });
     expect((await w.admin.call("PUT", `${APPS}/hello/live`, { version: 1 })).status).toBe(428);
     const live = await w.admin.call("PUT", `${APPS}/hello/live`, { version: 1 }, { "if-match": e2 });
     expect(live.status).toBe(200);
