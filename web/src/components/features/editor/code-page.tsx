@@ -128,11 +128,11 @@ export function CodePage({ org, app }: { org: string; app: string }) {
   return (
     <div className="flex flex-col gap-3">
       <header className="flex flex-wrap items-center gap-2">
-        <h1 className="mr-auto text-xl font-semibold">{view.data.name ?? view.data.slug}: code</h1>
+        <h1 className="mr-auto text-2xl font-semibold">{view.data.name ?? view.data.slug}: code</h1>
         <StatusPill org={org} app={app} pending={save.isPending} version={savedVersion} state={version.data?.build_state} />
         {!readOnly && (
           <Button variant="default" onClick={() => void doSave()} disabled={save.isPending} aria-keyshortcuts="Meta+S Control+S">
-            {save.isPending ? <Loader2 className="animate-spin" aria-hidden /> : <Save aria-hidden />}
+            {save.isPending ? <Loader2 className="size-4 animate-spin" aria-hidden /> : <Save className="size-4" aria-hidden />}
             Save{dirty ? " *" : ""}
           </Button>
         )}

@@ -78,7 +78,7 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
   return (
     <form onSubmit={onSubmit} className="flex flex-col gap-3" aria-labelledby="env-heading">
       <div>
-        <h2 id="env-heading" className="text-sm font-semibold">
+        <h2 id="env-heading" className="text-base font-semibold">
           Environment variables
         </h2>
         <p className="text-sm text-muted">One KEY=VALUE per line. Use secrets for anything sensitive.</p>
@@ -95,10 +95,11 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
         rows={8}
         aria-invalid={error ? true : undefined}
         aria-describedby={error ? "env-error" : undefined}
-        className="w-full rounded-[6px] border border-line bg-surface p-3 font-mono text-sm text-text focus-visible:outline-2 focus-visible:outline-accent"
+        autoComplete="off"
+        className="w-full rounded-sm border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
       />
       {error ? (
-        <p id="env-error" role="alert" className="text-sm text-danger">
+        <p id="env-error" role="alert" className="text-[13px] text-danger-text">
           {error}
         </p>
       ) : null}

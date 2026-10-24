@@ -75,7 +75,7 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
     <Section id="ingress" title="Ingress" description="Which requests reach the app and from where.">
       <form onSubmit={onSubmit} className="flex flex-col gap-4" aria-label="Ingress settings">
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-medium text-text">Methods</legend>
+          <legend className="mb-1 text-[13px] font-medium text-text">Methods</legend>
           <div className="flex flex-wrap gap-3">
             {METHODS.map((m) => (
               <label key={m} className="flex items-center gap-2 text-sm">
@@ -164,7 +164,9 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
             value={rateLimit}
             onChange={(e) => setRateLimit(e.target.value)}
             rows={4}
-            className="rounded-[4px] border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus"
+            spellCheck={false}
+            autoComplete="off"
+            className="rounded-sm border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus"
             aria-describedby="rate-limit-error"
           />
           <FieldError id="rate-limit-error" message={fields["ingress.rate_limit"]} />

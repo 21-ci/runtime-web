@@ -64,7 +64,7 @@ export function HttpRouteCard({ org, app, view }: { org: string; app: string; vi
             value={access}
             onChange={(e) => setAccess(e.target.value as AppView["access"])}
             aria-describedby="http-access-hint"
-            className="h-[34px] rounded-[4px] border border-line-strong bg-surface px-3 text-text"
+            className="h-8 rounded-sm border border-line-strong bg-surface px-2.5 text-sm text-text"
           >
             {ACCESS.map((a) => (
               <option key={a.value} value={a.value}>
@@ -78,7 +78,7 @@ export function HttpRouteCard({ org, app, view }: { org: string; app: string; vi
         </div>
 
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1.5 text-sm font-semibold">Allowed methods</legend>
+          <legend className="mb-1.5 text-[13px] font-medium">Allowed methods</legend>
           <div className="flex flex-wrap gap-3">
             {METHODS.map((m) => (
               <label key={m} className="flex items-center gap-2 text-sm">
@@ -100,8 +100,10 @@ export function HttpRouteCard({ org, app, view }: { org: string; app: string; vi
             rows={3}
             value={prefixes}
             onChange={(e) => setPrefixes(e.target.value)}
-            placeholder="/api"
-            className="rounded-[4px] border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
+            placeholder="/api…"
+            spellCheck={false}
+            autoComplete="off"
+            className="rounded-sm border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
           />
           <p className="text-sm text-muted">The IP allow-list and rate limit are kept as they are.</p>
         </div>

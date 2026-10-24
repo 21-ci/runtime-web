@@ -45,7 +45,7 @@ export function DangerZone({
   return (
     <section
       aria-labelledby="danger-title"
-      className="flex flex-col gap-3 rounded-[6px] border border-danger bg-surface p-4"
+      className="flex flex-col gap-3 rounded-md border border-danger/40 bg-surface p-4"
     >
       <h2 id="danger-title" className="text-base font-semibold text-danger-text">
         Danger zone
