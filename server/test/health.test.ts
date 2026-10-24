@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { testApp } from "./harness.ts";
+import { testApp, TEST_ORIGIN } from "./harness.ts";
 
 describe("health and router", () => {
   it("answers /healthz and /api/healthz", async () => {
@@ -18,7 +18,7 @@ describe("health and router", () => {
   });
 
   it("returns 405 for a known path with the wrong method", async () => {
-    const res = await testApp().call("POST", "/api/healthz");
+    const res = await testApp().call("POST", "/api/healthz", { headers: { origin: TEST_ORIGIN } });
     expect(res.status).toBe(405);
   });
 });

@@ -2,6 +2,7 @@ import { createApp } from "./app.ts";
 import { blob } from "std:blob";
 import { assets } from "./gen/assets.ts";
 import { runtimeStorage } from "./storage/runtime.ts";
+import { loadConfig } from "./config.ts";
 
 // Runtime entry (rt.json "entry"). Form B handler: `fetch` for HTTP, `scheduled`
 // for the housekeeping cron (session/invite expiry, domain re-verify: later tasks).
@@ -11,6 +12,7 @@ const app = createApp({
   version: Deno.env.get("RTWEB_VERSION") ?? "dev",
   now: () => Date.now(),
   spa: { assets, blobs: blob, assetToken: () => Deno.env.get("RTWEB_ASSET_TOKEN") },
+  config: loadConfig((n) => Deno.env.get(n)),
 });
 
 export default {
