@@ -51,7 +51,7 @@ export function OrgsPage() {
   return (
     <section aria-labelledby="orgs-heading" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 id="orgs-heading" className="text-lg font-semibold">
+        <h2 id="orgs-heading" className="text-base font-semibold">
           Organizations
         </h2>
         <div className="ml-auto">
@@ -103,7 +103,7 @@ export function OrgsPage() {
 function OrgRow({ org, onAction }: { org: AdminOrg; onAction: (action: OrgAction) => void }) {
   return (
     <TableRow>
-      <TableCell className="font-semibold">{org.name}</TableCell>
+      <TableCell className="font-medium">{org.name}</TableCell>
       <TableCell className="font-mono text-sm">{org.slug}</TableCell>
       <TableCell>
         <OrgUsageCell slug={org.slug} />

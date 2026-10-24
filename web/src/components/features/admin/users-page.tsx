@@ -102,7 +102,7 @@ export function UsersPage() {
   return (
     <section aria-labelledby="users-heading" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 id="users-heading" className="text-lg font-semibold">
+        <h2 id="users-heading" className="text-base font-semibold">
           Users
         </h2>
         <div className="ml-auto flex flex-wrap gap-2">
@@ -159,7 +159,7 @@ export function UsersPage() {
           <TableBody>
             {items.map((u) => (
               <TableRow key={u.id}>
-                <TableCell className="font-semibold">{u.name}</TableCell>
+                <TableCell className="font-medium">{u.name}</TableCell>
                 <TableCell className="break-all">{u.email}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">

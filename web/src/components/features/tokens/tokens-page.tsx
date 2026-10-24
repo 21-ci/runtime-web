@@ -61,7 +61,7 @@ export function TokensPage({ org, role }: { org: string; role: OrgRole }) {
     <section aria-labelledby="tokens-heading" className="flex flex-col gap-4">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 id="tokens-heading" className="text-sm font-semibold">
+          <h2 id="tokens-heading" className="text-base font-semibold">
             API tokens
           </h2>
           <p className="text-sm text-muted">
@@ -214,7 +214,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
               <DialogTitle>Token {created.name} created</DialogTitle>
               <DialogDescription>Copy the secret now. You will not be able to see it again.</DialogDescription>
             </DialogHeader>
-            <div className="flex items-center gap-2 rounded-[6px] border border-line bg-panel p-3">
+            <div className="flex items-center gap-2 rounded-md border border-line bg-panel p-3">
               <code className="min-w-0 flex-1 break-all font-mono text-sm">{created.secret}</code>
               <Button
                 variant="secondary"
@@ -239,7 +239,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
             <AuthForm errors={errors} onSubmit={onSubmit}>
               <FormField label="Name" name="name" autoComplete="off" error={errors.name} />
               <fieldset className="flex flex-col gap-2">
-                <legend className="mb-1 text-sm font-medium">Scopes</legend>
+                <legend className="mb-1 text-[13px] font-medium">Scopes</legend>
                 {errors.scopes ? <p className="text-sm text-danger">{errors.scopes}</p> : null}
                 <div className="grid grid-cols-2 gap-2">
                   {scopeOptions.map((s) => (
@@ -259,7 +259,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
               </fieldset>
               {appList.data && appList.data.length > 0 ? (
                 <fieldset className="flex flex-col gap-2">
-                  <legend className="mb-1 text-sm font-medium">Apps (leave empty for all)</legend>
+                  <legend className="mb-1 text-[13px] font-medium">Apps (leave empty for all)</legend>
                   {appList.data.map((a) => (
                     <label key={a.slug} className="flex items-center gap-2 text-sm">
                       <input

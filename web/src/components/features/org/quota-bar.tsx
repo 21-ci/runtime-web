@@ -17,8 +17,8 @@ export function QuotaBar({ org }: { org: string }) {
   const limits = useLimits(org);
 
   return (
-    <section aria-label="Quota" className="rounded-[6px] border border-line bg-surface p-4">
-      <h2 className="mb-3 text-sm font-semibold">Quota</h2>
+    <section aria-label="Quota" className="rounded-md border border-line bg-surface p-4">
+      <h2 className="mb-3 text-base font-semibold">Quota</h2>
       {limits.isError ? (
         <QueryError
           error={limits.error}

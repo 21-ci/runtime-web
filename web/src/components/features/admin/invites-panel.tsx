@@ -33,7 +33,7 @@ export function InvitesPanel() {
 
   return (
     <section aria-labelledby="invites-heading" className="flex flex-col gap-3">
-      <h2 id="invites-heading" className="text-lg font-semibold">
+      <h2 id="invites-heading" className="text-base font-semibold">
         Pending invites
       </h2>
       {invites.isError ? (
@@ -61,13 +61,17 @@ export function InvitesPanel() {
           </TableHeader>
           <TableBody>
             {(invites.data ?? []).map((inv) => (
-              <TableRow key={inv.id}>
+              <TableRow key={inv.id} className="group">
                 <TableCell className="break-all">{inv.email}</TableCell>
                 <TableCell>{inv.org ? inv.org.name : "None"}</TableCell>
                 <TableCell>{inv.role ?? "None"}</TableCell>
                 <TableCell>{new Date(inv.expires_at).toLocaleDateString()}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" aria-label={`Revoke invite for ${inv.email}`} onClick={() => setTarget(inv)}>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    className="opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
+                    aria-label={`Revoke invite for ${inv.email}`} onClick={() => setTarget(inv)}>
                     Revoke
                   </Button>
                 </TableCell>
