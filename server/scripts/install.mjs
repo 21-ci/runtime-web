@@ -133,8 +133,13 @@ async function ensureService(tenant, cron) {
   if (!cron) todo.push(`Plan lacks the cron trigger: the housekeeping schedule (*/5 * * * *) is not created.`);
   else {
     const scheds = await get(`/v1/services/${svc.id}/schedules`, { tenant });
-    if (!(Array.isArray(scheds) ? scheds : scheds.items ?? []).some((s) => s.name === "housekeeping")) {
-      await api("POST", `/v1/services/${svc.id}/schedules`, { tenant, body: { name: "housekeeping", cron: "*/5 * * * *" } });
+    // Runtime schedules have no name: the housekeeping one is the cron schedule whose payload says so.
+    const isHousekeeping = (s) => s.kind === "cron" && s.payload?.job === "housekeeping";
+    if (!(Array.isArray(scheds) ? scheds : scheds.items ?? []).some(isHousekeeping)) {
+      await api("POST", `/v1/services/${svc.id}/schedules`, {
+        tenant,
+        body: { kind: "cron", cron: "*/5 * * * *", timezone: "UTC", payload: { job: "housekeeping" } },
+      });
       step(5, "created schedule housekeeping (*/5 * * * *)");
     }
   }
