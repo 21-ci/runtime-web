@@ -71,7 +71,7 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
 
   return (
     <div className="flex flex-col gap-8">
-      <section aria-labelledby="members-heading" className="flex flex-col gap-4">
+      <section aria-labelledby="members-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
         <header>
           <h2 id="members-heading" className="text-sm font-semibold">
             Members
@@ -86,7 +86,7 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
         ) : members.data.length === 0 ? (
           <EmptyState entity="members" icon={Users} title="No members" description="Invite a teammate to get started." />
         ) : (
-          <ul aria-label="Members" className="divide-y divide-line rounded-md border border-line bg-surface">
+          <ul aria-label="Members" className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
             {members.data.map((m) => {
               // Admins cannot touch owner rows at all.
               const locked = !callerIsOwner && m.role === "owner";

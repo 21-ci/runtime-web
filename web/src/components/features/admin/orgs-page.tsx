@@ -51,7 +51,7 @@ export function OrgsPage() {
   return (
     <section aria-labelledby="orgs-heading" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 id="orgs-heading" className="text-base font-semibold">
+        <h2 id="orgs-heading" className="text-[15px] font-semibold">
           Organizations
         </h2>
         <div className="ml-auto">

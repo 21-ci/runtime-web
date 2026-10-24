@@ -1,5 +1,5 @@
 import { KeyRound as KeyRoundTile } from "lucide-react";
-import { IconTile } from "@/components/ui/icon-tile";
+import { PageHeader } from "@/components/ui/page-header";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { useOrgRole } from "@/components/features/members/hooks";
@@ -20,7 +20,7 @@ function TokensRoute() {
   }
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]"><IconTile icon={KeyRoundTile} entity="tokens" size="md" />Tokens</h1>
+      <PageHeader icon={KeyRoundTile} entity="tokens" title="Tokens" />
       <TokensPage org={org} role={role} />
     </div>
   );

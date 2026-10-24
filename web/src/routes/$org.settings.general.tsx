@@ -1,11 +1,12 @@
 import { Settings as SettingsTile } from "lucide-react";
-import { IconTile } from "@/components/ui/icon-tile";
+import { PageHeader } from "@/components/ui/page-header";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { QuotaBar } from "@/components/features/org/quota-bar";
 import { RotateDefaultKey } from "@/components/features/org/rotate-default-key";
 import { useCan } from "@/hooks/authz";
 import { useOrgs } from "@/hooks/orgs";
+import { SectionCard } from "@/components/ui/section-card";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/$org/settings/general")({
@@ -22,15 +23,21 @@ function GeneralRoute() {
   const current = orgs.data?.find((o) => o.slug === org);
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]"><IconTile icon={SettingsTile} entity="settings" size="md" />Organization settings</h1>
-      <dl className="grid max-w-md grid-cols-2 gap-2 text-sm">
-        <dt className="text-muted">Name</dt>
-        <dd>{current?.name ?? org}</dd>
-        <dt className="text-muted">Slug</dt>
-        <dd className="font-mono">{org}</dd>
-      </dl>
-      <QuotaBar org={org} />
-      {can("defaultkey.rotate") === true ? <RotateDefaultKey org={org} /> : null}
+      <PageHeader icon={SettingsTile} entity="settings" title="Organization settings" />
+      <SectionCard title="Organization" description="Identity of this workspace. Renaming is not available yet.">
+        <dl className="grid max-w-md grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+          <dt className="text-muted">Name</dt>
+          <dd className="font-medium">{current?.name ?? org}</dd>
+          <dt className="text-muted">Slug</dt>
+          <dd className="font-mono text-[13px]">{org}</dd>
+          <dt className="text-muted">Your role</dt>
+          <dd className="capitalize">{current?.role ?? "-"}</dd>
+        </dl>
+      </SectionCard>
+      <div className="grid gap-6 lg:grid-cols-2">
+        <QuotaBar org={org} />
+        {can("defaultkey.rotate") === true ? <RotateDefaultKey org={org} /> : null}
+      </div>
     </div>
   );
 }

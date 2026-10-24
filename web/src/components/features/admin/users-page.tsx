@@ -102,7 +102,7 @@ export function UsersPage() {
   return (
     <section aria-labelledby="users-heading" className="flex flex-col gap-4">
       <div className="flex flex-wrap items-center gap-3">
-        <h2 id="users-heading" className="text-base font-semibold">
+        <h2 id="users-heading" className="text-[15px] font-semibold">
           Users
         </h2>
         <div className="ml-auto flex flex-wrap gap-2">

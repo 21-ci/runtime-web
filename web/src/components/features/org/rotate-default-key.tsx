@@ -37,8 +37,8 @@ export function RotateDefaultKey({ org }: { org: string }) {
   }
 
   return (
-    <section aria-labelledby="default-key-title" className="flex max-w-xl flex-col gap-3 rounded-md border border-line bg-surface p-4">
-      <h2 id="default-key-title" className="text-base font-semibold">
+    <section aria-labelledby="default-key-title" className="flex max-w-xl flex-col gap-3 rounded-lg border border-line bg-surface p-5 shadow-card">
+      <h2 id="default-key-title" className="text-[15px] font-semibold">
         Default key
       </h2>
       <p className="text-sm text-muted">

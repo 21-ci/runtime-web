@@ -38,7 +38,7 @@ export function AuditPage() {
   return (
     <section aria-labelledby="audit-heading" className="flex flex-col gap-4">
       <div className="flex flex-col gap-1">
-        <h2 id="audit-heading" className="text-base font-semibold">
+        <h2 id="audit-heading" className="text-[15px] font-semibold">
           Audit log
         </h2>
         <p className="text-sm text-muted">Every instance-wide change, newest first.</p>

@@ -1,5 +1,5 @@
 import { ShieldCheck as ShieldCheckTile } from "lucide-react";
-import { IconTile } from "@/components/ui/icon-tile";
+import { PageHeader } from "@/components/ui/page-header";
 import { useState, type FormEvent } from "react";
 import { toast } from "sonner";
 
@@ -35,14 +35,11 @@ export function SecurityPage() {
   if (me.isPending) return <Skeleton className="h-64 w-full" />;
 
   return (
-    <div className="mx-auto flex w-full max-w-2xl flex-col gap-8 px-4 py-8">
-      <header>
-        <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]"><IconTile icon={ShieldCheckTile} entity="security" size="md" />Account security</h1>
-        <p className="text-sm text-muted">{me.data.user.email}</p>
-      </header>
+    <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
+      <PageHeader icon={ShieldCheckTile} entity="security" title="Account security" description={me.data.user.email} />
 
       {me.data.mfa_enrollment_required ? (
-        <p role="alert" className="rounded-md border border-line bg-surface p-3 text-sm">
+        <p role="alert" className="rounded-lg border border-line bg-surface p-4 shadow-card text-sm">
           This instance requires two-factor authentication. Set it up to keep using Runtime Web.
         </p>
       ) : null}
@@ -58,9 +55,9 @@ export function SecurityPage() {
 function TwoFactorSection({ enabled }: { enabled: boolean }) {
   if (!enabled) {
     return (
-      <section aria-labelledby="mfa-heading" className="flex flex-col gap-4">
+      <section aria-labelledby="mfa-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
         <div>
-          <h2 id="mfa-heading" className="text-base font-semibold">
+          <h2 id="mfa-heading" className="text-[15px] font-semibold">
             Two-factor authentication
           </h2>
           <p className="text-sm text-muted">Ask for a code from your authenticator app each time you sign in.</p>
@@ -70,9 +67,9 @@ function TwoFactorSection({ enabled }: { enabled: boolean }) {
     );
   }
   return (
-    <section aria-labelledby="mfa-heading" className="flex flex-col gap-6">
+    <section aria-labelledby="mfa-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
       <div>
-        <h2 id="mfa-heading" className="text-base font-semibold">
+        <h2 id="mfa-heading" className="text-[15px] font-semibold">
           Two-factor authentication
         </h2>
         <p className="text-sm text-muted">Two-factor authentication is on.</p>
@@ -177,10 +174,10 @@ function SessionsSection() {
   const revokeOthers = useRevokeOtherSessions();
 
   return (
-    <section aria-labelledby="sessions-heading" className="flex flex-col gap-4">
+    <section aria-labelledby="sessions-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
-          <h2 id="sessions-heading" className="text-base font-semibold">
+          <h2 id="sessions-heading" className="text-[15px] font-semibold">
             Sessions
           </h2>
           <p className="text-sm text-muted">Devices signed in to your account.</p>
@@ -205,7 +202,7 @@ function SessionsSection() {
       ) : sessions.isPending ? (
         <Skeleton className="h-24 w-full" />
       ) : (
-        <ul aria-label="Sessions" className="divide-y divide-line rounded-md border border-line bg-surface">
+        <ul aria-label="Sessions" className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
           {sessions.data.map((s) => (
             <li key={s.id} className="group flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
               <span>
@@ -240,9 +237,9 @@ function LoginHistorySection() {
   const logins = useLogins();
 
   return (
-    <section aria-labelledby="logins-heading" className="flex flex-col gap-4">
+    <section aria-labelledby="logins-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
       <div>
-        <h2 id="logins-heading" className="text-base font-semibold">
+        <h2 id="logins-heading" className="text-[15px] font-semibold">
           Login history
         </h2>
         <p className="text-sm text-muted">Recent sign-in attempts on your account.</p>

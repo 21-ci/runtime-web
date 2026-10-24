@@ -1,10 +1,15 @@
-import { FolderOpen as FolderTile } from "lucide-react";
-import { IconTile } from "@/components/ui/icon-tile";
+import { FolderOpen, Plus } from "lucide-react";
 import { Link, createFileRoute } from "@tanstack/react-router";
 
 import { NoApps } from "@/components/features/empty/no-apps";
 import { QueryError } from "@/components/features/empty/query-error";
+import { useCreateAppGate } from "@/components/layout/create-app-gate";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { LetterTile, hueFor } from "@/components/ui/icon-tile";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/section-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApps, useEnvironments, useProjects } from "@/hooks/orgs";
 
@@ -12,11 +17,19 @@ export const Route = createFileRoute("/$org/projects/$p")({
   component: ProjectPage,
 });
 
+const BUILD_VARIANT: Record<string, "success" | "danger" | "warning" | "default"> = {
+  ready: "success",
+  failed: "danger",
+  building: "warning",
+  pending: "warning",
+};
+
 function ProjectPage() {
   const { org, p } = Route.useParams();
   const projects = useProjects(org);
   const envs = useEnvironments(org, p);
   const apps = useApps(org, p);
+  const gate = useCreateAppGate(org);
   const project = projects.data?.find((x) => x.slug === p);
 
   if (projects.isError) {
@@ -36,51 +49,70 @@ function ProjectPage() {
     return <EmptyState title="Project not found" description="It may have been deleted or you lack access." />;
   }
   if (apps.isError) {
-    return (
-      <QueryError error={apps.error} onRetry={() => void apps.refetch()} notFoundTitle="Apps not found" />
-    );
+    return <QueryError error={apps.error} onRetry={() => void apps.refetch()} notFoundTitle="Apps not found" />;
   }
+
+  const list = apps.data ?? [];
+  const canCreate = gate.inProject(p);
 
   return (
     <div className="flex flex-col gap-6">
-      <header>
-        <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]"><IconTile icon={FolderTile} entity="projects" size="md" />{project.name}</h1>
-        <ul className="mt-2 flex flex-wrap gap-2" aria-label="Environments">
-          {(envs.data ?? project.environments).map((e) => (
-            <li key={e} className="rounded-full border border-line bg-panel px-2.5 py-0.5 text-xs">
-              {e}
-            </li>
-          ))}
-        </ul>
-      </header>
+      <PageHeader
+        icon={FolderOpen}
+        entity="projects"
+        title={project.name}
+        description={
+          <span className="flex flex-wrap items-center gap-1.5" aria-label="Environments">
+            <span>Environments:</span>
+            {(envs.data ?? project.environments).map((e) => (
+              <Badge key={e} variant="outline">
+                {e}
+              </Badge>
+            ))}
+          </span>
+        }
+        actions={
+          canCreate && list.length > 0 ? (
+            <Button asChild variant="default">
+              <Link to="/$org/apps/new" params={{ org }} search={{ project: p }}>
+                <Plus aria-hidden="true" /> New app
+              </Link>
+            </Button>
+          ) : null
+        }
+      />
 
-      <section aria-labelledby="apps-heading" className="flex flex-col gap-3">
-        <h2 id="apps-heading" className="text-sm font-semibold">
-          Apps
-        </h2>
-        {apps.isPending ? (
-          <Skeleton className="h-24 w-full" />
-        ) : (apps.data ?? []).length === 0 ? (
-          <NoApps org={org} project={p} />
-        ) : (
-          <ul className="divide-y divide-line rounded-md border border-line bg-surface">
-            {(apps.data ?? []).map((a) => (
+      {apps.isPending ? (
+        <Skeleton className="h-24 w-full" />
+      ) : list.length === 0 ? (
+        <NoApps org={org} project={p} />
+      ) : (
+        <SectionCard title="Apps" description={`${list.length} ${list.length === 1 ? "app" : "apps"} in this project`} flush>
+          <ul className="divide-y divide-line">
+            {list.map((a) => (
               <li key={a.slug}>
                 <Link
                   to="/$org/apps/$app"
                   params={{ org, app: a.slug }}
-                  className="flex items-center justify-between gap-3 px-4 py-3 hover:bg-panel-2"
+                  className="flex h-12 items-center gap-3 px-5 outline-none transition-colors hover:bg-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
                 >
-                  <span className="font-medium">{a.name ?? a.slug}</span>
-                  <span className="text-sm text-muted">
-                    {a.environment} · {a.status.build_state}
+                  <LetterTile label={a.name ?? a.slug} hue={hueFor(a.slug)} size="sm" solid />
+                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{a.name ?? a.slug}</span>
+                  <Badge variant="outline" className="hidden sm:inline-flex">
+                    {a.environment}
+                  </Badge>
+                  <Badge variant={BUILD_VARIANT[a.status.build_state] ?? "default"} dot>
+                    {a.status.build_state}
+                  </Badge>
+                  <span className="hidden w-12 text-right text-[12px] tabular-nums text-muted sm:inline">
+                    {a.live_version !== null ? `v${a.live_version}` : "-"}
                   </span>
                 </Link>
               </li>
             ))}
           </ul>
-        )}
-      </section>
+        </SectionCard>
+      )}
     </div>
   );
 }

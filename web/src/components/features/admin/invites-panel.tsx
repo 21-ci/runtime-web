@@ -33,7 +33,7 @@ export function InvitesPanel() {
 
   return (
     <section aria-labelledby="invites-heading" className="flex flex-col gap-3">
-      <h2 id="invites-heading" className="text-base font-semibold">
+      <h2 id="invites-heading" className="text-[15px] font-semibold">
         Pending invites
       </h2>
       {invites.isError ? (

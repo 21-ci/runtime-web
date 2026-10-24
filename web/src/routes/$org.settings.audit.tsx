@@ -1,5 +1,5 @@
 import { ScrollText as ScrollTextTile } from "lucide-react";
-import { IconTile } from "@/components/ui/icon-tile";
+import { PageHeader } from "@/components/ui/page-header";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { AuditPage } from "@/components/features/audit/audit-page";
@@ -21,7 +21,7 @@ function AuditRoute() {
   }
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]"><IconTile icon={ScrollTextTile} entity="audit" size="md" />Audit log</h1>
+      <PageHeader icon={ScrollTextTile} entity="audit" title="Audit log" />
       <AuditPage org={org} />
     </div>
   );

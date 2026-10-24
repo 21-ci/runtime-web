@@ -1,5 +1,5 @@
 import { Users as UsersTile } from "lucide-react";
-import { IconTile } from "@/components/ui/icon-tile";
+import { PageHeader } from "@/components/ui/page-header";
 import { createFileRoute } from "@tanstack/react-router";
 
 import { MembersPage } from "@/components/features/members/members-page";
@@ -20,7 +20,7 @@ function MembersRoute() {
   }
   return (
     <div className="flex flex-col gap-6">
-      <h1 className="flex items-center gap-3 text-2xl font-semibold tracking-[-0.01em]"><IconTile icon={UsersTile} entity="members" size="md" />Members</h1>
+      <PageHeader icon={UsersTile} entity="members" title="Members" />
       <MembersPage org={org} role={role} />
     </div>
   );

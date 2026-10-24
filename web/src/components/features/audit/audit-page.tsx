@@ -54,7 +54,7 @@ export function AuditPage({ org }: { org: string }) {
   const entries = audit.data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
-    <section aria-labelledby="audit-heading" className="flex flex-col gap-4">
+    <section aria-labelledby="audit-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
       <header>
         <h2 id="audit-heading" className="text-sm font-semibold">
           Audit log

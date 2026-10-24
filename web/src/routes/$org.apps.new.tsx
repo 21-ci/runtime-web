@@ -16,6 +16,11 @@ import { useCreateApp, useEnvironments, useProjects, type Template } from "@/hoo
 import { ApiError } from "@/lib/api";
 import { handleMutationError } from "@/lib/query";
 import { cn } from "@/lib/utils";
+import { IconTile, type Hue } from "@/components/ui/icon-tile";
+import { PageHeader } from "@/components/ui/page-header";
+import { Plus } from "lucide-react";
+
+const TEMPLATE_HUE: Record<Template, Hue> = { http: "blue", cron: "pink", queue: "orange", "sqlite-crud": "teal" };
 import { toast } from "sonner";
 
 type NewAppSearch = { project?: string };
@@ -77,11 +82,8 @@ function NewAppPage() {
   }
 
   return (
-    <div className="mx-auto flex max-w-2xl flex-col gap-6">
-      <div>
-        <h1 className="text-xl font-semibold">New app</h1>
-        <p className="mt-1 text-sm text-muted">Pick a template, then name the app and choose where it runs.</p>
-      </div>
+    <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
+      <PageHeader icon={Plus} entity="apps" title="New app" description="Pick a template, then name the app and choose where it runs." />
 
       <AuthForm errors={errors} onSubmit={onSubmit}>
         <div className="grid gap-4 sm:grid-cols-2">
@@ -143,11 +145,11 @@ function NewAppPage() {
                   aria-checked={checked}
                   onClick={() => setTemplate(id)}
                   className={cn(
-                    "flex items-start gap-3 rounded-md border bg-surface p-3 text-left outline-none focus-visible:ring-2 focus-visible:ring-focus",
+                    "flex items-center gap-3 rounded-lg border bg-surface p-3 text-left shadow-card outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus",
                     checked ? "border-accent ring-1 ring-accent" : "border-line hover:border-line-strong",
                   )}
                 >
-                  <Icon className="mt-0.5 size-4 text-muted" aria-hidden="true" />
+                  <IconTile icon={Icon} hue={TEMPLATE_HUE[id]} size="md" solid />
                   <span>
                     <span className="block text-sm font-medium">{title}</span>
                     <span className="block text-sm text-muted">{blurb}</span>

@@ -65,10 +65,10 @@ export function TokensPage({ org, role }: { org: string; role: OrgRole }) {
   }
 
   return (
-    <section aria-labelledby="tokens-heading" className="flex flex-col gap-4">
+    <section aria-labelledby="tokens-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h2 id="tokens-heading" className="text-base font-semibold">
+          <h2 id="tokens-heading" className="text-[15px] font-semibold">
             API tokens
           </h2>
           <p className="text-sm text-muted">
@@ -232,7 +232,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
               <DialogTitle>Token {created.name} created</DialogTitle>
               <DialogDescription>Copy the secret now. You will not be able to see it again.</DialogDescription>
             </DialogHeader>
-            <div className="flex items-center gap-2 rounded-md border border-line bg-panel p-3">
+            <div className="flex items-center gap-2 rounded-lg border border-line bg-panel p-3">
               <code className="min-w-0 flex-1 break-all font-mono text-sm">{created.secret}</code>
               <Button
                 variant="secondary"

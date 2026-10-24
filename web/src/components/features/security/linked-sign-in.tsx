@@ -33,9 +33,9 @@ export function LinkedSignInSection() {
   }
 
   return (
-    <section aria-labelledby="linked-heading" aria-label="Linked sign-in" className="flex flex-col gap-4">
+    <section aria-labelledby="linked-heading" aria-label="Linked sign-in" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
       <div>
-        <h2 id="linked-heading" className="text-base font-semibold">
+        <h2 id="linked-heading" className="text-[15px] font-semibold">
           Linked sign-in
         </h2>
         <p className="text-sm text-muted">Link a provider to sign in with it. Linking needs this signed-in session.</p>
