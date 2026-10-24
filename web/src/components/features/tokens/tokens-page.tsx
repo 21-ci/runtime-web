@@ -19,6 +19,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useApps } from "@/hooks/orgs";
 import { ApiError } from "@/lib/api";
 import type { OrgRole } from "@/lib/types";
@@ -277,18 +284,18 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
               ) : null}
               <div className="flex flex-col gap-1.5">
                 <Label htmlFor={expiryId}>Expires</Label>
-                <select
-                  id={expiryId}
-                  name="expiry"
-                  defaultValue="never"
-                  className="h-[34px] rounded-[6px] border border-line bg-surface px-2 text-sm"
-                >
-                  {EXPIRY_OPTIONS.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
+                <Select name="expiry" defaultValue="never">
+                  <SelectTrigger id={expiryId} className="h-[34px] px-2 text-sm">
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {EXPIRY_OPTIONS.map((o) => (
+                      <SelectItem key={o.value} value={o.value}>
+                        {o.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <DialogFooter>
                 <Button type="submit" variant="default" disabled={create.isPending}>

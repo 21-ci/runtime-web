@@ -62,8 +62,10 @@ describe("app shell", { timeout: 15_000 }, () => {
     useShellHandlers();
     renderAt("/acme/apps/new?project=web");
     const env = await screen.findByRole("combobox", { name: /environment/i }, LOAD);
-    await waitFor(() => expect(within(env).getByRole("option", { name: "prod" })).toBeDefined(), LOAD);
-    expect(within(env).getByRole("option", { name: "dev" })).toBeDefined();
+    await userEvent.click(env);
+    const listbox = await screen.findByRole("listbox", {}, LOAD);
+    expect(within(listbox).getByRole("option", { name: "prod" })).toBeDefined();
+    expect(within(listbox).getByRole("option", { name: "dev" })).toBeDefined();
   });
 
   it("quota bar renders limits read-only", async () => {
@@ -128,6 +130,14 @@ describe("app shell", { timeout: 15_000 }, () => {
     renderAt("/acme");
     await screen.findByRole("link", { name: "Hello" }, LOAD);
     fireEvent.keyDown(document, { key: "k", metaKey: true });
+    expect(await screen.findByRole("option", { name: /New project/ }, LOAD)).toBeDefined();
+  });
+
+  it("mobile search button opens the command menu", async () => {
+    useShellHandlers();
+    renderAt("/acme");
+    await screen.findByRole("link", { name: "Hello" }, LOAD);
+    await userEvent.click(screen.getByRole("button", { name: "Search" }));
     expect(await screen.findByRole("option", { name: /New project/ }, LOAD)).toBeDefined();
   });
 

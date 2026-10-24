@@ -1,10 +1,12 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { createQueryClient } from "@/lib/query";
 import { FakeEventSource } from "./fake-event-source";
 import { LogsView } from "./logs-view";
+import { pickOption } from "@/test/select";
 
 function line(seq: number, msg: string, level = "info") {
   return {
@@ -119,10 +121,10 @@ describe("LogsView", () => {
     expect(screen.queryByText("beta")).not.toBeInTheDocument();
   });
 
-  it("level change reopens the stream with the minimum level", () => {
+  it("level change reopens the stream with the minimum level", async () => {
     renderLogs();
     const first = latest();
-    fireEvent.change(screen.getByLabelText("Minimum level"), { target: { value: "warn" } });
+    await pickOption(userEvent, screen.getByLabelText("Minimum level"), "Warn and up");
     expect(first.closed).toBe(true);
     expect(FakeEventSource.instances).toHaveLength(2);
     expect(latest().url).toBe("/api/orgs/acme/apps/hello/logs?level=warn");

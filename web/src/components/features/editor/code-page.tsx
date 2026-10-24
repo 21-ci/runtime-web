@@ -15,6 +15,13 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ApiError } from "@/lib/api";
 
 import { useAppView, useCanDeploy, useFiles, useSaveFiles, useVersionState, type BuildDetails, type Diagnostic, type Files } from "./hooks";
@@ -151,20 +158,21 @@ export function CodePage({ org, app }: { org: string; app: string }) {
       <div className="grid gap-3 lg:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-2">
           {paths.length > 1 && (
-            <label className="flex items-center gap-2 text-sm">
+            <div className="flex items-center gap-2 text-sm">
               <span className="text-muted">File</span>
-              <select
-                className="h-8 rounded-md border border-line bg-panel px-2"
-                value={path}
-                onChange={(e) => setActive(e.target.value)}
-              >
-                {paths.map((p) => (
-                  <option key={p} value={p}>
-                    {p}
-                  </option>
-                ))}
-              </select>
-            </label>
+              <Select value={path} onValueChange={setActive}>
+                <SelectTrigger aria-label="File" className="h-8 w-auto min-w-40 rounded-md bg-panel px-2">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {paths.map((p) => (
+                    <SelectItem key={p} value={p}>
+                      {p}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
           )}
           {wasm ? null : (
             <div className="h-[60vh]">

@@ -3,6 +3,13 @@ import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { type AppAccess, type AppDetail, useCreateInvokeToken, usePatchApp } from "./api";
 import { FormAlert, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
 
@@ -47,18 +54,18 @@ export function AccessSection({ org, app }: { org: string; app: AppDetail }) {
       <form onSubmit={onSubmit} className="flex flex-col gap-3" aria-label="Access settings">
         <div className="flex flex-col gap-1">
           <Label htmlFor="access-mode">Access</Label>
-          <select
-            id="access-mode"
-            value={access}
-            onChange={(e) => setAccess(e.target.value as AppAccess)}
-            className="h-8 w-full rounded-sm border border-line-strong bg-surface px-2.5 text-sm text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus"
-          >
-            {MODES.map((m) => (
-              <option key={m.value} value={m.value}>
-                {m.label}
-              </option>
-            ))}
-          </select>
+          <Select value={access} onValueChange={(v) => setAccess(v as AppAccess)}>
+            <SelectTrigger id="access-mode">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {MODES.map((m) => (
+                <SelectItem key={m.value} value={m.value}>
+                  {m.label}
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
           <p className="text-sm text-muted">{help}</p>
         </div>
 

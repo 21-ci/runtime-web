@@ -59,8 +59,8 @@ function SetupPage() {
     <AuthShell title="Set up Runtime">
       {status.isPending ? (
         <div className="flex flex-col gap-3" aria-busy="true">
-          <Skeleton className="h-[38px] w-full" />
-          <Skeleton className="h-[38px] w-full" />
+          <Skeleton className="h-8 w-full" />
+          <Skeleton className="h-8 w-full" />
         </div>
       ) : (
         <>

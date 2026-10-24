@@ -48,7 +48,7 @@ function AppSettingsPage() {
   return (
     <div className="flex flex-col gap-4">
       <header className="flex flex-col gap-2">
-        <h1 className="text-xl font-semibold">{a.name ?? a.slug} settings</h1>
+        <h1 className="text-2xl font-semibold">{a.name ?? a.slug} settings</h1>
         <StatusPill status={a.status} />
       </header>
       <WriteAccess.Provider value={can("app.update") === true}>
@@ -59,13 +59,13 @@ function AppSettingsPage() {
         <CallersSection org={org} app={a} />
         <LimitsSection org={org} app={a} />
       </WriteAccess.Provider>
-      <section className="rounded-[6px] border border-line bg-surface p-4">
+      <section className="rounded-md border border-line bg-surface p-4">
         <EnvEditor org={org} app={app} canWrite={can("app.env.write") === true} />
       </section>
-      <section className="rounded-[6px] border border-line bg-surface p-4">
+      <section className="rounded-md border border-line bg-surface p-4">
         <SecretsPanel org={org} app={app} canWrite={can("app.secrets.write") === true} />
       </section>
-      <section className="rounded-[6px] border border-line bg-surface p-4">
+      <section className="rounded-md border border-line bg-surface p-4">
         <DomainsPanel org={org} app={app} canWrite={can("domains.manage") === true} />
       </section>
       {can("app.delete") === true ? (

@@ -37,7 +37,7 @@ Reduced motion disables transitions and animations globally.
 ## Type and sizing
 
 - Base 14px, line-height 1.5, IBM Plex Sans / Mono. Use `tabular-nums` for numeric columns.
-- h1 `text-lg font-semibold tracking-[-0.01em]`, h2 `text-sm font-semibold`, h3 `text-[13px] font-medium text-muted`.
+- h1 `text-2xl font-semibold tracking-[-0.01em]`, h2 `text-base font-semibold`, h3 `text-[13px] font-medium text-muted`.
 - Labels `text-[13px] font-medium`.
 - Buttons: `default` 28px (`h-7`), `sm` 24px, `icon` 28px, `icon-sm` 24px. Inputs 28px.
 - Icons 16px (`size-4`), stroke 1.75 (global `.lucide` rule).

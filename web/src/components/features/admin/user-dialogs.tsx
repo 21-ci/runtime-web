@@ -12,14 +12,21 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { ApiError } from "@/lib/api";
 import type { OrgRole } from "@/lib/types";
 
 import { errorMessage, useAdminOrgs, useCreateAdminInvite, useCreateAdminUser } from "./admin-api";
 import { SecretOnce } from "./secret-once";
 
-const selectClass =
-  "flex h-[38px] w-full min-w-0 rounded-[4px] border border-line-strong bg-surface px-3 text-text outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus";
+// NONE_VALUE is the "no selection" choice in a SelectField. Radix Select items cannot be empty strings.
+export const NONE_VALUE = "__none__";
 
 // CreateUserDialog creates an account with a temporary password. The password is shown once in the
 // same dialog; closing the dialog discards it.
@@ -126,7 +133,7 @@ export function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     e.preventDefault();
     const form = new FormData(e.currentTarget);
     const email = String(form.get("email") ?? "").trim();
-    const org = String(form.get("org") ?? "");
+    const org = String(form.get("org") ?? "") === NONE_VALUE ? "" : String(form.get("org") ?? "");
     const role = String(form.get("role") ?? "member") as OrgRole;
     if (!email) {
       setErrors({ email: "Enter an email address." });
@@ -164,19 +171,27 @@ export function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChan
         ) : (
           <AuthForm errors={errors} onSubmit={onSubmit}>
             <FormField label="Email" name="email" type="email" autoComplete="off" error={errors.email} />
-            <SelectField label="Organization (optional)" name="org" error={errors.org}>
-              <option value="">No organization</option>
-              {(orgs.data ?? []).map((o) => (
-                <option key={o.slug} value={o.slug}>
-                  {o.name} ({o.slug})
-                </option>
-              ))}
-            </SelectField>
-            <SelectField label="Role in organization" name="role" error={errors.role}>
-              <option value="member">Member</option>
-              <option value="admin">Admin</option>
-              <option value="owner">Owner</option>
-            </SelectField>
+            <SelectField
+              label="Organization (optional)"
+              name="org"
+              error={errors.org}
+              defaultValue={NONE_VALUE}
+              options={[
+                { value: NONE_VALUE, label: "No organization" },
+                ...(orgs.data ?? []).map((o) => ({ value: o.slug, label: `${o.name} (${o.slug})` })),
+              ]}
+            />
+            <SelectField
+              label="Role in organization"
+              name="role"
+              error={errors.role}
+              defaultValue="member"
+              options={[
+                { value: "member", label: "Member" },
+                { value: "admin", label: "Admin" },
+                { value: "owner", label: "Owner" },
+              ]}
+            />
             <DialogFooter>
               <Button type="submit" variant="default" disabled={create.isPending}>
                 Create invite link
@@ -224,24 +239,36 @@ export function SecretDialog({
   );
 }
 
+// SelectField is a labelled Radix Select that submits its value with the surrounding form.
 function SelectField({
   label,
   name,
   error,
-  children,
+  options,
+  defaultValue,
 }: {
   label: string;
   name: string;
   error?: string;
-  children: ReactNode;
+  options: { value: string; label: string }[];
+  defaultValue?: string;
 }) {
   const id = `field-${name}`;
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={id}>{label}</Label>
-      <select id={id} name={name} className={selectClass} aria-invalid={error ? true : undefined}>
-        {children}
-      </select>
+      <Select name={name} defaultValue={defaultValue}>
+        <SelectTrigger id={id} aria-invalid={error ? true : undefined} className="h-8">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          {options.map((o) => (
+            <SelectItem key={o.value} value={o.value}>
+              {o.label}
+            </SelectItem>
+          ))}
+        </SelectContent>
+      </Select>
       {error ? <p className="text-sm text-danger">{error}</p> : null}
     </div>
   );

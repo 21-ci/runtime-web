@@ -9,11 +9,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { useAdminAudit, useAdminOrgs, useUserOptions, type AuditFilters } from "./admin-api";
 
-const selectClass =
-  "flex h-[38px] w-full min-w-0 rounded-[4px] border border-line-strong bg-surface px-3 text-text outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus";
+// Radix Select items cannot have an empty value, so the "any" choices use sentinels.
+const ALL_ORGS = "__all__";
+const ANY_ACTOR = "__any__";
 
 // AuditPage is the instance-wide audit log. Filters go to the API (org slug, actor user id, action),
 // so each change reloads from the first page.
@@ -39,35 +47,41 @@ export function AuditPage() {
       <form className="grid gap-3 sm:grid-cols-3" role="search" aria-label="Filter audit log" onSubmit={(e) => e.preventDefault()}>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={orgId}>Organization</Label>
-          <select
-            id={orgId}
-            className={selectClass}
-            value={filters.org}
-            onChange={(e) => setFilters((f) => ({ ...f, org: e.target.value }))}
+          <Select
+            value={filters.org || ALL_ORGS}
+            onValueChange={(v) => setFilters((f) => ({ ...f, org: v === ALL_ORGS ? "" : v }))}
           >
-            <option value="">All organizations</option>
-            {(orgs.data ?? []).map((o) => (
-              <option key={o.slug} value={o.slug}>
-                {o.name} ({o.slug})
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id={orgId} className="h-8 min-w-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ALL_ORGS}>All organizations</SelectItem>
+              {(orgs.data ?? []).map((o) => (
+                <SelectItem key={o.slug} value={o.slug}>
+                  {o.name} ({o.slug})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={actorId}>Actor</Label>
-          <select
-            id={actorId}
-            className={selectClass}
-            value={filters.actor}
-            onChange={(e) => setFilters((f) => ({ ...f, actor: e.target.value }))}
+          <Select
+            value={filters.actor || ANY_ACTOR}
+            onValueChange={(v) => setFilters((f) => ({ ...f, actor: v === ANY_ACTOR ? "" : v }))}
           >
-            <option value="">Any actor</option>
-            {(users.data ?? []).map((u) => (
-              <option key={u.id} value={u.id}>
-                {u.name} ({u.email})
-              </option>
-            ))}
-          </select>
+            <SelectTrigger id={actorId} className="h-8 min-w-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem value={ANY_ACTOR}>Any actor</SelectItem>
+              {(users.data ?? []).map((u) => (
+                <SelectItem key={u.id} value={u.id}>
+                  {u.name} ({u.email})
+                </SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
         </div>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={actionId}>Action</Label>

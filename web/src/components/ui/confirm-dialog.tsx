@@ -115,7 +115,7 @@ export function ConfirmDialog({
             onClick={onConfirm}
             disabled={pending || confirmDisabled || !ready}
           >
-            {pending ? "Working…" : confirmLabel}
+            {pending ? `${confirmLabel}…` : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

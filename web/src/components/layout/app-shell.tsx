@@ -20,6 +20,11 @@ export function AppShell({ org, children }: { org: string; children: ReactNode }
   const [sheetOpen, setSheetOpen] = useState(false);
   const current = orgs.data?.find((o) => o.slug === org);
 
+  // The command menu listens for ⌘K / Ctrl K, so the topbar buttons reuse that keydown.
+  function openCommandMenu() {
+    document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }));
+  }
+
   return (
     <div className="flex min-h-dvh bg-bg text-text">
       <a
@@ -50,13 +55,14 @@ export function AppShell({ org, children }: { org: string; children: ReactNode }
 
           <p className="min-w-0 flex-1 truncate text-sm text-muted">{current?.name ?? org}</p>
 
+          <Button variant="ghost" size="icon" aria-label="Search" onClick={openCommandMenu} className="sm:hidden">
+            <Search className="size-5" aria-hidden="true" />
+          </Button>
           <Button
             variant="secondary"
             size="sm"
             aria-label="Open command menu"
-            onClick={() =>
-              document.dispatchEvent(new KeyboardEvent("keydown", { key: "k", metaKey: true, bubbles: true }))
-            }
+            onClick={openCommandMenu}
             className="hidden sm:inline-flex"
           >
             <Search className="size-4" aria-hidden="true" /> Search

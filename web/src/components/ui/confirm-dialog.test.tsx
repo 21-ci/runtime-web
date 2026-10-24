@@ -67,7 +67,7 @@ describe("ConfirmDialog", () => {
   it("disables actions and shows the working label while pending", () => {
     setup({ pending: true });
     expect(screen.getByRole("button", { name: "Cancel" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Working…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Delete app…" })).toBeDisabled();
   });
 
   it("closes through Cancel", async () => {

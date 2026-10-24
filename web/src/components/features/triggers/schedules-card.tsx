@@ -8,6 +8,13 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 import { ConfirmDialog } from "./confirm-dialog";
 import { describeCron } from "./cron-preview";
@@ -190,15 +197,15 @@ function ScheduleDialog({ org, app, onClose }: { org: string; app: string; onClo
         <form onSubmit={onSubmit} className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="schedule-kind">Kind</Label>
-            <select
-              id="schedule-kind"
-              value={kind}
-              onChange={(e) => setKind(e.target.value as "interval" | "cron")}
-              className="h-8 rounded-sm border border-line-strong bg-surface px-2.5 text-sm text-text"
-            >
-              <option value="cron">Cron</option>
-              <option value="interval">Interval</option>
-            </select>
+            <Select value={kind} onValueChange={(v) => setKind(v as "interval" | "cron")}>
+              <SelectTrigger id="schedule-kind">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="cron">Cron</SelectItem>
+                <SelectItem value="interval">Interval</SelectItem>
+              </SelectContent>
+            </Select>
           </div>
 
           {kind === "cron" ? (

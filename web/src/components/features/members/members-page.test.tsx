@@ -57,6 +57,22 @@ describe("MembersPage", () => {
     await waitFor(() => expect(screen.queryByText("linus@example.test")).toBeNull(), slow);
   });
 
+  it("long member emails truncate with a full-text title", async () => {
+    const long = "someone.with.a.very.long.address@a-really-long-company-domain.example.test";
+    server.use(
+      http.get("/api/orgs/acme/members", () =>
+        HttpResponse.json({ items: [{ ...members[1], user: { ...members[1].user, email: long } }] }),
+      ),
+      http.get("/api/orgs/acme/invites", () => HttpResponse.json({ items: [] })),
+    );
+    renderPage("owner");
+
+    const email = await screen.findByText(long);
+    expect(email).toHaveAttribute("title", long);
+    expect(email.className).toContain("truncate");
+    expect(email.parentElement?.className).toContain("min-w-0");
+  });
+
   it("owners-only controls hidden for admins", async () => {
     server.use(
       http.get("/api/orgs/acme/members", () => HttpResponse.json({ items: members })),

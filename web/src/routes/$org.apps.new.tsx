@@ -5,6 +5,13 @@ import { AuthForm, FormField } from "@/components/auth/auth-form";
 import { TEMPLATES } from "@/components/features/empty/no-apps";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { useCreateApp, useEnvironments, useProjects, type Template } from "@/hooks/orgs";
 import { ApiError } from "@/lib/api";
 import { handleMutationError } from "@/lib/query";
@@ -80,42 +87,42 @@ function NewAppPage() {
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="project">Project</Label>
-            <select
-              id="project"
+            <Select
               name="project"
               value={project}
-              onChange={(e) => {
-                setProjectChoice(e.target.value);
+              onValueChange={(v) => {
+                setProjectChoice(v);
                 setEnvChoice("");
               }}
-              className="h-9 rounded-[6px] border border-line-strong bg-surface px-3 text-sm"
             >
-              {(projects.data ?? []).map((p) => (
-                <option key={p.slug} value={p.slug}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+              <SelectTrigger id="project" className="h-9 px-3 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(projects.data ?? []).map((p) => (
+                  <SelectItem key={p.slug} value={p.slug}>
+                    {p.name}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {errors.project ? <p className="text-sm text-danger">{errors.project}</p> : null}
           </div>
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="environment">Environment</Label>
-            <select
-              id="environment"
-              name="environment"
-              aria-label="Environment"
-              value={environment}
-              onChange={(e) => setEnvChoice(e.target.value)}
-              aria-invalid={errors.environment ? true : undefined}
-              className="h-9 rounded-[6px] border border-line-strong bg-surface px-3 text-sm"
-            >
-              {(envs.data ?? []).map((e) => (
-                <option key={e} value={e}>
-                  {e}
-                </option>
-              ))}
-            </select>
+            <Select name="environment" value={environment} onValueChange={setEnvChoice}>
+              <SelectTrigger id="environment" aria-label="Environment" aria-invalid={errors.environment ? true : undefined} className="h-9 px-3 text-sm">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                {(envs.data ?? []).map((e) => (
+                  <SelectItem key={e} value={e}>
+                    {e}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             {errors.environment ? <p className="text-sm text-danger">{errors.environment}</p> : null}
           </div>
         </div>

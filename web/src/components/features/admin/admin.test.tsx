@@ -7,6 +7,7 @@ import { setCsrfToken } from "@/lib/api";
 import { server } from "@/test/msw";
 import { renderAt } from "@/test/render";
 import { me, useShellHandlers } from "@/test/shell-fixtures";
+import { pickOption } from "@/test/select";
 
 const adminMe = { ...me, user: { ...me.user, instance_admin: true } };
 
@@ -178,12 +179,10 @@ describe("admin pages", () => {
     renderAt("/admin/audit");
 
     const orgSelect = await screen.findByLabelText(/organization/i);
-    await within(orgSelect).findByRole("option", { name: /Acme/ });
-    await userEvent.selectOptions(orgSelect, "acme");
+        await pickOption(userEvent, orgSelect, /Acme/);
 
     const actorSelect = await screen.findByLabelText(/actor/i);
-    await within(actorSelect).findByRole("option", { name: /Grace/ });
-    await userEvent.selectOptions(actorSelect, "usr_2");
+        await pickOption(userEvent, actorSelect, /Grace/);
 
     await waitFor(() => expect(seen.at(-1)?.get("org")).toBe("acme"));
     expect(seen.at(-1)?.get("actor")).toBe("usr_2");
