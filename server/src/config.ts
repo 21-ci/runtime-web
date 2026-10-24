@@ -19,6 +19,10 @@ export interface Config {
   readonly insecureCookies: boolean;
   /** First-run setup token (RTWEB_SETUP_TOKEN). Undefined: setup refuses with 403 until one is set. */
   readonly setupToken: string | undefined;
+  /** Public base URL of the runtime that serves apps at /s/{slug}/ (RTWEB_RUNTIME_PUBLIC_URL). "" keeps app URLs relative. */
+  readonly runtimePublicUrl: string;
+  /** Runtime plan for new org tenants (RTWEB_DEFAULT_PLAN, default "free"). */
+  readonly defaultPlan: string;
 }
 
 export type Getenv = (name: string) => string | undefined;
@@ -29,7 +33,12 @@ export function loadConfig(getenv: Getenv): Config {
   const origin = parseOrigin(getenv("RTWEB_ORIGIN"), insecureCookies);
   const sealKey = parseSealKey(getenv("RTWEB_SEAL_KEY"));
   const setupToken = getenv("RTWEB_SETUP_TOKEN") || undefined;
-  return { origin, sealKey, insecureCookies, setupToken };
+  const runtimePublicUrl = parsePublicUrl(getenv("RTWEB_RUNTIME_PUBLIC_URL"));
+  const defaultPlan = getenv("RTWEB_DEFAULT_PLAN") || "free";
+  if (!/^[a-z0-9][a-z0-9_-]{0,62}$/.test(defaultPlan)) {
+    throw new ConfigError("RTWEB_DEFAULT_PLAN: must be a runtime plan name (lowercase letters, digits, - and _)");
+  }
+  return { origin, sealKey, insecureCookies, setupToken, runtimePublicUrl, defaultPlan };
 }
 
 function parseOrigin(raw: string | undefined, insecure: boolean): string {
@@ -60,4 +69,19 @@ function parseSealKey(raw: string | undefined): Uint8Array {
   }
   if (bytes.length !== 32) throw new ConfigError("RTWEB_SEAL_KEY: must decode to 32 bytes");
   return bytes;
+}
+
+function parsePublicUrl(raw: string | undefined): string {
+  if (!raw) return "";
+  let u: URL;
+  try {
+    u = new URL(raw);
+  } catch {
+    throw new ConfigError("RTWEB_RUNTIME_PUBLIC_URL: must be an absolute URL");
+  }
+  if (u.protocol !== "https:" && u.protocol !== "http:") throw new ConfigError("RTWEB_RUNTIME_PUBLIC_URL: must use http or https");
+  if (u.search || u.hash || u.username || u.password) {
+    throw new ConfigError("RTWEB_RUNTIME_PUBLIC_URL: no query, fragment or credentials");
+  }
+  return `${u.origin}${u.pathname}`.replace(/\/+$/, "");
 }

@@ -304,7 +304,7 @@ export function registerApps(router: Router, deps: Deps): void {
 // ---- helpers ----
 
 function appResponse(c: A.OrgCtx, svc: T.Service, etag: string, status: number): Response {
-  const runtimeUrl = (c.deps.config as { runtimePublicUrl?: string }).runtimePublicUrl ?? "";
+  const runtimeUrl = c.deps.config.runtimePublicUrl;
   const v = A.appView(svc, etag, runtimeUrl);
   return json(v, status, etagHeader(v.etag));
 }

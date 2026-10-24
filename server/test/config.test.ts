@@ -37,3 +37,25 @@ describe("loadConfig", () => {
     expect(() => loadConfig(env(vars))).toThrow(msg);
   });
 });
+
+describe("runtime public URL and default plan", () => {
+  it("defaults: no public URL, plan free", () => {
+    const c = loadConfig(env(base));
+    expect(c.runtimePublicUrl).toBe("");
+    expect(c.defaultPlan).toBe("free");
+  });
+
+  it("reads and normalises RTWEB_RUNTIME_PUBLIC_URL and RTWEB_DEFAULT_PLAN", () => {
+    const c = loadConfig(env({ ...base, RTWEB_RUNTIME_PUBLIC_URL: "https://rt.example.com/", RTWEB_DEFAULT_PLAN: "pro" }));
+    expect(c.runtimePublicUrl).toBe("https://rt.example.com");
+    expect(c.defaultPlan).toBe("pro");
+  });
+
+  it.each([
+    [{ RTWEB_RUNTIME_PUBLIC_URL: "rt.example.com" }, /RTWEB_RUNTIME_PUBLIC_URL/],
+    [{ RTWEB_RUNTIME_PUBLIC_URL: "ftp://rt.example.com" }, /RTWEB_RUNTIME_PUBLIC_URL/],
+    [{ RTWEB_DEFAULT_PLAN: "Bad Plan!" }, /RTWEB_DEFAULT_PLAN/],
+  ])("rejects %o", (over, msg) => {
+    expect(() => loadConfig(env({ ...base, ...over }))).toThrow(msg);
+  });
+});

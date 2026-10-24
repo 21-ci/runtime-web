@@ -12,7 +12,7 @@ export const TEST_ORIGIN = "https://console.test";
 export const TEST_SETUP_TOKEN = "test-setup-token-0123456789abcdef";
 
 export function testConfig(over: Partial<Config> = {}): Config {
-  return { origin: TEST_ORIGIN, sealKey: new Uint8Array(32).fill(7), insecureCookies: false, setupToken: TEST_SETUP_TOKEN, ...over };
+  return { origin: TEST_ORIGIN, sealKey: new Uint8Array(32).fill(7), insecureCookies: false, setupToken: TEST_SETUP_TOKEN, runtimePublicUrl: "", defaultPlan: "free", ...over };
 }
 
 const b64 = (b: Uint8Array) => btoa(String.fromCharCode(...b)).replace(/=+$/, "");

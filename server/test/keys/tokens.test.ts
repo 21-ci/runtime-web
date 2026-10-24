@@ -61,8 +61,23 @@ describe("custom tokens", () => {
     ]) {
       const res = await p.owner.call("POST", url, bad);
       expect(res.status, JSON.stringify(bad)).toBe(422);
-      expect(((await res.json()) as { error: { code: string } }).error.code).toBe("invalid");
+      const e = ((await res.json()) as { error: { code: string; details: { fields: Record<string, string> } } }).error;
+      expect(e.code).toBe("invalid");
+      expect(Object.keys(e.details.fields).length, JSON.stringify(bad)).toBeGreaterThan(0);
+      if (bad.scopes.length !== 1 || bad.scopes[0] !== "deploy") expect(e.details.fields.scopes).toBeTruthy();
     }
+  });
+
+  it("a scope the runtime refuses is 422 invalid with details.fields.scopes", async () => {
+    const app = testApp();
+    const org = await seedOrg(app);
+    const p = await people(app, org);
+    fake(app).failNext({ status: 422, code: "validation_failed", match: (r) => r.method === "POST" && r.path.endsWith("/keys") });
+    const res = await p.owner.call("POST", `/api/orgs/${org.slug}/tokens`, { name: "x", scopes: ["deploy"] });
+    expect(res.status).toBe(422);
+    const e = ((await res.json()) as { error: { code: string; details: { fields: Record<string, string> } } }).error;
+    expect(e.code).toBe("invalid");
+    expect(e.details.fields.scopes).toBeTruthy();
   });
 
   it("returns 404 for an unknown project slug", async () => {

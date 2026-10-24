@@ -10,6 +10,8 @@
 // Env: RT_API (http://127.0.0.1:8081), RT_INVOKE (http://127.0.0.1:8080), RTWEB_TENANT ("runtime-web"),
 // RTWEB_SLUG ("rtweb"), RTWEB_PLAN ("rtweb"; falls back to "free" with a warning when the node lacks it),
 // RTWEB_ORIGIN (browser origin of the console, default `${RT_INVOKE}`), RTWEB_HOST (console host to map),
+// RTWEB_RUNTIME_PUBLIC_URL (public base of app URLs, default `${RT_INVOKE}`), RTWEB_DEFAULT_PLAN (plan for new org
+// tenants; the server defaults to "free"),
 // RTCTL_SDK_VERSION ("0.1.0").
 //
 // Steps that need the operator (node config + restart/SIGHUP) are printed, never performed.
@@ -29,6 +31,8 @@ const SLUG = process.env.RTWEB_SLUG ?? "rtweb";
 const WANT_PLAN = process.env.RTWEB_PLAN ?? "rtweb";
 const ORIGIN = process.env.RTWEB_ORIGIN ?? INVOKE;
 const HOST = process.env.RTWEB_HOST ?? "";
+const PUBLIC_URL = process.env.RTWEB_RUNTIME_PUBLIC_URL ?? INVOKE;
+const DEFAULT_PLAN = process.env.RTWEB_DEFAULT_PLAN ?? "";
 const SDK_VERSION = process.env.RTCTL_SDK_VERSION ?? "0.1.0";
 const ROOT = fileURLToPath(new URL("..", import.meta.url));
 const REPO = join(ROOT, "..");
@@ -152,7 +156,13 @@ async function ensureService(tenant, cron) {
 
 async function setEnv(tenant, svc, extra) {
   const env = (await get(`/v1/services/${svc.id}/env`, { tenant })) ?? {};
-  const next = { ...env, RTWEB_ORIGIN: ORIGIN, ...extra };
+  const next = {
+    ...env,
+    RTWEB_ORIGIN: ORIGIN,
+    RTWEB_RUNTIME_PUBLIC_URL: PUBLIC_URL,
+    ...(DEFAULT_PLAN ? { RTWEB_DEFAULT_PLAN: DEFAULT_PLAN } : {}),
+    ...extra,
+  };
   if (JSON.stringify(Object.entries(env).sort()) !== JSON.stringify(Object.entries(next).sort())) {
     await api("PUT", `/v1/services/${svc.id}/env`, { tenant, body: next });
     step(5, `env set (${Object.keys(next).sort().join(", ")})`);

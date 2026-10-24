@@ -157,3 +157,23 @@ describe("org visibility and members", () => {
     expect([res.status, await errCode(res)]).toEqual([403, "csrf_invalid"]);
   });
 });
+
+describe("default plan", () => {
+  it("new tenants use config.defaultPlan", async () => {
+    const w = await world();
+    w.app.deps.config = { ...w.app.deps.config, defaultPlan: "pro" };
+    await makeOrg(w, "acme", await adminId(w));
+    expect([...w.fake.tenants.values()].map((t) => t.plan)).toContain("pro");
+  });
+
+  it("a plan the runtime does not have fails with a clear error naming RTWEB_DEFAULT_PLAN", async () => {
+    const w = await world();
+    w.app.deps.config = { ...w.app.deps.config, defaultPlan: "nope" };
+    const res = await w.admin.call("POST", "/api/admin/orgs", { slug: "acme", name: "A", owner_user_id: await adminId(w) });
+    expect(res.status).toBe(500);
+    const e = ((await res.json()) as { error: { code: string; message: string; details: unknown } }).error;
+    expect(e.code).toBe("default_plan_missing");
+    expect(e.message).toContain("RTWEB_DEFAULT_PLAN");
+    expect(e.details).toMatchObject({ plan: "nope", available: expect.arrayContaining(["free", "pro"]) });
+  });
+});

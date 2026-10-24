@@ -3,6 +3,14 @@ import { argon2Hasher } from "../../src/auth/password.ts";
 import { ADMIN, addUser, cookieOf, errCode, loginAs, post, PW, setupAdmin, signIn, testApp, TEST_SETUP_TOKEN } from "./helpers.ts";
 
 describe("setup", () => {
+  it("GET /api/setup is public on a fresh instance (no session, under the runtime base path)", async () => {
+    const app = testApp();
+    const res = await app.call("GET", "/api/setup", { headers: { "x-rt-base-path": "/s/console" } });
+    expect(res.status).toBe(200);
+    expect(res.headers.get("content-type")).toMatch(/application\/json/);
+    expect(await res.json()).toEqual({ needed: true });
+  });
+
   it("reports needed until the first user exists", async () => {
     const app = testApp();
     expect(await (await app.call("GET", "/api/setup")).json()).toEqual({ needed: true });

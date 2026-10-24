@@ -6,7 +6,7 @@
 import type { Deps } from "../app.ts";
 import { dbOf, sealerOf } from "../auth/types.ts";
 import { AppError, conflict, invalid, notFound } from "../http/errors.ts";
-import { isNotFound } from "../runtime/client.ts";
+import { isNotFound, isRuntimeError } from "../runtime/client.ts";
 import type { Scope } from "../runtime/types.ts";
 import { newId } from "../crypto/random.ts";
 import { auditIn } from "../audit/audit.ts";
@@ -29,7 +29,13 @@ export const KEY_SCOPES = [
 ] as const satisfies readonly Scope[];
 
 /** Retry delay for a failed default-key revoke (RetryInterval in Go). */
-export const REVOKE_RETRY_MS = 5 * 60_000;
+export const REVOKE_BASE_MS = 60_000;
+export const REVOKE_MAX_MS = 3600_000;
+
+/** Delay before retry number `attempts` of a failed revoke (exponential, capped at 1 h). */
+export function revokeBackoff(attempts: number): number {
+  return Math.min(REVOKE_BASE_MS * 2 ** attempts, REVOKE_MAX_MS);
+}
 const RETRY_BATCH = 100;
 
 export interface Actor {
@@ -107,6 +113,13 @@ async function revokeRuntimeKey(deps: Pick<Deps, "rtctl">, tenantId: string, key
   }
 }
 
+/** Request field a runtime key-create refusal is about (scopes unless it names another). */
+function fieldOf(msg: string): string {
+  for (const f of ["environments", "expires_at", "name"]) if (msg.includes(f)) return f;
+  if (msg.includes("project")) return "projects";
+  return "scopes";
+}
+
 /** Mints a custom token and records it. The secret is returned once. */
 export async function createToken(
   deps: Deps,
@@ -126,13 +139,22 @@ export async function createToken(
     }
   }
   const now = deps.now();
-  const key = await rt.op().createTenantKey(org.tenantId, {
+  const key = await rt
+    .op()
+    .createTenantKey(org.tenantId, {
     name: req.name,
     scopes: req.scopes,
     ...(projectIds.length ? { project_ids: projectIds } : {}),
     ...(req.environments.length ? { environments: req.environments } : {}),
     ...(req.expiresAt !== null ? { expires_at: new Date(req.expiresAt).toISOString() } : {}),
-  });
+    })
+    .catch((e: unknown) => {
+      // The runtime refusing a field the web accepted is still a 422 invalid naming the field.
+      if (isRuntimeError(e) && (e.status === 400 || e.status === 422)) {
+        throw invalid({ [fieldOf(e.message)]: e.message.replace(/^runtime: \d+ [a-z_0-9]+: /, "") || e.code });
+      }
+      throw e;
+    });
   const id = newId("tok_", now);
   const db = await dbOf(deps);
   try {
@@ -240,16 +262,18 @@ export async function revokeToken(deps: Deps, actor: Actor, org: OrgRow, tokenId
   });
 }
 
-type PendingRow = { runtime_key_id: string; tenant_id: string };
+type PendingRow = { runtime_key_id: string; tenant_id: string; attempts?: number };
 
 /** Tries the runtime revoke of a rotated-out key; success or "already gone" deletes the queue row. */
-async function revokePending(deps: Deps, row: PendingRow): Promise<void> {
+async function revokePending(deps: Pick<Deps, "storage" | "now" | "rtctl">, row: PendingRow): Promise<void> {
   const db = await dbOf(deps);
   try {
     await revokeRuntimeKey(deps, row.tenant_id, row.runtime_key_id);
   } catch {
-    await db.run("UPDATE pending_key_revokes SET attempts = attempts + 1, next_at = ? WHERE runtime_key_id = ?", [
-      deps.now() + REVOKE_RETRY_MS,
+    const attempts = (row.attempts ?? 0) + 1;
+    await db.run("UPDATE pending_key_revokes SET attempts = ?, next_at = ? WHERE runtime_key_id = ?", [
+      attempts,
+      deps.now() + revokeBackoff(attempts),
       row.runtime_key_id,
     ]);
     return;
@@ -306,10 +330,10 @@ export async function rotateDefaultKey(deps: Deps, actor: Actor, org: OrgRow): P
 }
 
 /** Retries queued default-key revokes that are due. Called from scheduled(). */
-export async function retryPendingRevokes(deps: Deps): Promise<number> {
+export async function retryPendingRevokes(deps: Pick<Deps, "storage" | "now" | "rtctl">): Promise<number> {
   const db = await dbOf(deps);
   const rows = await db.all<PendingRow>(
-    "SELECT runtime_key_id, tenant_id FROM pending_key_revokes WHERE next_at <= ? ORDER BY next_at LIMIT ?",
+    "SELECT runtime_key_id, tenant_id, attempts FROM pending_key_revokes WHERE next_at <= ? ORDER BY next_at LIMIT ?",
     [deps.now(), RETRY_BATCH],
   );
   for (const r of rows) await revokePending(deps, r);

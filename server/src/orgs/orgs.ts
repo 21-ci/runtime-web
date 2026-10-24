@@ -5,19 +5,17 @@ import type { Deps } from "../app.ts";
 import { dbOf, sealerOf } from "../auth/types.ts";
 import { defaultKeyScopes } from "../authz/policy.ts";
 import { newId } from "../crypto/random.ts";
-import { conflict, invalid, notFound } from "../http/errors.ts";
-import { isNotFound, isRuntimeError } from "../runtime/client.ts";
+import { AppError, conflict, invalid, notFound } from "../http/errors.ts";
+import { isNotFound, isRuntimeError, type Runtime } from "../runtime/client.ts";
 import type { Scope } from "../runtime/types.ts";
 import type { Db, Row } from "../storage/types.ts";
 import { runtimeOf, type Actor } from "./common.ts";
 import { auditStmt } from "../audit/audit.ts";
-import { mapRuntimeError, rt } from "../runtime/errors.ts";
+import { mapRuntimeError } from "../runtime/errors.ts";
 
 export type OrgDeps = Pick<Deps, "storage" | "now" | "config" | "rtctl">;
 
 export const DEFAULT_KEY_NAME = "rtweb-default";
-/** Runtime plan given to new org tenants. */
-export const ORG_PLAN = "free";
 const SLUG_RE = /^[a-z][a-z0-9-]{1,62}$/;
 
 export interface Org {
@@ -103,7 +101,10 @@ export async function createOrg(deps: OrgDeps, actor: Actor, input: CreateOrgIn)
   if (Number(u.disabled)) throw invalid({ owner_user_id: "disabled" });
 
   const op = runtimeOf(deps).op();
-  const tenant = await rt(() => op.createTenant({ name: slug, plan: ORG_PLAN }));
+  const plan = deps.config.defaultPlan;
+  const tenant = await op.createTenant({ name: slug, plan }).catch(async (e: unknown) => {
+    throw await planError(op, plan, e);
+  });
   try {
     const key = await op.createTenantKey(tenant.id, { name: DEFAULT_KEY_NAME, scopes: defaultKeyScopes() as Scope[] });
     const sealed = await (await sealerOf(deps)).seal(new TextEncoder().encode(key.secret));
@@ -213,4 +214,16 @@ export async function createFirstOrg(deps: OrgDeps, ownerUserId: string): Promis
     console.error("setup: first org not created", String(e));
     return null;
   }
+}
+
+/**
+ * A rejected tenant create whose plan the runtime does not know is a deployment
+ * error (RTWEB_DEFAULT_PLAN), not a bad request: say so instead of a bare 422.
+ */
+async function planError(op: ReturnType<Runtime["op"]>, plan: string, e: unknown): Promise<unknown> {
+  if (!(isRuntimeError(e) && (e.status === 422 || e.status === 400 || e.status === 404))) return mapRuntimeError(e);
+  const plans = await op.listPlans().catch(() => null);
+  if (!plans || plans.some((p) => p.name === plan)) return mapRuntimeError(e);
+  const available = plans.map((p) => p.name);
+  return new AppError(500, "default_plan_missing", `runtime has no plan "${plan}"; set RTWEB_DEFAULT_PLAN to one of: ${available.join(", ")}`, { plan, available });
 }
