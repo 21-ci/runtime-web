@@ -91,14 +91,14 @@ export type Scope =
   | "services:read"
   | "services:write"
   | "deploy"
+  | "invoke"
   | "logs:read"
-  | "data:read"
-  | "data:write"
+  | "env:write"
   | "secrets:write"
   | "queue:write"
-  | "sockets:write"
+  | "data:admin"
   | "keys:write"
-  | (string & {});
+  | "sockets:write";
 
 /** Empty/absent project_ids or environments = no restriction (never send []). */
 export interface KeyCreate {
