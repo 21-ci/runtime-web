@@ -21,3 +21,7 @@ export function useShell(): ShellState {
   if (!s) throw new Error("useShell must be used inside AppShell");
   return s;
 }
+
+// SHORTCUT_LABEL names the palette key for the platform: ⌘K on Apple devices, Ctrl K elsewhere.
+export const SHORTCUT_LABEL =
+  typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform) ? "⌘K" : "Ctrl K";

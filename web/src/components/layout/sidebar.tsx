@@ -2,16 +2,21 @@ import { Link, useNavigate } from "@tanstack/react-router";
 import {
   ChevronsLeft,
   FolderOpen,
+  KeyRound,
   LayoutDashboard,
   MoreHorizontal,
   Plus,
   Settings,
   Shield,
+  ScrollText,
+  Search,
   ShieldCheck,
+  Users,
   type LucideIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useState, type ReactNode } from "react";
 
+import { CreateProjectDialog } from "@/components/features/org/create-project-dialog";
 import { useIsInstanceAdmin } from "@/components/features/admin/gate";
 import { Button } from "@/components/ui/button";
 import {
@@ -20,12 +25,16 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { IconTile, type Entity } from "@/components/ui/icon-tile";
+import { IconTile, type Hue } from "@/components/ui/icon-tile";
 import { Skeleton } from "@/components/ui/skeleton";
-import { useApps, useProjects } from "@/hooks/orgs";
+import { useApps, useOrgs, useProjects } from "@/hooks/orgs";
 import { cn } from "@/lib/utils";
 import { useCreateAppGate } from "./create-app-gate";
 import { OrgSwitcher } from "./org-switcher";
+import { SHORTCUT_LABEL, useShell } from "./shell-context";
+
+// PROJECT_HUES gives each project (a "space") its own small colourful icon.
+const PROJECT_HUES: Hue[] = ["green", "blue", "pink", "yellow", "purple", "teal", "orange"];
 
 // ROW is a 32px rounded sidebar row; ACTIVE lifts the current page into a white pill.
 const ROW =
@@ -41,8 +50,7 @@ function SectionLabel({ children }: { children: ReactNode }) {
 function NavLink({
   to,
   params,
-  icon,
-  entity,
+  icon: Icon,
   label,
   onNavigate,
   exact,
@@ -50,14 +58,13 @@ function NavLink({
   to: string;
   params?: Record<string, string>;
   icon: LucideIcon;
-  entity: Entity;
   label: string;
   onNavigate?: () => void;
   exact?: boolean;
 }) {
   return (
     <Link to={to} params={params} onClick={onNavigate} activeOptions={{ exact }} className={ROW} activeProps={ACTIVE}>
-      <IconTile icon={icon} entity={entity} size="sm" />
+      <Icon className="size-4 shrink-0 text-muted" aria-hidden="true" />
       <span className="truncate">{label}</span>
     </Link>
   );
@@ -79,6 +86,11 @@ export function Sidebar({
   const gate = useCreateAppGate(org);
   const isAdmin = useIsInstanceAdmin();
   const navigate = useNavigate();
+  const { setPaletteOpen } = useShell();
+  const orgs = useOrgs();
+  const role = orgs.data?.find((o) => o.slug === org)?.role;
+  const canCreateProject = role === "owner" || role === "admin";
+  const [createOpen, setCreateOpen] = useState(false);
 
   function newApp(project: string) {
     onNavigate?.();
@@ -106,11 +118,55 @@ export function Sidebar({
         ) : null}
       </div>
 
-      <div className="pt-1">
-        <NavLink to="/$org" params={{ org }} icon={LayoutDashboard} entity="overview" label="Overview" onNavigate={onNavigate} exact />
+      <button
+        type="button"
+        onClick={() => {
+          onNavigate?.();
+          setPaletteOpen(true);
+        }}
+        aria-label="Open command menu"
+        className="mt-2 mb-1 flex h-9 w-full cursor-pointer items-center gap-2 rounded-lg border border-line bg-surface px-2.5 text-sm text-muted outline-none transition-[border-color,box-shadow] duration-[160ms] hover:border-line-strong focus-visible:ring-2 focus-visible:ring-focus"
+      >
+        <Search className="size-4 shrink-0" aria-hidden="true" />
+        <span className="flex-1 text-left">Search…</span>
+        <kbd className="rounded-md bg-panel-2 px-1.5 font-mono text-[11px]">{SHORTCUT_LABEL}</kbd>
+      </button>
+
+      <div className="flex flex-col gap-0.5 pt-1">
+        <NavLink to="/$org" params={{ org }} icon={LayoutDashboard} label="Dashboard" onNavigate={onNavigate} exact />
+        <NavLink to="/$org/settings/members" params={{ org }} icon={Users} label="Members" onNavigate={onNavigate} />
+        <NavLink to="/$org/settings/tokens" params={{ org }} icon={KeyRound} label="Tokens" onNavigate={onNavigate} />
+        <NavLink to="/$org/settings/audit" params={{ org }} icon={ScrollText} label="Audit log" onNavigate={onNavigate} />
       </div>
 
-      <SectionLabel>Projects</SectionLabel>
+      <div className="group/projects flex items-center pr-1">
+        <SectionLabel>Projects</SectionLabel>
+        <span className="ml-auto flex items-center gap-0.5 pt-3">
+          <button
+            type="button"
+            aria-label="Search projects and apps"
+            title="Search"
+            onClick={() => {
+              onNavigate?.();
+              setPaletteOpen(true);
+            }}
+            className={cn(ROW_ACTION, "group-hover/projects:opacity-100")}
+          >
+            <Search className="size-3.5" aria-hidden="true" />
+          </button>
+          {canCreateProject ? (
+            <button
+              type="button"
+              aria-label="New project"
+              title="New project"
+              onClick={() => setCreateOpen(true)}
+              className={cn(ROW_ACTION, "group-hover/projects:opacity-100")}
+            >
+              <Plus className="size-3.5" aria-hidden="true" />
+            </button>
+          ) : null}
+        </span>
+      </div>
       {projects.isPending ? (
         <div className="flex flex-col gap-2 px-2" aria-busy="true">
           <Skeleton className="h-5 w-full" />
@@ -127,7 +183,7 @@ export function Sidebar({
         <p className="px-2 py-1 text-[13px] text-muted">No projects</p>
       ) : null}
 
-      {(projects.data ?? []).map((p) => {
+      {(projects.data ?? []).map((p, i) => {
         const own = (apps.data ?? []).filter((a) => a.project === p.slug);
         const canCreate = gate.inProject(p.slug);
         return (
@@ -140,7 +196,7 @@ export function Sidebar({
                 className={cn(ROW, "flex-1 pr-14")}
                 activeProps={ACTIVE}
               >
-                <IconTile icon={FolderOpen} entity="projects" size="sm" />
+                <IconTile icon={FolderOpen} hue={PROJECT_HUES[i % PROJECT_HUES.length]} size="xs" />
                 <span className="truncate">{p.name}</span>
               </Link>
               <div className="absolute right-1 flex items-center gap-0.5">
@@ -210,13 +266,14 @@ export function Sidebar({
           to="/$org/settings/general"
           params={{ org }}
           icon={Settings}
-          entity="settings"
+         
           label="Settings"
           onNavigate={onNavigate}
         />
-        <NavLink to="/me/security" icon={ShieldCheck} entity="security" label="Account security" onNavigate={onNavigate} />
-        {isAdmin ? <NavLink to="/admin" icon={Shield} entity="admin" label="Admin" onNavigate={onNavigate} /> : null}
+        <NavLink to="/me/security" icon={ShieldCheck} label="Account security" onNavigate={onNavigate} />
+        {isAdmin ? <NavLink to="/admin" icon={Shield} label="Admin" onNavigate={onNavigate} /> : null}
       </div>
+      {canCreateProject ? <CreateProjectDialog org={org} open={createOpen} onOpenChange={setCreateOpen} /> : null}
     </nav>
   );
 }

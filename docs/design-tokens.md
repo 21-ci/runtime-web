@@ -64,3 +64,14 @@ Reduced motion disables transitions and animations globally.
 
 `default` (gray), `success` (green), `danger` (red), `warning` (yellow), `info` (accent), `accent` (orange),
 `outline`. All are pills.
+
+## Dashboard and sidebar
+
+- `SectionCard` (`ui/section-card.tsx`): surface, hairline, `rounded-xl` (14px), header row with a bold
+  title, then small controls. Small secondary controls (filters, "View all", ⋮) use `SMALL_CONTROL` /
+  `SMALL_ICON`: lightly bordered, `rounded-md`, not pills. Primary buttons stay pills.
+- Org overview (`features/overview/dashboard.tsx`): quick-action cards (IconTile + title + subtitle), then a
+  two-column grid of Apps tiles, Recent activity timeline (audit, admins only) and Members cards.
+- Sidebar: org switcher with collapse, search field (opens ⌘K), plain line icons for main nav, then a
+  Projects section with small coloured tiles, nested apps, and hover search / + in the section header.
+- Top bar: breadcrumb left, user avatar with chevron right.

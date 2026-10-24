@@ -1,7 +1,8 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Check, CircleUser, LogOut, ShieldCheck } from "lucide-react";
+import { Check, ChevronDown, LogOut, ShieldCheck } from "lucide-react";
 
-import { Button } from "@/components/ui/button";
+import { useMe } from "@/components/features/security/hooks";
+
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -12,6 +13,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useLogout } from "@/hooks/auth";
 import type { Theme } from "@/lib/theme";
+import { OrgAvatar } from "./org-switcher";
 import { useShell } from "./shell-context";
 
 const THEMES: { value: Theme; label: string }[] = [
@@ -27,6 +29,8 @@ export function AccountMenu() {
   const logout = useLogout();
   const navigate = useNavigate();
   const { theme, setTheme } = useShell();
+  const me = useMe();
+  const name = me.data?.user.name ?? me.data?.user.email ?? "?";
 
   function onLogout() {
     logout.mutate(undefined, {
@@ -38,10 +42,12 @@ export function AccountMenu() {
 
   return (
     <DropdownMenu>
-      <DropdownMenuTrigger asChild>
-        <Button variant="ghost" size="icon" aria-label="Account menu">
-          <CircleUser className="size-4" aria-hidden="true" />
-        </Button>
+      <DropdownMenuTrigger
+        aria-label="Account menu"
+        className="inline-flex h-8 cursor-pointer items-center gap-1 rounded-full py-0.5 pr-1.5 pl-0.5 text-muted outline-none transition-colors duration-[160ms] hover:bg-hover hover:text-text focus-visible:ring-2 focus-visible:ring-focus data-[state=open]:bg-hover"
+      >
+        <OrgAvatar name={name} className="size-7 rounded-full text-[12px]" />
+        <ChevronDown className="size-3.5" aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[200px]">
         <DropdownMenuItem onSelect={() => void navigate({ to: "/me/security" })}>

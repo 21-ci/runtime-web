@@ -76,6 +76,9 @@ export function useShellHandlers(logoutSpy?: () => void) {
     }),
     http.get("/api/orgs/:org/limits", () => HttpResponse.json(limits)),
     http.get("/api/orgs/:org/usage", () => HttpResponse.json({ items: [] })),
+    // Dashboard cards; tests that care override these with server.use(...).
+    http.get("/api/orgs/:org/members", () => HttpResponse.json({ items: [] })),
+    http.get("/api/orgs/:org/audit", () => HttpResponse.json({ items: [], next_cursor: null })),
     http.get("/api/invites/accept/:token", () =>
       HttpResponse.json({ email: "grace@example.test", org_name: "Acme" }),
     ),

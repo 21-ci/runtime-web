@@ -12,10 +12,6 @@ import { ShellContext, type ShellState } from "./shell-context";
 import { Sidebar } from "./sidebar";
 import { ThemeToggle } from "./theme-toggle";
 
-// SHORTCUT_LABEL names the palette key for the platform: ⌘K on Apple devices, Ctrl K elsewhere.
-const SHORTCUT_LABEL =
-  typeof navigator !== "undefined" && /Mac|iPhone|iPad|iPod/.test(navigator.platform) ? "⌘K" : "Ctrl K";
-
 const COLLAPSED_KEY = "rt-sidebar-collapsed";
 
 function readCollapsed(): boolean {
@@ -108,7 +104,7 @@ export function AppShell({ org, children }: { org: string; children: ReactNode }
         </aside>
 
         <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-10 flex h-12 items-center gap-1.5 bg-bg/95 px-3 md:px-5">
+          <header className="sticky top-0 z-10 flex h-13 items-center gap-1.5 border-b border-line bg-bg px-3 md:px-6">
             <SheetPrimitive.Root open={sheetOpen} onOpenChange={setSheetOpen}>
               <SheetPrimitive.Trigger asChild>
                 <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation">
@@ -147,23 +143,11 @@ export function AppShell({ org, children }: { org: string; children: ReactNode }
               size="icon"
               aria-label="Search"
               onClick={() => setPaletteOpen(true)}
-              className="sm:hidden"
+              className="md:hidden"
             >
               <Search className="size-4" aria-hidden="true" />
             </Button>
-            <Button
-              variant="secondary"
-              size="sm"
-              aria-label="Open command menu"
-              onClick={() => setPaletteOpen(true)}
-              className="hidden text-muted sm:inline-flex"
-            >
-              <Search className="size-4" aria-hidden="true" /> Search
-              <kbd className="ml-2 rounded-md bg-surface px-1.5 font-mono text-[11px] text-muted">
-                {SHORTCUT_LABEL}
-              </kbd>
-            </Button>
-            <ThemeToggle className="ml-1 hidden sm:inline-flex" />
+<ThemeToggle className="ml-1 hidden sm:inline-flex" />
             <AccountMenu />
           </header>
 
