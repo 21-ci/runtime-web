@@ -7,4 +7,5 @@ data/
 
 # build output
 bin/
-.claude/
+.claude/*
+!.claude/skills/
