@@ -53,7 +53,7 @@ describe("admin node", () => {
     const p = await people(app, org);
     fake(app).failNext({ status: 503, code: "control_disabled", match: (r) => r.method === "PUT" && r.path === "/v1/node/config" });
     const res = await p.admin.call("PUT", "/api/admin/node/config", { default_profile: "large" });
-    expect(res.status).toBe(503);
+    expect(res.status).toBe(502);
     const rows = await app.deps.storage.db.all<{ data: string }>("SELECT data FROM audit WHERE action = 'node.config.update' ORDER BY rowid");
     expect(JSON.parse(rows[1]?.data ?? "{}")).toMatchObject({ status: "failed", error_code: "control_disabled" });
   });

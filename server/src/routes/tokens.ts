@@ -6,7 +6,7 @@ import { loadOrg, canOrg } from "../keys/access.ts";
 import { createToken, listTokens, parseTokenReq, revokeToken, rotateDefaultKey } from "../keys/keys.ts";
 import { forbidden } from "../http/errors.ts";
 import type { Router } from "../http/router.ts";
-import { withRuntimeErrors } from "../keys/errors.ts";
+import { withRuntimeErrors } from "../runtime/errors.ts";
 import { json, noContent, readJson } from "../http/json.ts";
 
 export function registerTokens(r: Router, deps: Deps): void {

@@ -8,7 +8,7 @@
 import type { Kv } from "../storage/types.ts";
 import type * as T from "../runtime/types.ts";
 import { AppError } from "../http/errors.ts";
-import { mapRuntime } from "./errors.ts";
+import { mapRuntimeError as mapRuntime } from "../runtime/errors.ts";
 import { logLine, type OrgCtx, type Resolved } from "./service.ts";
 
 export const sseTiming = {

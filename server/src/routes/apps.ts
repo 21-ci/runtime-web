@@ -9,7 +9,7 @@ import { json, noContent, readJson } from "../http/json.ts";
 import type { Handler, RequestContext, Router } from "../http/router.ts";
 import { newId } from "../crypto/random.ts";
 import { loadOrg } from "../apps/authz.ts";
-import { rt } from "../apps/errors.ts";
+import { rt } from "../runtime/errors.ts";
 import * as A from "../apps/service.ts";
 import { LOG_RANK, sseResponse } from "../apps/logs.ts";
 import type * as T from "../runtime/types.ts";

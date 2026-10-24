@@ -7,7 +7,9 @@ import { dbOf } from "../auth/types.ts";
 import { ORG_ROLES, PROJECT_ROLES, can, type Action, type Subject } from "../authz/policy.ts";
 import { conflict, forbidden, invalid, notFound } from "../http/errors.ts";
 import type { Db, Tx } from "../storage/types.ts";
-import { auditStmt, rt, runtimeOf, type Actor } from "./common.ts";
+import { runtimeOf, type Actor } from "./common.ts";
+import { auditStmt } from "../audit/audit.ts";
+import { rt } from "../runtime/errors.ts";
 import { defaultKey, getOrgBySlug, type Org, type OrgDeps } from "./orgs.ts";
 
 export interface MemberJson {
@@ -118,7 +120,7 @@ export async function addMember(deps: OrgDeps, a: OrgAccess, userId: unknown, ro
     if (m) throw conflict("already_member", "user is already a member");
     const now = deps.now();
     await q.run("INSERT INTO members (org_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", [a.org.id, uid, r, now]);
-    await run(q, auditStmt(now, a.actor, a.org.id, "member.add", uid, { role: r }));
+    await run(q, auditStmt(now, { actor: a.actor, orgId: a.org.id, action: "member.add", target: uid, detail: { role: r } }));
     return memberJson(q, a.org.id, uid, r);
   });
 }
@@ -137,7 +139,7 @@ export async function setRole(deps: OrgDeps, a: OrgAccess, userId: string, role:
       }
       const now = deps.now();
       await q.run("UPDATE members SET role = ? WHERE org_id = ? AND user_id = ?", [role, a.org.id, userId]);
-      await run(q, auditStmt(now, a.actor, a.org.id, "member.role", userId, { from: old.role, to: role }));
+      await run(q, auditStmt(now, { actor: a.actor, orgId: a.org.id, action: "member.role", target: userId, detail: { from: old.role, to: role } }));
     }
     return memberJson(q, a.org.id, userId, role);
   });
@@ -155,7 +157,7 @@ export async function removeMember(deps: OrgDeps, a: OrgAccess, userId: string):
     }
     await q.run("DELETE FROM project_grants WHERE org_id = ? AND user_id = ?", [a.org.id, userId]);
     await q.run("DELETE FROM members WHERE org_id = ? AND user_id = ?", [a.org.id, userId]);
-    await run(q, auditStmt(deps.now(), a.actor, a.org.id, "member.remove", userId, { role: old.role }));
+    await run(q, auditStmt(deps.now(), { actor: a.actor, orgId: a.org.id, action: "member.remove", target: userId, detail: { role: old.role } }));
   });
 }
 
@@ -178,7 +180,7 @@ export async function setGrant(deps: OrgDeps, a: OrgAccess, userId: string, proj
       "INSERT INTO project_grants (org_id, user_id, project, role) VALUES (?, ?, ?, ?) ON CONFLICT (org_id, user_id, project) DO UPDATE SET role = excluded.role",
       [a.org.id, userId, project, role],
     );
-    await run(q, auditStmt(deps.now(), a.actor, a.org.id, "grant.set", userId, { project, role }));
+    await run(q, auditStmt(deps.now(), { actor: a.actor, orgId: a.org.id, action: "grant.set", target: userId, detail: { project, role } }));
     return memberJson(q, a.org.id, userId, m.role);
   });
 }
@@ -189,6 +191,6 @@ export async function removeGrant(deps: OrgDeps, a: OrgAccess, userId: string, p
   await db.tx(async (q) => {
     const r = await q.run("DELETE FROM project_grants WHERE org_id = ? AND user_id = ? AND project = ?", [a.org.id, userId, project]);
     if (r.changes === 0) throw notFound();
-    await run(q, auditStmt(deps.now(), a.actor, a.org.id, "grant.remove", userId, { project }));
+    await run(q, auditStmt(deps.now(), { actor: a.actor, orgId: a.org.id, action: "grant.remove", target: userId, detail: { project } }));
   });
 }

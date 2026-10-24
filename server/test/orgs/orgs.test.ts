@@ -49,7 +49,7 @@ describe("admin orgs", () => {
     const w = await world();
     w.fake.failNext({ status: 500, match: (r) => r.path.endsWith("/keys") });
     const res = await w.admin.call("POST", "/api/admin/orgs", { slug: "acme", name: "A", owner_user_id: await adminId(w) });
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(502);
     expect(w.fake.tenants.size).toBe(1);
   });
 
@@ -146,8 +146,9 @@ describe("org visibility and members", () => {
     expect(((await res.json()) as { role: unknown }).role).toBeNull();
     const u = await member(w, "u@example.com");
     expect((await w.admin.call("POST", "/api/orgs/acme/members", { user_id: u.id, role: "owner" })).status).toBe(201);
-    const a = await w.app.deps.storage.db.first<{ data: string }>("SELECT data FROM audit WHERE action = 'member.add'");
-    expect(JSON.parse(a?.data ?? "{}")).toEqual({ role: "owner", as_instance_admin: true });
+    const a = await w.app.deps.storage.db.first<{ data: string; as_instance_admin: number }>("SELECT data, as_instance_admin FROM audit WHERE action = 'member.add'");
+    expect(JSON.parse(a?.data ?? "{}")).toEqual({ role: "owner" });
+    expect(a?.as_instance_admin).toBe(1);
   });
 
   it("CSRF is required on member mutations", async () => {

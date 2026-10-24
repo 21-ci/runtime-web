@@ -5,7 +5,7 @@
 import type { Deps } from "../app.ts";
 import { newId } from "../crypto/random.ts";
 import { invalid } from "../http/errors.ts";
-import type { Db, Row, Stmt } from "../storage/types.ts";
+import type { Db, Row, Stmt, Tx } from "../storage/types.ts";
 
 export const DEFAULT_LIMIT = 50;
 export const MAX_LIMIT = 200;
@@ -29,9 +29,9 @@ export interface AuditEvent {
 
 export type AuditDeps = Pick<Deps, "now" | "storage">;
 
-/** Statement that appends e; run it in the caller's batch with the change. */
-export function auditStmt(deps: Pick<Deps, "now">, e: AuditEvent): Stmt {
-  const now = deps.now();
+/** Statement that appends e at `at` (a clock or a timestamp); run it in the caller's batch with the change. */
+export function auditStmt(at: Pick<Deps, "now"> | number, e: AuditEvent): Stmt {
+  const now = typeof at === "number" ? at : at.now();
   return {
     sql: "INSERT INTO audit (id, ts, org_id, actor_id, action, target, data, as_instance_admin) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
     args: [
@@ -152,4 +152,10 @@ function toEntry(r: Row): AuditEntry {
     target: r.target === null || r.target === undefined ? "" : String(r.target),
     detail: r.data === null || r.data === undefined ? null : JSON.parse(String(r.data)),
   };
+}
+
+/** Appends one entry through q (a Db or an open Tx) at `at`. */
+export async function auditIn(q: Pick<Tx, "run">, at: Pick<Deps, "now"> | number, e: AuditEvent): Promise<void> {
+  const s = auditStmt(at, e);
+  await q.run(s.sql, s.args);
 }

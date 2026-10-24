@@ -11,7 +11,8 @@ import { sha256Hex } from "../crypto/hash.ts";
 import { newId, randomToken } from "../crypto/random.ts";
 import { AppError, forbidden, invalid, notFound } from "../http/errors.ts";
 import type { Tx } from "../storage/types.ts";
-import { auditStmt, type Actor } from "../orgs/common.ts";
+import type { Actor } from "../orgs/common.ts";
+import { auditStmt } from "../audit/audit.ts";
 
 export type InviteDeps = Pick<Deps, "storage" | "now" | "config" | "hasher">;
 
@@ -92,7 +93,7 @@ export async function createInvite(
       sql: "INSERT INTO invites (id, token_hash, org_id, email, role, instance_admin, created_by, created_at, expires_at) VALUES (?, ?, ?, ?, ?, 0, ?, ?, ?)",
       args: [id, await sha256Hex(token), orgId, email, r, actor.userId, now, now + INVITE_TTL_MS],
     },
-    auditStmt(now, actor, orgId, "invite.create", id, { email, role: r }),
+    auditStmt(now, { actor, orgId, action: "invite.create", target: id, detail: { email, role: r } }),
   ]);
   const row = await db.first<Row>(`${SELECT} WHERE i.id = ?`, [id]);
   return { invite: toJson(row as Row), link: `${deps.config.origin}/invite/${token}` };
@@ -124,7 +125,7 @@ export async function revokeInvite(deps: Pick<Deps, "storage" | "now">, actor: A
   authorize(subject, orgId === null ? null : row.org_id, row.role);
   await db.batch([
     { sql: "DELETE FROM invites WHERE id = ? AND accepted_at IS NULL", args: [id] },
-    auditStmt(now, actor, row.org_id, "invite.revoke", id),
+    auditStmt(now, { actor, orgId: row.org_id, action: "invite.revoke", target: id }),
   ]);
 }
 
@@ -193,7 +194,7 @@ export async function acceptInvite(deps: InviteDeps, token: string, callerId: st
         await q.run("INSERT INTO members (org_id, user_id, role, created_at) VALUES (?, ?, ?, ?)", [row.org_id, userId, row.role ?? DEFAULT_ROLE, now]);
       }
     }
-    const a = auditStmt(now, { userId }, row.org_id, "invite.accept", row.id, detail);
+    const a = auditStmt(now, { actor: { userId }, orgId: row.org_id, action: "invite.accept", target: row.id, detail });
     await q.run(a.sql, a.args);
     return { userId, email: row.email, existing: !!existing };
   });

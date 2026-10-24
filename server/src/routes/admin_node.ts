@@ -4,7 +4,7 @@ import type { Deps } from "../app.ts";
 import { authOf, requireSession } from "../auth/middleware.ts";
 import { invalid } from "../http/errors.ts";
 import type { Router } from "../http/router.ts";
-import { withRuntimeErrors } from "../keys/errors.ts";
+import { withRuntimeErrors } from "../runtime/errors.ts";
 import { json, readJson } from "../http/json.ts";
 import { drainNode, nodeCache, nodeConfig, nodeScheduler, nodeStatus, parseNodeConfig, runtimeVersion, setNodeConfig } from "../keys/node.ts";
 

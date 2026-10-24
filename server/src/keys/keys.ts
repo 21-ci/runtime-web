@@ -9,7 +9,7 @@ import { conflict, invalid, notFound } from "../http/errors.ts";
 import { Runtime, isNotFound } from "../runtime/client.ts";
 import type { Scope } from "../runtime/types.ts";
 import { newId } from "../crypto/random.ts";
-import { writeAudit } from "./audit_row.ts";
+import { auditIn } from "../audit/audit.ts";
 import type { OrgRow } from "./access.ts";
 
 export const DEFAULT_KEY_NAME = "rtweb-default";
@@ -154,12 +154,12 @@ export async function createToken(
           req.expiresAt,
         ],
       );
-      await writeAudit(tx, now, {
+      await auditIn(tx, now, {
         orgId: org.id,
-        actorId: actor.id,
+        actor: { userId: actor.id },
         action: "token.create",
         target: id,
-        data: { name: req.name, scopes: req.scopes, projects: req.projects, environments: req.environments },
+        detail: { name: req.name, scopes: req.scopes, projects: req.projects, environments: req.environments },
       });
     });
   } catch (e) {
@@ -232,12 +232,12 @@ export async function revokeToken(deps: Deps, actor: Actor, org: OrgRow, tokenId
       org.id,
     ]);
     if (r.changes === 0) throw notFound("not_found", "token not found");
-    await writeAudit(tx, now, {
+    await auditIn(tx, now, {
       orgId: org.id,
-      actorId: actor.id,
+      actor: { userId: actor.id },
       action: "token.revoke",
       target: tokenId,
-      data: { name: row.name },
+      detail: { name: row.name },
     });
   });
 }
@@ -290,12 +290,12 @@ export async function rotateDefaultKey(deps: Deps, actor: Actor, org: OrgRow): P
           [org.defaultKeyId, org.tenantId, now],
         );
       }
-      await writeAudit(tx, now, {
+      await auditIn(tx, now, {
         orgId: org.id,
-        actorId: actor.id,
+        actor: { userId: actor.id },
         action: "defaultkey.rotate",
         target: org.id,
-        data: { old_key_id: org.defaultKeyId, new_key_id: key.id },
+        detail: { old_key_id: org.defaultKeyId, new_key_id: key.id },
       });
     });
   } catch (e) {

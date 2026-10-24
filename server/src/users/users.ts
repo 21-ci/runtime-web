@@ -8,7 +8,8 @@ import { base32Encode } from "../crypto/totp.ts";
 import { newId, randomBytes } from "../crypto/random.ts";
 import { conflict, invalid, notFound } from "../http/errors.ts";
 import type { Stmt, Tx } from "../storage/types.ts";
-import { auditStmt, type Actor } from "../orgs/common.ts";
+import type { Actor } from "../orgs/common.ts";
+import { auditStmt } from "../audit/audit.ts";
 
 export type UserDeps = Pick<Deps, "storage" | "now" | "hasher">;
 
@@ -74,7 +75,7 @@ export async function createUser(deps: UserDeps, actor: Actor, body: Record<stri
       "INSERT INTO users (id, email, name, pw_hash, must_change, instance_admin, disabled, created_at, updated_at) VALUES (?, ?, ?, ?, 1, ?, 0, ?, ?)",
       [id, email, name, hash, admin ? 1 : 0, now, now],
     );
-    await exec(q, [auditStmt(now, actor, null, "user.create", id, { email, admin })]);
+    await exec(q, [auditStmt(now, { actor, orgId: null, action: "user.create", target: id, detail: { email, admin } })]);
     return { user: await toJson(q, await getRow(q, id)), tempPassword: temp };
   });
 }
@@ -144,7 +145,7 @@ export async function updateUser(deps: UserDeps, actor: Actor, id: string, body:
     if (name !== undefined) detail.name = name;
     if (typeof body.disabled === "boolean") detail.disabled = disabled;
     if (typeof body.instance_admin === "boolean") detail.instance_admin = admin;
-    await exec(q, [auditStmt(now, actor, null, "user.update", id, detail)]);
+    await exec(q, [auditStmt(now, { actor, orgId: null, action: "user.update", target: id, detail })]);
     return toJson(q, await getRow(q, id));
   });
 }
@@ -170,7 +171,7 @@ export async function deleteUser(deps: UserDeps, actor: Actor, id: string): Prom
         sql: "UPDATE users SET email = ?, name = 'Deleted user', pw_hash = '', instance_admin = 0, disabled = 1, updated_at = ?, deleted_at = ? WHERE id = ?",
         args: [`deleted-${id}@invalid`, now, now, id],
       },
-      auditStmt(now, actor, null, "user.delete", id),
+      auditStmt(now, { actor, orgId: null, action: "user.delete", target: id }),
     ]);
   });
 }
@@ -186,7 +187,7 @@ export async function resetUserPassword(deps: UserDeps, actor: Actor, id: string
     await exec(q, [
       { sql: "UPDATE users SET pw_hash = ?, must_change = 1, updated_at = ? WHERE id = ?", args: [hash, now, id] },
       { sql: "DELETE FROM sessions WHERE user_id = ?", args: [id] },
-      auditStmt(now, actor, null, "user.reset_password", id),
+      auditStmt(now, { actor, orgId: null, action: "user.reset_password", target: id }),
     ]);
   });
   return temp;
@@ -200,7 +201,7 @@ export async function resetUserTotp(deps: UserDeps, actor: Actor, id: string): P
     await exec(q, [
       ...clear2faStatements(id),
       { sql: "DELETE FROM sessions WHERE user_id = ?", args: [id] },
-      auditStmt(deps.now(), actor, null, "user.reset_totp", id),
+      auditStmt(deps.now(), { actor, orgId: null, action: "user.reset_totp", target: id }),
     ]);
   });
 }

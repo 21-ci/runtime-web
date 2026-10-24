@@ -7,7 +7,7 @@ import { dbOf } from "../auth/types.ts";
 import { invalid } from "../http/errors.ts";
 import { isRuntimeError } from "../runtime/client.ts";
 import type { NodeConfigApplied, NodeConfigUpdate } from "../runtime/types.ts";
-import { writeAudit } from "./audit_row.ts";
+import { auditIn } from "../audit/audit.ts";
 import { rtOf, type Actor } from "./keys.ts";
 
 const CONFIG_FIELDS = ["degradation_mode", "default_profile", "rate_limit"] as const;
@@ -44,21 +44,21 @@ async function audited<T>(
 ): Promise<T> {
   const db = await dbOf(deps);
   const now = deps.now();
-  await db.tx((tx) => writeAudit(tx, now, { orgId: null, actorId: actor.id, action, target: "node", data: { ...detail, status: "pending" } }));
+  await db.tx((tx) => auditIn(tx, now, { orgId: null, actor: { userId: actor.id }, action, target: "node", detail: { ...detail, status: "pending" } }));
   let out: T;
   try {
     out = await change();
   } catch (e) {
-    await writeAudit(db, deps.now(), {
+    await auditIn(db, deps.now(), {
       orgId: null,
-      actorId: actor.id,
+      actor: { userId: actor.id },
       action,
       target: "node",
-      data: { ...detail, status: "failed", error_code: failCode(e) },
+      detail: { ...detail, status: "failed", error_code: failCode(e) },
     }).catch(() => undefined);
     throw e;
   }
-  await writeAudit(db, deps.now(), { orgId: null, actorId: actor.id, action, target: "node", data: { ...detail, status: "applied" } });
+  await auditIn(db, deps.now(), { orgId: null, actor: { userId: actor.id }, action, target: "node", detail: { ...detail, status: "applied" } });
   return out;
 }
 

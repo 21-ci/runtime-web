@@ -12,8 +12,12 @@ export function noContent(headers?: HeadersInit): Response {
   return new Response(null, { status: 204, ...(headers ? { headers } : {}) });
 }
 
+/** Error envelope; 429/503 with details.retry_after also set Retry-After. */
 export function errorResponse(err: AppError): Response {
-  return json(errorBody(err), err.status);
+  const res = json(errorBody(err), err.status);
+  const ra = err.details?.retry_after;
+  if ((err.status === 429 || err.status === 503) && typeof ra === "number") res.headers.set("retry-after", String(ra));
+  return res;
 }
 
 const MAX_JSON_BYTES = 1 << 20;

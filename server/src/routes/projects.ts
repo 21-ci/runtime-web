@@ -14,7 +14,7 @@ import {
   updateProject,
 } from "../keys/projects.ts";
 import type { Router } from "../http/router.ts";
-import { withRuntimeErrors } from "../keys/errors.ts";
+import { withRuntimeErrors } from "../runtime/errors.ts";
 import { json, noContent, readJson } from "../http/json.ts";
 
 export function registerProjects(r: Router, deps: Deps): void {

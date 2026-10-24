@@ -9,7 +9,7 @@ import { Runtime, type Scoped } from "../runtime/client.ts";
 import type * as T from "../runtime/types.ts";
 import { createSealer } from "../crypto/seal.ts";
 import { authorize, can, type AppAction, type OrgRow, type Subject } from "./authz.ts";
-import { rt } from "./errors.ts";
+import { rt } from "../runtime/errors.ts";
 import { checkBundle, MAX_FILE_BYTES, unpack } from "./source.ts";
 import { renderTemplate } from "./templates.ts";
 

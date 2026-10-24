@@ -3,12 +3,12 @@
 import type { Deps } from "../app.ts";
 import { authOf, requireSession } from "../auth/middleware.ts";
 import { dbOf } from "../auth/types.ts";
-import { writeAudit } from "../keys/audit_row.ts";
+import { auditIn } from "../audit/audit.ts";
 import { canOrg, loadOrg, orgBySlug } from "../keys/access.ts";
 import { orgLimits, orgUsage, parseRange } from "../keys/usage.ts";
 import { forbidden, notFound } from "../http/errors.ts";
 import type { Router } from "../http/router.ts";
-import { withRuntimeErrors } from "../keys/errors.ts";
+import { withRuntimeErrors } from "../runtime/errors.ts";
 import { json } from "../http/json.ts";
 
 export function registerLimitsUsage(r: Router, deps: Deps): void {
@@ -45,12 +45,12 @@ export function registerLimitsUsage(r: Router, deps: Deps): void {
       const range = parseRange(ctx.url.searchParams);
       const items = await orgUsage(deps, org, range);
       const now = deps.now();
-      await writeAudit(db, now, {
+      await auditIn(db, now, {
         orgId: org.id,
-        actorId: user.id,
+        actor: { userId: user.id },
         action: "org.usage.read",
         target: org.id,
-        data: { from: range.from ?? null, to: range.to ?? null },
+        detail: { from: range.from ?? null, to: range.to ?? null },
       });
       return json({ items });
     }, true),

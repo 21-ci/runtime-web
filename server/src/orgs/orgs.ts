@@ -9,7 +9,9 @@ import { conflict, invalid, notFound } from "../http/errors.ts";
 import { isNotFound, isRuntimeError } from "../runtime/client.ts";
 import type { Scope } from "../runtime/types.ts";
 import type { Db, Row } from "../storage/types.ts";
-import { auditStmt, mapRuntimeError, rt, runtimeOf, type Actor } from "./common.ts";
+import { runtimeOf, type Actor } from "./common.ts";
+import { auditStmt } from "../audit/audit.ts";
+import { mapRuntimeError, rt } from "../runtime/errors.ts";
 
 export type OrgDeps = Pick<Deps, "storage" | "now" | "config" | "rtctl">;
 
@@ -114,7 +116,7 @@ export async function createOrg(deps: OrgDeps, actor: Actor, input: CreateOrgIn)
           args: [org.id, slug, name, tenant.id, key.id, sealed, now],
         },
         { sql: "INSERT INTO members (org_id, user_id, role, created_at) VALUES (?, ?, 'owner', ?)", args: [org.id, owner, now] },
-        auditStmt(now, actor, org.id, "org.create", org.id, { slug }),
+        auditStmt(now, { actor, orgId: org.id, action: "org.create", target: org.id, detail: { slug } }),
       ]);
     } catch (e) {
       if (String(e).includes("UNIQUE") && String(e).includes("slug")) throw conflict("slug_taken", "org slug is taken");
@@ -138,7 +140,7 @@ export async function renameOrg(deps: OrgDeps, actor: Actor, org: Org, nameIn: u
   const db = await dbOf(deps);
   await db.batch([
     { sql: "UPDATE orgs SET name = ? WHERE id = ?", args: [name, org.id] },
-    auditStmt(deps.now(), actor, org.id, "org.rename", org.id, { name }),
+    auditStmt(deps.now(), { actor, orgId: org.id, action: "org.rename", target: org.id, detail: { name } }),
   ]);
   return { ...org, name };
 }
@@ -184,7 +186,7 @@ export async function deleteOrg(deps: OrgDeps, actor: Actor, org: Org): Promise<
     { sql: "DELETE FROM tokens WHERE org_id = ?", args: [org.id] },
     { sql: "DELETE FROM domains WHERE org_id = ?", args: [org.id] },
     { sql: "DELETE FROM orgs WHERE id = ?", args: [org.id] },
-    auditStmt(now, actor, null, "org.delete", org.id, { slug: org.slug }),
+    auditStmt(now, { actor, orgId: null, action: "org.delete", target: org.id, detail: { slug: org.slug } }),
   ]);
   try {
     await runtime.op().deleteTenant(org.tenantId, false);
@@ -192,7 +194,7 @@ export async function deleteOrg(deps: OrgDeps, actor: Actor, org: Org): Promise<
     if (isNotFound(e)) return;
     const m = mapRuntimeError(e);
     console.error("orgs: runtime tenant delete failed after org row removed", org.tenantId, String(e));
-    await db.batch([auditStmt(now, actor, null, "org.delete.runtime_failed", org.tenantId, { org_id: org.id, tenant_id: org.tenantId })]);
+    await db.batch([auditStmt(now, { actor, orgId: null, action: "org.delete.runtime_failed", target: org.tenantId, detail: { org_id: org.id, tenant_id: org.tenantId } })]);
     throw m;
   }
 }

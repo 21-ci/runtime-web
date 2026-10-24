@@ -1,4 +1,5 @@
 import { AppError } from "./errors.ts";
+import { runtimeAppError } from "../runtime/errors.ts";
 import { errorResponse, json } from "./json.ts";
 
 // Minimal method + path router. Patterns use `:name` segments ("/api/orgs/:org").
@@ -76,6 +77,8 @@ export class Router {
       return await chain();
     } catch (err) {
       if (err instanceof AppError) return errorResponse(err);
+      const mapped = runtimeAppError(err);
+      if (mapped) return errorResponse(mapped);
       console.error("unhandled", err instanceof Error ? err.stack ?? err.message : String(err));
       return json({ error: { code: "internal", message: "internal error" } }, 500);
     }
