@@ -2,6 +2,7 @@ import { Zap } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { AuthFooter, AuthMark } from "@/components/features/branding/brand";
+import { LanguageSelect } from "@/components/layout/language-select";
 import { IconTile } from "@/components/ui/icon-tile";
 
 // AuthShell is the centered card used by every sign-in page: a small product mark, a heading, a
@@ -18,6 +19,9 @@ function AuthShell({ title, description, children }: { title: string; descriptio
         </div>
         <div className="rounded-lg border border-line bg-surface-2 p-6 shadow-card sm:p-7">{children}</div>
         <AuthFooter />
+        <div className="mt-4 flex justify-center">
+          <LanguageSelect />
+        </div>
       </div>
     </main>
   );

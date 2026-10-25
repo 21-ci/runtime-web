@@ -1,5 +1,6 @@
 import { createFileRoute, Link, Navigate } from "@tanstack/react-router";
 import { Building2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -31,6 +32,7 @@ function HomeSkeleton() {
 // organizations are created.
 function SignedInHome() {
   const orgs = useOrgs();
+  const { t } = useTranslation(["shell", "common"]);
 
   if (orgs.isPending) return <HomeSkeleton />;
 
@@ -39,21 +41,21 @@ function SignedInHome() {
 
   return (
     <main className="mx-auto flex min-h-dvh max-w-md flex-col justify-center p-6">
-      <h1 className="mb-4 text-lg font-semibold">Runtime Console</h1>
+      <h1 className="mb-4 text-lg font-semibold">{t("home.title")}</h1>
       {orgs.isError ? (
         <EmptyState
-          title="Could not load organizations"
-          description="Check the connection and try again."
-          action={<Button onClick={() => void orgs.refetch()}>Retry</Button>}
+          title={t("home.orgsFailed")}
+          description={t("common:checkConnection")}
+          action={<Button onClick={() => void orgs.refetch()}>{t("common:retry")}</Button>}
         />
       ) : (
         <EmptyState
           icon={Building2}
-          title="No organizations yet"
-          description="Ask an owner for an invite. Instance admins can create one in Admin."
+          title={t("home.noOrgs")}
+          description={t("home.noOrgsHint")}
           action={
             <Button asChild variant="default">
-              <Link to="/admin">Open Admin</Link>
+              <Link to="/admin">{t("home.openAdmin")}</Link>
             </Button>
           }
         />

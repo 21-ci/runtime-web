@@ -1,4 +1,5 @@
 import { useId, useRef, useState, type ReactNode } from "react";
+import { Trans, useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import {
@@ -56,6 +57,7 @@ export function ConfirmDialog({
   const cancelRef = useRef<HTMLButtonElement>(null);
   const needsTyping = typedValue !== undefined;
   const ready = !needsTyping || typed === typedValue;
+  const { t } = useTranslation();
 
   return (
     <Dialog
@@ -81,7 +83,11 @@ export function ConfirmDialog({
         {needsTyping ? (
           <div className="flex flex-col gap-1.5">
             <Label htmlFor={typeId}>
-              Type <span className="font-mono">{typedValue}</span> to confirm
+              <Trans
+                i18nKey="typeToConfirm"
+                values={{ value: typedValue }}
+                components={{ mono: <span className="font-mono" /> }}
+              />
             </Label>
             <Input
               id={typeId}
@@ -103,11 +109,11 @@ export function ConfirmDialog({
         )}
         <DialogFooter>
           <Button ref={cancelRef} variant="secondary" onClick={() => onOpenChange(false)} disabled={pending}>
-            Cancel
+            {t("cancel")}
           </Button>
           {onRetry && error ? (
             <Button variant="secondary" onClick={onRetry} disabled={pending}>
-              Retry
+              {t("retry")}
             </Button>
           ) : null}
           <Button
@@ -115,7 +121,7 @@ export function ConfirmDialog({
             onClick={onConfirm}
             disabled={pending || confirmDisabled || !ready}
           >
-            {pending ? `${confirmLabel}…` : confirmLabel}
+            {pending ? t("pendingLabel", { label: confirmLabel }) : confirmLabel}
           </Button>
         </DialogFooter>
       </DialogContent>

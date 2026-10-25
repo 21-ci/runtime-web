@@ -1,24 +1,27 @@
 import { Monitor, Moon, Sun } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import type { Theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { useShell } from "./shell-context";
 
-const OPTIONS: { value: Theme; label: string; Icon: typeof Sun }[] = [
-  { value: "light", label: "Light theme", Icon: Sun },
-  { value: "dark", label: "Dark theme", Icon: Moon },
-  { value: "system", label: "System theme", Icon: Monitor },
-];
+const OPTIONS = [
+  { value: "light", labelKey: "themeToggle.light", Icon: Sun },
+  { value: "dark", labelKey: "themeToggle.dark", Icon: Moon },
+  { value: "system", labelKey: "themeToggle.system", Icon: Monitor },
+] as const satisfies readonly { value: Theme; labelKey: string; Icon: typeof Sun }[];
 
 // ThemeToggle is a segmented radio group: arrow keys move the choice. The choice lives in the
 // shell state (persisted by AppShell), so the palette's "Toggle theme" and this control stay in sync.
 export function ThemeToggle({ className }: { className?: string }) {
   const { theme, setTheme } = useShell();
+  const { t } = useTranslation("shell");
 
   return (
-    <div role="radiogroup" aria-label="Theme" className={cn("inline-flex h-7 rounded-md bg-panel-2 p-0.5", className)}>
-      {OPTIONS.map(({ value, label, Icon }) => {
+    <div role="radiogroup" aria-label={t("themeToggle.label")} className={cn("inline-flex h-7 rounded-md bg-panel-2 p-0.5", className)}>
+      {OPTIONS.map(({ value, labelKey, Icon }) => {
         const checked = theme === value;
+        const label = t(labelKey);
         return (
           <button
             key={value}

@@ -1,4 +1,6 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
+import type { TFunction } from "i18next";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuthForm, FormField } from "@/components/auth/auth-form";
@@ -9,14 +11,19 @@ import { useAuthProviders, useLogin } from "@/hooks/auth";
 import { safeNext } from "@/lib/safe-next";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 
-const OAUTH_ERRORS: Record<string, string> = {
-  oauth_state_invalid: "The sign-in link expired. Try again.",
-  email_unverified: "Your email is not verified with that provider.",
-  no_account: "No account uses that email. Ask an admin for an invite.",
-  account_disabled: "This account is disabled. Contact an admin.",
-  oauth_failed: "Sign-in failed. Try again.",
-  link_required: "Sign in with your password first, then link this provider from Account → Security.",
-};
+// OAuth callback failures arrive as /login?error=<code>; each known code has a message in `auth`.
+const OAUTH_ERRORS = [
+  "oauth_state_invalid",
+  "email_unverified",
+  "no_account",
+  "account_disabled",
+  "oauth_failed",
+  "link_required",
+] as const;
+
+function isOAuthError(code: string): code is (typeof OAUTH_ERRORS)[number] {
+  return (OAUTH_ERRORS as readonly string[]).includes(code);
+}
 
 type LoginSearch = { next?: string; error?: string };
 
@@ -28,14 +35,14 @@ export const Route = createFileRoute("/login/")({
   component: LoginPage,
 });
 
-function loginMessage(err: ApiError): string {
-  if (err.code === "invalid_credentials") return "Email or password is wrong.";
+function loginMessage(err: ApiError, t: TFunction<["auth", "common"]>): string {
+  if (err.code === "invalid_credentials") return t("login.invalidCredentials");
   if (err.code === "rate_limited") {
     return err.retryAfter !== undefined
-      ? `Too many attempts. Wait ${err.retryAfter} s and try again.`
-      : "Too many attempts. Wait and try again.";
+      ? t("tooManyAttemptsWait", { seconds: err.retryAfter })
+      : t("tooManyAttempts");
   }
-  return "Something went wrong. Try again.";
+  return t("common:somethingWrong");
 }
 
 function LoginPage() {
@@ -47,6 +54,7 @@ function LoginPage() {
   const login = useLogin();
   const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const { t } = useTranslation(["auth", "common"]);
 
   const passwordDisabled = providers.data?.password_login_disabled ?? false;
   const passwordVisible = !passwordDisabled || showPassword;
@@ -57,8 +65,8 @@ function LoginPage() {
     const email = String(form.get("email") ?? "").trim();
     const password = String(form.get("password") ?? "");
     const fieldErrs: Record<string, string> = {};
-    if (!email) fieldErrs.email = "Enter your email.";
-    if (!password) fieldErrs.password = "Enter your password.";
+    if (!email) fieldErrs.email = t("login.enterEmail");
+    if (!password) fieldErrs.password = t("login.enterPassword");
     setErrors(fieldErrs);
     if (Object.keys(fieldErrs).length > 0) return;
 
@@ -78,19 +86,19 @@ function LoginPage() {
     );
   }
 
-  const formError = login.error instanceof ApiError ? loginMessage(login.error) : null;
+  const formError = login.error instanceof ApiError ? loginMessage(login.error, t) : null;
 
   return (
     <AuthShell
-      title={brand?.login_headline || "Welcome back"}
+      title={brand?.login_headline || t("login.title")}
       description={
         brand?.login_subtitle ||
-        (brand?.product_name ? `Sign in to ${brand.product_name}.` : "Sign in to your Runtime workspace to pick up where you left off.")
+        (brand?.product_name ? t("login.subtitleProduct", { product: brand.product_name }) : t("login.subtitle"))
       }
     >
       {search.error ? (
         <p role="alert" className="mb-4 text-sm text-danger">
-          {OAUTH_ERRORS[search.error] ?? "Sign-in failed. Try again."}
+          {isOAuthError(search.error) ? t(`oauthErrors.${search.error}`) : t("oauthErrors.oauth_failed")}
         </p>
       ) : null}
 
@@ -106,7 +114,7 @@ function LoginPage() {
           {providers.data.providers.map((p) => (
             <Button key={p.id} asChild variant="secondary" className="w-full">
               <a href={`/api/auth/oauth/${p.id}/start?next=${encodeURIComponent(next)}`}>
-                Continue with {p.name}
+                {t("login.continueWith", { provider: p.name })}
               </a>
             </Button>
           ))}
@@ -116,14 +124,14 @@ function LoginPage() {
       {passwordVisible && providers.data ? (
         <AuthForm errors={errors} onSubmit={onSubmit}>
           <FormField
-            label="Email"
+            label={t("email")}
             name="email"
             type="email"
             autoComplete="username"
             error={errors.email}
           />
           <FormField
-            label="Password"
+            label={t("password")}
             name="password"
             type="password"
             autoComplete="current-password"
@@ -135,14 +143,14 @@ function LoginPage() {
             </p>
           ) : null}
           <Button type="submit" variant="default" disabled={login.isPending}>
-            {login.isPending ? "Signing in…" : "Sign in"}
+            {login.isPending ? t("login.submitting") : t("login.submit")}
           </Button>
         </AuthForm>
       ) : null}
 
       {passwordDisabled && !showPassword ? (
         <Button variant="ghost" className="w-full" onClick={() => setShowPassword(true)}>
-          Sign in with password
+          {t("login.withPassword")}
         </Button>
       ) : null}
 

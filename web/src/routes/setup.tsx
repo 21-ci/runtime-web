@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { createFileRoute, Navigate, useNavigate } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
@@ -8,6 +9,7 @@ import { AuthShell } from "@/components/auth/auth-shell";
 import { useBranding } from "@/components/features/branding/hooks";
 import { useSetup, useSetupStatus } from "@/hooks/auth";
 import { ApiError } from "@/lib/api";
+import { errorMessage } from "@/lib/error-message";
 
 export const Route = createFileRoute("/setup")({
   component: SetupPage,
@@ -22,6 +24,7 @@ function SetupPage() {
   const navigate = useNavigate();
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
+  const { t } = useTranslation(["auth", "common"]);
 
   if (status.data && !status.data.needed) return <Navigate to="/login" search={{}} />;
 
@@ -35,10 +38,10 @@ function SetupPage() {
       password: String(form.get("password") ?? ""),
     };
     const fieldErrs: Record<string, string> = {};
-    if (!values.setup_token) fieldErrs.setup_token = "Enter the setup token.";
-    if (!values.email) fieldErrs.email = "Enter an email.";
-    if (!values.name) fieldErrs.name = "Enter a name.";
-    if (values.password.length < 12) fieldErrs.password = "Use at least 12 characters.";
+    if (!values.setup_token) fieldErrs.setup_token = t("setup.enterToken");
+    if (!values.email) fieldErrs.email = t("setup.enterEmail");
+    if (!values.name) fieldErrs.name = t("setup.enterName");
+    if (values.password.length < 12) fieldErrs.password = t("passwordTooShort", { count: 12 });
     setErrors(fieldErrs);
     setFormError(null);
     if (Object.keys(fieldErrs).length > 0) return;
@@ -48,17 +51,17 @@ function SetupPage() {
         void navigate({ to: "/" });
       },
       onError: (err) => {
-        if (!(err instanceof ApiError)) return setFormError("Something went wrong. Try again.");
-        if (err.code === "setup_token_invalid") return setErrors({ setup_token: "That setup token is wrong." });
+        if (!(err instanceof ApiError)) return setFormError(t("common:somethingWrong"));
+        if (err.code === "setup_token_invalid") return setErrors({ setup_token: t("setup.tokenInvalid") });
         if (err.code === "already_set_up") return void navigate({ to: "/login", search: {} });
         if (err.status === 422) return setErrors(err.fieldErrors());
-        setFormError(err.message);
+        setFormError(errorMessage(err));
       },
     });
   }
 
   return (
-    <AuthShell title={`Set up ${brand?.product_name || "Runtime"}`} description="Create the first admin account. It only takes a minute.">
+    <AuthShell title={t("setup.title", { product: brand?.product_name || "Runtime" })} description={t("setup.description")}>
       {status.isPending ? (
         <div className="flex flex-col gap-3" aria-busy="true">
           <Skeleton className="h-8 w-full" />
@@ -67,24 +70,24 @@ function SetupPage() {
       ) : (
         <>
           <p className="mb-4 text-sm text-muted">
-            Create the first admin. Find the setup token in the server environment or the startup log.
+            {t("setup.intro")}
           </p>
           <AuthForm errors={errors} onSubmit={onSubmit}>
             <FormField
-              label="Setup token"
+              label={t("setup.tokenLabel")}
               name="setup_token"
               type="password"
               autoComplete="off"
               error={errors.setup_token}
             />
-            <FormField label="Email" name="email" type="email" autoComplete="username" error={errors.email} />
-            <FormField label="Name" name="name" autoComplete="name" error={errors.name} />
+            <FormField label={t("email")} name="email" type="email" autoComplete="username" error={errors.email} />
+            <FormField label={t("name")} name="name" autoComplete="name" error={errors.name} />
             <FormField
-              label="Password"
+              label={t("password")}
               name="password"
               type="password"
               autoComplete="new-password"
-              hint="At least 12 characters."
+              hint={t("passwordHint", { count: 12 })}
               error={errors.password}
             />
             {formError ? (
@@ -93,7 +96,7 @@ function SetupPage() {
               </p>
             ) : null}
             <Button type="submit" variant="default" disabled={setup.isPending}>
-              {setup.isPending ? "Creating…" : "Create admin"}
+              {setup.isPending ? t("setup.submitting") : t("setup.submit")}
             </Button>
           </AuthForm>
         </>

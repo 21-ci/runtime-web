@@ -24,6 +24,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { CreateProjectDialog } from "@/components/features/org/create-project-dialog";
 import { useIsInstanceAdmin } from "@/components/features/admin/gate";
@@ -90,7 +91,7 @@ export function SidebarFrame({
   footer,
   onCollapse,
   onSearch,
-  label = "Sidebar",
+  label,
   brand,
   children,
 }: {
@@ -103,16 +104,17 @@ export function SidebarFrame({
   label?: string;
   children: ReactNode;
 }) {
+  const { t } = useTranslation(["shell", "common"]);
   return (
-    <nav aria-label={label} className="flex min-h-full flex-col gap-0.5 px-2.5 py-2.5">
+    <nav aria-label={label ?? t("sidebar.label")} className="flex min-h-full flex-col gap-0.5 px-2.5 py-2.5">
       {brand}
       <div className="group flex items-center gap-1">
         {top}
         {onCollapse ? (
           <button
             type="button"
-            aria-label="Collapse sidebar"
-            title="Collapse sidebar (⌘\)"
+            aria-label={t("sidebar.collapse")}
+            title={t("sidebar.collapseTitle")}
             onClick={onCollapse}
             className={ROW_ACTION}
           >
@@ -125,11 +127,11 @@ export function SidebarFrame({
         <button
           type="button"
           onClick={onSearch}
-          aria-label="Open command menu"
+          aria-label={t("sidebar.openCommandMenu")}
           className="mb-1 mt-2 flex h-8 w-full cursor-pointer items-center gap-2 rounded-lg border border-line bg-surface shadow-card-2 px-2 text-[13px] text-muted shadow-card outline-none transition-[border-color,box-shadow] duration-[140ms] hover:border-line-strong focus-visible:ring-2 focus-visible:ring-focus"
         >
           <Search className="size-4 shrink-0" aria-hidden="true" />
-          <span className="flex-1 text-left">Search…</span>
+          <span className="flex-1 text-left">{t("sidebar.search")}</span>
           <Kbd>{SHORTCUT_LABEL}</Kbd>
         </button>
       ) : null}
@@ -143,15 +145,16 @@ export function SidebarFrame({
 
 // INSTANCE_SECTIONS are the instance-admin pages. They form the Instance group of the normal
 // sidebar, shown only to instance admins (the API authorizes every admin call regardless).
-export const INSTANCE_SECTIONS: { to: string; label: string; icon: LucideIcon }[] = [
-  { to: "/admin/users", label: "Users", icon: Users },
-  { to: "/admin/orgs", label: "Organizations", icon: Building2 },
-  { to: "/admin/audit", label: "Audit log", icon: ScrollText },
-  { to: "/admin/node", label: "Node", icon: Server },
-  { to: "/admin/cache", label: "Cache", icon: Database },
-  { to: "/admin/domains", label: "Domains", icon: Globe },
-  { to: "/admin/settings", label: "Settings", icon: Settings },
-];
+// labelKey is a key in the `shell` namespace.
+export const INSTANCE_SECTIONS = [
+  { to: "/admin/users", labelKey: "instance.users", icon: Users },
+  { to: "/admin/orgs", labelKey: "instance.organizations", icon: Building2 },
+  { to: "/admin/audit", labelKey: "instance.auditLog", icon: ScrollText },
+  { to: "/admin/node", labelKey: "instance.node", icon: Server },
+  { to: "/admin/cache", labelKey: "instance.cache", icon: Database },
+  { to: "/admin/domains", labelKey: "instance.domains", icon: Globe },
+  { to: "/admin/settings", labelKey: "instance.settings", icon: Settings },
+] as const satisfies readonly { to: string; labelKey: string; icon: LucideIcon }[];
 
 // Sidebar switches between the org navigation and, on an app page, the app's own navigation
 // (val.town model). Instance admins also get the Instance group under the org navigation. It
@@ -171,8 +174,9 @@ export function Sidebar({
   const { setPaletteOpen } = useShell();
   const orgs = useOrgs();
   const appSlug = params.app && params.app !== "new" ? params.app : undefined;
+  const { t } = useTranslation(["shell", "common"]);
 
-  const footer = <NavLink to="/me/security" icon={ShieldCheck} label="Account security" onNavigate={onNavigate} />;
+  const footer = <NavLink to="/me/security" icon={ShieldCheck} label={t("nav.accountSecurity")} onNavigate={onNavigate} />;
 
   return (
     <SidebarFrame
@@ -203,25 +207,27 @@ export function Sidebar({
 
 // NoOrgHeader stands in for the org switcher while the org list loads or when there is none.
 function NoOrgHeader({ pending }: { pending: boolean }) {
+  const { t } = useTranslation(["shell", "common"]);
   return (
     <div className="flex h-9 min-w-0 flex-1 items-center gap-2 px-1.5 text-sm">
       {pending ? (
         <Skeleton className="h-5 w-32" />
       ) : (
-        <span className="truncate text-muted">No organization</span>
+        <span className="truncate text-muted">{t("sidebar.noOrganization")}</span>
       )}
     </div>
   );
 }
 
 function InstanceNav({ onNavigate }: { onNavigate?: () => void }) {
+  const { t } = useTranslation(["shell", "common"]);
   return (
     <div role="group" aria-labelledby="sidebar-instance" className="flex flex-col gap-px">
       <SectionLabel>
-        <span id="sidebar-instance">Instance</span>
+        <span id="sidebar-instance">{t("instance.title")}</span>
       </SectionLabel>
       {INSTANCE_SECTIONS.map((s) => (
-        <NavLink key={s.to} to={s.to} icon={s.icon} label={s.label} onNavigate={onNavigate} />
+        <NavLink key={s.to} to={s.to} icon={s.icon} label={t(s.labelKey)} onNavigate={onNavigate} />
       ))}
     </div>
   );
@@ -237,6 +243,7 @@ function OrgNav({ org, onNavigate }: { org: string; onNavigate?: () => void }) {
   const role = orgs.data?.find((o) => o.slug === org)?.role;
   const canCreateProject = role === "owner" || role === "admin";
   const [createOpen, setCreateOpen] = useState(false);
+  const { t } = useTranslation(["shell", "common"]);
 
   function newApp(project: string) {
     onNavigate?.();
@@ -246,20 +253,20 @@ function OrgNav({ org, onNavigate }: { org: string; onNavigate?: () => void }) {
   return (
     <>
       <div className="flex flex-col gap-px">
-        <NavLink to="/$org" params={{ org }} icon={LayoutDashboard} label="Overview" onNavigate={onNavigate} exact />
-        <NavLink to="/$org/settings/members" params={{ org }} icon={Users} label="Members" onNavigate={onNavigate} />
-        <NavLink to="/$org/settings/tokens" params={{ org }} icon={KeyRound} label="Tokens" onNavigate={onNavigate} />
-        <NavLink to="/$org/settings/audit" params={{ org }} icon={ScrollText} label="Audit log" onNavigate={onNavigate} />
-        <NavLink to="/$org/settings/general" params={{ org }} icon={Settings} label="Settings" onNavigate={onNavigate} />
+        <NavLink to="/$org" params={{ org }} icon={LayoutDashboard} label={t("nav.overview")} onNavigate={onNavigate} exact />
+        <NavLink to="/$org/settings/members" params={{ org }} icon={Users} label={t("nav.members")} onNavigate={onNavigate} />
+        <NavLink to="/$org/settings/tokens" params={{ org }} icon={KeyRound} label={t("nav.tokens")} onNavigate={onNavigate} />
+        <NavLink to="/$org/settings/audit" params={{ org }} icon={ScrollText} label={t("nav.auditLog")} onNavigate={onNavigate} />
+        <NavLink to="/$org/settings/general" params={{ org }} icon={Settings} label={t("nav.settings")} onNavigate={onNavigate} />
       </div>
 
       <div className="group/projects flex items-center pr-1">
-        <SectionLabel>Projects</SectionLabel>
+        <SectionLabel>{t("nav.projects")}</SectionLabel>
         <span className="ml-auto flex items-center gap-0.5 pt-3">
           <button
             type="button"
-            aria-label="Search projects and apps"
-            title="Search"
+            aria-label={t("sidebar.searchProjectsAndApps")}
+            title={t("sidebar.searchTitle")}
             onClick={() => {
               onNavigate?.();
               setPaletteOpen(true);
@@ -271,8 +278,8 @@ function OrgNav({ org, onNavigate }: { org: string; onNavigate?: () => void }) {
           {canCreateProject ? (
             <button
               type="button"
-              aria-label="New project"
-              title="New project"
+              aria-label={t("sidebar.newProject")}
+              title={t("sidebar.newProject")}
               onClick={() => setCreateOpen(true)}
               className={cn(ROW_ACTION, "group-hover/projects:opacity-100")}
             >
@@ -288,13 +295,13 @@ function OrgNav({ org, onNavigate }: { org: string; onNavigate?: () => void }) {
         </div>
       ) : projects.isError ? (
         <div className="flex flex-col items-start gap-2 px-2 text-sm">
-          <p className="text-muted">Could not load projects.</p>
+          <p className="text-muted">{t("sidebar.projectsFailed")}</p>
           <Button variant="secondary" size="sm" onClick={() => void projects.refetch()}>
-            Retry
+            {t("common:retry")}
           </Button>
         </div>
       ) : (projects.data ?? []).length === 0 ? (
-        <p className="px-2 py-1 text-[13px] text-muted">No projects</p>
+        <p className="px-2 py-1 text-[13px] text-muted">{t("sidebar.noProjects")}</p>
       ) : null}
 
       {(projects.data ?? []).map((p, i) => {
@@ -315,7 +322,7 @@ function OrgNav({ org, onNavigate }: { org: string; onNavigate?: () => void }) {
               </Link>
               <div className="absolute right-1 flex items-center gap-0.5">
                 <DropdownMenu>
-                  <DropdownMenuTrigger aria-label={`More for ${p.name}`} className={ROW_ACTION}>
+                  <DropdownMenuTrigger aria-label={t("sidebar.moreFor", { name: p.name })} className={ROW_ACTION}>
                     <MoreHorizontal className="size-4" aria-hidden="true" />
                   </DropdownMenuTrigger>
                   <DropdownMenuContent align="start">
@@ -325,11 +332,11 @@ function OrgNav({ org, onNavigate }: { org: string; onNavigate?: () => void }) {
                         void navigate({ to: "/$org/projects/$p", params: { org, p: p.slug } });
                       }}
                     >
-                      <FolderOpen aria-hidden="true" /> Open project
+                      <FolderOpen aria-hidden="true" /> {t("sidebar.openProject")}
                     </DropdownMenuItem>
                     {canCreate ? (
                       <DropdownMenuItem onSelect={() => newApp(p.slug)}>
-                        <Plus aria-hidden="true" /> New app
+                        <Plus aria-hidden="true" /> {t("sidebar.newApp")}
                       </DropdownMenuItem>
                     ) : null}
                   </DropdownMenuContent>
@@ -337,8 +344,8 @@ function OrgNav({ org, onNavigate }: { org: string; onNavigate?: () => void }) {
                 {canCreate ? (
                   <button
                     type="button"
-                    aria-label={`New app in ${p.name}`}
-                    title="New app"
+                    aria-label={t("sidebar.newAppIn", { name: p.name })}
+                    title={t("sidebar.newApp")}
                     onClick={() => newApp(p.slug)}
                     className={ROW_ACTION}
                   >
@@ -363,7 +370,7 @@ function OrgNav({ org, onNavigate }: { org: string; onNavigate?: () => void }) {
                 </li>
               ))}
               {apps.isSuccess && own.length === 0 ? (
-                <li className="py-1 pl-[26px] pr-2 text-[12px] text-muted">No apps yet</li>
+                <li className="py-1 pl-[26px] pr-2 text-[12px] text-muted">{t("sidebar.noAppsYet")}</li>
               ) : null}
             </ul>
           </div>
@@ -382,16 +389,19 @@ export function buildDot(state: string): string {
 }
 
 // APP_SECTIONS is the app navigation (sidebar on md+, tab strip below). Overview is exact.
-export const APP_SECTIONS: { to: string; label: string; icon: LucideIcon; exact?: boolean }[] = [
-  { to: "/$org/apps/$app", label: "Overview", icon: LayoutDashboard, exact: true },
-  { to: "/$org/apps/$app/code", label: "Code", icon: Code2 },
-  { to: "/$org/apps/$app/logs", label: "Logs", icon: ScrollText },
-  { to: "/$org/apps/$app/triggers", label: "Triggers", icon: Clock },
-  { to: "/$org/apps/$app/versions", label: "Versions", icon: History },
-  { to: "/$org/apps/$app/env", label: "Env & Secrets", icon: Lock },
-  { to: "/$org/apps/$app/domains", label: "Domains", icon: Globe },
-  { to: "/$org/apps/$app/settings", label: "Settings", icon: Settings },
+// labelKey is a key in the `shell` namespace.
+export const APP_SECTIONS: readonly { to: string; labelKey: AppSectionKey; icon: LucideIcon; exact?: boolean }[] = [
+  { to: "/$org/apps/$app", labelKey: "appNav.overview", icon: LayoutDashboard, exact: true },
+  { to: "/$org/apps/$app/code", labelKey: "appNav.code", icon: Code2 },
+  { to: "/$org/apps/$app/logs", labelKey: "appNav.logs", icon: ScrollText },
+  { to: "/$org/apps/$app/triggers", labelKey: "appNav.triggers", icon: Clock },
+  { to: "/$org/apps/$app/versions", labelKey: "appNav.versions", icon: History },
+  { to: "/$org/apps/$app/env", labelKey: "appNav.env", icon: Lock },
+  { to: "/$org/apps/$app/domains", labelKey: "appNav.domains", icon: Globe },
+  { to: "/$org/apps/$app/settings", labelKey: "appNav.settings", icon: Settings },
 ];
+
+type AppSectionKey = `appNav.${"overview" | "code" | "logs" | "triggers" | "versions" | "env" | "domains" | "settings"}`;
 
 function AppNav({ org, slug, onNavigate }: { org: string; slug: string; onNavigate?: () => void }) {
   const apps = useApps(org);
@@ -400,12 +410,13 @@ function AppNav({ org, slug, onNavigate }: { org: string; slug: string; onNaviga
   const projects = useProjects(org);
   const name = app?.name ?? slug;
   const projectName = app ? (projects.data?.find((p) => p.slug === app.project)?.name ?? app.project) : undefined;
+  const { t } = useTranslation(["shell", "common"]);
 
   return (
     <>
       <Link to="/$org" params={{ org }} onClick={onNavigate} className={cn(ROW, "text-muted hover:text-text")}>
         <ArrowLeft className="size-4 shrink-0" aria-hidden="true" />
-        <span className="truncate">All projects</span>
+        <span className="truncate">{t("nav.allProjects")}</span>
       </Link>
 
       <div className="mb-1 mt-2 flex items-center gap-2.5 rounded-lg px-1.5 py-1.5">
@@ -421,21 +432,21 @@ function AppNav({ org, slug, onNavigate }: { org: string; slug: string; onNaviga
                 {projectName}
               </Link>
             ) : (
-              "App"
+              t("nav.app")
             )}
           </p>
           <p className="truncate text-sm font-semibold leading-tight">{name}</p>
         </div>
       </div>
 
-      <div className="flex flex-col gap-px" aria-label="App navigation" role="group">
+      <div className="flex flex-col gap-px" aria-label={t("nav.appNavigation")} role="group">
         {APP_SECTIONS.map((s) => (
-          <NavLink key={s.to} to={s.to} params={{ org, app: slug }} icon={s.icon} label={s.label} exact={s.exact} onNavigate={onNavigate} />
+          <NavLink key={s.to} to={s.to} params={{ org, app: slug }} icon={s.icon} label={t(s.labelKey)} exact={s.exact} onNavigate={onNavigate} />
         ))}
       </div>
 
-      <SectionLabel>Project</SectionLabel>
-      <NavLink to="/$org/projects/$p" params={{ org, p: app?.project ?? "" }} icon={Boxes} label="All apps in project" onNavigate={onNavigate} />
+      <SectionLabel>{t("nav.project")}</SectionLabel>
+      <NavLink to="/$org/projects/$p" params={{ org, p: app?.project ?? "" }} icon={Boxes} label={t("nav.allAppsInProject")} onNavigate={onNavigate} />
     </>
   );
 }

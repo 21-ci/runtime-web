@@ -1,5 +1,6 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Check, ChevronDown, LifeBuoy, LogOut, Mail, ShieldCheck } from "lucide-react";
+import { Check, ChevronDown, Languages, LifeBuoy, LogOut, Mail, ShieldCheck } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { useBranding } from "@/components/features/branding/hooks";
 import { useMe } from "@/components/features/security/hooks";
@@ -13,15 +14,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useLogout } from "@/hooks/auth";
+import { LANGUAGES, currentLanguage, setLanguage } from "@/lib/i18n";
 import type { Theme } from "@/lib/theme";
 import { OrgAvatar } from "./org-switcher";
 import { useShell } from "./shell-context";
 
-const THEMES: { value: Theme; label: string }[] = [
-  { value: "system", label: "System" },
-  { value: "light", label: "Light" },
-  { value: "dark", label: "Dark" },
-];
+const THEMES = [
+  { value: "system", labelKey: "account.themeSystem" },
+  { value: "light", labelKey: "account.themeLight" },
+  { value: "dark", labelKey: "account.themeDark" },
+] as const satisfies readonly { value: Theme; labelKey: string }[];
 
 // AccountMenu holds account security, the theme choice (the header toggle is hidden on phones)
 // and sign-out. Logout clears the in-memory CSRF token and the query cache (useLogout) even when
@@ -32,6 +34,8 @@ export function AccountMenu() {
   const { theme, setTheme } = useShell();
   const me = useMe();
   const { data: brand } = useBranding();
+  const { t } = useTranslation("shell");
+  const language = currentLanguage();
   const name = me.data?.user.name ?? me.data?.user.email ?? "?";
   const email = me.data?.user.email;
 
@@ -46,7 +50,7 @@ export function AccountMenu() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label="Account menu"
+        aria-label={t("account.menu")}
         className="ml-1 inline-flex h-8 cursor-pointer items-center gap-1 rounded-md py-0.5 pl-1 pr-1.5 text-muted outline-none transition-colors duration-[120ms] hover:bg-hover hover:text-text focus-visible:ring-2 focus-visible:ring-focus data-[state=open]:bg-hover"
       >
         <OrgAvatar name={name} className="size-6 rounded-full text-[11px]" />
@@ -60,25 +64,41 @@ export function AccountMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={() => void navigate({ to: "/me/security" })}>
           <ShieldCheck aria-hidden="true" />
-          Account security
+          {t("nav.accountSecurity")}
         </DropdownMenuItem>
         <DropdownMenuSeparator />
-        <DropdownMenuLabel>Theme</DropdownMenuLabel>
-        {THEMES.map((t) => (
-          <DropdownMenuItem key={t.value} onSelect={() => setTheme(t.value)} className="justify-between">
-            {t.label}
-            {theme === t.value ? <Check aria-hidden="true" /> : null}
+        <DropdownMenuLabel>{t("account.theme")}</DropdownMenuLabel>
+        {THEMES.map((o) => (
+          <DropdownMenuItem key={o.value} onSelect={() => setTheme(o.value)} className="justify-between">
+            {t(o.labelKey)}
+            {theme === o.value ? <Check aria-hidden="true" /> : null}
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        <DropdownMenuLabel className="flex items-center gap-1.5">
+          <Languages className="size-3.5" aria-hidden="true" />
+          {t("account.language")}
+        </DropdownMenuLabel>
+        {LANGUAGES.map((l) => (
+          <DropdownMenuItem
+            key={l.code}
+            lang={l.code}
+            onSelect={() => void setLanguage(l.code)}
+            className="justify-between"
+          >
+            {l.label}
+            {language === l.code ? <Check aria-hidden="true" /> : null}
           </DropdownMenuItem>
         ))}
         {brand?.support_url || brand?.support_email ? (
           <>
             <DropdownMenuSeparator />
-            <DropdownMenuLabel>Help</DropdownMenuLabel>
+            <DropdownMenuLabel>{t("account.help")}</DropdownMenuLabel>
             {brand.support_url ? (
               <DropdownMenuItem asChild>
                 <a href={brand.support_url} target="_blank" rel="noopener noreferrer">
                   <LifeBuoy aria-hidden="true" />
-                  Get help
+                  {t("account.getHelp")}
                 </a>
               </DropdownMenuItem>
             ) : null}
@@ -86,7 +106,7 @@ export function AccountMenu() {
               <DropdownMenuItem asChild>
                 <a href={`mailto:${brand.support_email}`}>
                   <Mail aria-hidden="true" />
-                  Email support
+                  {t("account.emailSupport")}
                 </a>
               </DropdownMenuItem>
             ) : null}
@@ -95,7 +115,7 @@ export function AccountMenu() {
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={onLogout} disabled={logout.isPending}>
           <LogOut aria-hidden="true" />
-          Log out
+          {t("account.logOut")}
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>

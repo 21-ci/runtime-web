@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react
 import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { useMatches } from "@tanstack/react-router";
 import { Menu, PanelLeft, Search } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { applyTheme, readTheme, subscribeSystemTheme, writeTheme, type Theme } from "@/lib/theme";
@@ -51,6 +52,7 @@ export function AppShell({ org, children }: { org: string | null; children: Reac
   const [collapsed, setCollapsedState] = useState<boolean>(() => readCollapsed());
   const matches = useMatches();
   const fullBleed = matches.some((m) => m.staticData?.fullBleed === true);
+  const { t } = useTranslation("shell");
 
   useEffect(() => {
     applyTheme(theme);
@@ -101,7 +103,7 @@ export function AppShell({ org, children }: { org: string | null; children: Reac
           href="#main"
           className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-surface-2 focus:px-3 focus:py-2 focus:shadow-menu"
         >
-          Skip to content
+          {t("top.skipToContent")}
         </a>
 
         <aside
@@ -117,15 +119,15 @@ export function AppShell({ org, children }: { org: string | null; children: Reac
           <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-1 border-b border-line bg-bg/90 px-2 backdrop-blur-sm md:px-4">
             <SheetPrimitive.Root open={sheetOpen} onOpenChange={setSheetOpen}>
               <SheetPrimitive.Trigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden" aria-label="Open navigation">
+                <Button variant="ghost" size="icon" className="md:hidden" aria-label={t("top.openNavigation")}>
                   <Menu aria-hidden="true" />
                 </Button>
               </SheetPrimitive.Trigger>
               <SheetPrimitive.Portal>
                 <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-overlay/35 data-[state=open]:animate-[fade-in_160ms_var(--motion-ease)]" />
                 <SheetPrimitive.Content className="fixed inset-y-0 left-0 z-50 w-[280px] max-w-[85vw] overflow-y-auto border-r border-line bg-panel text-text shadow-menu outline-none data-[state=open]:animate-[slide-in-left_200ms_var(--motion-ease)]">
-                  <SheetPrimitive.Title className="sr-only">Navigation</SheetPrimitive.Title>
-                  <SheetPrimitive.Description className="sr-only">Console navigation</SheetPrimitive.Description>
+                  <SheetPrimitive.Title className="sr-only">{t("top.navigation")}</SheetPrimitive.Title>
+                  <SheetPrimitive.Description className="sr-only">{t("top.consoleNavigation")}</SheetPrimitive.Description>
                   {renderNav({ onNavigate: () => setSheetOpen(false) })}
                 </SheetPrimitive.Content>
               </SheetPrimitive.Portal>
@@ -136,8 +138,8 @@ export function AppShell({ org, children }: { org: string | null; children: Reac
                 variant="ghost"
                 size="icon"
                 className="hidden md:inline-flex"
-                aria-label="Expand sidebar"
-                title="Expand sidebar (⌘\)"
+                aria-label={t("top.expandSidebar")}
+                title={t("top.expandSidebarTitle")}
                 onClick={() => setCollapsed(false)}
               >
                 <PanelLeft aria-hidden="true" />
@@ -147,7 +149,7 @@ export function AppShell({ org, children }: { org: string | null; children: Reac
             <Breadcrumbs org={org} />
 
             {org ? (
-              <Button variant="ghost" size="icon" aria-label="Search" onClick={() => setPaletteOpen(true)} className="md:hidden">
+              <Button variant="ghost" size="icon" aria-label={t("top.search")} onClick={() => setPaletteOpen(true)} className="md:hidden">
                 <Search aria-hidden="true" />
               </Button>
             ) : null}

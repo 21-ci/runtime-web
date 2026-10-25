@@ -1,5 +1,6 @@
 import { Check, Copy, ExternalLink, RotateCw } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
@@ -16,14 +17,16 @@ export function useCopy(): { copied: boolean; copy: (text: string) => void } {
   return { copied, copy };
 }
 
-export function CopyButton({ text, label = "Copy", size = "icon-sm" }: { text: string; label?: string; size?: "icon" | "icon-sm" }) {
+export function CopyButton({ text, label, size = "icon-sm" }: { text: string; label?: string; size?: "icon" | "icon-sm" }) {
   const { copied, copy } = useCopy();
+  const { t } = useTranslation();
+  const name = copied ? t("copied") : (label ?? t("copy"));
   return (
     <Button
       variant="ghost"
       size={size}
-      aria-label={copied ? "Copied" : label}
-      title={copied ? "Copied" : label}
+      aria-label={name}
+      title={name}
       onClick={() => copy(text)}
     >
       {copied ? <Check className="text-tag-green-text" aria-hidden="true" /> : <Copy aria-hidden="true" />}
@@ -44,6 +47,7 @@ export function UrlBar({
   onReload?: () => void;
   className?: string;
 }) {
+  const { t } = useTranslation();
   return (
     <div
       className={cn(
@@ -53,7 +57,7 @@ export function UrlBar({
     >
       {badge}
       {onReload ? (
-        <Button variant="ghost" size="icon-sm" aria-label="Reload" title="Reload" onClick={onReload}>
+        <Button variant="ghost" size="icon-sm" aria-label={t("reload")} title={t("reload")} onClick={onReload}>
           <RotateCw aria-hidden="true" />
         </Button>
       ) : null}
@@ -65,8 +69,8 @@ export function UrlBar({
       >
         {url}
       </a>
-      <CopyButton text={url} label="Copy URL" />
-      <Button asChild variant="ghost" size="icon-sm" aria-label="Open in new tab" title="Open in new tab">
+      <CopyButton text={url} label={t("copyUrl")} />
+      <Button asChild variant="ghost" size="icon-sm" aria-label={t("openInNewTab")} title={t("openInNewTab")}>
         <a href={url} target="_blank" rel="noreferrer">
           <ExternalLink aria-hidden="true" />
         </a>

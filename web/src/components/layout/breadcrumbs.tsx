@@ -1,5 +1,6 @@
 import { Link, useLocation, useParams } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { useApps, useOrgs, useProjects } from "@/hooks/orgs";
 import { APP_SECTIONS, INSTANCE_SECTIONS } from "./sidebar";
@@ -24,17 +25,18 @@ export function Breadcrumbs({ org }: { org: string | null }) {
 
 function InstanceCrumbs({ pathname }: { pathname: string }) {
   const section = INSTANCE_SECTIONS.find((s) => pathname.startsWith(s.to));
+  const { t } = useTranslation("shell");
   return (
-    <nav aria-label="Breadcrumb" className="min-w-0 flex-1">
+    <nav aria-label={t("breadcrumb.label")} className="min-w-0 flex-1">
       <ol className="flex min-w-0 items-center gap-0.5 text-sm">
         <li className="flex min-w-0 items-center">
           {section ? (
             <Link to="/admin/users" className={CRUMB}>
-              Instance
+              {t("instance.title")}
             </Link>
           ) : (
             <span className={CURRENT} aria-current="page">
-              Instance
+              {t("instance.title")}
             </span>
           )}
         </li>
@@ -42,7 +44,7 @@ function InstanceCrumbs({ pathname }: { pathname: string }) {
           <li className="flex min-w-0 items-center gap-0.5">
             <Sep />
             <span className={CURRENT} aria-current="page">
-              {section.label}
+              {t(section.labelKey)}
             </span>
           </li>
         ) : null}
@@ -69,10 +71,11 @@ function OrgCrumbs({ org }: { org: string }) {
     ? APP_SECTIONS.find((s) => !s.exact && pathname.startsWith(s.to.replace("$org", org).replace("$app", appSlug)))
     : undefined;
 
+  const { t } = useTranslation("shell");
   const last = section ? "section" : appLabel ? "app" : projectSlug ? "project" : "org";
 
   return (
-    <nav aria-label="Breadcrumb" className="min-w-0 flex-1">
+    <nav aria-label={t("breadcrumb.label")} className="min-w-0 flex-1">
       <ol className="flex min-w-0 items-center gap-0.5 text-sm">
         <li className="flex min-w-0 items-center">
           {last === "org" ? (
@@ -117,7 +120,7 @@ function OrgCrumbs({ org }: { org: string }) {
           <li className="flex min-w-0 items-center gap-0.5">
             <Sep />
             <span className={CURRENT} aria-current="page">
-              {section.label}
+              {t(section.labelKey)}
             </span>
           </li>
         ) : null}

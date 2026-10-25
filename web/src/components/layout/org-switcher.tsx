@@ -1,6 +1,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import { Check, ChevronsUpDown } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import {
   DropdownMenu,
@@ -27,6 +28,7 @@ export function OrgSwitcher({ org }: { org: string }) {
   const navigate = useNavigate();
   const current = orgs.data?.find((o) => o.slug === org);
   const name = current?.name ?? org;
+  const { t } = useTranslation("shell");
 
   function switchTo(slug: string) {
     if (slug === org) return;
@@ -40,7 +42,7 @@ export function OrgSwitcher({ org }: { org: string }) {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
-        aria-label="Switch org"
+        aria-label={t("orgSwitcher.switch")}
         className="flex h-9 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm text-text outline-none transition-colors duration-[120ms] hover:bg-hover data-[state=open]:bg-hover focus-visible:ring-2 focus-visible:ring-focus"
       >
         <OrgAvatar name={name} solid className="size-6 rounded-md text-[12px]" />
@@ -48,7 +50,7 @@ export function OrgSwitcher({ org }: { org: string }) {
         <ChevronsUpDown className="size-3.5 shrink-0 text-muted" aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[228px]">
-        <DropdownMenuLabel>Organizations</DropdownMenuLabel>
+        <DropdownMenuLabel>{t("orgSwitcher.organizations")}</DropdownMenuLabel>
         <DropdownMenuSeparator />
         {(orgs.data ?? []).map((o) => (
           <DropdownMenuItem key={o.slug} onSelect={() => switchTo(o.slug)} className="justify-between">

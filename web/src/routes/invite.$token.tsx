@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 
@@ -8,6 +9,7 @@ import { AuthForm, FormField } from "@/components/auth/auth-form";
 import { AuthShell } from "@/components/auth/auth-shell";
 import { useAcceptInvite, useInvite } from "@/hooks/auth";
 import { ApiError } from "@/lib/api";
+import { errorMessage } from "@/lib/error-message";
 
 export const Route = createFileRoute("/invite/$token")({
   component: InvitePage,
@@ -24,6 +26,7 @@ function InvitePage() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [formError, setFormError] = useState<string | null>(null);
   const [needsLogin, setNeedsLogin] = useState(false);
+  const { t } = useTranslation(["auth", "common"]);
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -31,8 +34,8 @@ function InvitePage() {
     const name = String(form.get("name") ?? "").trim();
     const password = String(form.get("password") ?? "");
     const fieldErrs: Record<string, string> = {};
-    if (!name) fieldErrs.name = "Enter your name.";
-    if (password.length < 12) fieldErrs.password = "Use at least 12 characters.";
+    if (!name) fieldErrs.name = t("invite.enterName");
+    if (password.length < 12) fieldErrs.password = t("passwordTooShort", { count: 12 });
     setErrors(fieldErrs);
     setFormError(null);
     if (Object.keys(fieldErrs).length > 0) return;
@@ -47,11 +50,11 @@ function InvitePage() {
           void navigate({ to: "/", replace: true });
         },
         onError: (err) => {
-          if (!(err instanceof ApiError)) return setFormError("Something went wrong. Try again.");
+          if (!(err instanceof ApiError)) return setFormError(t("common:somethingWrong"));
           if (err.code === "invite_login_required") return setNeedsLogin(true);
-          if (err.code === "invite_invalid") return setFormError("This invite is expired, used or revoked.");
+          if (err.code === "invite_invalid") return setFormError(t("invite.invalidShort"));
           if (err.status === 422) return setErrors(err.fieldErrors());
-          setFormError(err.message);
+          setFormError(errorMessage(err));
         },
       },
     );
@@ -59,7 +62,7 @@ function InvitePage() {
 
   if (invite.isPending) {
     return (
-      <AuthShell title="Accept invite" description="You have been invited to join a team on Runtime.">
+      <AuthShell title={t("invite.title")} description={t("invite.description")}>
         <div className="flex flex-col gap-3" aria-busy="true">
           <Skeleton className="h-8 w-full" />
           <Skeleton className="h-8 w-full" />
@@ -70,11 +73,11 @@ function InvitePage() {
 
   if (invite.isError || !invite.data) {
     return (
-      <AuthShell title="Invite not valid">
-        <p className="text-sm text-muted">This invite link is expired, used or revoked. Ask an admin for a new one.</p>
+      <AuthShell title={t("invite.invalidTitle")}>
+        <p className="text-sm text-muted">{t("invite.invalidBody")}</p>
         <p className="mt-4 text-sm">
           <Link to="/login" search={{}} className="underline">
-            Go to sign in
+            {t("goToSignIn")}
           </Link>
         </p>
       </AuthShell>
@@ -84,27 +87,27 @@ function InvitePage() {
   const { email, org_name } = invite.data;
 
   return (
-    <AuthShell title="Accept invite" description="You have been invited to join a team on Runtime.">
+    <AuthShell title={t("invite.title")} description={t("invite.description")}>
       <div className="mb-4 text-sm">
-        <p className="text-muted">Email</p>
+        <p className="text-muted">{t("email")}</p>
         <p className="font-medium">{email}</p>
-        {org_name ? <p className="mt-2 text-muted">Joining {org_name}</p> : null}
+        {org_name ? <p className="mt-2 text-muted">{t("invite.joining", { org: org_name })}</p> : null}
       </div>
 
       {needsLogin ? (
         <div role="alert" className="flex flex-col gap-3 text-sm">
-          <p>This invite is for an account that already exists. Sign in as that account to accept.</p>
+          <p>{t("invite.existingAccount")}</p>
           <Button asChild>
             <Link to="/login" search={{ next: `/invite/${token}` }}>
-              Sign in to accept
+              {t("invite.signInToAccept")}
             </Link>
           </Button>
         </div>
       ) : (
         <AuthForm errors={errors} onSubmit={onSubmit}>
-          <FormField label="Name" name="name" autoComplete="name" error={errors.name} />
+          <FormField label={t("name")} name="name" autoComplete="name" error={errors.name} />
           <FormField
-            label="Password"
+            label={t("password")}
             name="password"
             type="password"
             autoComplete="new-password"
@@ -116,7 +119,7 @@ function InvitePage() {
             </p>
           ) : null}
           <Button type="submit" variant="default" disabled={accept.isPending}>
-            {accept.isPending ? "Accepting…" : "Accept invite"}
+            {accept.isPending ? t("invite.submitting") : t("invite.submit")}
           </Button>
         </AuthForm>
       )}

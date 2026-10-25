@@ -1,35 +1,54 @@
-// Human formatting for numbers the API reports raw (bytes, milliseconds, counts, times).
+// Human formatting for numbers the API reports raw (bytes, milliseconds, counts, times), in the
+// current UI language: numbers and dates through Intl, unit symbols from the `common` namespace.
+import { i18n, intlLocale } from "./i18n";
 
-const UNITS = ["B", "KiB", "MiB", "GiB", "TiB"];
+const BYTE_UNITS = ["b", "kib", "mib", "gib", "tib"] as const;
+
+function num(value: number, digits = 0, useGrouping = true): string {
+  return new Intl.NumberFormat(intlLocale(), {
+    minimumFractionDigits: digits,
+    maximumFractionDigits: digits,
+    useGrouping,
+  }).format(value);
+}
 
 export function formatBytes(n: number | null | undefined): string {
   if (n === null || n === undefined || !Number.isFinite(n)) return "-";
   let v = Math.abs(n);
   let i = 0;
-  while (v >= 1024 && i < UNITS.length - 1) {
+  while (v >= 1024 && i < BYTE_UNITS.length - 1) {
     v /= 1024;
     i++;
   }
   const digits = i === 0 ? 0 : v >= 100 ? 0 : v >= 10 ? 1 : 2;
-  return `${n < 0 ? "-" : ""}${v.toFixed(digits)} ${UNITS[i]}`;
+  const unit = BYTE_UNITS[i] ?? "b";
+  return i18n.t(`common:units.${unit}`, { value: `${n < 0 ? "-" : ""}${num(v, digits, false)}` });
 }
 
 export function formatCount(n: number | null | undefined): string {
   if (n === null || n === undefined || !Number.isFinite(n)) return "-";
-  return new Intl.NumberFormat("en-US").format(n);
+  return new Intl.NumberFormat(intlLocale()).format(n);
 }
 
-// formatDuration renders milliseconds as ms, s, m or h.
+type DurationUnit = "ms" | "s" | "min" | "h" | "d";
+
+// durationParts splits milliseconds into the one unit we show (ms, s, min, h or d) and its text.
+function durationParts(ms: number): { unit: DurationUnit; value: string } {
+  if (ms < 1000) return { unit: "ms", value: num(Math.round(ms)) };
+  const s = ms / 1000;
+  if (s < 60) return { unit: "s", value: num(s, s < 10 ? 1 : 0) };
+  const m = s / 60;
+  if (m < 60) return { unit: "min", value: num(Math.round(m)) };
+  const h = m / 60;
+  if (h < 48) return { unit: "h", value: num(h, 1) };
+  return { unit: "d", value: num(Math.round(h / 24)) };
+}
+
+// formatDuration renders milliseconds as ms, s, min, h or d.
 export function formatDuration(ms: number | null | undefined): string {
   if (ms === null || ms === undefined || !Number.isFinite(ms)) return "-";
-  if (ms < 1000) return `${Math.round(ms)} ms`;
-  const s = ms / 1000;
-  if (s < 60) return `${s.toFixed(s < 10 ? 1 : 0)} s`;
-  const m = s / 60;
-  if (m < 60) return `${Math.round(m)} min`;
-  const h = m / 60;
-  if (h < 48) return `${h.toFixed(1)} h`;
-  return `${Math.round(h / 24)} d`;
+  const { unit, value } = durationParts(ms);
+  return i18n.t(`common:units.${unit}`, { value });
 }
 
 // formatRelative renders a timestamp as "3 min ago" / "in 2 h" for recent times, else a date.
@@ -39,18 +58,23 @@ export function formatRelative(ts: number, now = Date.now()): string {
   const minute = 60_000;
   const hour = 60 * minute;
   const day = 24 * hour;
-  let text: string;
-  if (abs < minute) text = "just now";
-  else if (abs < hour) text = `${Math.round(abs / minute)} min`;
-  else if (abs < day) text = `${Math.round(abs / hour)} h`;
-  else if (abs < 30 * day) text = `${Math.round(abs / day)} d`;
-  else return new Date(ts).toLocaleDateString();
-  if (text === "just now") return text;
-  return diff < 0 ? `${text} ago` : `in ${text}`;
+  let span: { unit: DurationUnit; n: number };
+  if (abs < minute) return i18n.t("common:time.justNow");
+  else if (abs < hour) span = { unit: "min", n: Math.round(abs / minute) };
+  else if (abs < day) span = { unit: "h", n: Math.round(abs / hour) };
+  else if (abs < 30 * day) span = { unit: "d", n: Math.round(abs / day) };
+  else return new Date(ts).toLocaleDateString(intlLocale());
+  const value = i18n.t(`common:units.${span.unit}`, { value: num(span.n) });
+  return diff < 0 ? i18n.t("common:time.ago", { value }) : i18n.t("common:time.in", { value });
 }
 
 export function formatDateTime(ts: number): string {
-  return new Date(ts).toLocaleString(undefined, { dateStyle: "medium", timeStyle: "short" });
+  return new Date(ts).toLocaleString(intlLocale(), { dateStyle: "medium", timeStyle: "short" });
+}
+
+// formatDate renders the calendar date only, in the current UI language.
+export function formatDate(ts: number): string {
+  return new Date(ts).toLocaleDateString(intlLocale(), { dateStyle: "medium" });
 }
 
 // formatQuantity picks a unit from the metric name: *_bytes → bytes, *_ms → duration, else count.
@@ -63,7 +87,8 @@ export function formatQuantity(key: string, value: unknown): string {
   return formatCount(value);
 }
 
-// labelFor turns a snake_case key into a readable label.
+// labelFor turns a snake_case key into a readable label. The keys come from the runtime, so the label
+// stays English in every UI language.
 export function labelFor(key: string): string {
   const words = key.replace(/[_-]+/g, " ").trim();
   return words.charAt(0).toUpperCase() + words.slice(1);

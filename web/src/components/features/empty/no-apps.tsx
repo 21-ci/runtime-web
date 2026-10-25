@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Boxes, Globe, Clock, Database, ListTodo } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -14,15 +15,16 @@ export const TEMPLATES: { id: Template; title: string; blurb: string; Icon: type
 
 // NoApps is the empty project state: a create-app CTA that preselects the project.
 export function NoApps({ org, project }: { org: string; project: string }) {
+  const { t } = useTranslation("empty");
   return (
     <EmptyState entity="apps"
       icon={Boxes}
-      title="No apps in this project"
-      description="Create an app from a template to deploy code to one of the project's environments."
+      title={t("noApps.title")}
+      description={t("noApps.description")}
       action={
         <Button asChild variant="default">
           <Link to="/$org/apps/new" params={{ org }} search={{ project }}>
-            Create app
+            {t("noApps.action")}
           </Link>
         </Button>
       }

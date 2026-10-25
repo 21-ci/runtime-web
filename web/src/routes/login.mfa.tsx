@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 
 import { Button } from "@/components/ui/button";
@@ -22,12 +23,13 @@ function MfaPage() {
   const [recovery, setRecovery] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [fieldError, setFieldError] = useState<Record<string, string>>({});
+  const { t } = useTranslation(["auth", "common"]);
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
     const code = String(new FormData(e.currentTarget).get("code") ?? "").trim();
     if (!code) {
-      setFieldError({ code: recovery ? "Enter a recovery code." : "Enter the 6-digit code." });
+      setFieldError({ code: recovery ? t("mfa.enterRecovery") : t("mfa.enterCode") });
       return;
     }
     setFieldError({});
@@ -44,13 +46,13 @@ function MfaPage() {
         },
         onError: (err) => {
           if (err instanceof ApiError && err.code === "rate_limited") {
-            setError("Too many attempts. Wait and try again.");
+            setError(t("tooManyAttempts"));
           } else if (err instanceof ApiError && err.code === "invalid_code") {
-            setError("That code is not right. Try again.");
+            setError(t("mfa.invalidCode"));
           } else if (err instanceof ApiError && err.code === "unauthenticated") {
-            setError("Your sign-in expired. Start again.");
+            setError(t("mfa.expired"));
           } else {
-            setError("Something went wrong. Try again.");
+            setError(t("common:somethingWrong"));
           }
         },
       },
@@ -58,15 +60,13 @@ function MfaPage() {
   }
 
   return (
-    <AuthShell title="Two-step verification" description="Enter the code from your authenticator app.">
+    <AuthShell title={t("mfa.title")} description={t("mfa.description")}>
       <p className="mb-4 text-sm text-muted">
-        {recovery
-          ? "Enter one of your recovery codes. Each code works once."
-          : "Enter the 6-digit code from your authenticator app."}
+        {recovery ? t("mfa.recoveryHint") : t("mfa.codeHint")}
       </p>
       <AuthForm errors={fieldError} onSubmit={onSubmit}>
         <FormField
-          label={recovery ? "Recovery code" : "Authentication code"}
+          label={recovery ? t("mfa.recoveryLabel") : t("mfa.codeLabel")}
           name="code"
           inputMode={recovery ? "text" : "numeric"}
           autoComplete="one-time-code"
@@ -80,15 +80,15 @@ function MfaPage() {
           </p>
         ) : null}
         <Button type="submit" variant="default" disabled={mfa.isPending}>
-          {mfa.isPending ? "Verifying…" : "Verify"}
+          {mfa.isPending ? t("mfa.submitting") : t("mfa.submit")}
         </Button>
       </AuthForm>
       <div className="mt-4 flex flex-col items-center gap-2 text-sm">
         <Button variant="ghost" onClick={() => setRecovery((r) => !r)}>
-          {recovery ? "Use an authenticator code" : "Use a recovery code"}
+          {recovery ? t("mfa.useCode") : t("mfa.useRecovery")}
         </Button>
         <Link to="/login" search={{}} className="text-muted underline">
-          Back to sign in
+          {t("backToSignIn")}
         </Link>
       </div>
     </AuthShell>

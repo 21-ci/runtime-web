@@ -2,6 +2,8 @@ import { MutationCache, QueryCache, QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
 import { ApiError } from "./api";
+import { errorMessage } from "./error-message";
+import { i18n } from "./i18n";
 
 // page wraps the reload so tests can observe the stale toast's Reload action.
 export const page = {
@@ -12,30 +14,30 @@ export const page = {
 // stay inline in the page and are not toasted here.
 export function handleApiError(err: unknown) {
   if (!(err instanceof ApiError)) {
-    toast.error("Something went wrong. Try again.");
+    toast.error(i18n.t("common:somethingWrong"));
     return;
   }
   switch (err.code) {
     case "busy":
-      toast.error("Busy — retry");
+      toast.error(i18n.t("errors:busy"));
       break;
     case "rate_limited":
       toast.error(
         err.retryAfter !== undefined
-          ? `Too many requests. Retry in ${err.retryAfter} s.`
-          : "Too many requests. Wait and retry.",
+          ? i18n.t("errors:rate_limited_retry", { seconds: err.retryAfter })
+          : i18n.t("errors:rate_limited"),
       );
       break;
     case "runtime_unavailable":
-      toast.error("The app runtime is unreachable. Retry shortly.");
+      toast.error(i18n.t("errors:runtime_unavailable"));
       break;
     case "stale":
-      toast.error("Changed elsewhere. Reload to see the latest version.", {
-        action: { label: "Reload", onClick: () => page.reload() },
+      toast.error(i18n.t("errors:stale"), {
+        action: { label: i18n.t("common:reload"), onClick: () => page.reload() },
       });
       break;
     case "network":
-      toast.error(err.message);
+      toast.error(i18n.t("errors:network"));
       break;
     default:
       break;
@@ -58,11 +60,11 @@ export function handleMutationError(err: unknown) {
     case "unauthenticated":
       return;
     case "forbidden":
-      toast.error("You don't have permission to do that.");
+      toast.error(i18n.t("errors:forbidden"));
       return;
     default:
       if (err.status === 422 && Object.keys(err.fieldErrors()).length > 0) return;
-      toast.error(err.message || "Something went wrong. Try again.");
+      toast.error(errorMessage(err));
   }
 }
 

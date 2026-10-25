@@ -1,4 +1,5 @@
 import { AlertTriangle, SearchX } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { EmptyState } from "@/components/ui/empty-state";
 import { Button } from "@/components/ui/button";
@@ -17,17 +18,18 @@ export function QueryError({
   notFoundTitle: string;
   notFoundDescription?: string;
 }) {
+  const { t } = useTranslation(["empty", "common"]);
   if (error instanceof ApiError && error.status === 404) {
     return <EmptyState icon={SearchX} title={notFoundTitle} description={notFoundDescription} />;
   }
   return (
     <EmptyState
       icon={AlertTriangle}
-      title="Could not load this"
-      description="Something went wrong while loading. Check your connection and try again."
+      title={t("queryError.title")}
+      description={t("queryError.description")}
       action={
         <Button variant="secondary" onClick={onRetry}>
-          Retry
+          {t("common:retry")}
         </Button>
       }
     />

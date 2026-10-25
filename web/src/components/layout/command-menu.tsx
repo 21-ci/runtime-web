@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Command } from "cmdk";
+import { useTranslation } from "react-i18next";
 import { useNavigate, useRouter } from "@tanstack/react-router";
 import {
   Boxes,
@@ -45,6 +46,7 @@ export function CommandMenu({ org }: { org: string }) {
   const projects = useProjects(org);
   const apps = useApps(org);
   const gate = useCreateAppGate(org);
+  const { t } = useTranslation("shell");
 
   const role = orgs.data?.find((o) => o.slug === org)?.role;
   const canCreateProject = role === "owner" || role === "admin";
@@ -64,21 +66,21 @@ export function CommandMenu({ org }: { org: string }) {
       <Command.Dialog
         open={paletteOpen}
         onOpenChange={setPaletteOpen}
-        label="Command menu"
+        label={t("palette.label")}
         overlayClassName="fixed inset-0 z-50 bg-overlay/35 dark:bg-overlay/55"
         contentClassName="fixed left-1/2 top-[14vh] z-50 w-[min(560px,calc(100vw-2rem))] -translate-x-1/2 overflow-hidden rounded-lg border border-line bg-surface-2 text-text shadow-menu outline-none data-[state=open]:animate-[pop-in_160ms_var(--motion-ease)]"
       >
         <Command.Input
-          placeholder="Search apps, projects, actions…"
+          placeholder={t("palette.placeholder")}
           className="h-11 w-full border-b border-line bg-transparent px-4 text-sm outline-none placeholder:text-muted"
         />
         <Command.List className="max-h-[min(50vh,420px)] overflow-y-auto p-1.5">
-          <Command.Empty className="px-3 py-6 text-center text-sm text-muted">No matches.</Command.Empty>
+          <Command.Empty className="px-3 py-6 text-center text-sm text-muted">{t("palette.empty")}</Command.Empty>
 
-          <Command.Group heading="Actions" className={HEADING}>
+          <Command.Group heading={t("palette.actions")} className={HEADING}>
             {gate.any ? (
               <Command.Item
-                value="new app"
+                value={`new app ${t("palette.newApp")}`}
                 onSelect={() =>
                   run(
                     () =>
@@ -91,61 +93,61 @@ export function CommandMenu({ org }: { org: string }) {
                 }
                 className={ITEM}
               >
-                <Plus className={`${ICON} text-tag-orange-text`} aria-hidden="true" /> New app
+                <Plus className={`${ICON} text-tag-orange-text`} aria-hidden="true" /> {t("palette.newApp")}
               </Command.Item>
             ) : null}
             {canCreateProject ? (
-              <Command.Item value="new project" onSelect={() => run(() => setCreateOpen(true))} className={ITEM}>
-                <FolderPlus className={`${ICON} text-tag-yellow-text`} aria-hidden="true" /> New project
+              <Command.Item value={`new project ${t("palette.newProject")}`} onSelect={() => run(() => setCreateOpen(true))} className={ITEM}>
+                <FolderPlus className={`${ICON} text-tag-yellow-text`} aria-hidden="true" /> {t("palette.newProject")}
               </Command.Item>
             ) : null}
             <Command.Item
-              value="toggle theme dark light"
+              value={`toggle theme dark light ${t("palette.toggleTheme")}`}
               onSelect={() => run(() => setTheme(isDark ? "light" : "dark"))}
               className={ITEM}
             >
-              <SunMoon className={ICON} aria-hidden="true" /> Toggle theme
+              <SunMoon className={ICON} aria-hidden="true" /> {t("palette.toggleTheme")}
             </Command.Item>
             <Command.Item
-              value="toggle sidebar collapse expand"
+              value={`toggle sidebar collapse expand ${t("palette.toggleSidebar")}`}
               onSelect={() => run(() => setCollapsed(!collapsed))}
               className={`${ITEM} hidden md:flex`}
             >
-              <PanelLeft className={ICON} aria-hidden="true" /> {collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              <PanelLeft className={ICON} aria-hidden="true" /> {collapsed ? t("palette.expandSidebar") : t("palette.collapseSidebar")}
             </Command.Item>
           </Command.Group>
 
-          <Command.Group heading="Go to" className={HEADING}>
+          <Command.Group heading={t("palette.goTo")} className={HEADING}>
             <Command.Item
-              value="go to overview home"
+              value={`go to overview home ${t("palette.goToOverview")}`}
               onSelect={() => run(() => void navigate({ to: "/$org", params: { org } }))}
               className={ITEM}
             >
-              <LayoutDashboard className={`${ICON} text-tag-orange-text`} aria-hidden="true" /> Go to Overview
+              <LayoutDashboard className={`${ICON} text-tag-orange-text`} aria-hidden="true" /> {t("palette.goToOverview")}
             </Command.Item>
             {isAdmin ? (
               <Command.Item
-                value="instance admin"
+                value={`instance admin ${t("palette.instanceAdmin")}`}
                 onSelect={() => run(() => void navigate({ to: "/admin" }))}
                 className={ITEM}
               >
-                <Shield className={`${ICON} text-tag-red-text`} aria-hidden="true" /> Instance admin
+                <Shield className={`${ICON} text-tag-red-text`} aria-hidden="true" /> {t("palette.instanceAdmin")}
               </Command.Item>
             ) : null}
           </Command.Group>
 
           {settings.length > 0 ? (
-            <Command.Group heading="Settings" className={HEADING}>
+            <Command.Group heading={t("palette.settings")} className={HEADING}>
               {settings.map((e) => {
                 const Icon = settingsIcon(e.path);
                 return (
                   <Command.Item
                     key={e.path}
-                    value={`settings ${e.label}${e.admin ? " admin" : ""}`}
+                    value={`settings ${t(e.labelKey)}${e.admin ? " admin" : ""}`}
                     onSelect={() => run(() => void navigate({ href: e.path.replace("$org", org) }))}
                     className={ITEM}
                   >
-                    <Icon className={ICON} aria-hidden="true" /> {e.label}
+                    <Icon className={ICON} aria-hidden="true" /> {t(e.labelKey)}
                   </Command.Item>
                 );
               })}
@@ -153,7 +155,7 @@ export function CommandMenu({ org }: { org: string }) {
           ) : null}
 
           {(projects.data ?? []).length > 0 ? (
-            <Command.Group heading="Projects" className={HEADING}>
+            <Command.Group heading={t("palette.projects")} className={HEADING}>
               {(projects.data ?? []).map((p) => (
                 <Command.Item
                   key={p.slug}
@@ -176,7 +178,7 @@ export function CommandMenu({ org }: { org: string }) {
           ) : null}
 
           {(apps.data ?? []).length > 0 ? (
-            <Command.Group heading="Apps" className={HEADING}>
+            <Command.Group heading={t("palette.apps")} className={HEADING}>
               {(apps.data ?? []).map((a) => (
                 <Command.Item
                   key={`${a.project}/${a.slug}`}
@@ -201,9 +203,9 @@ export function CommandMenu({ org }: { org: string }) {
           ) : null}
         </Command.List>
         <div className="flex h-8 items-center gap-3 border-t border-line bg-panel px-3 text-[11px] text-muted">
-          <span>↑↓ to navigate</span>
-          <span>↵ to select</span>
-          <span>esc to close</span>
+          <span>{t("palette.hintNavigate")}</span>
+          <span>{t("palette.hintSelect")}</span>
+          <span>{t("palette.hintClose")}</span>
         </div>
       </Command.Dialog>
 
