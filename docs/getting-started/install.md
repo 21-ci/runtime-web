@@ -89,6 +89,7 @@ The installer is tested end to end (install, a second run, `--dry-run`, `--unins
 | Platform | Architecture | Runtime | Caddy | Node.js | Notes |
 |---|---|---|---|---|---|
 | Ubuntu 24.04 (systemd container) | aarch64 | rt 0.1.1 (pinned release asset) | 2.6.2 (Ubuntu package) | 22.20.0 | Fake `.test` domains: certificates came from Caddy's local CA, set by hand for the test |
+| Debian 12 (systemd container) | x86_64 | rt 0.1.1 (pinned release asset) | 2.6.2 (Debian package) | 22.20.0 | Same fake `.test` setup. Let's Encrypt refuses the `example.com` e-mail, so the test enabled `local_certs` by hand |
 
 Other systemd distributions with the same tools should work. Public certificates, real DNS and on-demand TLS for
 custom domains need a host reachable from the internet, so they are not part of that test.

@@ -636,12 +636,17 @@ set_env_key() {
 }
 
 # strip_block FILE: remove the managed runtime-web block (and a legacy appended fragment, which ran to the end).
+# Blank lines just before the block are dropped too: the merge writes a leading blank line before the block, so
+# keeping them would add one blank line on every run.
 strip_block() {
   awk -v b="$BLOCK_BEGIN" -v e="$BLOCK_END" -v l="$LEGACY_MARK" '
-    $0 == b { skip = 1; next }
+    $0 == b { skip = 1; held = 0; next }
     $0 == e { skip = 0; next }
     $0 == l { legacy = 1 }
-    !skip && !legacy { print }
+    skip || legacy { next }
+    $0 == "" { held++; next }
+    { while (held > 0) { print ""; held-- } print }
+    END { while (held > 0) { print ""; held-- } }
   ' "$1" >"$1.rtweb-tmp"
   chmod 0644 "$1.rtweb-tmp"
   mv "$1.rtweb-tmp" "$1"
