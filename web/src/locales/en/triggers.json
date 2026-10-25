@@ -1,1 +1,165 @@
-{}
+{
+  "title": "Triggers",
+  "description": "Everything that starts this app: HTTP, schedules and the queue.",
+  "appNotFound": "App not found",
+  "kind": {
+    "cron": "Cron",
+    "interval": "Interval"
+  },
+  "http": {
+    "title": "HTTP",
+    "description": "Who can call the app, and which requests reach it.",
+    "access": "Access",
+    "accessOptions": {
+      "public": "Public",
+      "key": "Key",
+      "internal": "Internal"
+    },
+    "accessHint": {
+      "public": "Anyone with the URL can call it.",
+      "key": "Callers need an invoke token.",
+      "internal": "Only other apps in this org can call it."
+    },
+    "methods": "Allowed methods",
+    "prefixes": "Path prefixes (one per line)",
+    "keepNote": "The IP allow-list and rate limit are kept as they are.",
+    "save": "Save HTTP route",
+    "toast": {
+      "saved": "HTTP route saved"
+    }
+  },
+  "schedules": {
+    "title": "Schedules",
+    "description": "Run the app on a fixed interval or cron expression.",
+    "add": "Add schedule",
+    "everySeconds": "Every {{seconds}} s",
+    "next": "Next {{when}}",
+    "enabledFor": "Enabled: {{label}}",
+    "deleteFor": "Delete schedule {{label}}",
+    "emptyTitle": "No schedules yet",
+    "emptyDescription": "Add one to run this app on a timer.",
+    "notFound": "Schedules not found",
+    "deleteTitle": "Delete this schedule?",
+    "deleteDescription": "The schedule stops running. Its next run is cancelled.",
+    "deleteConfirm": "Delete schedule",
+    "deleted": "Schedule deleted",
+    "created": "Schedule created",
+    "dialog": {
+      "kind": "Kind",
+      "cronNotInPlan": "Cron is not included in your plan. Use an interval instead.",
+      "cronExpression": "Cron expression",
+      "cronHint": "Minute, hour, day of month, month, day of week.",
+      "cronPreviewFallback": "Preview not available for this expression. Check the five fields.",
+      "timezone": "Timezone",
+      "every": "Every (seconds)",
+      "payload": "Payload (JSON)",
+      "errorPayload": "Payload must be valid JSON.",
+      "errorCronEmpty": "Enter a cron expression.",
+      "errorInterval": "Interval must be a whole number of seconds, at least 1.",
+      "create": "Create schedule"
+    }
+  },
+  "oneOff": {
+    "title": "One-off tasks",
+    "description": "Tasks your code queued with std:schedule, waiting to run.",
+    "empty": "No pending tasks.",
+    "runs": "Runs {{when}}",
+    "notFound": "Tasks not found"
+  },
+  "queue": {
+    "title": "Queue",
+    "description": "Send a test message to check the handler.",
+    "notFound": "Queue not found",
+    "depth": "Depth",
+    "inFlight": "In flight",
+    "oldest": "Oldest",
+    "deadLettered": "Dead-lettered",
+    "oldestSeconds": "{{seconds}} s",
+    "body": "Message body (JSON)",
+    "delay": "Delay in seconds (optional)",
+    "bodyInvalid": "Message body must be valid JSON.",
+    "send": "Enqueue test message",
+    "sending": "Sending…",
+    "toast": {
+      "enqueued": "Test message enqueued"
+    }
+  },
+  "dlq": {
+    "title": "Dead-letter queue",
+    "description": "Messages that failed every retry.",
+    "redrive": "Redrive",
+    "purge": "Purge DLQ",
+    "empty": "Dead-letter queue is empty",
+    "emptyDescription": "Failed messages show up here.",
+    "notFound": "DLQ not found",
+    "attempts_one": "{{count}} attempt, failed {{when}}",
+    "attempts_other": "{{count}} attempts, failed {{when}}",
+    "redriveTitle": "Redrive dead-letter messages?",
+    "redriveDescription_one": "{{count}} message goes back on the queue and runs again with the app's current code.",
+    "redriveDescription_other": "{{count}} messages go back on the queue and run again with the app's current code.",
+    "purgeTitle": "Purge the dead-letter queue?",
+    "purgeDescription": "Every dead-lettered message is deleted for good. This cannot be undone.",
+    "purgeConfirm": "Purge",
+    "purgeWord": "purge",
+    "purgeTypeLabel": "Type {{word}} to confirm",
+    "toast": {
+      "redriven_one": "Redriven {{count}} message",
+      "redriven_other": "Redriven {{count}} messages",
+      "purged": "Dead-letter queue purged"
+    }
+  },
+  "errors": {
+    "planLimit": "This trigger is not allowed on your plan, or the schedule limit is reached. Remove an existing schedule or ask an instance admin to change the plan.",
+    "busy": "The runtime is busy right now. Retry in a moment.",
+    "tooMany": "Too many requests. {{wait}}",
+    "retryIn": "Retry in {{seconds}} s.",
+    "retryLater": "Retry in a moment."
+  },
+  "cron": {
+    "at": "At {{time}}",
+    "minuteOfHour": "At minute {{minute}} of every hour",
+    "everyMinute": "Every minute",
+    "everyMinutes_one": "Every {{count}} minute",
+    "everyMinutes_other": "Every {{count}} minutes",
+    "minuteEveryHour": "At minute {{minute}}, every hour",
+    "minuteEveryHours_one": "At minute {{minute}}, every {{count}} hour",
+    "minuteEveryHours_other": "At minute {{minute}}, every {{count}} hours",
+    "everyDay": "every day",
+    "dayOfMonth": "on day {{day}} of every month",
+    "onDate": "on {{month}} {{day}}",
+    "dayRange": "{{from}} through {{to}}",
+    "full": "{{time}}, {{day}}",
+    "dayNames": {
+      "sunday": "Sunday",
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday"
+    },
+    "weekdays": {
+      "sunday": "Sunday",
+      "monday": "Monday",
+      "tuesday": "Tuesday",
+      "wednesday": "Wednesday",
+      "thursday": "Thursday",
+      "friday": "Friday",
+      "saturday": "Saturday"
+    },
+    "months": {
+      "january": "January",
+      "february": "February",
+      "march": "March",
+      "april": "April",
+      "may": "May",
+      "june": "June",
+      "july": "July",
+      "august": "August",
+      "september": "September",
+      "october": "October",
+      "november": "November",
+      "december": "December"
+    }
+  }
+}

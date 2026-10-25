@@ -3,6 +3,7 @@ import { toast } from "sonner";
 
 import type { LogLine } from "@/components/features/logs/use-log-stream";
 import { api } from "@/lib/api";
+import { i18n } from "@/lib/i18n";
 
 // Shapes from docs/reference/api.md §8.1 and §8.2.
 export type BuildState = "pending" | "building" | "ready" | "failed";
@@ -85,7 +86,7 @@ export function usePromote(org: string, app: string) {
       );
       void qc.invalidateQueries({ queryKey: ["versions", org, app] });
       void qc.invalidateQueries({ queryKey: ["apps", org] });
-      toast.success(`Version ${res.live_version} is live`);
+      toast.success(i18n.t("versions:toast.live", { version: res.live_version }));
     },
   });
 }
@@ -97,7 +98,7 @@ export function useRebuild(org: string, app: string) {
     onSuccess: (_res, version) => {
       void qc.invalidateQueries({ queryKey: ["versions", org, app] });
       void qc.invalidateQueries({ queryKey: ["build-logs", org, app, version] });
-      toast.success(`Rebuilding version ${version}`);
+      toast.success(i18n.t("versions:toast.rebuilding", { version }));
     },
   });
 }

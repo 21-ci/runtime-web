@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { usePatchApp, type AppView } from "@/components/features/app-header/hooks";
@@ -14,16 +15,17 @@ import {
 
 const METHODS = ["GET", "POST", "PUT", "PATCH", "DELETE"] as const;
 
-const ACCESS: { value: AppView["access"]; label: string; hint: string }[] = [
-  { value: "public", label: "Public", hint: "Anyone with the URL can call it." },
-  { value: "key", label: "Key", hint: "Callers need an invoke token." },
-  { value: "internal", label: "Internal", hint: "Only other apps in this org can call it." },
-];
+const ACCESS = [
+  { value: "public", labelKey: "http.accessOptions.public", hintKey: "http.accessHint.public" },
+  { value: "key", labelKey: "http.accessOptions.key", hintKey: "http.accessHint.key" },
+  { value: "internal", labelKey: "http.accessOptions.internal", hintKey: "http.accessHint.internal" },
+] as const;
 
 // HttpRouteCard edits who can reach the app over HTTP (access) and which methods and paths the
 // ingress accepts. The runtime replaces the whole ingress block, so the IP allow-list and rate
 // limit are carried over unchanged from the current view.
 export function HttpRouteCard({ org, app, view }: { org: string; app: string; view: AppView }) {
+  const { t } = useTranslation(["triggers", "common"]);
   const patch = usePatchApp(org, app);
   const [access, setAccess] = useState<AppView["access"]>(view.access);
   const [methods, setMethods] = useState<string[]>(view.ingress?.methods ?? []);
@@ -51,21 +53,23 @@ export function HttpRouteCard({ org, app, view }: { org: string; app: string; vi
           },
         },
       },
-      { onSuccess: () => toast.success("HTTP route saved") },
+      { onSuccess: () => toast.success(t("http.toast.saved")) },
     );
   }
+
+  const hintKey = ACCESS.find((a) => a.value === access)?.hintKey;
 
   return (
     <section aria-labelledby="http-heading" className="flex flex-col gap-3">
       <div>
         <h2 id="http-heading" className="text-[15px] font-semibold">
-          HTTP
+          {t("http.title")}
         </h2>
-        <p className="text-sm text-muted">Who can call the app, and which requests reach it.</p>
+        <p className="text-sm text-muted">{t("http.description")}</p>
       </div>
       <form onSubmit={onSubmit} className="flex max-w-xl flex-col gap-4">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="http-access">Access</Label>
+          <Label htmlFor="http-access">{t("http.access")}</Label>
           <Select value={access} onValueChange={(v) => setAccess(v as AppView["access"])}>
             <SelectTrigger id="http-access" aria-describedby="http-access-hint">
               <SelectValue />
@@ -73,18 +77,18 @@ export function HttpRouteCard({ org, app, view }: { org: string; app: string; vi
             <SelectContent>
               {ACCESS.map((a) => (
                 <SelectItem key={a.value} value={a.value}>
-                  {a.label}
+                  {t(a.labelKey)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
           <p id="http-access-hint" className="text-sm text-muted">
-            {ACCESS.find((a) => a.value === access)?.hint}
+            {hintKey ? t(hintKey) : null}
           </p>
         </div>
 
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1.5 text-[13px] font-medium">Allowed methods</legend>
+          <legend className="mb-1.5 text-[13px] font-medium">{t("http.methods")}</legend>
           <div className="flex flex-wrap gap-3">
             {METHODS.map((m) => (
               <label key={m} className="flex items-center gap-2 text-sm">
@@ -100,7 +104,7 @@ export function HttpRouteCard({ org, app, view }: { org: string; app: string; vi
         </fieldset>
 
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="http-prefixes">Path prefixes (one per line)</Label>
+          <Label htmlFor="http-prefixes">{t("http.prefixes")}</Label>
           <textarea
             id="http-prefixes"
             rows={3}
@@ -111,11 +115,11 @@ export function HttpRouteCard({ org, app, view }: { org: string; app: string; vi
             autoComplete="off"
             className="rounded-sm border border-line-strong bg-surface p-2 font-mono text-sm text-text focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus focus-visible:outline-none"
           />
-          <p className="text-sm text-muted">The IP allow-list and rate limit are kept as they are.</p>
+          <p className="text-sm text-muted">{t("http.keepNote")}</p>
         </div>
 
         <Button type="submit" variant="default" className="self-start" disabled={patch.isPending}>
-          {patch.isPending ? "Saving…" : "Save HTTP route"}
+          {patch.isPending ? t("common:saving") : t("http.save")}
         </Button>
       </form>
     </section>

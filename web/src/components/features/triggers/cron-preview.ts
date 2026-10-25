@@ -1,23 +1,35 @@
 // describeCron turns a 5-field cron expression (minute hour day-of-month month day-of-week) into
-// plain English. It covers the common shapes: fixed times, steps, weekday ranges and fixed dates.
-// It returns null for anything it does not recognise, so the UI can say so instead of guessing.
+// plain text in the current UI language. It covers the common shapes: fixed times, steps, weekday
+// ranges and fixed dates. It returns null for anything it does not recognise, so the UI can say so
+// instead of guessing.
+import { i18n } from "@/lib/i18n";
 
-const DAYS = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"];
-const MONTHS = [
-  "",
-  "January",
-  "February",
-  "March",
-  "April",
-  "May",
-  "June",
-  "July",
-  "August",
-  "September",
-  "October",
-  "November",
-  "December",
-];
+// Index 0 is Sunday, matching cron's day-of-week numbering (7 is folded onto 0).
+const DAY_KEYS = [
+  "sunday",
+  "monday",
+  "tuesday",
+  "wednesday",
+  "thursday",
+  "friday",
+  "saturday",
+] as const;
+
+// Index 0 is January, so a month number maps to MONTH_KEYS[month - 1].
+const MONTH_KEYS = [
+  "january",
+  "february",
+  "march",
+  "april",
+  "may",
+  "june",
+  "july",
+  "august",
+  "september",
+  "october",
+  "november",
+  "december",
+] as const;
 
 // Inclusive bounds per field. Day of week accepts 7 as Sunday.
 const RANGES: [number, number][] = [
@@ -55,18 +67,32 @@ function pad(n: string): string {
 }
 
 function timePart(min: string, hour: string): string | null {
-  if (SINGLE.test(min) && SINGLE.test(hour)) return `At ${pad(hour)}:${pad(min)}`;
-  if (SINGLE.test(min) && hour === "*") return `At minute ${min} of every hour`;
-  if (min === "*" && hour === "*") return "Every minute";
+  if (SINGLE.test(min) && SINGLE.test(hour)) {
+    return i18n.t("triggers:cron.at", { time: `${pad(hour)}:${pad(min)}` });
+  }
+  if (SINGLE.test(min) && hour === "*") return i18n.t("triggers:cron.minuteOfHour", { minute: min });
+  if (min === "*" && hour === "*") return i18n.t("triggers:cron.everyMinute");
   const minStep = STEP.exec(min);
-  if (minStep && hour === "*") return `Every ${minStep[1]} minutes`;
+  if (minStep && hour === "*") {
+    const count = Number(minStep[1]);
+    return count === 1 ? i18n.t("triggers:cron.everyMinute") : i18n.t("triggers:cron.everyMinutes", { count });
+  }
   const hourStep = STEP.exec(hour);
-  if (SINGLE.test(min) && hourStep) return `At minute ${min}, every ${hourStep[1]} hours`;
+  if (SINGLE.test(min) && hourStep) {
+    const count = Number(hourStep[1]);
+    return count === 1
+      ? i18n.t("triggers:cron.minuteEveryHour", { minute: min })
+      : i18n.t("triggers:cron.minuteEveryHours", { minute: min, count });
+  }
   return null;
 }
 
-function dayName(n: string): string {
-  return DAYS[Number(n) % 7];
+function dayNameOf(n: string): string {
+  return i18n.t(`triggers:cron.dayNames.${DAY_KEYS[Number(n) % 7]}`);
+}
+
+function weekdayOf(n: string): string {
+  return i18n.t(`triggers:cron.weekdays.${DAY_KEYS[Number(n) % 7]}`);
 }
 
 // weekdayPart renders a day-of-week field such as "1-5" or "0,6". Steps and wildcards are not
@@ -76,9 +102,9 @@ function weekdayPart(dow: string): string | null {
   for (const part of dow.split(",")) {
     const span = SPAN.exec(part);
     if (span) {
-      names.push(`${dayName(span[1])} through ${dayName(span[2])}`);
+      names.push(i18n.t("triggers:cron.dayRange", { from: dayNameOf(span[1]), to: dayNameOf(span[2]) }));
     } else if (SINGLE.test(part)) {
-      names.push(dayName(part));
+      names.push(weekdayOf(part));
     } else {
       return null;
     }
@@ -87,10 +113,13 @@ function weekdayPart(dow: string): string | null {
 }
 
 function dayPart(dom: string, mon: string, dow: string): string | null {
-  if (dom === "*" && mon === "*" && dow === "*") return "every day";
+  if (dom === "*" && mon === "*" && dow === "*") return i18n.t("triggers:cron.everyDay");
   if (dom === "*" && mon === "*") return weekdayPart(dow);
-  if (dow === "*" && mon === "*" && SINGLE.test(dom)) return `on day ${dom} of every month`;
-  if (dow === "*" && SINGLE.test(dom) && SINGLE.test(mon)) return `on ${MONTHS[Number(mon)]} ${dom}`;
+  if (dow === "*" && mon === "*" && SINGLE.test(dom)) return i18n.t("triggers:cron.dayOfMonth", { day: dom });
+  if (dow === "*" && SINGLE.test(dom) && SINGLE.test(mon)) {
+    const month = i18n.t(`triggers:cron.months.${MONTH_KEYS[Number(mon) - 1]}`);
+    return i18n.t("triggers:cron.onDate", { month, day: dom });
+  }
   return null;
 }
 
@@ -102,5 +131,5 @@ export function describeCron(expr: string): string | null {
   const time = timePart(min, hour);
   const day = dayPart(dom, mon, dow);
   if (!time || !day) return null;
-  return `${time}, ${day}`;
+  return i18n.t("triggers:cron.full", { time, day });
 }

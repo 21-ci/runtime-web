@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { QueryError } from "@/components/features/empty/query-error";
@@ -15,6 +16,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { i18n } from "@/lib/i18n";
+import { formatDateTime } from "@/lib/format";
 
 import { ConfirmDialog } from "./confirm-dialog";
 import { describeCron } from "./cron-preview";
@@ -28,15 +31,17 @@ import {
   type ScheduleBody,
 } from "./hooks";
 
-// scheduleLabel is the human-readable line for a schedule row.
+// scheduleLabel is the human-readable line for a schedule row. It reads the current language at
+// call time, and SchedulesCard subscribes to language changes, so rows re-render with it.
 function scheduleLabel(s: Schedule): string {
   if (s.kind === "cron" && s.cron) return describeCron(s.cron) ?? s.cron;
-  if (s.every_seconds) return `Every ${s.every_seconds} s`;
-  return s.kind;
+  if (s.every_seconds) return i18n.t("triggers:schedules.everySeconds", { seconds: s.every_seconds });
+  return i18n.t(`triggers:kind.${s.kind}`);
 }
 
 // SchedulesCard lists schedules and adds, pauses, resumes and deletes them.
 export function SchedulesCard({ org, app, cronAllowed = true }: { org: string; app: string; cronAllowed?: boolean }) {
+  const { t } = useTranslation(["triggers", "common"]);
   const schedules = useSchedules(org, app);
   const update = useUpdateSchedule(org, app);
   const remove = useDeleteSchedule(org, app);
@@ -48,26 +53,26 @@ export function SchedulesCard({ org, app, cronAllowed = true }: { org: string; a
       <div className="flex flex-wrap items-center justify-between gap-2">
         <div>
           <h2 id="schedules-heading" className="text-[15px] font-semibold">
-            Schedules
+            {t("schedules.title")}
           </h2>
-          <p className="text-sm text-muted">Run the app on a fixed interval or cron expression.</p>
+          <p className="text-sm text-muted">{t("schedules.description")}</p>
         </div>
         {schedules.isSuccess && schedules.data.length > 0 ? (
           <Button variant="secondary" onClick={() => setAdding(true)}>
-            Add schedule
+            {t("schedules.add")}
           </Button>
         ) : null}
       </div>
 
       {schedules.isError ? (
-        <QueryError error={schedules.error} onRetry={() => void schedules.refetch()} notFoundTitle="Schedules not found" />
+        <QueryError error={schedules.error} onRetry={() => void schedules.refetch()} notFoundTitle={t("schedules.notFound")} />
       ) : schedules.isPending ? (
         <Skeleton className="h-20 w-full" />
       ) : schedules.data.length === 0 ? (
         <EmptyState entity="triggers"
-          title="No schedules yet"
-          description="Add one to run this app on a timer."
-          action={<Button onClick={() => setAdding(true)}>Add schedule</Button>}
+          title={t("schedules.emptyTitle")}
+          description={t("schedules.emptyDescription")}
+          action={<Button onClick={() => setAdding(true)}>{t("schedules.add")}</Button>}
         />
       ) : (
         <ul className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
@@ -79,7 +84,7 @@ export function SchedulesCard({ org, app, cronAllowed = true }: { org: string; a
                   <span className="font-medium">{label}</span>
                   {s.cron ? <code className="text-xs text-muted">{s.cron}</code> : null}
                   {s.next_due ? (
-                    <span className="text-xs text-muted">Next {new Date(s.next_due).toLocaleString()}</span>
+                    <span className="text-xs text-muted">{t("schedules.next", { when: formatDateTime(s.next_due) })}</span>
                   ) : null}
                 </div>
                 <div className="flex items-center gap-3">
@@ -89,18 +94,18 @@ export function SchedulesCard({ org, app, cronAllowed = true }: { org: string; a
                       checked={s.enabled}
                       disabled={update.isPending}
                       onChange={(e) => update.mutate({ id: s.id, body: { enabled: e.target.checked } })}
-                      aria-label={`Enabled: ${label}`}
+                      aria-label={t("schedules.enabledFor", { label })}
                     />
-                    Enabled
+                    {t("common:enabled")}
                   </label>
                   <Button
                     variant="ghost"
                     size="sm"
                     className="opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
-                    aria-label={`Delete schedule ${label}`}
+                    aria-label={t("schedules.deleteFor", { label })}
                     onClick={() => setDeleting(s)}
                   >
-                    Delete
+                    {t("common:delete")}
                   </Button>
                 </div>
               </li>
@@ -116,9 +121,9 @@ export function SchedulesCard({ org, app, cronAllowed = true }: { org: string; a
         onOpenChange={(open) => {
           if (!open) setDeleting(null);
         }}
-        title="Delete this schedule?"
-        description="The schedule stops running. Its next run is cancelled."
-        confirmLabel="Delete schedule"
+        title={t("schedules.deleteTitle")}
+        description={t("schedules.deleteDescription")}
+        confirmLabel={t("schedules.deleteConfirm")}
         pending={remove.isPending}
         error={remove.isError ? <p role="alert" className="text-sm text-danger-text">{describeTriggerError(remove.error).message}</p> : null}
         onConfirm={() => {
@@ -126,7 +131,7 @@ export function SchedulesCard({ org, app, cronAllowed = true }: { org: string; a
           remove.mutate(deleting.id, {
             onSuccess: () => {
               setDeleting(null);
-              toast.success("Schedule deleted");
+              toast.success(t("schedules.deleted"));
             },
           });
         }}
@@ -147,6 +152,7 @@ function ScheduleDialog({
   cronAllowed: boolean;
   onClose: () => void;
 }) {
+  const { t } = useTranslation(["triggers", "common"]);
   const create = useCreateSchedule(org, app);
   // Interval is the default; cron is the default only when the plan allows it.
   const [kind, setKind] = useState<"interval" | "cron">(cronAllowed ? "cron" : "interval");
@@ -160,13 +166,13 @@ function ScheduleDialog({
   const preview =
     kind !== "cron" || cron.trim() === ""
       ? null
-      : describeCron(cron) ?? "Preview not available for this expression. Check the five fields.";
+      : describeCron(cron) ?? t("schedules.dialog.cronPreviewFallback");
 
   function submit(body: ScheduleBody) {
     setLastBody(body);
     create.mutate(body, {
       onSuccess: () => {
-        toast.success("Schedule created");
+        toast.success(t("schedules.created"));
         onClose();
       },
     });
@@ -178,19 +184,19 @@ function ScheduleDialog({
     try {
       payload = JSON.parse(payloadText);
     } catch {
-      setFormError("Payload must be valid JSON.");
+      setFormError(t("schedules.dialog.errorPayload"));
       return;
     }
     if (kind === "cron") {
       if (cron.trim() === "") {
-        setFormError("Enter a cron expression.");
+        setFormError(t("schedules.dialog.errorCronEmpty"));
         return;
       }
       submit({ kind, cron: cron.trim(), timezone: timezone.trim() || "UTC", payload, enabled: true });
     } else {
       const seconds = Number(every);
       if (!Number.isInteger(seconds) || seconds < 1) {
-        setFormError("Interval must be a whole number of seconds, at least 1.");
+        setFormError(t("schedules.dialog.errorInterval"));
         return;
       }
       submit({ kind, every_seconds: seconds, payload, enabled: true });
@@ -203,14 +209,14 @@ function ScheduleDialog({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add schedule</DialogTitle>
+          <DialogTitle>{t("schedules.add")}</DialogTitle>
         </DialogHeader>
         <form onSubmit={onSubmit} className="flex flex-col gap-3">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="schedule-kind">Kind</Label>
+            <Label htmlFor="schedule-kind">{t("schedules.dialog.kind")}</Label>
             {cronAllowed ? null : (
               <p id="schedule-kind-hint" className="text-sm text-muted">
-                Cron is not included in your plan. Use an interval instead.
+                {t("schedules.dialog.cronNotInPlan")}
               </p>
             )}
             <Select value={kind} onValueChange={(v) => setKind(v as "interval" | "cron")}>
@@ -219,9 +225,9 @@ function ScheduleDialog({
               </SelectTrigger>
               <SelectContent>
                 <SelectItem value="cron" disabled={!cronAllowed}>
-                  Cron
+                  {t("kind.cron")}
                 </SelectItem>
-                <SelectItem value="interval">Interval</SelectItem>
+                <SelectItem value="interval">{t("kind.interval")}</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -229,7 +235,7 @@ function ScheduleDialog({
           {kind === "cron" ? (
             <>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="schedule-cron">Cron expression</Label>
+                <Label htmlFor="schedule-cron">{t("schedules.dialog.cronExpression")}</Label>
                 <Input
                   id="schedule-cron"
                   placeholder="0 9 * * 1-5"
@@ -238,17 +244,17 @@ function ScheduleDialog({
                   aria-describedby="schedule-preview"
                 />
                 <p id="schedule-preview" aria-live="polite" className="text-sm text-muted">
-                  {preview ?? "Minute, hour, day of month, month, day of week."}
+                  {preview ?? t("schedules.dialog.cronHint")}
                 </p>
               </div>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor="schedule-tz">Timezone</Label>
+                <Label htmlFor="schedule-tz">{t("schedules.dialog.timezone")}</Label>
                 <Input id="schedule-tz" value={timezone} onChange={(e) => setTimezone(e.target.value)} />
               </div>
             </>
           ) : (
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="schedule-every">Every (seconds)</Label>
+              <Label htmlFor="schedule-every">{t("schedules.dialog.every")}</Label>
               <Input
                 id="schedule-every"
                 type="number"
@@ -260,7 +266,7 @@ function ScheduleDialog({
           )}
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="schedule-payload">Payload (JSON)</Label>
+            <Label htmlFor="schedule-payload">{t("schedules.dialog.payload")}</Label>
             <textarea
               id="schedule-payload"
               rows={3}
@@ -285,15 +291,15 @@ function ScheduleDialog({
 
           <DialogFooter>
             <Button type="button" variant="secondary" onClick={onClose} disabled={create.isPending}>
-              Cancel
+              {t("common:cancel")}
             </Button>
             {err?.retry && lastBody ? (
               <Button type="button" variant="secondary" onClick={() => submit(lastBody)} disabled={create.isPending}>
-                Retry
+                {t("common:retry")}
               </Button>
             ) : null}
             <Button type="submit" variant="default" disabled={create.isPending}>
-              {create.isPending ? "Saving…" : "Create schedule"}
+              {create.isPending ? t("common:saving") : t("schedules.dialog.create")}
             </Button>
           </DialogFooter>
         </form>

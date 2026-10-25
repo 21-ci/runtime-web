@@ -1,5 +1,6 @@
 import { History } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -18,6 +19,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { formatDateTime } from "@/lib/format";
 
 import {
   type BuildState,
@@ -37,16 +39,10 @@ const STATE_VARIANT: Record<BuildState, "success" | "danger" | "warning"> = {
   failed: "danger",
 };
 
-const STATE_LABEL: Record<BuildState, string> = {
-  pending: "Pending",
-  building: "Building",
-  ready: "Ready",
-  failed: "Failed",
-};
-
 // VersionsView lists an app's versions newest first. Only ready versions can be promoted; failed ones
 // can be rebuilt. Promote and rollback both go through a confirm dialog that names the target version.
 export function VersionsView({ org, app }: { org: string; app: string }) {
+  const { t } = useTranslation(["versions", "common"]);
   const versions = useVersions(org, app);
   const detail = useAppDetail(org, app);
   const promote = usePromote(org, app);
@@ -61,8 +57,8 @@ export function VersionsView({ org, app }: { org: string; app: string }) {
       <QueryError
         error={versions.error}
         onRetry={() => void versions.refetch()}
-        notFoundTitle="App not found"
-        notFoundDescription="It may have been deleted or you lack access."
+        notFoundTitle={t("notFound")}
+        notFoundDescription={t("notFoundDescription")}
       />
     );
   }
@@ -70,9 +66,7 @@ export function VersionsView({ org, app }: { org: string; app: string }) {
 
   const items = versions.data;
   if (items.length === 0) {
-    return (
-      <EmptyState entity="versions" title="No versions yet" description="Save the app's code to create its first version." />
-    );
+    return <EmptyState entity="versions" title={t("emptyTitle")} description={t("emptyDescription")} />;
   }
 
   const liveVersion = items.find((v) => v.live)?.version ?? detail.data?.live_version ?? null;
@@ -85,76 +79,80 @@ export function VersionsView({ org, app }: { org: string; app: string }) {
       <PageHeader
         icon={History}
         entity="versions"
-        title={<span id="versions-heading">Versions</span>}
-        description="Every build of this app, newest first. Promote a ready version or roll back to an earlier one."
+        title={<span id="versions-heading">{t("title")}</span>}
+        description={t("description")}
       />
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Version</TableHead>
-              <TableHead>Build</TableHead>
-              <TableHead>Author</TableHead>
-              <TableHead>Created</TableHead>
+              <TableHead>{t("table.version")}</TableHead>
+              <TableHead>{t("table.build")}</TableHead>
+              <TableHead>{t("table.author")}</TableHead>
+              <TableHead>{t("common:created")}</TableHead>
               <TableHead>
-                <span className="sr-only">Actions</span>
+                <span className="sr-only">{t("common:actions")}</span>
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {items.map((v) => {
               const rollback = liveVersion !== null && v.version < liveVersion;
-              const verb = rollback ? "Roll back" : "Promote";
               return (
                 <TableRow key={v.version}>
                   <TableCell className="font-medium">
-                    v{v.version} {v.live ? <Badge variant="info">Live</Badge> : null}
+                    {t("versionLabel", { version: v.version })}{" "}
+                    {v.live ? <Badge variant="info">{t("live")}</Badge> : null}
                   </TableCell>
                   <TableCell>
                     <Badge variant={STATE_VARIANT[v.build_state]} dot>
-                      {STATE_LABEL[v.build_state]}
+                      {t(`state.${v.build_state}`)}
                     </Badge>
                   </TableCell>
-                  <TableCell>{v.author ? v.author.name : "Outside the web"}</TableCell>
-                  <TableCell className="text-muted">{new Date(v.created_at).toLocaleString()}</TableCell>
+                  <TableCell>{v.author ? v.author.name : t("outside")}</TableCell>
+                  <TableCell className="text-muted">{formatDateTime(v.created_at)}</TableCell>
                   <TableCell>
                     <div className="flex flex-wrap justify-end gap-2">
                       <Button
                         variant="ghost"
-                        aria-label={`Build log for version ${v.version}`}
+                        aria-label={t("buildLogFor", { version: v.version })}
                         onClick={() => setLogVersion(v.version)}
                       >
-                        Build log
+                        {t("buildLog")}
                       </Button>
                       {!v.live ? (
                         <Button
                           variant="ghost"
-                          aria-label={`Diff version ${v.version} against live`}
+                          aria-label={t("diffFor", { version: v.version })}
                           onClick={() => setDiffVersion(v.version)}
                         >
-                          Diff
+                          {t("diff")}
                         </Button>
                       ) : null}
                       {deploy && v.build_state === "failed" ? (
                         <Button
                           variant="secondary"
-                          aria-label={`Rebuild version ${v.version}`}
+                          aria-label={t("rebuildFor", { version: v.version })}
                           disabled={rebuild.isPending}
                           onClick={() =>
                             rebuild.mutate(v.version, { onSuccess: () => setLogVersion(v.version) })
                           }
                         >
-                          Rebuild
+                          {t("rebuild")}
                         </Button>
                       ) : null}
                       {deploy && !v.live ? (
                         <Button
                           variant="secondary"
-                          aria-label={rollback ? `Roll back to version ${v.version}` : `Promote version ${v.version}`}
+                          aria-label={
+                            rollback
+                              ? t("rollbackFor", { version: v.version })
+                              : t("promoteFor", { version: v.version })
+                          }
                           disabled={v.build_state !== "ready" || !etag}
                           onClick={() => setPromoteTarget(v)}
                         >
-                          {verb}
+                          {rollback ? t("rollback") : t("promote")}
                         </Button>
                       ) : null}
                     </div>
@@ -170,17 +168,19 @@ export function VersionsView({ org, app }: { org: string; app: string }) {
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
-              {isRollback ? `Roll back to version ${target?.version}?` : `Promote version ${target?.version} to live?`}
+              {isRollback
+                ? t("rollbackTitle", { version: target?.version })
+                : t("promoteTitle", { version: target?.version })}
             </DialogTitle>
             <DialogDescription>
               {liveVersion === null
-                ? `Version ${target?.version} becomes live for every visitor.`
-                : `Version ${target?.version} replaces live version ${liveVersion} for every visitor.`}
+                ? t("liveFirst", { version: target?.version })
+                : t("liveReplace", { version: target?.version, live: liveVersion })}
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setPromoteTarget(null)}>
-              Cancel
+              {t("common:cancel")}
             </Button>
             <Button
               disabled={promote.isPending || !etag}
@@ -189,7 +189,7 @@ export function VersionsView({ org, app }: { org: string; app: string }) {
                 promote.mutate({ version: target.version, etag }, { onSuccess: () => setPromoteTarget(null) });
               }}
             >
-              {isRollback ? "Roll back" : "Promote"}
+              {isRollback ? t("rollback") : t("promote")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -212,21 +212,22 @@ function BuildLogDialog({
   version: number | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation(["versions", "common"]);
   const log = useBuildLog(org, app, version ?? 0, version !== null);
   return (
     <Dialog open={version !== null} onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Build log, version {version}</DialogTitle>
+          <DialogTitle>{t("buildLogTitle", { version: version ?? "" })}</DialogTitle>
         </DialogHeader>
         {log.isPending ? (
           <Skeleton className="h-24 w-full" />
         ) : log.isError ? (
-          <p className="text-sm text-muted">The build log could not be loaded.</p>
+          <p className="text-sm text-muted">{t("buildLogError")}</p>
         ) : log.data.length === 0 ? (
-          <p className="text-sm text-muted">No build output.</p>
+          <p className="text-sm text-muted">{t("buildLogEmpty")}</p>
         ) : (
-          <ol aria-label="Build log lines" className="max-h-[50vh] overflow-auto font-mono text-xs">
+          <ol aria-label={t("buildLogLines")} className="max-h-[50vh] overflow-auto font-mono text-xs">
             {log.data.map((l) => (
               <li key={l.seq} className="break-all py-0.5">
                 <span>{l.msg}</span>
@@ -251,6 +252,7 @@ function DiffDialog({
   version: number | null;
   onClose: () => void;
 }) {
+  const { t } = useTranslation(["versions", "common"]);
   const open = version !== null;
   const candidate = useFiles(org, app, version ?? 0, open);
   const live = useFiles(org, app, undefined, open);
@@ -273,18 +275,18 @@ function DiffDialog({
     <Dialog open={open} onOpenChange={(o) => !o && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Version {version} compared with live</DialogTitle>
+          <DialogTitle>{t("diffTitle", { version: version ?? "" })}</DialogTitle>
         </DialogHeader>
         {loading ? (
           <Skeleton className="h-24 w-full" />
         ) : rows.length === 0 ? (
-          <p className="text-sm text-muted">No differences from live.</p>
+          <p className="text-sm text-muted">{t("diffEmpty")}</p>
         ) : (
           <ul className="flex max-h-[50vh] flex-col gap-1 overflow-auto text-sm">
             {rows.map((r) => (
               <li key={r.path} className="flex items-center justify-between gap-2">
                 <span className="break-all font-mono">{r.path}</span>
-                <Badge variant="outline">{r.status}</Badge>
+                <Badge variant="outline">{t(`diffStatus.${r.status}`)}</Badge>
               </li>
             ))}
           </ul>

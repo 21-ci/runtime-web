@@ -1,1 +1,51 @@
-{}
+{
+  "title": "Версии",
+  "description": "Каждая сборка этого приложения, сначала новые. Опубликуйте готовую версию или откатитесь к более ранней.",
+  "versionLabel": "v{{version}}",
+  "live": "Рабочая",
+  "outside": "Вне веб-консоли",
+  "state": {
+    "pending": "Ожидание",
+    "building": "Сборка",
+    "ready": "Готово",
+    "failed": "Ошибка"
+  },
+  "table": {
+    "version": "Версия",
+    "build": "Сборка",
+    "author": "Автор"
+  },
+  "buildLog": "Журнал сборки",
+  "buildLogFor": "Журнал сборки версии {{version}}",
+  "diff": "Сравнить",
+  "diffFor": "Сравнить версию {{version}} с рабочей",
+  "rebuild": "Пересобрать",
+  "rebuildFor": "Пересобрать версию {{version}}",
+  "promote": "Опубликовать",
+  "promoteFor": "Опубликовать версию {{version}}",
+  "rollback": "Откатить",
+  "rollbackFor": "Откатиться к версии {{version}}",
+  "promoteTitle": "Опубликовать версию {{version}} как рабочую?",
+  "rollbackTitle": "Откатиться к версии {{version}}?",
+  "liveFirst": "Версия {{version}} станет рабочей для всех посетителей.",
+  "liveReplace": "Версия {{version}} заменит рабочую версию {{live}} для всех посетителей.",
+  "emptyTitle": "Версий пока нет",
+  "emptyDescription": "Сохраните код приложения, чтобы создать первую версию.",
+  "notFound": "Приложение не найдено",
+  "notFoundDescription": "Возможно, его удалили или у вас нет доступа.",
+  "buildLogTitle": "Журнал сборки, версия {{version}}",
+  "buildLogError": "Не удалось загрузить журнал сборки.",
+  "buildLogEmpty": "Вывода сборки нет.",
+  "buildLogLines": "Строки журнала сборки",
+  "diffTitle": "Версия {{version}} в сравнении с рабочей",
+  "diffEmpty": "Отличий от рабочей версии нет.",
+  "diffStatus": {
+    "added": "добавлен",
+    "removed": "удалён",
+    "changed": "изменён"
+  },
+  "toast": {
+    "live": "Версия {{version}} стала рабочей",
+    "rebuilding": "Пересборка версии {{version}}"
+  }
+}

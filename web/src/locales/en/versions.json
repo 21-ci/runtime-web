@@ -1,1 +1,51 @@
-{}
+{
+  "title": "Versions",
+  "description": "Every build of this app, newest first. Promote a ready version or roll back to an earlier one.",
+  "versionLabel": "v{{version}}",
+  "live": "Live",
+  "outside": "Outside the web",
+  "state": {
+    "pending": "Pending",
+    "building": "Building",
+    "ready": "Ready",
+    "failed": "Failed"
+  },
+  "table": {
+    "version": "Version",
+    "build": "Build",
+    "author": "Author"
+  },
+  "buildLog": "Build log",
+  "buildLogFor": "Build log for version {{version}}",
+  "diff": "Diff",
+  "diffFor": "Diff version {{version}} against live",
+  "rebuild": "Rebuild",
+  "rebuildFor": "Rebuild version {{version}}",
+  "promote": "Promote",
+  "promoteFor": "Promote version {{version}}",
+  "rollback": "Roll back",
+  "rollbackFor": "Roll back to version {{version}}",
+  "promoteTitle": "Promote version {{version}} to live?",
+  "rollbackTitle": "Roll back to version {{version}}?",
+  "liveFirst": "Version {{version}} becomes live for every visitor.",
+  "liveReplace": "Version {{version}} replaces live version {{live}} for every visitor.",
+  "emptyTitle": "No versions yet",
+  "emptyDescription": "Save the app's code to create its first version.",
+  "notFound": "App not found",
+  "notFoundDescription": "It may have been deleted or you lack access.",
+  "buildLogTitle": "Build log, version {{version}}",
+  "buildLogError": "The build log could not be loaded.",
+  "buildLogEmpty": "No build output.",
+  "buildLogLines": "Build log lines",
+  "diffTitle": "Version {{version}} compared with live",
+  "diffEmpty": "No differences from live.",
+  "diffStatus": {
+    "added": "added",
+    "removed": "removed",
+    "changed": "changed"
+  },
+  "toast": {
+    "live": "Version {{version}} is live",
+    "rebuilding": "Rebuilding version {{version}}"
+  }
+}

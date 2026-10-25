@@ -1,4 +1,5 @@
 import { ApiError } from "@/lib/api";
+import { i18n } from "@/lib/i18n";
 
 export type TriggerError = { message: string; retry: boolean };
 
@@ -8,24 +9,22 @@ export type TriggerError = { message: string; retry: boolean };
 export function describeTriggerError(err: unknown): TriggerError {
   if (err instanceof ApiError) {
     if (err.status === 403 && err.code === "plan_limit") {
-      return {
-        message:
-          "This trigger is not allowed on your plan, or the schedule limit is reached. Remove an existing schedule or ask an instance admin to change the plan.",
-        retry: false,
-      };
+      return { message: i18n.t("triggers:errors.planLimit"), retry: false };
     }
     if (err.code === "busy" || err.code === "overloaded") {
-      return { message: "The runtime is busy right now. Retry in a moment.", retry: true };
+      return { message: i18n.t("triggers:errors.busy"), retry: true };
     }
     if (err.status === 429 || err.code === "rate_limited" || err.code === "queue_full") {
       const wait =
-        err.retryAfter !== undefined ? ` Retry in ${err.retryAfter} s.` : " Retry in a moment.";
-      return { message: `Too many requests.${wait}`, retry: true };
+        err.retryAfter !== undefined
+          ? i18n.t("triggers:errors.retryIn", { seconds: err.retryAfter })
+          : i18n.t("triggers:errors.retryLater");
+      return { message: i18n.t("triggers:errors.tooMany", { wait }), retry: true };
     }
     if (err.status === 422) {
       return { message: err.message, retry: false };
     }
-    return { message: err.message || "Something went wrong. Try again.", retry: false };
+    return { message: err.message || i18n.t("common:somethingWrong"), retry: false };
   }
-  return { message: "Something went wrong. Try again.", retry: false };
+  return { message: i18n.t("common:somethingWrong"), retry: false };
 }

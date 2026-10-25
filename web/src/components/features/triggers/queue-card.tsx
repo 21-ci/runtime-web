@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { QueryError } from "@/components/features/empty/query-error";
@@ -13,6 +14,7 @@ import { useEnqueue, useQueueStats, type EnqueueBody } from "./hooks";
 // QueueCard shows queue depth and sends a test message. A busy runtime or rate limit keeps the
 // message in the form and offers a retry with the same payload.
 export function QueueCard({ org, app }: { org: string; app: string }) {
+  const { t } = useTranslation(["triggers", "common"]);
   const stats = useQueueStats(org, app);
   const enqueue = useEnqueue(org, app);
   const [bodyText, setBodyText] = useState('{"hello": "world"}');
@@ -21,7 +23,7 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
   const [pending, setPending] = useState<EnqueueBody | null>(null);
 
   if (stats.isError) {
-    return <QueryError error={stats.error} onRetry={() => void stats.refetch()} notFoundTitle="Queue not found" />;
+    return <QueryError error={stats.error} onRetry={() => void stats.refetch()} notFoundTitle={t("queue.notFound")} />;
   }
 
   function send(body: EnqueueBody) {
@@ -29,7 +31,7 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
     enqueue.mutate(body, {
       onSuccess: () => {
         setPending(null);
-        toast.success("Test message enqueued");
+        toast.success(t("queue.toast.enqueued"));
       },
     });
   }
@@ -40,7 +42,7 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
     try {
       parsed = JSON.parse(bodyText);
     } catch {
-      setParseError("Message body must be valid JSON.");
+      setParseError(t("queue.bodyInvalid"));
       return;
     }
     setParseError(null);
@@ -54,9 +56,9 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
     <section aria-labelledby="queue-heading" className="flex flex-col gap-3">
       <div>
         <h2 id="queue-heading" className="text-[15px] font-semibold">
-          Queue
+          {t("queue.title")}
         </h2>
-        <p className="text-sm text-muted">Send a test message to check the handler.</p>
+        <p className="text-sm text-muted">{t("queue.description")}</p>
       </div>
 
       {stats.isPending ? (
@@ -64,19 +66,21 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
       ) : (
         <dl className="grid grid-cols-2 divide-x divide-line rounded-lg border border-line bg-surface shadow-card sm:grid-cols-4">
           <div className="flex flex-col gap-0.5 p-3">
-            <dt className="text-[12px] text-muted">Depth</dt>
+            <dt className="text-[12px] text-muted">{t("queue.depth")}</dt>
             <dd className="text-base font-medium tabular-nums">{stats.data.depth}</dd>
           </div>
           <div className="flex flex-col gap-0.5 p-3">
-            <dt className="text-[12px] text-muted">In flight</dt>
+            <dt className="text-[12px] text-muted">{t("queue.inFlight")}</dt>
             <dd className="text-base font-medium tabular-nums">{stats.data.in_flight}</dd>
           </div>
           <div className="flex flex-col gap-0.5 p-3">
-            <dt className="text-[12px] text-muted">Oldest</dt>
-            <dd className="text-base font-medium tabular-nums">{Math.round(stats.data.oldest_age_ms / 1000)} s</dd>
+            <dt className="text-[12px] text-muted">{t("queue.oldest")}</dt>
+            <dd className="text-base font-medium tabular-nums">
+              {t("queue.oldestSeconds", { seconds: Math.round(stats.data.oldest_age_ms / 1000) })}
+            </dd>
           </div>
           <div className="flex flex-col gap-0.5 p-3">
-            <dt className="text-[12px] text-muted">Dead-lettered</dt>
+            <dt className="text-[12px] text-muted">{t("queue.deadLettered")}</dt>
             <dd className="text-base font-medium tabular-nums">{stats.data.dlq}</dd>
           </div>
         </dl>
@@ -84,7 +88,7 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
 
       <form onSubmit={onSubmit} className="flex max-w-xl flex-col gap-3">
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="queue-body">Message body (JSON)</Label>
+          <Label htmlFor="queue-body">{t("queue.body")}</Label>
           <textarea
             id="queue-body"
             rows={4}
@@ -96,7 +100,7 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
           />
         </div>
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="queue-delay">Delay in seconds (optional)</Label>
+          <Label htmlFor="queue-delay">{t("queue.delay")}</Label>
           <Input
             id="queue-delay"
             type="number"
@@ -117,13 +121,13 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
             </p>
             {err.retry && pending ? (
               <Button type="button" variant="secondary" size="sm" onClick={() => send(pending)}>
-                Retry
+                {t("common:retry")}
               </Button>
             ) : null}
           </div>
         ) : null}
         <Button type="submit" variant="default" className="self-start" disabled={enqueue.isPending}>
-          {enqueue.isPending ? "Sending…" : "Enqueue test message"}
+          {enqueue.isPending ? t("queue.sending") : t("queue.send")}
         </Button>
       </form>
     </section>

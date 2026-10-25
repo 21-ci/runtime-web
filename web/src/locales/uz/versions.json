@@ -1,1 +1,51 @@
-{}
+{
+  "title": "Versiyalar",
+  "description": "Ilovaning har bir yigʻilishi, eng yangisi birinchi. Tayyor versiyani joriy qiling yoki oldingisiga qayting.",
+  "versionLabel": "v{{version}}",
+  "live": "Ishlayotgan",
+  "outside": "Veb-konsoldan tashqarida",
+  "state": {
+    "pending": "Kutilmoqda",
+    "building": "Yigʻilmoqda",
+    "ready": "Tayyor",
+    "failed": "Xato"
+  },
+  "table": {
+    "version": "Versiya",
+    "build": "Yigʻish",
+    "author": "Muallif"
+  },
+  "buildLog": "Yigʻish jurnali",
+  "buildLogFor": "{{version}}-versiyaning yigʻish jurnali",
+  "diff": "Solishtirish",
+  "diffFor": "{{version}}-versiyani ishlayotgan versiya bilan solishtirish",
+  "rebuild": "Qayta yigʻish",
+  "rebuildFor": "{{version}}-versiyani qayta yigʻish",
+  "promote": "Joriy qilish",
+  "promoteFor": "{{version}}-versiyani joriy qilish",
+  "rollback": "Qaytarish",
+  "rollbackFor": "{{version}}-versiyaga qaytarish",
+  "promoteTitle": "{{version}}-versiyani ishlayotgan qilasizmi?",
+  "rollbackTitle": "{{version}}-versiyaga qaytarasizmi?",
+  "liveFirst": "{{version}}-versiya barcha tashrif buyuruvchilar uchun ishlay boshlaydi.",
+  "liveReplace": "{{version}}-versiya barcha tashrif buyuruvchilar uchun {{live}}-ishlayotgan versiyani almashtiradi.",
+  "emptyTitle": "Versiyalar hali yoʻq",
+  "emptyDescription": "Birinchi versiyani yaratish uchun ilova kodini saqlang.",
+  "notFound": "Ilova topilmadi",
+  "notFoundDescription": "Oʻchirilgan boʻlishi yoki sizda kirish huquqi yoʻq boʻlishi mumkin.",
+  "buildLogTitle": "Yigʻish jurnali, {{version}}-versiya",
+  "buildLogError": "Yigʻish jurnalini yuklab boʻlmadi.",
+  "buildLogEmpty": "Yigʻish chiqishi yoʻq.",
+  "buildLogLines": "Yigʻish jurnali qatorlari",
+  "diffTitle": "{{version}}-versiya ishlayotgan versiya bilan solishtirildi",
+  "diffEmpty": "Ishlayotgan versiyadan farqlar yoʻq.",
+  "diffStatus": {
+    "added": "qoʻshilgan",
+    "removed": "oʻchirilgan",
+    "changed": "oʻzgargan"
+  },
+  "toast": {
+    "live": "{{version}}-versiya ishlayapti",
+    "rebuilding": "{{version}}-versiya qayta yigʻilmoqda"
+  }
+}
