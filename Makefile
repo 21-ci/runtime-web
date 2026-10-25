@@ -15,7 +15,7 @@ web-test: ## Run web tests (Vitest)
 
 web-lint: ## Lint the web console (ESLint) and check locale files against English (i18n:check)
 	cd web && npm run lint
-	cd web && npm run i18n:check -- --allow-missing
+	cd web && npm run i18n:check
 
 web-audit: ## Install web deps and fail on high-severity npm advisories
 	cd web && npm ci && npm audit --audit-level=high
