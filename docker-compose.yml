@@ -1,0 +1,48 @@
+# Runtime Web and 21 Cloud Runtime in one container (docs/getting-started/docker.md).
+#
+#   docker compose up -d                 # first boot prints the setup token: docker compose logs rtweb
+#   docker compose logs -f rtweb
+#   docker compose down                  # keeps the rtweb-data volume; add -v to delete all data
+#
+# Local trial as-is: open http://console.localhost:8080 (Apps answer on http://apps.localhost:8080).
+# In production put a TLS proxy in front and set both URLs to https (see the docs page).
+name: runtime-web
+
+services:
+  rtweb:
+    image: ${RTWEB_IMAGE:-ghcr.io/21-ci/runtime-web:edge}
+    build:
+      context: .
+      target: ${RTWEB_TARGET:-distroless}
+    restart: unless-stopped
+    init: true
+    read_only: true
+    ports:
+      - "127.0.0.1:${RTWEB_PORT:-8080}:8080"
+    environment:
+      # Two different host names: Apps never share the console origin.
+      RTWEB_CONSOLE_URL: ${RTWEB_CONSOLE_URL:-http://console.localhost:8080}
+      RTWEB_APPS_URL: ${RTWEB_APPS_URL:-http://apps.localhost:8080}
+      # Peers whose X-Forwarded-For / X-Forwarded-Proto are trusted (your TLS proxy), comma separated.
+      RTWEB_TRUSTED_PROXIES: ${RTWEB_TRUSTED_PROXIES:-}
+      RT_LOG: ${RT_LOG:-info}
+      # Secrets: unset = generated on first boot into /data/rtweb/secrets. Or use *_FILE with Docker secrets:
+      # RT_ROOT_TOKEN_FILE: /run/secrets/rt_root_token
+      # RT_MASTER_KEY_FILE: /run/secrets/rt_master_key
+      # RTWEB_RELAY_SECRET_FILE: /run/secrets/rtweb_relay_secret
+    volumes:
+      - rtweb-data:/data
+    tmpfs:
+      - /tmp:size=64m
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+    ulimits:
+      nofile:
+        soft: 65536
+        hard: 65536
+    stop_grace_period: 30s
+
+volumes:
+  rtweb-data:
