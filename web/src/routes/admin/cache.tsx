@@ -1,29 +1,19 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { Database } from "lucide-react";
 
-import { AdminLayout } from "@/components/features/admin/admin-layout";
-import { requireInstanceAdmin } from "@/components/features/admin/gate";
 import { KeyValueCard } from "@/components/features/admin/key-value-card";
 import { useNodeCache } from "@/components/features/admin/use-admin";
+import { PageHeader } from "@/components/ui/page-header";
 
 export const Route = createFileRoute("/admin/cache")({
-  beforeLoad: ({ context }) => requireInstanceAdmin(context.queryClient),
-  component: AdminCachePageRoute,
+  component: AdminCachePage,
 });
-
-function AdminCachePageRoute() {
-  return (
-    <AdminLayout>
-      <AdminCachePage />
-    </AdminLayout>
-  );
-}
 
 function AdminCachePage() {
   const cache = useNodeCache();
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6">
-      <h1 className="text-xl font-semibold tracking-[-0.01em]">Cache</h1>
-      <p className="text-sm text-muted">Read-only view of the node cache as the runtime reports it.</p>
+    <div className="flex min-w-0 flex-col gap-6">
+      <PageHeader icon={Database} entity="admin" title="Cache" description="Read-only view of the node cache as the runtime reports it." />
       <KeyValueCard title="Node cache" query={cache} />
     </div>
   );

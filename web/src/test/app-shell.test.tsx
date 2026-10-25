@@ -190,7 +190,7 @@ describe("app shell", { timeout: 15_000 }, () => {
     await screen.findByRole("link", { name: "Hello" });
     fireEvent.keyDown(document, { key: "k", metaKey: true });
     await screen.findByRole("option", { name: /New project/ });
-    expect(screen.queryByRole("option", { name: /Admin:/ })).toBeNull();
+    expect(screen.queryByRole("option", { name: /Instance:/ })).toBeNull();
   });
 
   it("command menu shows admin settings to instance admins", async () => {
@@ -199,8 +199,8 @@ describe("app shell", { timeout: 15_000 }, () => {
     renderAt("/acme");
     await screen.findByRole("link", { name: "Hello" });
     fireEvent.keyDown(document, { key: "k", metaKey: true });
-    expect(await screen.findByRole("option", { name: /Admin: users/ })).toBeDefined();
-    expect(screen.getByRole("option", { name: /Admin: node/ })).toBeDefined();
+    expect(await screen.findByRole("option", { name: /Instance: users/ })).toBeDefined();
+    expect(screen.getByRole("option", { name: /Instance: node/ })).toBeDefined();
   });
 
   it("logout clears the CSRF token and returns to login", async () => {

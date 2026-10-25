@@ -21,6 +21,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ApiError } from "@/lib/api";
@@ -49,15 +50,18 @@ export function OrgsPage() {
   const [action, setAction] = useState<OrgAction | null>(null);
 
   return (
-    <section aria-labelledby="orgs-heading" className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 id="orgs-heading" className="text-[15px] font-semibold">
-          Organizations
-        </h2>
-        <div className="ml-auto">
-          <Button variant="default" onClick={() => setCreateOpen(true)}>New organization</Button>
-        </div>
-      </div>
+    <div className="flex min-w-0 flex-col gap-6">
+      <PageHeader
+        icon={Building2}
+        entity="admin"
+        title="Organizations"
+        description="Every org on this instance, with its usage."
+        actions={
+          <Button variant="default" onClick={() => setCreateOpen(true)}>
+            New organization
+          </Button>
+        }
+      />
 
       {orgs.isError ? (
         <QueryError error={orgs.error} onRetry={() => void orgs.refetch()} notFoundTitle="Organizations not found" />
@@ -96,15 +100,15 @@ export function OrgsPage() {
       <CreateOrgDialog open={createOpen} onOpenChange={setCreateOpen} />
       {action?.kind === "rename" ? <RenameOrgDialog org={action.org} onClose={() => setAction(null)} /> : null}
       {action?.kind === "delete" ? <DeleteOrgDialog org={action.org} onClose={() => setAction(null)} /> : null}
-    </section>
+    </div>
   );
 }
 
 function OrgRow({ org, onAction }: { org: AdminOrg; onAction: (action: OrgAction) => void }) {
   return (
     <TableRow>
-      <TableCell className="font-medium">{org.name}</TableCell>
-      <TableCell className="font-mono text-sm">{org.slug}</TableCell>
+      <TableCell className="whitespace-nowrap font-medium">{org.name}</TableCell>
+      <TableCell className="whitespace-nowrap font-mono text-sm">{org.slug}</TableCell>
       <TableCell>
         <OrgUsageCell slug={org.slug} />
       </TableCell>

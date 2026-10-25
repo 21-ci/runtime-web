@@ -1,10 +1,9 @@
 import { useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { Server } from "lucide-react";
 import { toast } from "sonner";
 
-import { AdminLayout } from "@/components/features/admin/admin-layout";
-import { requireInstanceAdmin } from "@/components/features/admin/gate";
-import { KeyValueCard } from "@/components/features/admin/key-value-card";
+import { KeyValueCard, KeyValueTables } from "@/components/features/admin/key-value-card";
 import {
   useDrainNode,
   useNodeConfig,
@@ -26,40 +25,34 @@ import {
 } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/section-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api";
 
 export const Route = createFileRoute("/admin/node")({
-  beforeLoad: ({ context }) => requireInstanceAdmin(context.queryClient),
-  component: AdminNodePageRoute,
+  component: AdminNodePage,
 });
 
-function AdminNodePageRoute() {
-  return (
-    <AdminLayout>
-      <AdminNodePage />
-    </AdminLayout>
-  );
-}
-
+// AdminNodePage: Status and Scheduler summaries side by side at equal height, the scheduler's
+// process and machine lists as full-width tables, then configuration and drain.
 function AdminNodePage() {
   const status = useNodeStatus();
   const scheduler = useNodeScheduler();
   const config = useNodeConfig();
 
   return (
-    <div className="mx-auto flex max-w-4xl flex-col gap-6">
-      <h1 className="text-xl font-semibold tracking-[-0.01em]">Node</h1>
+    <div className="flex min-w-0 flex-col gap-6">
+      <PageHeader icon={Server} entity="admin" title="Node" description="The runtime node as it reports itself." />
 
-      <div className="grid gap-4 md:grid-cols-2">
-        <KeyValueCard title="Status" query={status} />
-        <KeyValueCard title="Scheduler" query={scheduler} />
+      <div className="grid min-w-0 gap-4 md:grid-cols-2">
+        <KeyValueCard title="Status" description="Version, capacity and memory." query={status} tables="omit" />
+        <KeyValueCard title="Scheduler" description="Queues and worker state." query={scheduler} tables="omit" />
       </div>
+      <KeyValueTables query={status} source="Status" />
+      <KeyValueTables query={scheduler} source="Scheduler" />
 
-      <section aria-labelledby="node-config-heading" className="rounded-lg border border-line bg-surface p-5 shadow-card">
-        <h2 id="node-config-heading" className="mb-3 text-[15px] font-semibold">
-          Configuration
-        </h2>
+      <SectionCard title="Configuration" description="Runtime settings the console can change.">
         {config.isError ? (
           <QueryError error={config.error} onRetry={() => void config.refetch()} notFoundTitle="Not available" />
         ) : config.isPending ? (
@@ -69,7 +62,7 @@ function AdminNodePage() {
         ) : (
           <NodeConfigForm initial={config.data} />
         )}
-      </section>
+      </SectionCard>
 
       <DrainSection />
     </div>
@@ -194,11 +187,7 @@ function DrainSection() {
   }
 
   return (
-    <section aria-labelledby="drain-heading" className="rounded-lg border border-line bg-surface p-5 shadow-card">
-      <h2 id="drain-heading" className="mb-1 text-[15px] font-semibold">
-        Drain
-      </h2>
-      <p className="mb-3 text-sm text-muted">Stop the node from accepting new work. Existing work finishes first.</p>
+    <SectionCard title="Drain" description="Stop the node from accepting new work. Existing work finishes first.">
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogTrigger asChild>
           <Button variant="danger">Drain node</Button>
@@ -220,6 +209,6 @@ function DrainSection() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </section>
+    </SectionCard>
   );
 }

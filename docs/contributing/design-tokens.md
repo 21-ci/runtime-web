@@ -115,15 +115,17 @@ Inter (self-hosted, `cv11 ss01`), IBM Plex Mono. Base 14px / 1.5. Scale:
 
 - **Org sidebar** (default): org switcher; Search (⌘K) field; nav Overview, Members, Tokens, Audit
   log, Settings; "Projects" group with solid tiles and nested apps (hover-revealed + and ⋯);
-  footer: Account security, Admin (instance admins), collapse.
+  "Instance" group (instance admins only: Users, Organizations, Audit log, Node, Cache, Domains,
+  Settings); footer: Account security, collapse.
 - **App sidebar** (on `/$org/apps/$app/*`): org switcher; "← Back to org" row; app identity card
   (lg tile, project, name, build dot); app nav Overview, Code, Logs, Triggers, Versions, Env &
   Secrets, Domains, Settings; same footer. Below `md` the same nav renders as a horizontal
   snap-scrolling tab strip under the top bar (`aria-label="App sections"`).
 - **Top bar** 48px: menu button (mobile), expand (collapsed), breadcrumbs org / project / app,
   theme segmented control (sm+), account avatar menu.
-- **Admin** uses the same frame with its own sidebar (Users, Organizations, Audit log, Node, Cache,
-  Domains, Settings) and a "Back to console" row.
+- **Instance admin** pages render in the same shell and org sidebar (the last org the user opened
+  stays in the switcher); the Instance group marks the page and the breadcrumb reads
+  Instance / section. There is no separate admin console.
 
 ## 7. Page wireframes
 
@@ -148,7 +150,8 @@ Inter (self-hosted, `cv11 ss01`), IBM Plex Mono. Base 14px / 1.5. Scale:
 - **Domains**: list with status badges, DNS records (copy) and verify/delete.
 - **Settings**: left anchor nav General / Access / Limits / Advanced / Danger zone; sections with
   uppercase labels; Advanced shows slug, ID-like fields with copy and the export; Danger zone red.
-- **Admin Node**: Status and Scheduler rendered as labelled key/value grids with units (bytes,
-  durations, counts) instead of raw JSON; configuration form; drain section.
+- **Admin Node**: Status and Scheduler summary cards of equal height side by side (labelled
+  key/value grids with units instead of raw JSON); list fields (processes, machines) as full-width
+  tables below; configuration form; drain section.
 - **Auth** (login, MFA, setup, change password, invite): centered 400px card on `panel` with a
   small product mark, title, subtext, form; segmented theme control is not shown there.

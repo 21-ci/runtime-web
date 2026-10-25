@@ -125,11 +125,11 @@ export function CommandMenu({ org }: { org: string }) {
             </Command.Item>
             {isAdmin ? (
               <Command.Item
-                value="admin instance"
+                value="instance admin"
                 onSelect={() => run(() => void navigate({ to: "/admin" }))}
                 className={ITEM}
               >
-                <Shield className={`${ICON} text-tag-red-text`} aria-hidden="true" /> Admin
+                <Shield className={`${ICON} text-tag-red-text`} aria-hidden="true" /> Instance admin
               </Command.Item>
             ) : null}
           </Command.Group>
@@ -141,7 +141,7 @@ export function CommandMenu({ org }: { org: string }) {
                 return (
                   <Command.Item
                     key={e.path}
-                    value={`settings ${e.label}`}
+                    value={`settings ${e.label}${e.admin ? " admin" : ""}`}
                     onSelect={() => run(() => void navigate({ href: e.path.replace("$org", org) }))}
                     className={ITEM}
                   >

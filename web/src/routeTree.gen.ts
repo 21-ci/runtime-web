@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as OrgRouteImport } from './routes/$org'
+import { Route as AdminRouteImport } from './routes/admin'
 import { Route as ChangePasswordRouteImport } from './routes/change-password'
 import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
@@ -53,6 +54,11 @@ const OrgRoute = OrgRouteImport.update({
   path: '/$org',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AdminRoute = AdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ChangePasswordRoute = ChangePasswordRouteImport.update({
   id: '/change-password',
   path: '/change-password',
@@ -74,44 +80,44 @@ const OrgIndexRoute = OrgIndexRouteImport.update({
   getParentRoute: () => OrgRoute,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
-  id: '/admin/',
-  path: '/admin/',
-  getParentRoute: () => rootRouteImport,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminAuditRoute = AdminAuditRouteImport.update({
-  id: '/admin/audit',
-  path: '/admin/audit',
-  getParentRoute: () => rootRouteImport,
+  id: '/audit',
+  path: '/audit',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminCacheRoute = AdminCacheRouteImport.update({
-  id: '/admin/cache',
-  path: '/admin/cache',
-  getParentRoute: () => rootRouteImport,
+  id: '/cache',
+  path: '/cache',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminDomainsRoute = AdminDomainsRouteImport.update({
-  id: '/admin/domains',
-  path: '/admin/domains',
-  getParentRoute: () => rootRouteImport,
+  id: '/domains',
+  path: '/domains',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminNodeRoute = AdminNodeRouteImport.update({
-  id: '/admin/node',
-  path: '/admin/node',
-  getParentRoute: () => rootRouteImport,
+  id: '/node',
+  path: '/node',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminOrgsRoute = AdminOrgsRouteImport.update({
-  id: '/admin/orgs',
-  path: '/admin/orgs',
-  getParentRoute: () => rootRouteImport,
+  id: '/orgs',
+  path: '/orgs',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminSettingsRoute = AdminSettingsRouteImport.update({
-  id: '/admin/settings',
-  path: '/admin/settings',
-  getParentRoute: () => rootRouteImport,
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AdminRoute,
 } as any)
 const AdminUsersRoute = AdminUsersRouteImport.update({
-  id: '/admin/users',
-  path: '/admin/users',
-  getParentRoute: () => rootRouteImport,
+  id: '/users',
+  path: '/users',
+  getParentRoute: () => AdminRoute,
 } as any)
 const InviteTokenRoute = InviteTokenRouteImport.update({
   id: '/invite/$token',
@@ -212,6 +218,7 @@ const OrgAppsAppVersionsRoute = OrgAppsAppVersionsRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/$org': typeof OrgRouteWithChildren
+  '/admin': typeof AdminRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRouteWithChildren
   '/setup': typeof SetupRoute
@@ -280,6 +287,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/$org': typeof OrgRouteWithChildren
+  '/admin': typeof AdminRouteWithChildren
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRouteWithChildren
   '/setup': typeof SetupRoute
@@ -317,6 +325,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/$org'
+    | '/admin'
     | '/change-password'
     | '/login'
     | '/setup'
@@ -384,6 +393,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/$org'
+    | '/admin'
     | '/change-password'
     | '/login'
     | '/setup'
@@ -420,19 +430,12 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   OrgRoute: typeof OrgRouteWithChildren
+  AdminRoute: typeof AdminRouteWithChildren
   ChangePasswordRoute: typeof ChangePasswordRoute
   LoginRoute: typeof LoginRouteWithChildren
   SetupRoute: typeof SetupRoute
-  AdminAuditRoute: typeof AdminAuditRoute
-  AdminCacheRoute: typeof AdminCacheRoute
-  AdminDomainsRoute: typeof AdminDomainsRoute
-  AdminNodeRoute: typeof AdminNodeRoute
-  AdminOrgsRoute: typeof AdminOrgsRoute
-  AdminSettingsRoute: typeof AdminSettingsRoute
-  AdminUsersRoute: typeof AdminUsersRoute
   InviteTokenRoute: typeof InviteTokenRoute
   MeSecurityRoute: typeof MeSecurityRoute
-  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -449,6 +452,13 @@ declare module '@tanstack/react-router' {
       path: '/$org'
       fullPath: '/$org'
       preLoaderRoute: typeof OrgRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin': {
+      id: '/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AdminRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/change-password': {
@@ -481,59 +491,59 @@ declare module '@tanstack/react-router' {
     }
     '/admin/': {
       id: '/admin/'
-      path: '/admin'
+      path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AdminIndexRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/audit': {
       id: '/admin/audit'
-      path: '/admin/audit'
+      path: '/audit'
       fullPath: '/admin/audit'
       preLoaderRoute: typeof AdminAuditRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/cache': {
       id: '/admin/cache'
-      path: '/admin/cache'
+      path: '/cache'
       fullPath: '/admin/cache'
       preLoaderRoute: typeof AdminCacheRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/domains': {
       id: '/admin/domains'
-      path: '/admin/domains'
+      path: '/domains'
       fullPath: '/admin/domains'
       preLoaderRoute: typeof AdminDomainsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/node': {
       id: '/admin/node'
-      path: '/admin/node'
+      path: '/node'
       fullPath: '/admin/node'
       preLoaderRoute: typeof AdminNodeRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/orgs': {
       id: '/admin/orgs'
-      path: '/admin/orgs'
+      path: '/orgs'
       fullPath: '/admin/orgs'
       preLoaderRoute: typeof AdminOrgsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/settings': {
       id: '/admin/settings'
-      path: '/admin/settings'
+      path: '/settings'
       fullPath: '/admin/settings'
       preLoaderRoute: typeof AdminSettingsRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/admin/users': {
       id: '/admin/users'
-      path: '/admin/users'
+      path: '/users'
       fullPath: '/admin/users'
       preLoaderRoute: typeof AdminUsersRouteImport
-      parentRoute: typeof rootRouteImport
+      parentRoute: typeof AdminRoute
     }
     '/invite/$token': {
       id: '/invite/$token'
@@ -721,6 +731,30 @@ const OrgRouteChildren: OrgRouteChildren = {
 
 const OrgRouteWithChildren = OrgRoute._addFileChildren(OrgRouteChildren)
 
+interface AdminRouteChildren {
+  AdminAuditRoute: typeof AdminAuditRoute
+  AdminCacheRoute: typeof AdminCacheRoute
+  AdminDomainsRoute: typeof AdminDomainsRoute
+  AdminNodeRoute: typeof AdminNodeRoute
+  AdminOrgsRoute: typeof AdminOrgsRoute
+  AdminSettingsRoute: typeof AdminSettingsRoute
+  AdminUsersRoute: typeof AdminUsersRoute
+  AdminIndexRoute: typeof AdminIndexRoute
+}
+
+const AdminRouteChildren: AdminRouteChildren = {
+  AdminAuditRoute: AdminAuditRoute,
+  AdminCacheRoute: AdminCacheRoute,
+  AdminDomainsRoute: AdminDomainsRoute,
+  AdminNodeRoute: AdminNodeRoute,
+  AdminOrgsRoute: AdminOrgsRoute,
+  AdminSettingsRoute: AdminSettingsRoute,
+  AdminUsersRoute: AdminUsersRoute,
+  AdminIndexRoute: AdminIndexRoute,
+}
+
+const AdminRouteWithChildren = AdminRoute._addFileChildren(AdminRouteChildren)
+
 interface LoginRouteChildren {
   LoginMfaRoute: typeof LoginMfaRoute
   LoginIndexRoute: typeof LoginIndexRoute
@@ -736,19 +770,12 @@ const LoginRouteWithChildren = LoginRoute._addFileChildren(LoginRouteChildren)
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   OrgRoute: OrgRouteWithChildren,
+  AdminRoute: AdminRouteWithChildren,
   ChangePasswordRoute: ChangePasswordRoute,
   LoginRoute: LoginRouteWithChildren,
   SetupRoute: SetupRoute,
-  AdminAuditRoute: AdminAuditRoute,
-  AdminCacheRoute: AdminCacheRoute,
-  AdminDomainsRoute: AdminDomainsRoute,
-  AdminNodeRoute: AdminNodeRoute,
-  AdminOrgsRoute: AdminOrgsRoute,
-  AdminSettingsRoute: AdminSettingsRoute,
-  AdminUsersRoute: AdminUsersRoute,
   InviteTokenRoute: InviteTokenRoute,
   MeSecurityRoute: MeSecurityRoute,
-  AdminIndexRoute: AdminIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

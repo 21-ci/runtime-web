@@ -11,13 +11,13 @@ export const SETTINGS_REGISTRY: SettingsEntry[] = [
   { label: "Tokens", path: "/$org/settings/tokens" },
   { label: "Audit log", path: "/$org/settings/audit" },
   { label: "Account security", path: "/me/security" },
-  { label: "Admin: users", path: "/admin/users", admin: true },
-  { label: "Admin: organizations", path: "/admin/orgs", admin: true },
-  { label: "Admin: audit log", path: "/admin/audit", admin: true },
-  { label: "Admin: node", path: "/admin/node", admin: true },
-  { label: "Admin: cache", path: "/admin/cache", admin: true },
-  { label: "Admin: domains", path: "/admin/domains", admin: true },
-  { label: "Admin: instance settings", path: "/admin/settings", admin: true },
+  { label: "Instance: users", path: "/admin/users", admin: true },
+  { label: "Instance: organizations", path: "/admin/orgs", admin: true },
+  { label: "Instance: audit log", path: "/admin/audit", admin: true },
+  { label: "Instance: node", path: "/admin/node", admin: true },
+  { label: "Instance: cache", path: "/admin/cache", admin: true },
+  { label: "Instance: domains", path: "/admin/domains", admin: true },
+  { label: "Instance: settings", path: "/admin/settings", admin: true },
 ];
 
 // visibleSettings keeps entries whose route exists and hides admin entries from non-admins.

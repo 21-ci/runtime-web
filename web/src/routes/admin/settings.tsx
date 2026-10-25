@@ -1,9 +1,8 @@
 import { useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
+import { Settings } from "lucide-react";
 import { toast } from "sonner";
 
-import { AdminLayout } from "@/components/features/admin/admin-layout";
-import { requireInstanceAdmin } from "@/components/features/admin/gate";
 import {
   useAdminSettings,
   useSaveAdminSettings,
@@ -17,12 +16,12 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api";
 
 export const Route = createFileRoute("/admin/settings")({
-  beforeLoad: ({ context }) => requireInstanceAdmin(context.queryClient),
-  component: AdminSettingsPageRoute,
+  component: AdminSettingsPage,
 });
 
 const PROVIDER_LABEL: Record<ProviderId, string> = {
@@ -31,20 +30,12 @@ const PROVIDER_LABEL: Record<ProviderId, string> = {
   oidc: "OpenID Connect",
 };
 
-function AdminSettingsPageRoute() {
-  return (
-    <AdminLayout>
-      <AdminSettingsPage />
-    </AdminLayout>
-  );
-}
-
 function AdminSettingsPage() {
   const settings = useAdminSettings();
 
   return (
-    <div className="mx-auto flex max-w-3xl flex-col gap-6">
-      <h1 className="text-xl font-semibold tracking-[-0.01em]">Instance settings</h1>
+    <div className="flex min-w-0 flex-col gap-6">
+      <PageHeader icon={Settings} entity="admin" title="Instance settings" description="Public URL, sign-in policy and providers." />
       {settings.isError ? (
         <QueryError error={settings.error} onRetry={() => void settings.refetch()} notFoundTitle="Not available" />
       ) : settings.isPending ? (
@@ -122,7 +113,7 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
   }
 
   return (
-    <form aria-label="Instance settings" onSubmit={onSubmit} noValidate className="flex flex-col gap-6">
+    <form aria-label="Instance settings" onSubmit={onSubmit} noValidate className="flex max-w-3xl min-w-0 flex-col gap-6">
       <section aria-labelledby="public-url-heading" className="flex flex-col gap-1.5">
         <h2 id="public-url-heading" className="text-[15px] font-semibold">
           Public URL

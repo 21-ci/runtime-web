@@ -6,6 +6,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -36,13 +37,8 @@ export function AuditPage() {
   const items = audit.data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
-    <section aria-labelledby="audit-heading" className="flex flex-col gap-4">
-      <div className="flex flex-col gap-1">
-        <h2 id="audit-heading" className="text-[15px] font-semibold">
-          Audit log
-        </h2>
-        <p className="text-sm text-muted">Every instance-wide change, newest first.</p>
-      </div>
+    <div className="flex min-w-0 flex-col gap-6">
+      <PageHeader icon={ScrollText} entity="admin" title="Audit log" description="Every instance-wide change, newest first." />
 
       <form className="grid gap-3 sm:grid-cols-3" role="search" aria-label="Filter audit log" onSubmit={(e) => e.preventDefault()}>
         <div className="flex flex-col gap-1.5">
@@ -129,11 +125,11 @@ export function AuditPage() {
                     {entry.as_instance_admin ? <Badge variant="info">As instance admin</Badge> : null}
                   </span>
                 </TableCell>
-                <TableCell className="text-sm">{entry.org?.slug ?? "Instance"}</TableCell>
-                <TableCell className="font-mono text-sm">{entry.action}</TableCell>
-                <TableCell className="break-all text-sm">{entry.target}</TableCell>
+                <TableCell className="max-w-40 break-all text-sm">{entry.org?.slug ?? "Instance"}</TableCell>
+                <TableCell className="whitespace-nowrap font-mono text-sm">{entry.action}</TableCell>
+                <TableCell className="min-w-40 max-w-72 break-all text-sm">{entry.target}</TableCell>
                 <TableCell>
-                  <pre className="max-w-xs overflow-x-auto whitespace-pre-wrap break-all font-mono text-xs text-muted">
+                  <pre className="min-w-48 max-w-xs whitespace-pre-wrap break-all font-mono text-xs text-muted">
                     {entry.detail === null || entry.detail === undefined ? "" : JSON.stringify(entry.detail)}
                   </pre>
                 </TableCell>
@@ -150,6 +146,6 @@ export function AuditPage() {
           </Button>
         </div>
       ) : null}
-    </section>
+    </div>
   );
 }

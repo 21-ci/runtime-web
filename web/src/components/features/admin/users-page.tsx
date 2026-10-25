@@ -1,4 +1,4 @@
-import { MoreHorizontal, Search, UserRound } from "lucide-react";
+import { MoreHorizontal, Search, UserRound, Users } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -13,6 +13,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
+import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { QueryError } from "@/components/features/empty/query-error";
@@ -100,18 +101,23 @@ export function UsersPage() {
   const pendingLoad = users.isPending;
 
   return (
-    <section aria-labelledby="users-heading" className="flex flex-col gap-4">
-      <div className="flex flex-wrap items-center gap-3">
-        <h2 id="users-heading" className="text-[15px] font-semibold">
-          Users
-        </h2>
-        <div className="ml-auto flex flex-wrap gap-2">
-          <Button variant="secondary" onClick={() => setInviteOpen(true)}>
-            Create invite link
-          </Button>
-          <Button variant="default" onClick={() => setCreateOpen(true)}>New user</Button>
-        </div>
-      </div>
+    <div className="flex min-w-0 flex-col gap-6">
+      <PageHeader
+        icon={Users}
+        entity="admin"
+        title="Users"
+        description="Everyone who can sign in to this instance."
+        actions={
+          <>
+            <Button variant="secondary" onClick={() => setInviteOpen(true)}>
+              Create invite link
+            </Button>
+            <Button variant="default" onClick={() => setCreateOpen(true)}>
+              New user
+            </Button>
+          </>
+        }
+      />
 
       <div className="relative max-w-sm">
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden="true" />
@@ -159,8 +165,8 @@ export function UsersPage() {
           <TableBody>
             {items.map((u) => (
               <TableRow key={u.id}>
-                <TableCell className="font-medium">{u.name}</TableCell>
-                <TableCell className="break-all">{u.email}</TableCell>
+                <TableCell className="whitespace-nowrap font-medium">{u.name}</TableCell>
+                <TableCell className="whitespace-nowrap">{u.email}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
                     {u.instance_admin ? <Badge variant="info">Instance admin</Badge> : null}
@@ -246,7 +252,7 @@ export function UsersPage() {
           note={`Share it with ${secret.user.email} now. It is shown once and cannot be retrieved later. ${secret.user.name} must change it at first sign-in, and their other sessions are signed out.`}
         />
       ) : null}
-    </section>
+    </div>
   );
 }
 

@@ -42,18 +42,9 @@ function writeCollapsed(v: boolean) {
 // AppShell is the signed-in frame: a 240px sidebar from md up (collapsible with ⌘\), a sheet
 // below md, a 48px top bar with breadcrumbs, and the page content. It owns the shell state
 // (palette, theme, collapse). The skip link is the first focus stop and jumps past the navigation.
-// `nav` replaces the org sidebar (the admin area passes its own) and `crumbs` the breadcrumbs.
-export function AppShell({
-  org,
-  nav,
-  crumbs,
-  children,
-}: {
-  org: string | null;
-  nav?: (props: { onNavigate?: () => void; onCollapse?: () => void }) => ReactNode;
-  crumbs?: ReactNode;
-  children: ReactNode;
-}) {
+// Org pages and instance-admin pages share it; `org` is the org in scope (null when the user has
+// none, or while an admin page loads the org list).
+export function AppShell({ org, children }: { org: string | null; children: ReactNode }) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [theme, setThemeState] = useState<Theme>(() => readTheme());
@@ -101,8 +92,7 @@ export function AppShell({
     [paletteOpen, theme, setTheme, collapsed, setCollapsed],
   );
 
-  const renderNav = (props: { onNavigate?: () => void; onCollapse?: () => void }) =>
-    nav ? nav(props) : org ? <Sidebar org={org} {...props} /> : null;
+  const renderNav = (props: { onNavigate?: () => void; onCollapse?: () => void }) => <Sidebar org={org} {...props} />;
 
   return (
     <ShellContext.Provider value={shell}>
@@ -154,11 +144,13 @@ export function AppShell({
               </Button>
             ) : null}
 
-            {crumbs ?? (org ? <Breadcrumbs org={org} /> : <div className="flex-1" />)}
+            <Breadcrumbs org={org} />
 
-            <Button variant="ghost" size="icon" aria-label="Search" onClick={() => setPaletteOpen(true)} className="md:hidden">
-              <Search aria-hidden="true" />
-            </Button>
+            {org ? (
+              <Button variant="ghost" size="icon" aria-label="Search" onClick={() => setPaletteOpen(true)} className="md:hidden">
+                <Search aria-hidden="true" />
+              </Button>
+            ) : null}
             <ThemeToggle className="ml-1 hidden sm:inline-flex" />
             <AccountMenu />
           </header>

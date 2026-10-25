@@ -97,9 +97,11 @@ tokens/secrets brown, members/invites purple, admin red, audit/settings gray, se
 
 - `AppShell` (`layout/app-shell.tsx`) owns palette, theme and collapse state and wraps page content in
   `PageBody` (max 1100px) unless the route sets `staticData: { fullBleed: true }` (Code, Logs, the app
-  layout). Admin pages pass their own `nav`.
+  layout). Instance-admin pages (`routes/admin.tsx`) use the same shell and sidebar; the shell keeps
+  the last opened org.
 - `Sidebar` (`layout/sidebar.tsx`) shows the org navigation (Overview, Members, Tokens, Audit log,
-  Settings, then Projects with nested apps) or, on `/$org/apps/$app/*`, the app navigation from
+  Settings, then Projects with nested apps, then the Instance group from `INSTANCE_SECTIONS` for
+  instance admins only) or, on `/$org/apps/$app/*`, the app navigation from
   `APP_SECTIONS` (Overview, Code, Logs, Triggers, Versions, Env & Secrets, Domains, Settings) under the app
   identity. Below `md` the app sections render as the `AppTabs` strip (`aria-label="App sections"`).
 - Add an app page by adding a route file, a `PageBody`-wrapped component and an entry in `APP_SECTIONS`.

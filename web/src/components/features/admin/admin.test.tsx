@@ -252,6 +252,70 @@ function useAdminStubs() {
   );
 }
 
+describe("admin pages in the console shell", () => {
+  beforeEach(() => {
+    localStorage.clear();
+  });
+
+  it("render inside the main shell with the Instance group", async () => {
+    useAdminFixtures();
+    renderAt("/admin/users");
+    expect(await screen.findByRole("heading", { level: 1, name: "Users" })).toBeInTheDocument();
+
+    // Same shell as an org page: org switcher, search, projects, account footer.
+    const nav = screen.getByRole("navigation", { name: "Sidebar" });
+    // The shell keeps an org in scope once the org list loads.
+    expect(await within(nav).findByRole("button", { name: /switch org/i })).toBeInTheDocument();
+    expect(within(nav).getByRole("button", { name: "Open command menu" })).toBeInTheDocument();
+    expect(await within(nav).findByRole("link", { name: "Web" })).toBeInTheDocument();
+    expect(within(nav).getByRole("link", { name: "Account security" })).toBeInTheDocument();
+    expect(screen.queryByText(/back to console/i)).toBeNull();
+
+    const instance = within(nav).getByRole("group", { name: "Instance" });
+    expect(within(instance).getByRole("link", { name: "Users" }).getAttribute("aria-current")).toBe("page");
+    expect(within(instance).getByRole("link", { name: "Node" }).getAttribute("href")).toBe("/admin/node");
+
+    const crumbs = screen.getByRole("navigation", { name: "Breadcrumb" });
+    expect(within(crumbs).getByText("Users").getAttribute("aria-current")).toBe("page");
+    expect(within(crumbs).getByRole("link", { name: "Instance" })).toBeInTheDocument();
+  });
+
+  it("keep the org the user last opened in the switcher", async () => {
+    useAdminFixtures();
+    localStorage.setItem("rt-last-org", "beta");
+    renderAt("/admin/orgs");
+    const switcher = await screen.findByRole("button", { name: /switch org/i });
+    await waitFor(() => expect(switcher).toHaveTextContent("Beta"));
+  });
+
+  it("offer instance pages in the command menu", async () => {
+    useAdminFixtures();
+    const router = renderAt("/admin/users");
+    const nav = await screen.findByRole("navigation", { name: "Sidebar" });
+    await userEvent.click(await within(nav).findByRole("button", { name: "Open command menu" }));
+    await userEvent.click(await screen.findByRole("option", { name: /Instance: node/ }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/node"));
+  });
+
+  it("org pages show the Instance group to instance admins", async () => {
+    useAdminFixtures();
+    const router = renderAt("/acme");
+    const nav = await screen.findByRole("navigation", { name: "Sidebar" });
+    const instance = await within(nav).findByRole("group", { name: "Instance" });
+    await userEvent.click(within(instance).getByRole("link", { name: "Organizations" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/admin/orgs"));
+  });
+
+  it("org pages hide the Instance group from other users", async () => {
+    useShellHandlers();
+    renderAt("/acme");
+    const nav = await screen.findByRole("navigation", { name: "Sidebar" });
+    await within(nav).findByRole("link", { name: "Web" });
+    expect(within(nav).queryByRole("group", { name: "Instance" })).toBeNull();
+    expect(within(nav).queryByRole("link", { name: "Organizations" })).toBeNull();
+  });
+});
+
 describe("admin node", () => {
   it("drain requires typed confirmation", async () => {
     useAdminStubs();
@@ -294,6 +358,20 @@ describe("admin node", () => {
     expect(await screen.findByText("running")).toBeInTheDocument();
     expect(screen.getByText("7")).toBeInTheDocument();
   });
+
+  it("lists scheduler processes in their own full-width table", async () => {
+    useAdminStubs();
+    server.use(
+      http.get("/api/admin/node/scheduler", () =>
+        HttpResponse.json({ queued: 7, procs: [{ id: 0, kind: "deno", status: "idle" }] }),
+      ),
+    );
+    renderAt("/admin/node");
+    const procs = await screen.findByRole("region", { name: "Procs" });
+    expect(within(procs).getByRole("columnheader", { name: "Kind" })).toBeInTheDocument();
+    const scheduler = screen.getByRole("region", { name: "Scheduler" });
+    expect(within(scheduler).queryByRole("table")).toBeNull();
+  });
 });
 
 describe("admin cache", () => {
@@ -312,8 +390,10 @@ describe("admin domains", () => {
     renderAt("/admin/domains");
     expect(await screen.findByText("a.example.test")).toBeInTheDocument();
     expect(screen.getByText("b.example.test")).toBeInTheDocument();
-    expect(screen.getByText("Acme")).toBeInTheDocument();
-    expect(screen.getByText("Beta")).toBeInTheDocument();
+    // The org switcher also names an org, so read the table.
+    const table = screen.getByRole("table");
+    expect(within(table).getByText("Acme")).toBeInTheDocument();
+    expect(within(table).getByText("Beta")).toBeInTheDocument();
     expect(screen.getByText("issued")).toBeInTheDocument();
     expect(screen.getByText("none")).toBeInTheDocument();
   });

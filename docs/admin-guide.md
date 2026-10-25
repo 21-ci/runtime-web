@@ -17,7 +17,8 @@ on the control API with the root token; install prints the exact path).
 
 ## Instance admin console
 
-Instance admins see the **Admin** area in the console. It has these pages:
+Instance admins see an **Instance** group in the console sidebar, under Projects, and the same pages in the ⌘K
+menu. The pages open in the normal console, with the org switcher and projects still in place. They are:
 
 | Page | Use it to |
 |---|---|
@@ -35,7 +36,7 @@ Admin actions that change state are written to the audit log.
 ## Account recovery
 
 When someone loses their authenticator and their recovery codes, an instance admin removes their second factor from
-**Admin → Users** (`DELETE /api/admin/users/{id}/totp`), or resets their password, which forces a change at the next
+**Instance → Users** (`DELETE /api/admin/users/{id}/totp`), or resets their password, which forces a change at the next
 sign-in. Both are audited.
 
 ## Runtime node

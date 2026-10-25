@@ -1,18 +1,16 @@
-import { Globe as GlobeTile } from "lucide-react";
-import { IconTile } from "@/components/ui/icon-tile";
+import { Globe } from "lucide-react";
 import { createFileRoute } from "@tanstack/react-router";
 
-import { AdminLayout } from "@/components/features/admin/admin-layout";
-import { requireInstanceAdmin } from "@/components/features/admin/gate";
 import { QueryError } from "@/components/features/empty/query-error";
 import { useAdminDomains, type DomainRow } from "@/components/features/admin/use-admin";
 import { Badge } from "@/components/ui/badge";
+import { EmptyState } from "@/components/ui/empty-state";
+import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 
 export const Route = createFileRoute("/admin/domains")({
-  beforeLoad: ({ context }) => requireInstanceAdmin(context.queryClient),
-  component: AdminDomainsPageRoute,
+  component: AdminDomainsPage,
 });
 
 const STATUS_VARIANT: Record<DomainRow["status"], "success" | "danger" | "info"> = {
@@ -30,20 +28,12 @@ const CERT_VARIANT: Record<DomainRow["cert_status"], "success" | "danger" | "inf
 
 // AdminDomainsPage lists custom domains across every org, so an instance admin can see certificate
 // trouble without opening each org.
-function AdminDomainsPageRoute() {
-  return (
-    <AdminLayout>
-      <AdminDomainsPage />
-    </AdminLayout>
-  );
-}
-
 function AdminDomainsPage() {
   const domains = useAdminDomains();
 
   return (
-    <div className="mx-auto flex max-w-5xl flex-col gap-6">
-      <h1 className="flex items-center gap-3 text-xl font-semibold tracking-[-0.01em]"><IconTile icon={GlobeTile} entity="domains" size="md" />Domains</h1>
+    <div className="flex min-w-0 flex-col gap-6">
+      <PageHeader icon={Globe} entity="admin" title="Domains" description="Custom domains across every org, with certificate state." />
       {domains.isError ? (
         <QueryError error={domains.error} onRetry={() => void domains.refetch()} notFoundTitle="Not available" />
       ) : domains.isPending ? (
@@ -51,9 +41,8 @@ function AdminDomainsPage() {
           <Skeleton className="h-48 w-full" />
         </div>
       ) : (domains.data ?? []).length === 0 ? (
-        <p className="text-sm text-muted">No custom domains yet.</p>
+        <EmptyState entity="domains" icon={Globe} title="No custom domains yet" description="Domains that org members add to their apps show up here." />
       ) : (
-        <div className="overflow-x-auto rounded-lg border border-line bg-surface shadow-card">
           <Table>
             <caption className="sr-only">Custom domains across all orgs</caption>
             <TableHeader>
@@ -69,7 +58,7 @@ function AdminDomainsPage() {
             <TableBody>
               {(domains.data ?? []).map((d) => (
                 <TableRow key={d.id}>
-                  <TableCell className="font-mono">{d.host}</TableCell>
+                  <TableCell className="max-w-64 break-all font-mono">{d.host}</TableCell>
                   <TableCell>
                     <span>{d.org.name}</span>
                   </TableCell>
@@ -79,7 +68,7 @@ function AdminDomainsPage() {
                   </TableCell>
                   <TableCell>
                     <Badge variant={CERT_VARIANT[d.cert_status]}>{d.cert_status}</Badge>
-                    {d.cert_error ? <p className="mt-1 text-xs text-danger">{d.cert_error}</p> : null}
+                    {d.cert_error ? <p className="mt-1 max-w-64 break-words text-xs text-danger">{d.cert_error}</p> : null}
                   </TableCell>
                   <TableCell className="tabular-nums">
                     {d.cert_not_after ? new Date(d.cert_not_after).toLocaleDateString() : "-"}
@@ -88,7 +77,6 @@ function AdminDomainsPage() {
               ))}
             </TableBody>
           </Table>
-        </div>
       )}
     </div>
   );

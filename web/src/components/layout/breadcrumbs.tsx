@@ -2,7 +2,7 @@ import { Link, useLocation, useParams } from "@tanstack/react-router";
 import { ChevronRight } from "lucide-react";
 
 import { useApps, useOrgs, useProjects } from "@/hooks/orgs";
-import { APP_SECTIONS } from "./sidebar";
+import { APP_SECTIONS, INSTANCE_SECTIONS } from "./sidebar";
 
 const CRUMB =
   "min-w-0 truncate rounded-sm px-1 text-muted outline-none hover:bg-hover hover:text-text focus-visible:ring-2 focus-visible:ring-focus";
@@ -12,10 +12,47 @@ function Sep() {
   return <ChevronRight aria-hidden="true" className="size-3.5 shrink-0 text-muted/70" />;
 }
 
-// Breadcrumbs shows org / project / app / section for the current route. Parents are muted
-// links; the last crumb is primary text and carries aria-current. An app's project comes from
-// the apps list.
-export function Breadcrumbs({ org }: { org: string }) {
+// Breadcrumbs shows org / project / app / section for an org route and Instance / section on an
+// instance-admin page. Parents are muted links; the last crumb is primary text and carries
+// aria-current.
+export function Breadcrumbs({ org }: { org: string | null }) {
+  const { pathname } = useLocation();
+  if (pathname === "/admin" || pathname.startsWith("/admin/")) return <InstanceCrumbs pathname={pathname} />;
+  if (!org) return <div className="flex-1" />;
+  return <OrgCrumbs org={org} />;
+}
+
+function InstanceCrumbs({ pathname }: { pathname: string }) {
+  const section = INSTANCE_SECTIONS.find((s) => pathname.startsWith(s.to));
+  return (
+    <nav aria-label="Breadcrumb" className="min-w-0 flex-1">
+      <ol className="flex min-w-0 items-center gap-0.5 text-sm">
+        <li className="flex min-w-0 items-center">
+          {section ? (
+            <Link to="/admin/users" className={CRUMB}>
+              Instance
+            </Link>
+          ) : (
+            <span className={CURRENT} aria-current="page">
+              Instance
+            </span>
+          )}
+        </li>
+        {section ? (
+          <li className="flex min-w-0 items-center gap-0.5">
+            <Sep />
+            <span className={CURRENT} aria-current="page">
+              {section.label}
+            </span>
+          </li>
+        ) : null}
+      </ol>
+    </nav>
+  );
+}
+
+// OrgCrumbs takes an app's project from the apps list.
+function OrgCrumbs({ org }: { org: string }) {
   const params = useParams({ strict: false }) as { p?: string; app?: string };
   const { pathname } = useLocation();
   const orgs = useOrgs();

@@ -2,9 +2,11 @@ import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import {
   ArrowLeft,
   Boxes,
+  Building2,
   ChevronsLeft,
   Clock,
   Code2,
+  Database,
   FolderOpen,
   Globe,
   History,
@@ -15,8 +17,8 @@ import {
   Plus,
   ScrollText,
   Search,
+  Server,
   Settings,
-  Shield,
   ShieldCheck,
   Users,
   type LucideIcon,
@@ -134,48 +136,88 @@ export function SidebarFrame({
   );
 }
 
+// INSTANCE_SECTIONS are the instance-admin pages. They form the Instance group of the normal
+// sidebar, shown only to instance admins (the API authorizes every admin call regardless).
+export const INSTANCE_SECTIONS: { to: string; label: string; icon: LucideIcon }[] = [
+  { to: "/admin/users", label: "Users", icon: Users },
+  { to: "/admin/orgs", label: "Organizations", icon: Building2 },
+  { to: "/admin/audit", label: "Audit log", icon: ScrollText },
+  { to: "/admin/node", label: "Node", icon: Server },
+  { to: "/admin/cache", label: "Cache", icon: Database },
+  { to: "/admin/domains", label: "Domains", icon: Globe },
+  { to: "/admin/settings", label: "Settings", icon: Settings },
+];
+
 // Sidebar switches between the org navigation and, on an app page, the app's own navigation
-// (val.town model). It renders in the fixed column (md+, where onCollapse is set) and inside the
-// mobile sheet.
+// (val.town model). Instance admins also get the Instance group under the org navigation. It
+// renders in the fixed column (md+, where onCollapse is set) and inside the mobile sheet. `org` is
+// null outside an org when the user has none (or while the org list loads on an admin page).
 export function Sidebar({
   org,
   onNavigate,
   onCollapse,
 }: {
-  org: string;
+  org: string | null;
   onNavigate?: () => void;
   onCollapse?: () => void;
 }) {
   const params = useParams({ strict: false }) as { app?: string };
   const isAdmin = useIsInstanceAdmin();
   const { setPaletteOpen } = useShell();
-  const apps = useApps(org);
+  const orgs = useOrgs();
   const appSlug = params.app && params.app !== "new" ? params.app : undefined;
-  const app = appSlug ? (apps.data ?? []).find((a) => a.slug === appSlug) : undefined;
 
-  const footer = (
-    <>
-      <NavLink to="/me/security" icon={ShieldCheck} label="Account security" onNavigate={onNavigate} />
-      {isAdmin ? <NavLink to="/admin" icon={Shield} label="Admin" onNavigate={onNavigate} /> : null}
-    </>
-  );
+  const footer = <NavLink to="/me/security" icon={ShieldCheck} label="Account security" onNavigate={onNavigate} />;
 
   return (
     <SidebarFrame
-      top={<OrgSwitcher org={org} />}
+      top={org ? <OrgSwitcher org={org} /> : <NoOrgHeader pending={orgs.isPending} />}
       onCollapse={onCollapse}
-      onSearch={() => {
-        onNavigate?.();
-        setPaletteOpen(true);
-      }}
+      onSearch={
+        org
+          ? () => {
+              onNavigate?.();
+              setPaletteOpen(true);
+            }
+          : undefined
+      }
       footer={footer}
     >
-      {appSlug ? (
-        <AppNav org={org} slug={appSlug} app={app} pending={apps.isPending} onNavigate={onNavigate} />
+      {org && appSlug ? (
+        <AppNav org={org} slug={appSlug} onNavigate={onNavigate} />
       ) : (
-        <OrgNav org={org} onNavigate={onNavigate} />
+        <>
+          {org ? <OrgNav org={org} onNavigate={onNavigate} /> : null}
+          {isAdmin ? <InstanceNav onNavigate={onNavigate} /> : null}
+        </>
       )}
     </SidebarFrame>
+  );
+}
+
+// NoOrgHeader stands in for the org switcher while the org list loads or when there is none.
+function NoOrgHeader({ pending }: { pending: boolean }) {
+  return (
+    <div className="flex h-9 min-w-0 flex-1 items-center gap-2 px-1.5 text-sm">
+      {pending ? (
+        <Skeleton className="h-5 w-32" />
+      ) : (
+        <span className="truncate text-muted">No organization</span>
+      )}
+    </div>
+  );
+}
+
+function InstanceNav({ onNavigate }: { onNavigate?: () => void }) {
+  return (
+    <div role="group" aria-labelledby="sidebar-instance" className="flex flex-col gap-px">
+      <SectionLabel>
+        <span id="sidebar-instance">Instance</span>
+      </SectionLabel>
+      {INSTANCE_SECTIONS.map((s) => (
+        <NavLink key={s.to} to={s.to} icon={s.icon} label={s.label} onNavigate={onNavigate} />
+      ))}
+    </div>
   );
 }
 
@@ -345,19 +387,10 @@ export const APP_SECTIONS: { to: string; label: string; icon: LucideIcon; exact?
   { to: "/$org/apps/$app/settings", label: "Settings", icon: Settings },
 ];
 
-function AppNav({
-  org,
-  slug,
-  app,
-  pending,
-  onNavigate,
-}: {
-  org: string;
-  slug: string;
-  app: AppSummary | undefined;
-  pending: boolean;
-  onNavigate?: () => void;
-}) {
+function AppNav({ org, slug, onNavigate }: { org: string; slug: string; onNavigate?: () => void }) {
+  const apps = useApps(org);
+  const app: AppSummary | undefined = (apps.data ?? []).find((a) => a.slug === slug);
+  const pending = apps.isPending;
   const projects = useProjects(org);
   const name = app?.name ?? slug;
   const projectName = app ? (projects.data?.find((p) => p.slug === app.project)?.name ?? app.project) : undefined;
