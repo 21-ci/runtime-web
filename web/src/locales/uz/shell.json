@@ -1,0 +1,135 @@
+{
+  "nav": {
+    "overview": "Umumiy koʻrinish",
+    "members": "Aʼzolar",
+    "tokens": "Tokenlar",
+    "auditLog": "Audit jurnali",
+    "settings": "Sozlamalar",
+    "projects": "Loyihalar",
+    "accountSecurity": "Hisob xavfsizligi",
+    "allProjects": "Barcha loyihalar",
+    "app": "Ilova",
+    "appNavigation": "Ilova navigatsiyasi",
+    "appSections": "Ilova boʻlimlari",
+    "project": "Loyiha",
+    "allAppsInProject": "Loyihadagi barcha ilovalar"
+  },
+  "appNav": {
+    "overview": "Umumiy koʻrinish",
+    "code": "Kod",
+    "logs": "Loglar",
+    "triggers": "Triggerlar",
+    "versions": "Versiyalar",
+    "env": "Muhit va maxfiy qiymatlar",
+    "domains": "Domenlar",
+    "settings": "Sozlamalar"
+  },
+  "instance": {
+    "title": "Instans",
+    "users": "Foydalanuvchilar",
+    "organizations": "Tashkilotlar",
+    "auditLog": "Audit jurnali",
+    "node": "Tugun",
+    "cache": "Kesh",
+    "domains": "Domenlar",
+    "settings": "Sozlamalar"
+  },
+  "sidebar": {
+    "label": "Yon panel",
+    "collapse": "Yon panelni yigʻish",
+    "collapseTitle": "Yon panelni yigʻish (⌘\\)",
+    "openCommandMenu": "Buyruqlar menyusini ochish",
+    "search": "Qidirish…",
+    "searchTitle": "Qidirish",
+    "searchProjectsAndApps": "Loyiha va ilovalarni qidirish",
+    "noOrganization": "Tashkilot yoʻq",
+    "newProject": "Yangi loyiha",
+    "newApp": "Yangi ilova",
+    "newAppIn": "{{name}} loyihasida yangi ilova",
+    "moreFor": "{{name}}: boshqa amallar",
+    "openProject": "Loyihani ochish",
+    "projectsFailed": "Loyihalarni yuklab boʻlmadi.",
+    "noProjects": "Loyihalar yoʻq",
+    "noAppsYet": "Hali ilovalar yoʻq"
+  },
+  "top": {
+    "skipToContent": "Asosiy qismga oʻtish",
+    "openNavigation": "Navigatsiyani ochish",
+    "navigation": "Navigatsiya",
+    "consoleNavigation": "Konsol navigatsiyasi",
+    "expandSidebar": "Yon panelni yoyish",
+    "expandSidebarTitle": "Yon panelni yoyish (⌘\\)",
+    "search": "Qidirish"
+  },
+  "account": {
+    "menu": "Hisob menyusi",
+    "theme": "Mavzu",
+    "themeSystem": "Tizim",
+    "themeLight": "Yorugʻ",
+    "themeDark": "Qorongʻi",
+    "language": "Til",
+    "help": "Yordam",
+    "getHelp": "Yordam olish",
+    "emailSupport": "Qoʻllab-quvvatlashga yozish",
+    "logOut": "Chiqish"
+  },
+  "themeToggle": {
+    "label": "Mavzu",
+    "light": "Yorugʻ mavzu",
+    "dark": "Qorongʻi mavzu",
+    "system": "Tizim mavzusi"
+  },
+  "orgSwitcher": {
+    "switch": "Tashkilotni almashtirish",
+    "organizations": "Tashkilotlar"
+  },
+  "breadcrumb": {
+    "label": "Navigatsiya zanjiri"
+  },
+  "palette": {
+    "label": "Buyruqlar menyusi",
+    "placeholder": "Ilova, loyiha va amallarni qidirish…",
+    "empty": "Hech narsa topilmadi.",
+    "actions": "Amallar",
+    "newApp": "Yangi ilova",
+    "newProject": "Yangi loyiha",
+    "toggleTheme": "Mavzuni almashtirish",
+    "toggleSidebar": "Yon panel",
+    "expandSidebar": "Yon panelni yoyish",
+    "collapseSidebar": "Yon panelni yigʻish",
+    "goTo": "Oʻtish",
+    "goToOverview": "Umumiy koʻrinishga oʻtish",
+    "instanceAdmin": "Instans boshqaruvi",
+    "settings": "Sozlamalar",
+    "projects": "Loyihalar",
+    "apps": "Ilovalar",
+    "hintNavigate": "↑↓ tanlash",
+    "hintSelect": "↵ ochish",
+    "hintClose": "esc yopish"
+  },
+  "settings": {
+    "org": "Tashkilot sozlamalari",
+    "members": "Aʼzolar",
+    "tokens": "Tokenlar",
+    "auditLog": "Audit jurnali",
+    "accountSecurity": "Hisob xavfsizligi",
+    "instanceUsers": "Instans: foydalanuvchilar",
+    "instanceOrgs": "Instans: tashkilotlar",
+    "instanceAudit": "Instans: audit jurnali",
+    "instanceNode": "Instans: tugun",
+    "instanceCache": "Instans: kesh",
+    "instanceDomains": "Instans: domenlar",
+    "instanceSettings": "Instans: sozlamalar"
+  },
+  "home": {
+    "title": "Runtime konsoli",
+    "orgsFailed": "Tashkilotlarni yuklab boʻlmadi",
+    "noOrgs": "Hali tashkilotlar yoʻq",
+    "noOrgsHint": "Egasidan taklif soʻrang. Instans administratorlari tashkilotni boshqaruv boʻlimida yaratishi mumkin.",
+    "openAdmin": "Boshqaruvni ochish"
+  },
+  "runtimeStatus": {
+    "busy": "Ishga tushirish muhiti band. Birozdan soʻng qayta urinib koʻring.",
+    "unavailable": "Ishga tushirish muhiti mavjud emas. Oʻzgarishlar u tiklangach qoʻllanadi."
+  }
+}

@@ -3,6 +3,8 @@ import { cleanup, configure } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll } from "vitest";
 
 import { setCsrfToken, setNavigator, setOnSignedOut } from "@/lib/api";
+// English resources are bundled, so i18n is ready synchronously and tests match English text.
+import { i18n, LANGUAGE_STORAGE_KEY } from "@/lib/i18n";
 
 import { server } from "./msw";
 
@@ -56,6 +58,12 @@ afterEach(() => {
   setCsrfToken(null);
   setNavigator((to) => window.location.assign(to));
   setOnSignedOut(() => {});
+  try {
+    localStorage.removeItem(LANGUAGE_STORAGE_KEY);
+  } catch {
+    // Storage unavailable in this environment: nothing to reset.
+  }
+  if (i18n.language !== "en") void i18n.changeLanguage("en");
 });
 
 afterAll(() => {

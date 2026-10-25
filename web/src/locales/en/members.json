@@ -1,0 +1,37 @@
+{
+  "title": "Members",
+  "description": "Roles set what a member can do across the org.",
+  "count_one": "{{count}} member",
+  "count_other": "{{count}} members",
+  "orgNotFound": "Org not found",
+  "orgNotFoundHint": "It may have been deleted or you lack access.",
+  "empty": {
+    "title": "No members",
+    "description": "Invite a teammate to get started."
+  },
+  "roles": {
+    "owner": "Owner",
+    "admin": "Admin",
+    "member": "Member"
+  },
+  "projectRoles": {
+    "admin": "admin",
+    "developer": "developer",
+    "viewer": "viewer"
+  },
+  "grant": "{{project}}: {{role}}",
+  "roleFor": "Role for {{email}}",
+  "removeLabel": "Remove {{email}}",
+  "remove": {
+    "title": "Remove {{name}}?",
+    "description": "They lose access to every project in this org.",
+    "confirm": "Remove member"
+  },
+  "toast": {
+    "roleChanged_owner": "{{name}} is now owner.",
+    "roleChanged_admin": "{{name}} is now admin.",
+    "roleChanged_member": "{{name}} is now member.",
+    "removed": "Removed {{name}}.",
+    "lastOwner": "An org needs at least one owner."
+  }
+}
