@@ -7,7 +7,11 @@ import { defineConfig } from "vite";
 export default defineConfig({
   plugins: [tanstackRouter({ target: "react", autoCodeSplitting: true }), react(), tailwindcss()],
   resolve: {
-    alias: { "@": fileURLToPath(new URL("./src", import.meta.url)) },
+    alias: {
+      "@": fileURLToPath(new URL("./src", import.meta.url)),
+      // Dependency-free branding colour/token module shared with the server (one source of truth).
+      "@shared-branding": fileURLToPath(new URL("../server/src/branding/shared", import.meta.url)),
+    },
   },
   server: {
     port: 5173,

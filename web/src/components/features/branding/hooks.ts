@@ -1,14 +1,14 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { api } from "@/lib/api";
+import { DEFAULT_PRODUCT_NAME, type Radius, type Tint } from "@shared-branding/tokens";
 
 // Instance branding (docs/reference/api.md §6.1). GET /api/branding is public, so the login
 // page and the shell share one cached copy; every write returns the new view, which replaces
 // the cache (the etag in it is the next If-Match).
 
 export type AssetKind = "logo-light" | "logo-dark" | "icon";
-export type Radius = "sharp" | "default" | "round";
-export type Tint = "neutral" | "warm" | "cool";
+export type { Radius, Tint };
 
 export type PaletteView = { accent: string; hover: string; on_accent: string; soft: string; pale: string };
 
@@ -35,7 +35,7 @@ export type BrandingWrite = Pick<
   "product_name" | "accent" | "login_headline" | "login_subtitle" | "support_url" | "support_email" | "hide_powered_by" | "radius" | "tint"
 >;
 
-export const DEFAULT_PRODUCT_NAME = "Runtime Console";
+export { DEFAULT_PRODUCT_NAME };
 export const UPSTREAM_NAME = "Runtime Web";
 export const MAX_ASSET_BYTES = 512 * 1024;
 

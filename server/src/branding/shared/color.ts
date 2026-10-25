@@ -1,8 +1,8 @@
 // Accent palette derived from one brand hex. The console uses the accent as link text on the
 // page background, as a button fill under on-primary text, and as text on accent-pale badges,
 // so each theme's accent is walked toward black (light) or white (dark) until all three pairs
-// reach WCAG AA (4.5:1). Pure functions: web/src/components/features/branding/color.ts is a
-// copy for the live preview; keep them in sync.
+// reach WCAG AA (4.5:1). Pure, dependency-free functions shared by the server (theme.css) and
+// the console's live preview (imported through the web `@shared-branding` alias).
 
 export interface AccentPalette {
   accent: string;

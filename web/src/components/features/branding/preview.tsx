@@ -1,43 +1,15 @@
 import type { CSSProperties } from "react";
 import { useTranslation } from "react-i18next";
 
-import { deriveAccent, isHex, type AccentPalette } from "./color";
-import { DEFAULT_PRODUCT_NAME, UPSTREAM_NAME, type BrandingWrite, type Radius, type Tint } from "./hooks";
-
-// Token values for the live preview. They mirror the server's theme.css (server/src/branding/
-// service.ts) so the preview shows what Save will apply; keep the numbers in sync.
-
-const RADII: Record<Exclude<Radius, "default">, Record<string, string>> = {
-  sharp: { "--r-sm": "2px", "--r-md": "3px", "--r-lg": "4px", "--r-xl": "6px", "--r-2xl": "8px" },
-  round: { "--r-sm": "6px", "--r-md": "9px", "--r-lg": "14px", "--r-xl": "16px", "--r-2xl": "22px" },
-};
-
-const TINTS: Record<Exclude<Tint, "neutral">, { light: Record<string, string>; dark: Record<string, string> }> = {
-  warm: {
-    light: { "--panel": "#f8f6f1", "--panel-2": "#efebe3", "--secondary": "#f3f0e9", "--secondary-hover": "#eae5dc" },
-    dark: { "--panel": "#211f1c", "--panel-2": "#2c2925", "--surface": "#211f1c", "--surface-2": "#282521", "--secondary": "#2e2b27", "--secondary-hover": "#36322d" },
-  },
-  cool: {
-    light: { "--panel": "#f5f7fa", "--panel-2": "#eceff4", "--secondary": "#eff2f6", "--secondary-hover": "#e5e9ef" },
-    dark: { "--panel": "#1e2024", "--panel-2": "#282b30", "--surface": "#1e2024", "--surface-2": "#24272c", "--secondary": "#2b2e33", "--secondary-hover": "#33363c" },
-  },
-};
-
-const paletteVars = (p: AccentPalette) => ({
-  "--accent": p.accent,
-  "--accent-hover": p.hover,
-  "--on-primary": p.onAccent,
-  "--accent-soft": p.soft,
-  "--accent-pale": p.pale,
-});
-
-const DEFAULT_RADII = { "--r-sm": "4px", "--r-md": "6px", "--r-lg": "10px", "--r-xl": "12px", "--r-2xl": "16px" };
+import { deriveAccent, isHex } from "@shared-branding/color";
+import { paletteVars, RADIUS_VARS, TINT_VARS } from "@shared-branding/tokens";
+import { DEFAULT_PRODUCT_NAME, UPSTREAM_NAME, type BrandingWrite } from "./hooks";
 
 /** CSS variables for one preview panel. */
 export function previewVars(draft: Pick<BrandingWrite, "accent" | "radius" | "tint">, theme: "light" | "dark"): CSSProperties {
-  const vars: Record<string, string> = { ...(draft.radius === "default" ? DEFAULT_RADII : RADII[draft.radius]) };
+  const vars: Record<string, string> = { ...RADIUS_VARS[draft.radius] };
   if (isHex(draft.accent)) Object.assign(vars, paletteVars(deriveAccent(draft.accent)[theme]));
-  if (draft.tint !== "neutral") Object.assign(vars, TINTS[draft.tint][theme]);
+  if (draft.tint !== "neutral") Object.assign(vars, TINT_VARS[draft.tint][theme]);
   return vars as CSSProperties;
 }
 

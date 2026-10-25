@@ -6,14 +6,12 @@ import { sha256Hex } from "../crypto/hash.ts";
 import { invalid } from "../http/errors.ts";
 import type { Db, Stmt } from "../storage/types.ts";
 import { ASSET_KINDS, type AssetKind } from "./assets.ts";
-import { deriveAccent, isHex, type AccentPalette } from "./color.ts";
+import { deriveAccent, isHex, type AccentPalette } from "./shared/color.ts";
+import { cssDecls, paletteVars, RADII, RADIUS_VARS, TINT_VARS, TINTS, type Radius, type Tint } from "./shared/tokens.ts";
 
 export const SETTING_BRANDING = "branding";
 
-export const RADII = ["sharp", "default", "round"] as const;
-export const TINTS = ["neutral", "warm", "cool"] as const;
-export type Radius = (typeof RADII)[number];
-export type Tint = (typeof TINTS)[number];
+export { RADII, TINTS, type Radius, type Tint };
 
 export interface BrandingFields {
   product_name: string;
@@ -163,25 +161,6 @@ export function brandingView(b: Branding) {
   };
 }
 
-const RADIUS_VARS: Record<Exclude<Radius, "default">, string> = {
-  sharp: "--r-sm:2px;--r-md:3px;--r-lg:4px;--r-xl:6px;--r-2xl:8px;",
-  round: "--r-sm:6px;--r-md:9px;--r-lg:14px;--r-xl:16px;--r-2xl:22px;",
-};
-
-const TINT_VARS: Record<Exclude<Tint, "neutral">, { light: string; dark: string }> = {
-  warm: {
-    light: "--panel:#f8f6f1;--panel-2:#efebe3;--secondary:#f3f0e9;--secondary-hover:#eae5dc;",
-    dark: "--panel:#211f1c;--panel-2:#2c2925;--surface:#211f1c;--surface-2:#282521;--secondary:#2e2b27;--secondary-hover:#36322d;",
-  },
-  cool: {
-    light: "--panel:#f5f7fa;--panel-2:#eceff4;--secondary:#eff2f6;--secondary-hover:#e5e9ef;",
-    dark: "--panel:#1e2024;--panel-2:#282b30;--surface:#1e2024;--surface-2:#24272c;--secondary:#2b2e33;--secondary-hover:#33363c;",
-  },
-};
-
-const paletteVars = (p: AccentPalette) =>
-  `--accent:${p.accent};--accent-hover:${p.hover};--on-primary:${p.onAccent};--accent-soft:${p.soft};--accent-pale:${p.pale};`;
-
 /**
  * Token overrides for index.html's <link rel="stylesheet" href="/api/branding/theme.css">.
  * `html:root` and `html.dark:root` outrank the bundle's `:root` and `.dark` whatever the link
@@ -192,13 +171,13 @@ export function themeCss(f: BrandingFields): string {
   const dark: string[] = [];
   if (f.accent && isHex(f.accent)) {
     const d = deriveAccent(f.accent);
-    light.push(paletteVars(d.light));
-    dark.push(paletteVars(d.dark));
+    light.push(cssDecls(paletteVars(d.light)));
+    dark.push(cssDecls(paletteVars(d.dark)));
   }
-  if (f.radius !== "default") light.push(RADIUS_VARS[f.radius]);
+  if (f.radius !== "default") light.push(cssDecls(RADIUS_VARS[f.radius]));
   if (f.tint !== "neutral") {
-    light.push(TINT_VARS[f.tint].light);
-    dark.push(TINT_VARS[f.tint].dark);
+    light.push(cssDecls(TINT_VARS[f.tint].light));
+    dark.push(cssDecls(TINT_VARS[f.tint].dark));
   }
   let css = "/* Runtime Web branding */\n";
   if (light.length) css += `html:root{${light.join("")}}\n`;

@@ -12,7 +12,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { ApiError } from "@/lib/api";
 import { cn } from "@/lib/utils";
 
-import { contrast, deriveAccent, isHex } from "./color";
+import { contrast, deriveAccent, isHex } from "@shared-branding/color";
 import {
   DEFAULT_PRODUCT_NAME,
   MAX_ASSET_BYTES,

@@ -8,7 +8,7 @@ import { apiError, defaultBranding, server } from "@/test/msw";
 import { renderAt } from "@/test/render";
 import { me, useShellHandlers } from "@/test/shell-fixtures";
 
-import { contrast, deriveAccent } from "./color";
+import { contrast, deriveAccent } from "@shared-branding/color";
 import { previewVars } from "./preview";
 
 configure({ asyncUtilTimeout: 4000 });
@@ -56,6 +56,22 @@ describe("branding on public pages", () => {
     expect(screen.getAllByRole("img", { name: "Acme Cloud" })[0]).toHaveAttribute("src", acme.logo_light_url);
     expect(screen.getByText(/Powered by Runtime Web/)).toBeInTheDocument();
     await waitFor(() => expect(document.title).toBe("Acme Cloud"));
+  });
+
+  it("points the favicon at the uploaded icon, and back at the bundled one when it is removed", async () => {
+    const link = document.createElement("link");
+    link.rel = "icon";
+    link.setAttribute("href", "/api/branding/assets/icon?v=old");
+    document.head.appendChild(link);
+    try {
+      server.use(http.get("/api/branding", () => HttpResponse.json({ ...acme, icon_url: "/api/branding/assets/icon?v=new" })));
+      const { queryClient } = renderAt("/login").options.context;
+      await waitFor(() => expect(link.getAttribute("href")).toBe("/api/branding/assets/icon?v=new"));
+      queryClient.setQueryData(["branding"], { ...acme, icon_url: null });
+      await waitFor(() => expect(link.getAttribute("href")).toBe("favicon.svg"));
+    } finally {
+      link.remove();
+    }
   });
 
   it("hides Powered by when the admin turned it off, and defaults when unbranded", async () => {

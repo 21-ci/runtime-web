@@ -10,7 +10,7 @@ What you can set:
 |---|---|
 | Product name | Browser tab title, sidebar, sign-in, setup and two-step verification pages |
 | Logo (light) and logo for dark mode | Sign-in pages and the top of the sidebar. The dark logo is optional and falls back to the light one |
-| Icon | Browser favicon; also used on sign-in pages when there is no logo |
+| Icon | Browser favicon; also used on sign-in pages when there is no logo. Without one, the built-in Runtime Web icon is used |
 | Accent colour | Buttons, links, focus rings, selection and progress bars, in light and dark mode |
 | Corners | Sharp, default or round corners on buttons, inputs and cards |
 | Neutral tint | Neutral, warm or cool greys for the sidebar and panels |
@@ -30,7 +30,8 @@ What you can set:
 7. Check the **Preview**, which shows the sign-in card in light and dark mode side by side.
 8. Click **Save branding**.
 
-Every open console picks up the new brand on its next page load.
+Every open console picks up the new brand on its next page load. The browser tab shows your product name from the
+first moment the page loads, before the console has started.
 
 ![Branding settings with a light and dark preview](../assets/branding/branding-admin-settings-light.png)
 

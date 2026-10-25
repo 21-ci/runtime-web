@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { addUser, errCode, signIn } from "./auth/helpers.ts";
 import { testApp, TEST_ORIGIN } from "./harness.ts";
 import { ensureMigrated } from "../src/db/migrate.ts";
-import { contrast, deriveAccent, mix } from "../src/branding/color.ts";
+import { contrast, deriveAccent, mix } from "../src/branding/shared/color.ts";
 import { sniff, unsafeSvg } from "../src/branding/assets.ts";
 import { themeCss, DEFAULTS } from "../src/branding/service.ts";
 

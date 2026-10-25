@@ -742,6 +742,9 @@ Used by the edge and the installer, never by the console. They skip session, CSR
 ## 10. SPA
 
 Every non-`/api` path that is not a file in `web/dist` returns `index.html` (`Cache-Control: no-cache`).
+`index.html` is rendered with the brand (§6.1): `<title>` is the HTML-escaped product name (default
+"Runtime Console"), and the favicon link is the uploaded icon's `icon_url` when set, else the bundled
+`/favicon.svg`. Its `ETag` includes the branding etag, so a brand change never revalidates as `304`.
 `/assets/*` is served with `Cache-Control: public, max-age=31536000, immutable`. Every response has
 `Content-Security-Policy: default-src 'self'; frame-src <RTWEB_RUNTIME_PUBLIC_URL>`. Unknown `/api/*` paths return
 `404 not_found` as JSON.

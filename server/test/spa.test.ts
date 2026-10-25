@@ -1,9 +1,13 @@
 import { createHash } from "node:crypto";
 import { describe, expect, it } from "vitest";
 import { TEST_ORIGIN, testApp } from "./harness.ts";
-import { memoryBlobs, type AssetManifest } from "../src/spa.ts";
+import { readFileSync } from "node:fs";
+import { ensureMigrated } from "../src/db/migrate.ts";
+import { sniff, unsafeSvg } from "../src/branding/assets.ts";
+import { brandIndex, memoryBlobs, type AssetManifest } from "../src/spa.ts";
 
-const INDEX = `<!doctype html><html><head><script src="/theme-init.js"></script>
+const INDEX = `<!doctype html><html><head><title>Runtime Console</title><script src="/theme-init.js"></script>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg" data-brand-icon />
 <script type="module" crossorigin src="/assets/index-A.js"></script><link rel="stylesheet" href="/assets/index-B.css"></head><body></body></html>`;
 
 function manifest(): AssetManifest {
@@ -158,5 +162,64 @@ describe("spa", () => {
 
   it("is absent when no manifest is configured", async () => {
     expect((await testApp().call("GET", "/orgs/x")).status).toBe(404);
+  });
+
+  describe("branding in index.html", () => {
+    async function branded(fields: Record<string, unknown>, icon = false) {
+      const { a } = app();
+      const db = a.deps.storage.db;
+      await ensureMigrated(db);
+      await db.run("INSERT INTO settings (key, value) VALUES ('branding', ?)", [JSON.stringify(fields)]);
+      if (icon) await db.run("INSERT INTO branding_assets (kind, mime, data, hash, size, updated_at) VALUES ('icon', 'image/png', 'AQID', ?, 3, 0)", ["ab".repeat(32)]);
+      return a;
+    }
+
+    it("renders the default title and the bundled favicon", async () => {
+      const html = await (await app().a.call("GET", "/")).text();
+      expect(html).toContain("<title>Runtime Console</title>");
+      expect(html).toContain('href="/favicon.svg"');
+    });
+
+    it("renders the product name HTML-escaped and links the uploaded icon", async () => {
+      const a = await branded({ product_name: `Acme <b>&"'` }, true);
+      const html = await (await a.call("GET", "/orgs/x")).text();
+      expect(html).toContain("<title>Acme &lt;b&gt;&amp;&quot;&#39;</title>");
+      expect(html).toContain(`<link rel="icon" href="/api/branding/assets/icon?v=${"ab".repeat(8)}" data-brand-icon />`);
+      expect(html).not.toContain("favicon.svg");
+    });
+
+    it("prefixes the branded icon under a path route", async () => {
+      const a = await branded({ product_name: "Acme" }, true);
+      const html = await (await a.call("GET", "/", { headers: { "x-rt-base-path": "/s/rtweb" } })).text();
+      expect(html).toContain('href="/s/rtweb/api/branding/assets/icon?v=');
+    });
+
+    it("varies the ETag with the brand so a change is not served stale", async () => {
+      const a = await branded({ product_name: "One" });
+      const first = await a.call("GET", "/");
+      const etag = first.headers.get("etag") ?? "";
+      expect((await a.call("GET", "/", { headers: { "if-none-match": etag } })).status).toBe(304);
+      await a.deps.storage.db.run("UPDATE settings SET value = ? WHERE key = 'branding'", [JSON.stringify({ product_name: "Two" })]);
+      const after = await a.call("GET", "/", { headers: { "if-none-match": etag } });
+      expect(after.status).toBe(200);
+      expect(after.headers.get("etag")).not.toBe(etag);
+      expect(await after.text()).toContain("<title>Two</title>");
+    });
+
+    it("falls back to the defaults when branding cannot be read", async () => {
+      // No migrations ran, so the settings table is missing.
+      const html = await (await app().a.call("GET", "/")).text();
+      expect(html).toContain("<title>Runtime Console</title>");
+    });
+
+    it("leaves a page without a title or icon link alone", () => {
+      expect(brandIndex("<head></head>", { name: "X", icon: "/i", etag: "e" })).toBe("<head></head>");
+    });
+
+    it("ships a default favicon that passes the upload checks", () => {
+      const bytes = readFileSync(new URL("../../web/public/favicon.svg", import.meta.url));
+      expect(sniff(bytes)).toBe("image/svg+xml");
+      expect(unsafeSvg(bytes)).toBeNull();
+    });
   });
 });

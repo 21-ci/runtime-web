@@ -1,4 +1,7 @@
 import type { Deps } from "./app.ts";
+import { dbOf } from "./auth/types.ts";
+import { brandingView, getBranding } from "./branding/service.ts";
+import { DEFAULT_PRODUCT_NAME } from "./branding/shared/tokens.ts";
 import { sha256Hex } from "./crypto/hash.ts";
 import { AppError } from "./http/errors.ts";
 import { loopbackOnly } from "./http/loopback.ts";
@@ -9,6 +12,9 @@ import type { RequestContext, Router } from "./http/router.ts";
 // - other known files: `no-cache` + ETag. Unknown non-/api GET paths: index.html.
 // - index.html honours x-rt-base-path (path routes /s/<slug>, D11): <base href> plus
 //   rewritten root-relative src/href attributes.
+// - index.html carries the brand: <title> is the product name (HTML-escaped) and the favicon
+//   link points at the uploaded icon when there is one (else the bundled /favicon.svg). Its
+//   ETag includes the branding etag, so a brand change is never answered with a stale 304.
 // - files too large for the bundle (>1 MB) live in std:blob in parts, uploaded by
 //   scripts/install.mjs through PUT /api/internal/assets/{id}/{part} with the
 //   RTWEB_ASSET_TOKEN secret.
@@ -86,18 +92,55 @@ export function registerSpa(r: Router, deps: Deps): void {
     const isIndex = !asset || path === "/index.html";
     if (isIndex) asset = spa.assets["/index.html"];
     if (!asset) throw new AppError(404, "not_found", "not found");
-    return isIndex ? serveIndex(ctx, asset) : serveFile(ctx, asset, path.startsWith("/assets/"), spa.blobs);
+    return isIndex ? serveIndex(ctx, asset, await brandOf(deps)) : serveFile(ctx, asset, path.startsWith("/assets/"), spa.blobs);
   });
 }
 
-async function serveIndex(ctx: RequestContext, asset: Asset): Promise<Response> {
+/** What index.html needs from the brand. */
+export interface IndexBrand {
+  name: string;
+  /** Uploaded icon URL (root-relative, versioned), or null for the bundled favicon. */
+  icon: string | null;
+  etag: string;
+}
+
+const DEFAULT_BRAND: IndexBrand = { name: DEFAULT_PRODUCT_NAME, icon: null, etag: "" };
+
+/** The brand for index.html; a storage failure falls back to the defaults so the console still loads. */
+async function brandOf(deps: Deps): Promise<IndexBrand> {
+  try {
+    const b = await getBranding(await dbOf(deps));
+    const v = brandingView(b);
+    return { name: v.product_name || DEFAULT_PRODUCT_NAME, icon: v.icon_url, etag: b.etag };
+  } catch {
+    return DEFAULT_BRAND;
+  }
+}
+
+async function serveIndex(ctx: RequestContext, asset: Asset, brand: IndexBrand): Promise<Response> {
   if (!("load" in asset)) throw new AppError(500, "internal", "index.html must be inline");
   const base = BASE_RE.test(ctx.basePath) ? ctx.basePath : "";
-  const etag = `"${idOf(asset.etag)}${base ? "-" + base.replace(/\//g, "_") : ""}"`;
+  const tag = [idOf(asset.etag), brand.etag, base.replace(/\//g, "_")].filter(Boolean).join("-");
+  const etag = `"${tag}"`;
   const headers = { "content-type": asset.type, "cache-control": "no-cache", etag };
   if (notModified(ctx, etag)) return new Response(null, { status: 304, headers });
-  const html = rewriteIndex((await asset.load()).default, base);
+  const html = rewriteIndex(brandIndex((await asset.load()).default, brand), base);
   return new Response(ctx.req.method === "HEAD" ? null : html, { headers });
+}
+
+const escapeHtml = (s: string) =>
+  s.replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c] as string);
+
+/** Sets <title> to the brand name and, with an uploaded icon, points the favicon link at it. */
+export function brandIndex(html: string, brand: IndexBrand): string {
+  let out = html.replace(/<title>[^<]*<\/title>/i, `<title>${escapeHtml(brand.name)}</title>`);
+  if (brand.icon) {
+    const icon = escapeHtml(brand.icon);
+    out = out.replace(/<link rel="icon"[^>]*>/i, (tag) =>
+      tag.replace(/\shref="[^"]*"/, ` href="${icon}"`).replace(/\stype="[^"]*"/, ""),
+    );
+  }
+  return out;
 }
 
 /** Injects `<base href>` and prefixes root-relative src/href attributes with `base`. */

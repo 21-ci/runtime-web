@@ -5,9 +5,13 @@ import { cn } from "@/lib/utils";
 
 import { isBranded, productName, UPSTREAM_NAME, useBranding, type Branding } from "./hooks";
 
-// The first paint already carries the brand colours: index.html links /api/branding/theme.css.
-// BrandingEffects keeps the document in step afterwards: the tab title and favicon, and a fresh
-// theme.css after an admin saves (the etag busts the browser cache).
+// The first paint already carries the brand: the server renders index.html with the product
+// name in <title> and the uploaded icon (else the bundled favicon.svg), and links
+// /api/branding/theme.css. BrandingEffects keeps the document in step after an admin saves:
+// the tab title, the favicon and a fresh theme.css (the etag busts the browser cache).
+/** The bundled favicon (web/public/favicon.svg), used while no icon is uploaded. */
+export const DEFAULT_ICON = "favicon.svg";
+
 export function BrandingEffects() {
   const { data } = useBranding();
   const name = productName(data);
@@ -30,7 +34,10 @@ export function BrandingEffects() {
 
   useEffect(() => {
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-    if (link && icon) link.href = icon;
+    if (!link) return;
+    // Relative, so it resolves against <base href> under a path route.
+    const href = icon ?? DEFAULT_ICON;
+    if (link.getAttribute("href") !== href) link.setAttribute("href", href);
   }, [icon]);
 
   return null;
