@@ -1,1 +1,89 @@
-{}
+{
+  "title": "Branding",
+  "description": "Your product name, logo and colour on every page, including sign-in.",
+  "unavailable": "Branding not available",
+  "poweredBy": "· Powered by {{name}}",
+  "defaults": {
+    "headline": "Welcome back",
+    "subtitle": "Sign in to your workspace."
+  },
+  "fields": {
+    "productName": "Product name",
+    "productNameHint": "Shown in the sidebar, the sign-in pages and the browser tab.",
+    "logo": "Logo",
+    "logoHint": "Wide logo for light mode.",
+    "logoDark": "Logo for dark mode",
+    "logoDarkHint": "Optional. Falls back to the logo.",
+    "icon": "Icon",
+    "iconHint": "Square. Used as the favicon.",
+    "accent": "Accent colour",
+    "pickAccent": "Pick accent colour",
+    "accentHint": "Buttons, links and focus rings. Hover and dark-mode shades are derived for you.",
+    "useDefault": "Use default",
+    "corners": "Corners",
+    "tint": "Neutral tint",
+    "headline": "Sign-in headline",
+    "subtitle": "Sign-in subtitle",
+    "supportUrl": "Support URL",
+    "supportUrlHint": "Shown as Get help in the account menu.",
+    "supportEmail": "Support email",
+    "hidePoweredBy": "Hide “Powered by {{name}}”"
+  },
+  "radius": {
+    "sharp": "Sharp",
+    "default": "Default",
+    "round": "Round"
+  },
+  "tint": {
+    "neutral": "Neutral",
+    "warm": "Warm",
+    "cool": "Cool"
+  },
+  "contrast": "{{color}} has a contrast of {{ratio}}:1 on white, below the 4.5:1 WCAG AA minimum. Light mode will use the darker {{adjusted}} instead.",
+  "actions": {
+    "save": "Save branding",
+    "reset": "Reset to defaults"
+  },
+  "reset": {
+    "title": "Reset branding?",
+    "description": "The product name, images, colour and sign-in text go back to the defaults. Uploaded images are deleted.",
+    "confirm": "Reset branding"
+  },
+  "preview": {
+    "heading": "Preview",
+    "light": "Light",
+    "dark": "Dark",
+    "lightLabel": "Light preview",
+    "darkLabel": "Dark preview",
+    "subtitle": "Sign in to {{name}}.",
+    "signIn": "Sign in",
+    "forgot": "Forgot password?",
+    "new": "New"
+  },
+  "asset": {
+    "hint": "{{hint}} PNG, JPEG, WebP, ICO or SVG, up to 512 KB. Drop a file or choose one.",
+    "preview": "{{label}} preview",
+    "replace": "Replace",
+    "choose": "Choose file",
+    "remove": "Remove {{label}}",
+    "tooLarge": "The image is larger than 512 KB.",
+    "cannotUse": "This image cannot be used.",
+    "uploadFailed": "Could not upload the image. Try again."
+  },
+  "field": {
+    "tooLong": "Too long.",
+    "mustBeHex": "Use a hex colour like #7c3aed.",
+    "mustBeHttpUrl": "Use an http or https URL.",
+    "mustBeEmail": "Use an email address.",
+    "invalidCharacters": "Remove control characters.",
+    "unsupportedImage": "Use a PNG, JPEG, WebP, ICO or SVG file.",
+    "svgActiveContent": "This SVG contains scripts, event handlers or external references. Export a plain SVG."
+  },
+  "toast": {
+    "saved": "Branding saved.",
+    "reset": "Branding reset to the defaults.",
+    "stale": "Branding was changed by someone else. The latest version is loaded.",
+    "saveFailed": "Could not save the branding. Try again.",
+    "resetFailed": "Could not reset the branding. Try again."
+  }
+}

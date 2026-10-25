@@ -1,4 +1,5 @@
 import { useEffect, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 
@@ -60,11 +61,12 @@ export function AuthMark({ fallback }: { fallback: ReactNode }) {
 /** The auth page footer: the product name, plus "Powered by" unless the admin hid it. */
 export function AuthFooter() {
   const { data } = useBranding();
+  const { t } = useTranslation("branding");
   const branded = isBranded(data);
   return (
     <p className="mt-6 text-center text-[12px] text-muted">
       {productName(data)}
-      {branded && !data?.hide_powered_by ? <span> · Powered by {UPSTREAM_NAME}</span> : null}
+      {branded && !data?.hide_powered_by ? <span> {t("poweredBy", { name: UPSTREAM_NAME })}</span> : null}
     </p>
   );
 }

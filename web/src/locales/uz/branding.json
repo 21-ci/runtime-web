@@ -1,1 +1,89 @@
-{}
+{
+  "title": "Brending",
+  "description": "Mahsulot nomi, logotip va rang har bir sahifada, shu jumladan kirish sahifasida.",
+  "unavailable": "Brending mavjud emas",
+  "poweredBy": "· {{name}} asosida",
+  "defaults": {
+    "headline": "Qaytganingiz bilan",
+    "subtitle": "Ish maydoningizga kiring."
+  },
+  "fields": {
+    "productName": "Mahsulot nomi",
+    "productNameHint": "Yon panelda, kirish sahifalarida va brauzer yorligʻida koʻrsatiladi.",
+    "logo": "Logotip",
+    "logoHint": "Yorugʻ rejim uchun keng logotip.",
+    "logoDark": "Qorongʻi rejim uchun logotip",
+    "logoDarkHint": "Ixtiyoriy. Boʻlmasa, asosiy logotip ishlatiladi.",
+    "icon": "Ikonka",
+    "iconHint": "Kvadrat shaklda. Favikon sifatida ishlatiladi.",
+    "accent": "Aksent rangi",
+    "pickAccent": "Aksent rangini tanlang",
+    "accentHint": "Tugmalar, havolalar va fokus ramkalari. Sichqoncha ustidagi va qorongʻi rejim soyalari avtomatik hisoblanadi.",
+    "useDefault": "Standartdan foydalanish",
+    "corners": "Burchaklar",
+    "tint": "Neytral tus",
+    "headline": "Kirish sarlavhasi",
+    "subtitle": "Kirish qoʻshimcha matni",
+    "supportUrl": "Yordam havolasi",
+    "supportUrlHint": "Hisob menyusida «Yordam olish» sifatida koʻrsatiladi.",
+    "supportEmail": "Yordam elektron pochtasi",
+    "hidePoweredBy": "«{{name}} asosida» yozuvini yashirish"
+  },
+  "radius": {
+    "sharp": "Oʻtkir",
+    "default": "Standart",
+    "round": "Yumaloq"
+  },
+  "tint": {
+    "neutral": "Neytral",
+    "warm": "Iliq",
+    "cool": "Sovuq"
+  },
+  "contrast": "{{color}} rangining oq fondagi kontrasti {{ratio}}:1, bu WCAG AA minimumi (4.5:1) dan past. Yorugʻ rejimda undan quyuqroq {{adjusted}} rangi ishlatiladi.",
+  "actions": {
+    "save": "Brendingni saqlash",
+    "reset": "Standartga qaytarish"
+  },
+  "reset": {
+    "title": "Brending standartga qaytarilsinmi?",
+    "description": "Mahsulot nomi, rasmlar, rang va kirish matni standart holatga qaytadi. Yuklangan rasmlar oʻchiriladi.",
+    "confirm": "Brendingni qaytarish"
+  },
+  "preview": {
+    "heading": "Koʻrinish",
+    "light": "Yorugʻ",
+    "dark": "Qorongʻi",
+    "lightLabel": "Yorugʻ rejimdagi koʻrinish",
+    "darkLabel": "Qorongʻi rejimdagi koʻrinish",
+    "subtitle": "{{name}} ga kiring.",
+    "signIn": "Kirish",
+    "forgot": "Parolni unutdingizmi?",
+    "new": "Yangi"
+  },
+  "asset": {
+    "hint": "{{hint}} PNG, JPEG, WebP, ICO yoki SVG, 512 KB gacha. Faylni sudrab tashlang yoki tanlang.",
+    "preview": "{{label}} koʻrinishi",
+    "replace": "Almashtirish",
+    "choose": "Fayl tanlash",
+    "remove": "{{label}} ni oʻchirish",
+    "tooLarge": "Rasm 512 KB dan katta.",
+    "cannotUse": "Bu rasmdan foydalanib boʻlmaydi.",
+    "uploadFailed": "Rasmni yuklab boʻlmadi. Qayta urinib koʻring."
+  },
+  "field": {
+    "tooLong": "Juda uzun.",
+    "mustBeHex": "HEX rang kiriting, masalan #7c3aed.",
+    "mustBeHttpUrl": "http yoki https manzil kiriting.",
+    "mustBeEmail": "Elektron pochta manzilini kiriting.",
+    "invalidCharacters": "Boshqaruv belgilarini oʻchiring.",
+    "unsupportedImage": "PNG, JPEG, WebP, ICO yoki SVG fayl ishlating.",
+    "svgActiveContent": "Bu SVG skriptlar, hodisa ishlovchilari yoki tashqi havolalarni oʻz ichiga oladi. Oddiy SVG eksport qiling."
+  },
+  "toast": {
+    "saved": "Brending saqlandi.",
+    "reset": "Brending standart holatga qaytarildi.",
+    "stale": "Brendingni boshqa kishi oʻzgartirdi. Oxirgi versiya yuklandi.",
+    "saveFailed": "Brendingni saqlab boʻlmadi. Qayta urinib koʻring.",
+    "resetFailed": "Brendingni standartga qaytarib boʻlmadi. Qayta urinib koʻring."
+  }
+}

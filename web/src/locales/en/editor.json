@@ -1,1 +1,44 @@
-{}
+{
+  "breadcrumb": "Code",
+  "readOnlyAccess": "You have read-only access to this app's code.",
+  "readOnlyVersion": "This version is read-only.",
+  "wasm": "This version is a WebAssembly component. Its source is not editable here; deploy a new build from your toolchain.",
+  "save": "Save",
+  "saveDirty": "Save *",
+  "saved": "Saved version {{version}}",
+  "preview": {
+    "button": "Preview",
+    "toggle": "Show or hide the response pane",
+    "label": "Preview",
+    "frame": "App preview"
+  },
+  "files": {
+    "title": "Files",
+    "select": "File",
+    "entry": "entry"
+  },
+  "problems": {
+    "failed": "Build failed: {{message}}. The live version is unchanged.",
+    "failedVersion": "Build failed (version {{version}}): {{message}}. The live version is unchanged.",
+    "list": "Build problems"
+  },
+  "status": {
+    "building": "Building",
+    "failed": "Build failed v{{version}}",
+    "live": "Live v{{version}}",
+    "liveLabel": "Live v{{version}}, open versions"
+  },
+  "stale": {
+    "title": "Code changed elsewhere",
+    "description": "Someone saved this app after you opened it. Reload to get their version (your edits are discarded), or overwrite it with yours.",
+    "reload": "Reload",
+    "overwrite": "Overwrite"
+  },
+  "logs": "Logs",
+  "logsDock": "Logs dock",
+  "editor": {
+    "label": "Code editor: {{path}}"
+  },
+  "appNotFound": "App not found",
+  "appNotFoundHint": "It may have been deleted or you lack access."
+}

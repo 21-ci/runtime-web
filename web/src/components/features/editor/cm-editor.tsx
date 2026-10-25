@@ -16,6 +16,7 @@ import {
   lineNumbers,
 } from "@codemirror/view";
 import { useEffect, useRef } from "react";
+import { useTranslation } from "react-i18next";
 
 import type { Diagnostic } from "./hooks";
 import { tsDiagnostics } from "./ts-client";
@@ -87,6 +88,7 @@ export default function CodeEditor(props: CodeEditorProps) {
   });
 
   const { path, readOnly } = props;
+  const { t } = useTranslation("editor");
   useEffect(() => {
     if (!host.current) return;
     const v = new EditorView({
@@ -135,7 +137,7 @@ export default function CodeEditor(props: CodeEditorProps) {
           EditorState.readOnly.of(readOnly),
           EditorView.editable.of(!readOnly),
           EditorView.contentAttributes.of({
-            "aria-label": `Code editor: ${path}`,
+            "aria-label": t("editor.label", { path }),
             role: "textbox",
             "aria-multiline": "true",
             "aria-readonly": String(readOnly),
@@ -152,7 +154,7 @@ export default function CodeEditor(props: CodeEditorProps) {
       v.destroy();
       view.current = null;
     };
-  }, [path, readOnly]);
+  }, [path, readOnly, t]);
 
   // External replacement (reload after a stale save).
   const { value, diagnostics } = props;

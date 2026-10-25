@@ -1,5 +1,6 @@
 import { useRef, useState, type DragEvent, type FormEvent } from "react";
 import { AlertTriangle, ImageUp, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { QueryError } from "@/components/features/empty/query-error";
@@ -15,6 +16,7 @@ import { contrast, deriveAccent, isHex } from "./color";
 import {
   DEFAULT_PRODUCT_NAME,
   MAX_ASSET_BYTES,
+  UPSTREAM_NAME,
   useBranding,
   useDeleteBrandAsset,
   useResetBranding,
@@ -31,26 +33,31 @@ import { BrandPreview } from "./preview";
 const ACCEPT = "image/png,image/jpeg,image/webp,image/x-icon,image/vnd.microsoft.icon,image/svg+xml,.ico,.svg";
 const DEFAULT_ACCENT = "#2563eb";
 
-const RADIUS_OPTIONS: { value: Radius; label: string }[] = [
-  { value: "sharp", label: "Sharp" },
-  { value: "default", label: "Default" },
-  { value: "round", label: "Round" },
+type ChoiceKey = "radius.sharp" | "radius.default" | "radius.round" | "tint.neutral" | "tint.warm" | "tint.cool";
+
+const RADIUS_OPTIONS: { value: Radius; labelKey: ChoiceKey }[] = [
+  { value: "sharp", labelKey: "radius.sharp" },
+  { value: "default", labelKey: "radius.default" },
+  { value: "round", labelKey: "radius.round" },
 ];
-const TINT_OPTIONS: { value: Tint; label: string }[] = [
-  { value: "neutral", label: "Neutral" },
-  { value: "warm", label: "Warm" },
-  { value: "cool", label: "Cool" },
+const TINT_OPTIONS: { value: Tint; labelKey: ChoiceKey }[] = [
+  { value: "neutral", labelKey: "tint.neutral" },
+  { value: "warm", labelKey: "tint.warm" },
+  { value: "cool", labelKey: "tint.cool" },
 ];
 
-const FIELD_MESSAGES: Record<string, string> = {
-  too_long: "Too long.",
-  must_be_hex: "Use a hex colour like #7c3aed.",
-  must_be_http_url: "Use an http or https URL.",
-  must_be_email: "Use an email address.",
-  invalid_characters: "Remove control characters.",
-  unsupported_image: "Use a PNG, JPEG, WebP, ICO or SVG file.",
-  svg_active_content: "This SVG contains scripts, event handlers or external references. Export a plain SVG.",
-};
+// Server field codes and the message each one shows.
+const FIELD_MESSAGES = {
+  too_long: "field.tooLong",
+  must_be_hex: "field.mustBeHex",
+  must_be_http_url: "field.mustBeHttpUrl",
+  must_be_email: "field.mustBeEmail",
+  invalid_characters: "field.invalidCharacters",
+  unsupported_image: "field.unsupportedImage",
+  svg_active_content: "field.svgActiveContent",
+} as const;
+type FieldCode = keyof typeof FIELD_MESSAGES;
+const isFieldCode = (code: string): code is FieldCode => Object.prototype.hasOwnProperty.call(FIELD_MESSAGES, code);
 
 const fromBranding = (b: Branding): BrandingWrite => ({
   product_name: b.product_name,
@@ -77,16 +84,17 @@ function readBase64(file: File): Promise<string> {
 // (Save); images upload as soon as they are picked, each write carrying the current etag.
 export function BrandingSection() {
   const branding = useBranding();
+  const { t } = useTranslation(["branding", "common"]);
   return (
     <section aria-labelledby="branding-heading" className="flex max-w-5xl min-w-0 flex-col gap-4">
       <div>
         <h2 id="branding-heading" className="text-[15px] font-semibold">
-          Branding
+          {t("title")}
         </h2>
-        <p className="text-sm text-muted">Your product name, logo and colour on every page, including sign-in.</p>
+        <p className="text-sm text-muted">{t("description")}</p>
       </div>
       {branding.isError ? (
-        <QueryError error={branding.error} onRetry={() => void branding.refetch()} notFoundTitle="Branding not available" />
+        <QueryError error={branding.error} onRetry={() => void branding.refetch()} notFoundTitle={t("unavailable")} />
       ) : branding.isPending ? (
         <Skeleton className="h-64 w-full" />
       ) : (
@@ -99,6 +107,7 @@ export function BrandingSection() {
 function BrandingForm({ branding, onStale }: { branding: Branding; onStale: () => void }) {
   const save = useSaveBranding();
   const reset = useResetBranding();
+  const { t } = useTranslation(["branding", "common"]);
   const [draft, setDraft] = useState<BrandingWrite>(() => fromBranding(branding));
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [confirmReset, setConfirmReset] = useState(false);
@@ -107,7 +116,7 @@ function BrandingForm({ branding, onStale }: { branding: Branding; onStale: () =
 
   function onError(err: unknown, fallback: string) {
     if (err instanceof ApiError && err.code === "stale") {
-      toast.error("Branding was changed by someone else. The latest version is loaded.");
+      toast.error(t("toast.stale"));
       onStale();
     } else if (err instanceof ApiError && Object.keys(err.fieldErrors()).length > 0) {
       setErrors(err.fieldErrors());
@@ -128,9 +137,9 @@ function BrandingForm({ branding, onStale }: { branding: Branding; onStale: () =
       {
         onSuccess: (b) => {
           setDraft(fromBranding(b));
-          toast.success("Branding saved.");
+          toast.success(t("toast.saved"));
         },
-        onError: (err) => onError(err, "Could not save the branding. Try again."),
+        onError: (err) => onError(err, t("toast.saveFailed")),
       },
     );
   }
@@ -143,11 +152,11 @@ function BrandingForm({ branding, onStale }: { branding: Branding; onStale: () =
           setDraft(fromBranding(b));
           setErrors({});
           setConfirmReset(false);
-          toast.success("Branding reset to the defaults.");
+          toast.success(t("toast.reset"));
         },
         onError: (err) => {
           setConfirmReset(false);
-          onError(err, "Could not reset the branding. Try again.");
+          onError(err, t("toast.resetFailed"));
         },
       },
     );
@@ -155,26 +164,27 @@ function BrandingForm({ branding, onStale }: { branding: Branding; onStale: () =
 
   const accentValid = isHex(draft.accent);
   const derived = accentValid ? deriveAccent(draft.accent) : null;
-  const msg = (k: string) => (errors[k] ? (FIELD_MESSAGES[errors[k]] ?? errors[k]) : null);
+  const fieldText = (code: string) => (isFieldCode(code) ? t(FIELD_MESSAGES[code]) : code);
+  const msg = (k: string) => (errors[k] ? fieldText(errors[k]) : null);
 
   return (
     <div className="grid min-w-0 gap-6 lg:grid-cols-[minmax(0,1fr)_minmax(0,420px)]">
-      <form aria-label="Branding" onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-5">
-        <TextField id="brand-name" label="Product name" value={draft.product_name} placeholder={DEFAULT_PRODUCT_NAME} max={40}
-          hint="Shown in the sidebar, the sign-in pages and the browser tab." error={msg("product_name")} onChange={(v) => set("product_name", v)} />
+      <form aria-label={t("title")} onSubmit={onSubmit} noValidate className="flex min-w-0 flex-col gap-5">
+        <TextField id="brand-name" label={t("fields.productName")} value={draft.product_name} placeholder={DEFAULT_PRODUCT_NAME} max={40}
+          hint={t("fields.productNameHint")} error={msg("product_name")} onChange={(v) => set("product_name", v)} />
 
         <div className="grid gap-4 sm:grid-cols-3">
-          <AssetPicker kind="logo-light" label="Logo" hint="Wide logo for light mode." url={branding.logo_light_url} branding={branding} onStale={onStale} />
-          <AssetPicker kind="logo-dark" label="Logo for dark mode" hint="Optional. Falls back to the logo." url={branding.logo_dark_url} branding={branding} onStale={onStale} />
-          <AssetPicker kind="icon" label="Icon" hint="Square. Used as the favicon." url={branding.icon_url} branding={branding} onStale={onStale} />
+          <AssetPicker kind="logo-light" label={t("fields.logo")} hint={t("fields.logoHint")} url={branding.logo_light_url} branding={branding} onStale={onStale} />
+          <AssetPicker kind="logo-dark" label={t("fields.logoDark")} hint={t("fields.logoDarkHint")} url={branding.logo_dark_url} branding={branding} onStale={onStale} />
+          <AssetPicker kind="icon" label={t("fields.icon")} hint={t("fields.iconHint")} url={branding.icon_url} branding={branding} onStale={onStale} />
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor="brand-accent">Accent colour</Label>
+          <Label htmlFor="brand-accent">{t("fields.accent")}</Label>
           <div className="flex items-center gap-2">
             <input
               type="color"
-              aria-label="Pick accent colour"
+              aria-label={t("fields.pickAccent")}
               value={accentValid ? draft.accent : DEFAULT_ACCENT}
               onChange={(e) => set("accent", e.target.value)}
               className="h-9 w-12 cursor-pointer rounded-md border border-line-strong bg-field p-1"
@@ -191,38 +201,41 @@ function BrandingForm({ branding, onStale }: { branding: Branding; onStale: () =
             />
             {draft.accent ? (
               <Button type="button" variant="ghost" size="sm" onClick={() => set("accent", "")}>
-                Use default
+                {t("fields.useDefault")}
               </Button>
             ) : null}
           </div>
           <p id="brand-accent-hint" className="text-sm text-muted">
-            Buttons, links and focus rings. Hover and dark-mode shades are derived for you.
+            {t("fields.accentHint")}
           </p>
           {msg("accent") || (draft.accent && !accentValid) ? (
-            <p className="text-sm text-danger-text">{msg("accent") ?? FIELD_MESSAGES.must_be_hex}</p>
+            <p className="text-sm text-danger-text">{msg("accent") ?? t(FIELD_MESSAGES.must_be_hex)}</p>
           ) : null}
           {derived?.adjusted ? (
             <p role="status" className="flex items-start gap-1.5 rounded-md bg-tag-yellow-bg px-2 py-1.5 text-sm text-tag-yellow-text">
               <AlertTriangle className="mt-0.5 size-4 shrink-0" aria-hidden="true" />
               <span>
-                {draft.accent} has a contrast of {contrast(draft.accent, "#ffffff").toFixed(1)}:1 on white, below the 4.5:1 WCAG AA
-                minimum. Light mode will use the darker {derived.light.accent} instead.
+                {t("contrast", {
+                  color: draft.accent,
+                  ratio: contrast(draft.accent, "#ffffff").toFixed(1),
+                  adjusted: derived.light.accent,
+                })}
               </span>
             </p>
           ) : null}
         </div>
 
-        <ChoiceGroup label="Corners" name="radius" options={RADIUS_OPTIONS} value={draft.radius} onChange={(v) => set("radius", v)} />
-        <ChoiceGroup label="Neutral tint" name="tint" options={TINT_OPTIONS} value={draft.tint} onChange={(v) => set("tint", v)} />
+        <ChoiceGroup label={t("fields.corners")} name="radius" options={RADIUS_OPTIONS} value={draft.radius} onChange={(v) => set("radius", v)} />
+        <ChoiceGroup label={t("fields.tint")} name="tint" options={TINT_OPTIONS} value={draft.tint} onChange={(v) => set("tint", v)} />
 
-        <TextField id="brand-headline" label="Sign-in headline" value={draft.login_headline} placeholder="Welcome back" max={80}
+        <TextField id="brand-headline" label={t("fields.headline")} value={draft.login_headline} placeholder={t("defaults.headline")} max={80}
           error={msg("login_headline")} onChange={(v) => set("login_headline", v)} />
-        <TextField id="brand-subtitle" label="Sign-in subtitle" value={draft.login_subtitle} placeholder="Sign in to your workspace." max={160}
+        <TextField id="brand-subtitle" label={t("fields.subtitle")} value={draft.login_subtitle} placeholder={t("defaults.subtitle")} max={160}
           error={msg("login_subtitle")} onChange={(v) => set("login_subtitle", v)} />
         <div className="grid gap-4 sm:grid-cols-2">
-          <TextField id="brand-support-url" label="Support URL" value={draft.support_url} placeholder="https://help.example.com" max={300}
-            hint="Shown as Get help in the account menu." error={msg("support_url")} onChange={(v) => set("support_url", v)} type="url" />
-          <TextField id="brand-support-email" label="Support email" value={draft.support_email} placeholder="support@example.com" max={254}
+          <TextField id="brand-support-url" label={t("fields.supportUrl")} value={draft.support_url} placeholder="https://help.example.com" max={300}
+            hint={t("fields.supportUrlHint")} error={msg("support_url")} onChange={(v) => set("support_url", v)} type="url" />
+          <TextField id="brand-support-email" label={t("fields.supportEmail")} value={draft.support_email} placeholder="support@example.com" max={254}
             error={msg("support_email")} onChange={(v) => set("support_email", v)} type="email" />
         </div>
 
@@ -235,26 +248,26 @@ function BrandingForm({ branding, onStale }: { branding: Branding; onStale: () =
             onChange={(e) => set("hide_powered_by", e.target.checked)}
             className="size-4"
           />
-          Hide “Powered by Runtime Web”
+          {t("fields.hidePoweredBy", { name: UPSTREAM_NAME })}
         </label>
 
         <div className="flex flex-wrap gap-2">
           <Button type="submit" variant="default" disabled={save.isPending}>
-            Save branding
+            {t("actions.save")}
           </Button>
           <Button type="button" variant="secondary" onClick={() => setConfirmReset(true)}>
-            Reset to defaults
+            {t("actions.reset")}
           </Button>
         </div>
       </form>
 
       <div className="flex min-w-0 flex-col gap-2">
-        <p className="text-[13px] font-medium">Preview</p>
+        <p className="text-[13px] font-medium">{t("preview.heading")}</p>
         <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-          {(["light", "dark"] as const).map((t) => (
+          {(["light", "dark"] as const).map((th) => (
             <BrandPreview
-              key={t}
-              theme={t}
+              key={th}
+              theme={th}
               draft={draft}
               assets={{ logoLight: branding.logo_light_url, logoDark: branding.logo_dark_url, icon: branding.icon_url }}
             />
@@ -265,9 +278,9 @@ function BrandingForm({ branding, onStale }: { branding: Branding; onStale: () =
       <ConfirmDialog
         open={confirmReset}
         onOpenChange={setConfirmReset}
-        title="Reset branding?"
-        description="The product name, images, colour and sign-in text go back to the defaults. Uploaded images are deleted."
-        confirmLabel="Reset branding"
+        title={t("reset.title")}
+        description={t("reset.description")}
+        confirmLabel={t("reset.confirm")}
         destructive
         pending={reset.isPending}
         onConfirm={onReset}
@@ -297,8 +310,9 @@ function TextField({
 function ChoiceGroup<T extends string>({
   label, name, options, value, onChange,
 }: {
-  label: string; name: string; options: { value: T; label: string }[]; value: T; onChange: (v: T) => void;
+  label: string; name: string; options: { value: T; labelKey: ChoiceKey }[]; value: T; onChange: (v: T) => void;
 }) {
+  const { t } = useTranslation("branding");
   return (
     <fieldset className="flex flex-col gap-1.5">
       <legend className="mb-1.5 text-[13px] font-medium">{label}</legend>
@@ -312,7 +326,7 @@ function ChoiceGroup<T extends string>({
             )}
           >
             <input type="radio" name={name} value={o.value} checked={value === o.value} onChange={() => onChange(o.value)} className="sr-only" />
-            {o.label}
+            {t(o.labelKey)}
           </label>
         ))}
       </div>
@@ -327,6 +341,7 @@ function AssetPicker({
 }) {
   const upload = useUploadBrandAsset();
   const remove = useDeleteBrandAsset();
+  const { t } = useTranslation(["branding", "common"]);
   const input = useRef<HTMLInputElement>(null);
   const [over, setOver] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -334,15 +349,15 @@ function AssetPicker({
 
   function fail(err: unknown) {
     if (err instanceof ApiError && err.code === "stale") {
-      toast.error("Branding was changed by someone else. The latest version is loaded.");
+      toast.error(t("toast.stale"));
       onStale();
     } else if (err instanceof ApiError && err.status === 413) {
-      setError("The image is larger than 512 KB.");
+      setError(t("asset.tooLarge"));
     } else if (err instanceof ApiError && err.fieldErrors().data) {
       const code = err.fieldErrors().data ?? "";
-      setError(FIELD_MESSAGES[code] ?? "This image cannot be used.");
+      setError(isFieldCode(code) ? t(FIELD_MESSAGES[code]) : t("asset.cannotUse"));
     } else {
-      setError("Could not upload the image. Try again.");
+      setError(t("asset.uploadFailed"));
     }
   }
 
@@ -350,7 +365,7 @@ function AssetPicker({
     if (!file) return;
     setError(null);
     if (file.size > MAX_ASSET_BYTES) {
-      setError("The image is larger than 512 KB.");
+      setError(t("asset.tooLarge"));
       return;
     }
     const data = await readBase64(file);
@@ -383,20 +398,20 @@ function AssetPicker({
         )}
       >
         {url ? (
-          <img src={url} alt={`${label} preview`} className="max-h-12 max-w-full object-contain" />
+          <img src={url} alt={t("asset.preview", { label })} className="max-h-12 max-w-full object-contain" />
         ) : (
           <ImageUp className="size-5 text-muted" aria-hidden="true" />
         )}
         <div className="flex items-center gap-1">
           <Button type="button" variant="ghost" size="sm" disabled={upload.isPending} onClick={() => input.current?.click()}>
-            {url ? "Replace" : "Choose file"}
+            {url ? t("asset.replace") : t("asset.choose")}
           </Button>
           {url ? (
             <Button
               type="button"
               variant="ghost"
               size="icon-sm"
-              aria-label={`Remove ${label.toLowerCase()}`}
+              aria-label={t("asset.remove", { label: label.toLowerCase() })}
               disabled={remove.isPending}
               onClick={() => remove.mutate({ etag: branding.etag, kind }, { onError: fail })}
             >
@@ -418,7 +433,7 @@ function AssetPicker({
         />
       </div>
       <p id={`${id}-hint`} className="text-[12px] text-muted">
-        {hint} PNG, JPEG, WebP, ICO or SVG, up to 512 KB. Drop a file or choose one.
+        {t("asset.hint", { hint })}
       </p>
       {error ? <p role="alert" className="text-sm text-danger-text">{error}</p> : null}
     </div>
