@@ -1,6 +1,7 @@
 import { ShieldCheck as ShieldCheckTile } from "lucide-react";
 import { PageHeader } from "@/components/ui/page-header";
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { AuthForm, FormField } from "@/components/auth/auth-form";
@@ -11,6 +12,7 @@ import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ApiError } from "@/lib/api";
+import { formatDateTime } from "@/lib/format";
 import { describeUserAgent } from "@/lib/user-agent";
 
 import { EnrollTotp, RecoveryCodes } from "./enroll-2fa";
@@ -23,24 +25,42 @@ import {
   useRevokeOtherSessions,
   useRevokeSession,
   useSessions,
+  type LoginEvent,
 } from "./hooks";
+
+const RESULT_KEY = {
+  ok: "logins.results.ok",
+  bad_password: "logins.results.bad_password",
+  bad_totp: "logins.results.bad_totp",
+  rate_limited: "logins.results.rate_limited",
+  disabled: "logins.results.disabled",
+  sso_only: "logins.results.sso_only",
+  mfa_pending: "logins.results.mfa_pending",
+} as const satisfies Record<LoginEvent["result"], string>;
+
+const METHOD_KEY = {
+  password: "logins.methods.password",
+  oauth: "logins.methods.oauth",
+  invite: "logins.methods.invite",
+} as const satisfies Record<LoginEvent["method"], string>;
 
 // SecurityPage is the account security page: two-factor auth, sessions and login history.
 export function SecurityPage() {
   const me = useMe();
+  const { t } = useTranslation(["security", "common"]);
 
   if (me.isError) {
-    return <QueryError error={me.error} onRetry={() => void me.refetch()} notFoundTitle="Account not found" />;
+    return <QueryError error={me.error} onRetry={() => void me.refetch()} notFoundTitle={t("accountNotFound")} />;
   }
   if (me.isPending) return <Skeleton className="h-64 w-full" />;
 
   return (
     <div className="mx-auto flex w-full max-w-3xl flex-col gap-6">
-      <PageHeader icon={ShieldCheckTile} entity="security" title="Account security" description={me.data.user.email} />
+      <PageHeader icon={ShieldCheckTile} entity="security" title={t("title")} description={me.data.user.email} />
 
       {me.data.mfa_enrollment_required ? (
         <p role="alert" className="rounded-lg border border-line bg-surface p-4 shadow-card text-sm">
-          This instance requires two-factor authentication. Set it up to keep using Runtime Web.
+          {t("mfaRequired")}
         </p>
       ) : null}
 
@@ -53,14 +73,15 @@ export function SecurityPage() {
 }
 
 function TwoFactorSection({ enabled }: { enabled: boolean }) {
+  const { t } = useTranslation("security");
   if (!enabled) {
     return (
       <section aria-labelledby="mfa-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
         <div>
           <h2 id="mfa-heading" className="text-[15px] font-semibold">
-            Two-factor authentication
+            {t("twoFactor.title")}
           </h2>
-          <p className="text-sm text-muted">Ask for a code from your authenticator app each time you sign in.</p>
+          <p className="text-sm text-muted">{t("twoFactor.description")}</p>
         </div>
         <EnrollTotp />
       </section>
@@ -70,9 +91,9 @@ function TwoFactorSection({ enabled }: { enabled: boolean }) {
     <section aria-labelledby="mfa-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
       <div>
         <h2 id="mfa-heading" className="text-[15px] font-semibold">
-          Two-factor authentication
+          {t("twoFactor.title")}
         </h2>
-        <p className="text-sm text-muted">Two-factor authentication is on.</p>
+        <p className="text-sm text-muted">{t("twoFactor.on")}</p>
       </div>
       <RegenerateCodes />
       <DisableTotp />
@@ -82,6 +103,7 @@ function TwoFactorSection({ enabled }: { enabled: boolean }) {
 
 function RegenerateCodes() {
   const regen = useRegenerateRecoveryCodes();
+  const { t } = useTranslation("security");
   const [codes, setCodes] = useState<string[] | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -89,7 +111,7 @@ function RegenerateCodes() {
     e.preventDefault();
     const password = String(new FormData(e.currentTarget).get("password") ?? "");
     if (!password) {
-      setError("Enter your password.");
+      setError(t("enterPassword"));
       return;
     }
     setError(null);
@@ -98,7 +120,9 @@ function RegenerateCodes() {
       {
         onSuccess: (res) => setCodes(res.recovery_codes),
         onError: (err) => {
-          setError(err instanceof ApiError && err.code === "invalid_credentials" ? "That password is not right." : "Could not create new codes.");
+          setError(
+            err instanceof ApiError && err.code === "invalid_credentials" ? t("wrongPassword") : t("recovery.regenFailed"),
+          );
         },
       },
     );
@@ -108,13 +132,13 @@ function RegenerateCodes() {
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-[13px] font-medium text-muted">Recovery codes</h3>
-      <p className="text-sm text-muted">Creating new codes makes your old codes stop working.</p>
+      <h3 className="text-[13px] font-medium text-muted">{t("recovery.title")}</h3>
+      <p className="text-sm text-muted">{t("recovery.regenDescription")}</p>
       <AuthForm errors={error ? { password: error } : {}} onSubmit={onSubmit}>
-        <FormField label="Password" name="password" type="password" autoComplete="current-password" error={error ?? undefined} />
+        <FormField label={t("passwordLabel")} name="password" type="password" autoComplete="current-password" error={error ?? undefined} />
         <div>
           <Button type="submit" variant="secondary" disabled={regen.isPending}>
-            Create new recovery codes
+            {t("recovery.regenerate")}
           </Button>
         </div>
       </AuthForm>
@@ -125,6 +149,7 @@ function RegenerateCodes() {
 function DisableTotp() {
   const disable = useDisableTotp();
   const me = useMe();
+  const { t } = useTranslation("security");
   const [error, setError] = useState<string | null>(null);
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -133,18 +158,18 @@ function DisableTotp() {
     const password = String(data.get("password") ?? "");
     const code = String(data.get("code") ?? "").trim();
     if (!password || !code) {
-      setError("Enter your password and a code.");
+      setError(t("disable.required"));
       return;
     }
     setError(null);
     disable.mutate(
       { password, code },
       {
-        onSuccess: () => toast.success("Two-factor authentication is off."),
+        onSuccess: () => toast.success(t("toast.twoFactorOff")),
         onError: (err) => {
-          if (err instanceof ApiError && err.code === "invalid_credentials") setError("That password is not right.");
-          else if (err instanceof ApiError && err.code === "invalid_code") setError("That code is not right.");
-          else setError("Could not turn off 2FA.");
+          if (err instanceof ApiError && err.code === "invalid_credentials") setError(t("wrongPassword"));
+          else if (err instanceof ApiError && err.code === "invalid_code") setError(t("wrongCode"));
+          else setError(t("disable.failed"));
         },
       },
     );
@@ -154,13 +179,13 @@ function DisableTotp() {
 
   return (
     <div className="flex flex-col gap-3">
-      <h3 className="text-[13px] font-medium text-muted">Turn off two-factor authentication</h3>
+      <h3 className="text-[13px] font-medium text-muted">{t("disable.title")}</h3>
       <AuthForm errors={error ? { code: error } : {}} onSubmit={onSubmit}>
-        <FormField label="Password" name="password" type="password" autoComplete="current-password" />
-        <FormField label="Authentication code" name="code" inputMode="numeric" autoComplete="one-time-code" error={error ?? undefined} />
+        <FormField label={t("passwordLabel")} name="password" type="password" autoComplete="current-password" />
+        <FormField label={t("codeLabel")} name="code" inputMode="numeric" autoComplete="one-time-code" error={error ?? undefined} />
         <div>
           <Button type="submit" variant="danger" disabled={disable.isPending}>
-            Turn off 2FA
+            {t("disable.button")}
           </Button>
         </div>
       </AuthForm>
@@ -172,15 +197,16 @@ function SessionsSection() {
   const sessions = useSessions();
   const revoke = useRevokeSession();
   const revokeOthers = useRevokeOtherSessions();
+  const { t } = useTranslation(["security", "common"]);
 
   return (
     <section aria-labelledby="sessions-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
       <header className="flex flex-wrap items-center justify-between gap-3">
         <div>
           <h2 id="sessions-heading" className="text-[15px] font-semibold">
-            Sessions
+            {t("sessions.title")}
           </h2>
-          <p className="text-sm text-muted">Devices signed in to your account.</p>
+          <p className="text-sm text-muted">{t("sessions.description")}</p>
         </div>
         {sessions.data && sessions.data.some((s) => !s.current) ? (
           <Button
@@ -188,41 +214,41 @@ function SessionsSection() {
             disabled={revokeOthers.isPending}
             onClick={() =>
               revokeOthers.mutate(undefined, {
-                onSuccess: (res) => toast.success(`Signed out ${res.revoked} other session(s).`),
+                onSuccess: (res) => toast.success(t("toast.signedOut", { count: res.revoked })),
               })
             }
           >
-            Sign out other sessions
+            {t("sessions.signOutOthers")}
           </Button>
         ) : null}
       </header>
 
       {sessions.isError ? (
-        <QueryError error={sessions.error} onRetry={() => void sessions.refetch()} notFoundTitle="Sessions not found" />
+        <QueryError error={sessions.error} onRetry={() => void sessions.refetch()} notFoundTitle={t("sessionsNotFound")} />
       ) : sessions.isPending ? (
         <Skeleton className="h-24 w-full" />
       ) : (
-        <ul aria-label="Sessions" className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
+        <ul aria-label={t("sessions.list")} className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
           {sessions.data.map((s) => (
             <li key={s.id} className="group flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
               <span>
                 <span className="font-medium">{describeUserAgent(s.ua)}</span>
                 <span className="block text-muted">
-                  {s.ip} · last active {new Date(s.last_seen_at).toLocaleString()}
+                  {t("sessions.lastActive", { ip: s.ip, time: formatDateTime(s.last_seen_at) })}
                 </span>
               </span>
               {s.current ? (
-                <Badge variant="info">This session</Badge>
+                <Badge variant="info">{t("sessions.current")}</Badge>
               ) : (
                 <Button
                   variant="ghost"
                   size="sm"
                   className="opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100"
-                  aria-label={`Revoke session ${describeUserAgent(s.ua)}`}
+                  aria-label={t("sessions.revokeLabel", { device: describeUserAgent(s.ua) })}
                   disabled={revoke.isPending}
                   onClick={() => revoke.mutate(s.id)}
                 >
-                  Revoke
+                  {t("sessions.revoke")}
                 </Button>
               )}
             </li>
@@ -235,38 +261,39 @@ function SessionsSection() {
 
 function LoginHistorySection() {
   const logins = useLogins();
+  const { t } = useTranslation(["security", "common"]);
 
   return (
     <section aria-labelledby="logins-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
       <div>
         <h2 id="logins-heading" className="text-[15px] font-semibold">
-          Login history
+          {t("logins.title")}
         </h2>
-        <p className="text-sm text-muted">Recent sign-in attempts on your account.</p>
+        <p className="text-sm text-muted">{t("logins.description")}</p>
       </div>
       {logins.isError ? (
-        <QueryError error={logins.error} onRetry={() => void logins.refetch()} notFoundTitle="History not found" />
+        <QueryError error={logins.error} onRetry={() => void logins.refetch()} notFoundTitle={t("historyNotFound")} />
       ) : logins.isPending ? (
         <Skeleton className="h-24 w-full" />
       ) : logins.data.length === 0 ? (
-        <EmptyState entity="security" title="No sign-ins yet" />
+        <EmptyState entity="security" title={t("logins.empty")} />
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>When</TableHead>
-              <TableHead>Device</TableHead>
-              <TableHead>Method</TableHead>
-              <TableHead>Result</TableHead>
+              <TableHead>{t("logins.when")}</TableHead>
+              <TableHead>{t("logins.device")}</TableHead>
+              <TableHead>{t("logins.method")}</TableHead>
+              <TableHead>{t("logins.result")}</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
             {logins.data.map((e) => (
               <TableRow key={e.id}>
-                <TableCell>{new Date(e.at).toLocaleString()}</TableCell>
+                <TableCell>{formatDateTime(e.at)}</TableCell>
                 <TableCell>{describeUserAgent(e.ua)}</TableCell>
-                <TableCell>{e.method}</TableCell>
-                <TableCell>{e.result === "ok" ? "Signed in" : e.result.replace(/_/g, " ")}</TableCell>
+                <TableCell>{t(METHOD_KEY[e.method])}</TableCell>
+                <TableCell>{t(RESULT_KEY[e.result])}</TableCell>
               </TableRow>
             ))}
           </TableBody>

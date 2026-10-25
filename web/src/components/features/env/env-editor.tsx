@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, Eye, EyeOff, FileText, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { QueryError } from "@/components/features/empty/query-error";
@@ -22,6 +23,7 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CopyButton } from "@/components/ui/url-bar";
 import { api } from "@/lib/api";
+import { i18n } from "@/lib/i18n";
 
 const KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -47,7 +49,7 @@ export function parseEnvText(text: string): { env: Record<string, string> } | { 
     if (line === "" || line.startsWith("#")) continue;
     const eq = line.indexOf("=");
     const key = eq === -1 ? "" : line.slice(0, eq).trim();
-    if (!KEY_PATTERN.test(key)) return { error: `Line ${i + 1}: use KEY=VALUE with a valid name.` };
+    if (!KEY_PATTERN.test(key)) return { error: i18n.t("env:parse.badLine", { line: i + 1 }) };
     env[key] = line.slice(eq + 1);
   }
   return { env };
@@ -66,7 +68,7 @@ export function useSaveEnv(org: string, app: string) {
     mutationFn: (body: Record<string, string>) =>
       api.put<{ env: Record<string, string> }>(`${appPath(org, app)}/env`, { env: body }),
     onSuccess: () => {
-      toast.success("Environment saved.");
+      toast.success(i18n.t("env:toast.saved"));
       void qc.invalidateQueries({ queryKey: ["env", org, app] });
     },
   });
@@ -87,6 +89,7 @@ function downloadText(name: string, text: string) {
 export function EnvEditor({ org, app, canWrite = true }: { org: string; app: string; canWrite?: boolean }) {
   const env = useEnv(org, app);
   const save = useSaveEnv(org, app);
+  const { t } = useTranslation(["env", "common"]);
   const [mode, setMode] = useState<"table" | "text">("table");
   const [text, setText] = useState("");
   const [error, setError] = useState<string | null>(null);
@@ -100,7 +103,7 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
   }, [env.data]);
 
   if (env.isError) {
-    return <QueryError error={env.error} onRetry={() => void env.refetch()} notFoundTitle="App not found" />;
+    return <QueryError error={env.error} onRetry={() => void env.refetch()} notFoundTitle={t("appNotFound")} />;
   }
   if (env.isPending) return <Skeleton className="h-40 w-full" />;
 
@@ -123,7 +126,7 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
     if (!editing) return;
     const key = editing.key.trim();
     if (!KEY_PATTERN.test(key)) {
-      setError("Use letters, digits and underscores, starting with a letter or underscore.");
+      setError(t("keyInvalid"));
       return;
     }
     setError(null);
@@ -136,7 +139,7 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
     reader.onload = () => {
       const parsed = parseEnvText(String(reader.result ?? ""));
       if ("error" in parsed) {
-        toast.error(`Could not import: ${parsed.error}`);
+        toast.error(t("toast.importFailed", { error: parsed.error }));
         return;
       }
       save.mutate({ ...data, ...parsed.env });
@@ -147,19 +150,19 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
   const actions = (
     <>
       <button type="button" className={SMALL_CONTROL} onClick={() => downloadText(`${app}.env`, toEnvText(data))} disabled={keys.length === 0}>
-        <Download aria-hidden="true" /> Export .env
+        <Download aria-hidden="true" /> {t("export")}
       </button>
       {canWrite ? (
         <>
           <button type="button" className={SMALL_CONTROL} onClick={() => fileRef.current?.click()}>
-            <Upload aria-hidden="true" /> Import .env
+            <Upload aria-hidden="true" /> {t("import")}
           </button>
           <input
             ref={fileRef}
             type="file"
             accept=".env,text/plain"
             className="sr-only"
-            aria-label="Import .env file"
+            aria-label={t("importFile")}
             onChange={(e) => {
               onImport(e.target.files?.[0]);
               e.target.value = "";
@@ -174,10 +177,10 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
               setMode(mode === "text" ? "table" : "text");
             }}
           >
-            <FileText aria-hidden="true" /> {mode === "text" ? "Table" : "Edit as .env"}
+            <FileText aria-hidden="true" /> {mode === "text" ? t("table") : t("editAsText")}
           </button>
           <Button variant="default" size="sm" onClick={() => setEditing({ key: "", value: "" })}>
-            <Plus aria-hidden="true" /> Add
+            <Plus aria-hidden="true" /> {t("common:add")}
           </Button>
         </>
       ) : null}
@@ -186,15 +189,15 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
 
   return (
     <SectionCard
-      title="Environment variables"
-      description="Plain configuration your app reads at run time. Use secrets for anything sensitive."
+      title={t("editor.title")}
+      description={t("editor.description")}
       actions={actions}
       flush
     >
       {mode === "text" ? (
         <form onSubmit={onSubmitText} className="flex flex-col gap-3 p-5" aria-labelledby="env-heading">
           <label htmlFor="env-text" className="sr-only">
-            Environment variables
+            {t("text.label")}
           </label>
           <Textarea
             id="env-text"
@@ -215,10 +218,10 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
           ) : null}
           <div className="flex gap-2">
             <Button type="submit" variant="default" disabled={save.isPending}>
-              Save variables
+              {t("text.save")}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setMode("table")}>
-              Cancel
+              {t("common:cancel")}
             </Button>
           </div>
         </form>
@@ -226,12 +229,12 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
         <EmptyState
           bare
           entity="env"
-          title="No environment variables"
-          description="Add a KEY=VALUE pair or import a .env file."
+          title={t("empty.title")}
+          description={t("empty.description")}
           action={
             canWrite ? (
               <Button variant="default" onClick={() => setEditing({ key: "", value: "" })}>
-                <Plus aria-hidden="true" /> Add variable
+                <Plus aria-hidden="true" /> {t("addVariable")}
               </Button>
             ) : undefined
           }
@@ -240,10 +243,10 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
         <Table bare>
           <TableHeader>
             <TableRow>
-              <TableHead>Key</TableHead>
-              <TableHead>Value</TableHead>
+              <TableHead>{t("columns.key")}</TableHead>
+              <TableHead>{t("columns.value")}</TableHead>
               <TableHead className="w-28 text-right">
-                <span className="sr-only">Actions</span>
+                <span className="sr-only">{t("common:actions")}</span>
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -257,7 +260,7 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
                       <span className="truncate" title={k}>
                         {k}
                       </span>
-                      <CopyButton text={k} label={`Copy ${k}`} />
+                      <CopyButton text={k} label={t("copyLabel", { name: k })} />
                     </span>
                   </TableCell>
                   <TableCell className="max-w-[320px] font-mono text-[13px]">
@@ -266,7 +269,7 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
                       <Button
                         variant="ghost"
                         size="icon-sm"
-                        aria-label={shown ? `Hide value of ${k}` : `Show value of ${k}`}
+                        aria-label={shown ? t("hideValue", { name: k }) : t("showValue", { name: k })}
                         onClick={() => setRevealed((r) => ({ ...r, [k]: !shown }))}
                       >
                         {shown ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
@@ -276,10 +279,10 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
                   <TableCell className="text-right">
                     {canWrite ? (
                       <span className="inline-flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
-                        <Button variant="ghost" size="icon-sm" aria-label={`Edit ${k}`} onClick={() => setEditing({ key: k, value: data[k] })}>
+                        <Button variant="ghost" size="icon-sm" aria-label={t("editLabel", { name: k })} onClick={() => setEditing({ key: k, value: data[k] })}>
                           <Pencil aria-hidden="true" />
                         </Button>
-                        <Button variant="ghost" size="icon-sm" aria-label={`Delete ${k}`} className="hover:bg-danger-soft hover:text-danger-text" onClick={() => setDeleting(k)}>
+                        <Button variant="ghost" size="icon-sm" aria-label={t("deleteLabel", { name: k })} className="hover:bg-danger-soft hover:text-danger-text" onClick={() => setDeleting(k)}>
                           <Trash2 aria-hidden="true" />
                         </Button>
                       </span>
@@ -296,11 +299,11 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
         <DialogContent>
           <form onSubmit={onSubmitRow} className="flex flex-col gap-4">
             <DialogHeader>
-              <DialogTitle>{editing && editing.key in data ? `Edit ${editing.key}` : "Add variable"}</DialogTitle>
-              <DialogDescription>Saving replaces the whole set of variables for this app.</DialogDescription>
+              <DialogTitle>{editing && editing.key in data ? t("dialog.edit", { name: editing.key }) : t("addVariable")}</DialogTitle>
+              <DialogDescription>{t("dialog.description")}</DialogDescription>
             </DialogHeader>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="env-key">Key</Label>
+              <Label htmlFor="env-key">{t("dialog.key")}</Label>
               <Input
                 id="env-key"
                 value={editing?.key ?? ""}
@@ -319,7 +322,7 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
               ) : null}
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label htmlFor="env-value">Value</Label>
+              <Label htmlFor="env-value">{t("dialog.value")}</Label>
               <Input
                 id="env-value"
                 value={editing?.value ?? ""}
@@ -331,10 +334,10 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
             </div>
             <DialogFooter>
               <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
-                Cancel
+                {t("common:cancel")}
               </Button>
               <Button type="submit" variant="default" disabled={save.isPending}>
-                Save variable
+                {t("dialog.save")}
               </Button>
             </DialogFooter>
           </form>
@@ -344,9 +347,9 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
       <ConfirmDialog
         open={deleting !== null}
         onOpenChange={(open) => !open && setDeleting(null)}
-        title={`Delete ${deleting ?? ""}?`}
-        description={<p>Apps that read this variable see it missing after the next request.</p>}
-        confirmLabel="Delete variable"
+        title={t("confirm.title", { name: deleting ?? "" })}
+        description={<p>{t("confirm.description")}</p>}
+        confirmLabel={t("confirm.button")}
         pending={save.isPending}
         onConfirm={() => {
           if (!deleting) return;

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { KeyRound, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { AuthForm, FormField } from "@/components/auth/auth-form";
@@ -15,6 +16,7 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
+import { formatDate } from "@/lib/format";
 import { ApiError } from "@/lib/api";
 
 import { useDeleteSecret, useSaveSecret, useSecrets, type SecretMeta } from "./hooks";
@@ -28,6 +30,7 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
   const secrets = useSecrets(org, app);
   const save = useSaveSecret(org, app);
   const remove = useDeleteSecret(org, app);
+  const { t } = useTranslation(["secrets", "common"]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pendingDelete, setPendingDelete] = useState<SecretMeta | null>(null);
 
@@ -38,8 +41,8 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
     const name = String(data.get("name") ?? "").trim();
     const value = String(data.get("value") ?? "");
     const next: Record<string, string> = {};
-    if (!NAME_PATTERN.test(name)) next.name = "Use letters, digits and underscores, starting with a letter.";
-    if (value === "") next.value = "Enter a value.";
+    if (!NAME_PATTERN.test(name)) next.name = t("nameInvalid");
+    if (value === "") next.value = t("valueRequired");
     setErrors(next);
     if (Object.keys(next).length > 0) return;
     save.mutate(
@@ -47,13 +50,13 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
       {
         onSuccess: () => {
           form.reset();
-          toast.success(`Saved ${name}.`);
+          toast.success(t("toast.saved", { name }));
         },
         onError: (err) => {
           if (err instanceof ApiError && err.code === "invalid") {
             setErrors(err.fieldErrors());
           } else if (!(err instanceof ApiError)) {
-            toast.error("Could not save the secret. Try again.");
+            toast.error(t("toast.saveFailed"));
           }
         },
       },
@@ -66,7 +69,7 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
     remove.mutate(name, {
       onSuccess: () => {
         setPendingDelete(null);
-        toast.success(`Deleted ${name}.`);
+        toast.success(t("toast.deleted", { name }));
       },
     });
   }
@@ -75,40 +78,40 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
     <section aria-labelledby="secrets-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
       <header>
         <h2 id="secrets-heading" className="text-[15px] font-semibold">
-          Secrets
+          {t("title")}
         </h2>
-        <p className="text-sm text-muted">
-          Values are write-only. You can set or replace a secret, but nothing shows its value after saving.
-        </p>
+        <p className="text-sm text-muted">{t("description")}</p>
       </header>
 
       {secrets.isError ? (
         <QueryError
           error={secrets.error}
           onRetry={() => void secrets.refetch()}
-          notFoundTitle="App not found"
-          notFoundDescription="It may have been deleted or you lack access."
+          notFoundTitle={t("appNotFound")}
+          notFoundDescription={t("appNotFoundHint")}
         />
       ) : secrets.isPending ? (
         <Skeleton className="h-24 w-full" />
       ) : secrets.data.length === 0 ? (
-        <EmptyState bare entity="secrets"
+        <EmptyState
+          bare
+          entity="secrets"
           icon={KeyRound}
-          title="No secrets yet"
-          description="Secrets hold API keys and passwords your app reads at run time."
+          title={t("empty.title")}
+          description={t("empty.description")}
           action={
             canWrite ? (
-            <Button
-              variant="secondary"
-              onClick={() => document.querySelector<HTMLInputElement>('input[name="name"]')?.focus()}
-            >
-              Add a secret
-            </Button>
+              <Button
+                variant="secondary"
+                onClick={() => document.querySelector<HTMLInputElement>('input[name="name"]')?.focus()}
+              >
+                {t("empty.add")}
+              </Button>
             ) : undefined
           }
         />
       ) : (
-        <ul aria-label="Secret names" className="divide-y divide-line rounded-lg border border-line">
+        <ul aria-label={t("listLabel")} className="divide-y divide-line rounded-lg border border-line">
           {secrets.data.map((s) => (
             <li key={s.name} className="group flex h-10 items-center justify-between gap-3 px-4 text-sm">
               <span className="flex min-w-0 items-center gap-2 font-mono text-[13px] font-medium">
@@ -118,13 +121,13 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
                 </span>
               </span>
               <span className="flex shrink-0 items-center gap-3">
-                <span className="hidden text-[12px] text-muted sm:inline">Updated {new Date(s.updated_at).toLocaleDateString()}</span>
+                <span className="hidden text-[12px] text-muted sm:inline">{t("updated", { date: formatDate(s.updated_at) })}</span>
                 {canWrite ? (
                   <Button
                     variant="ghost"
                     size="icon"
                     className="opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-visible:opacity-100 [@media(hover:none)]:opacity-100"
-                    aria-label={`Delete ${s.name}`}
+                    aria-label={t("deleteLabel", { name: s.name })}
                     onClick={() => setPendingDelete(s)}
                   >
                     <Trash2 className="size-4" aria-hidden />
@@ -137,44 +140,42 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
       )}
 
       {canWrite ? (
-      <AuthForm errors={errors} onSubmit={onSubmit}>
-        <p className="text-[13px] font-medium">Set or replace a secret</p>
-        <FormField
-          label="Name"
-          name="name"
-          autoComplete="off"
-          spellCheck={false}
-          error={errors.name}
-        />
-        <FormField
-          label="Value"
-          name="value"
-          type="password"
-          autoComplete="new-password"
-          error={errors.value}
-        />
-        <div>
-          <Button type="submit" variant="default" disabled={save.isPending}>
-            Save secret
-          </Button>
-        </div>
-      </AuthForm>
+        <AuthForm errors={errors} onSubmit={onSubmit}>
+          <p className="text-[13px] font-medium">{t("form.title")}</p>
+          <FormField
+            label={t("common:name")}
+            name="name"
+            autoComplete="off"
+            spellCheck={false}
+            error={errors.name}
+          />
+          <FormField
+            label={t("form.value")}
+            name="value"
+            type="password"
+            autoComplete="new-password"
+            error={errors.value}
+          />
+          <div>
+            <Button type="submit" variant="default" disabled={save.isPending}>
+              {t("form.save")}
+            </Button>
+          </div>
+        </AuthForm>
       ) : null}
 
       <Dialog open={pendingDelete !== null} onOpenChange={(open) => !open && setPendingDelete(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete {pendingDelete?.name}?</DialogTitle>
-            <DialogDescription>
-              Apps that read this secret fail until you set it again. This cannot be undone.
-            </DialogDescription>
+            <DialogTitle>{t("confirm.title", { name: pendingDelete?.name ?? "" })}</DialogTitle>
+            <DialogDescription>{t("confirm.description")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setPendingDelete(null)}>
-              Cancel
+              {t("common:cancel")}
             </Button>
             <Button variant="danger-solid" onClick={confirmDelete} disabled={remove.isPending}>
-              Delete secret
+              {t("confirm.button")}
             </Button>
           </DialogFooter>
         </DialogContent>

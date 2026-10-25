@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Download, Printer } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { AuthForm, FormField } from "@/components/auth/auth-form";
 import { Button } from "@/components/ui/button";
@@ -11,8 +12,10 @@ import { useConfirmTotp, useEnrollTotp } from "./hooks";
 // RecoveryCodes shows the single-use codes once, with download and print. Dismissing the panel
 // drops them from the page.
 export function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () => void }) {
+  const { t } = useTranslation("security");
+
   function download() {
-    const blob = new Blob([`Runtime Web recovery codes\n\n${codes.join("\n")}\n`], { type: "text/plain" });
+    const blob = new Blob([`${t("recovery.fileHeader")}\n\n${codes.join("\n")}\n`], { type: "text/plain" });
     const url = URL.createObjectURL(blob);
     const a = document.createElement("a");
     a.href = url;
@@ -24,28 +27,25 @@ export function RecoveryCodes({ codes, onDone }: { codes: string[]; onDone: () =
   return (
     <div className="flex flex-col gap-3 rounded-md border border-line bg-panel p-4">
       <div>
-        <h3 className="text-[13px] font-medium text-muted">Recovery codes</h3>
-        <p className="text-sm text-muted">
-          Each code works once when you cannot use your authenticator. Store them somewhere safe. They are shown only
-          now.
-        </p>
+        <h3 className="text-[13px] font-medium text-muted">{t("recovery.title")}</h3>
+        <p className="text-sm text-muted">{t("recovery.description")}</p>
       </div>
-      <ul className="grid grid-cols-2 gap-2 font-mono text-sm" aria-label="Recovery codes">
+      <ul className="grid grid-cols-2 gap-2 font-mono text-sm" aria-label={t("recovery.title")}>
         {codes.map((c) => (
           <li key={c}>{c}</li>
         ))}
       </ul>
       <div className="flex flex-wrap gap-2">
-        <Button variant="secondary" size="sm" aria-label="Download recovery codes" onClick={download}>
+        <Button variant="secondary" size="sm" aria-label={t("recovery.downloadLabel")} onClick={download}>
           <Download className="size-4" aria-hidden />
-          Download
+          {t("recovery.download")}
         </Button>
-        <Button variant="secondary" size="sm" aria-label="Print recovery codes" onClick={() => window.print()}>
+        <Button variant="secondary" size="sm" aria-label={t("recovery.printLabel")} onClick={() => window.print()}>
           <Printer className="size-4" aria-hidden />
-          Print
+          {t("recovery.print")}
         </Button>
         <Button size="sm" onClick={onDone}>
-          I have saved my recovery codes
+          {t("recovery.saved")}
         </Button>
       </div>
     </div>
@@ -58,6 +58,7 @@ export function EnrollTotp({ onDone }: { onDone?: () => void }) {
   const qc = useQueryClient();
   const enroll = useEnrollTotp();
   const confirm = useConfirmTotp();
+  const { t } = useTranslation("security");
   const [otpauth, setOtpauth] = useState<string | null>(null);
   const [qr, setQr] = useState<string | null>(null);
   const [codes, setCodes] = useState<string[] | null>(null);
@@ -83,7 +84,7 @@ export function EnrollTotp({ onDone }: { onDone?: () => void }) {
     e.preventDefault();
     const password = String(new FormData(e.currentTarget).get("password") ?? "");
     if (!password) {
-      setError("Enter your current password.");
+      setError(t("enroll.enterPassword"));
       return;
     }
     setError(null);
@@ -95,9 +96,9 @@ export function EnrollTotp({ onDone }: { onDone?: () => void }) {
           setOtpauth(res.otpauth_url);
         },
         onError: (err) => {
-          if (err instanceof ApiError && err.code === "invalid_credentials") setError("Wrong password. Try again.");
-          else if (err instanceof ApiError && err.code === "rate_limited") setError("Too many attempts. Wait and try again.");
-          else setError("Could not start 2FA setup. Try again.");
+          if (err instanceof ApiError && err.code === "invalid_credentials") setError(t("enroll.wrongPassword"));
+          else if (err instanceof ApiError && err.code === "rate_limited") setError(t("enroll.rateLimited"));
+          else setError(t("enroll.failed"));
         },
       },
     );
@@ -107,16 +108,16 @@ export function EnrollTotp({ onDone }: { onDone?: () => void }) {
     e.preventDefault();
     const code = String(new FormData(e.currentTarget).get("code") ?? "").trim();
     if (!code) {
-      setError("Enter the 6-digit code from your app.");
+      setError(t("enroll.codeRequired"));
       return;
     }
     setError(null);
     confirm.mutate(code, {
       onSuccess: (res) => setCodes(res.recovery_codes),
       onError: (err) => {
-        if (err instanceof ApiError && err.code === "invalid_code") setError("That code is not right. Try again.");
-        else if (err instanceof ApiError && err.code === "rate_limited") setError("Too many attempts. Wait and try again.");
-        else setError("Could not turn on 2FA. Start again.");
+        if (err instanceof ApiError && err.code === "invalid_code") setError(t("enroll.invalidCode"));
+        else if (err instanceof ApiError && err.code === "rate_limited") setError(t("enroll.rateLimited"));
+        else setError(t("enroll.confirmFailed"));
       },
     });
   }
@@ -144,7 +145,7 @@ export function EnrollTotp({ onDone }: { onDone?: () => void }) {
           setAskPassword(true);
         }}
       >
-        Set up two-factor authentication
+        {t("twoFactor.setUp")}
       </Button>
     );
   }
@@ -152,9 +153,9 @@ export function EnrollTotp({ onDone }: { onDone?: () => void }) {
   if (!otpauth) {
     return (
       <AuthForm errors={error ? { password: error } : {}} onSubmit={onPasswordSubmit}>
-        <p className="text-sm">Enter your current password to start 2FA setup.</p>
+        <p className="text-sm">{t("enroll.passwordPrompt")}</p>
         <FormField
-          label="Current password"
+          label={t("currentPasswordLabel")}
           name="password"
           type="password"
           autoComplete="current-password"
@@ -162,7 +163,7 @@ export function EnrollTotp({ onDone }: { onDone?: () => void }) {
         />
         <div>
           <Button type="submit" disabled={enroll.isPending}>
-            Continue
+            {t("enroll.continue")}
           </Button>
         </div>
       </AuthForm>
@@ -171,18 +172,18 @@ export function EnrollTotp({ onDone }: { onDone?: () => void }) {
 
   return (
     <div className="flex flex-col gap-4">
-      <p className="text-sm">Scan this QR code with your authenticator app, then enter the 6-digit code it shows.</p>
+      <p className="text-sm">{t("enroll.scan")}</p>
       {qr ? (
-        <img src={qr} alt="QR code for your authenticator app" width={192} height={192} className="rounded-md bg-white p-2" />
+        <img src={qr} alt={t("enroll.qrAlt")} width={192} height={192} className="rounded-md bg-white p-2" />
       ) : (
-        <p className="text-sm text-muted">Preparing the QR code</p>
+        <p className="text-sm text-muted">{t("enroll.preparingQr")}</p>
       )}
       <p className="text-sm">
-        Cannot scan? Enter this key: <code className="break-all font-mono">{secret}</code>
+        {t("enroll.cannotScan")} <code className="break-all font-mono">{secret}</code>
       </p>
       <AuthForm errors={error ? { code: error } : {}} onSubmit={onSubmit}>
         <FormField
-          label="Authentication code"
+          label={t("codeLabel")}
           name="code"
           inputMode="numeric"
           autoComplete="one-time-code"
@@ -190,7 +191,7 @@ export function EnrollTotp({ onDone }: { onDone?: () => void }) {
         />
         <div>
           <Button type="submit" variant="default" disabled={confirm.isPending}>
-            Turn on 2FA
+            {t("enroll.turnOn")}
           </Button>
         </div>
       </AuthForm>
