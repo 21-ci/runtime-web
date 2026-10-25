@@ -16,6 +16,9 @@
 #   --insecure-skip-signature
 #                          install a Runtime Web release without verifying its Sigstore signature (checksums only).
 #                          Without this flag the installer refuses to run when cosign is not on PATH.
+#   --tarball PATH         install from a local runtime-web-X.Y.Z.tar.gz (release layout) instead of downloading
+#                          one: for testing a local build or air-gapped hosts. The tarball is NOT signature-checked;
+#                          pass --insecure-skip-signature to confirm (with --sha256 HEX it is checked against HEX)
 #   --dry-run              print every step instead of changing the host (needs no root, no network)
 #   --uninstall            remove Runtime Web files, secrets, bindings and the Caddy site (the runtime node stays)
 #   -h, --help
@@ -30,10 +33,12 @@
 #   4. generates RTWEB_RELAY_SECRET (0600, never printed), derives RTWEB_OP_TOKEN ("Bearer <root token>"), adds
 #      the rtweb plan + bindings (deploy/rt.rtweb.toml) and ingress.trusted_proxies to /etc/rt/rt.toml, restarts rt
 #   5. installs the Caddy site (deploy/Caddyfile: relay + console host + on-demand TLS gated by an `ask` endpoint)
+#      and puts its import first in /etc/caddy/Caddyfile (the site file holds the global options)
 #   6. runs server/scripts/install.mjs with the node's root token read from the rt environment file
 #   7. prints the first-run setup URL and firewall hints
 #
-# Environment: RTWEB_INSTALL_REPO (default 21-ci/runtime-web), RTWEB_INSTALL_BASE_URL (release download mirror;
+# Environment: RTWEB_SLUG (console service slug, default rtweb; install.mjs and the Caddy site use the same value),
+# RTWEB_INSTALL_REPO (default 21-ci/runtime-web), RTWEB_INSTALL_BASE_URL (release download mirror;
 # the signature still has to come from the release workflow), GITHUB_TOKEN (optional, for the latest-version lookup).
 set -eu
 
@@ -60,6 +65,9 @@ ETC=/etc/rtweb
 RT_TOML=/etc/rt/rt.toml
 CADDY_SITE=/etc/caddy/Caddyfile.d/rtweb.caddy
 CADDY_DROPIN=/etc/systemd/system/caddy.service.d/rtweb.conf
+CADDY_MAIN=/etc/caddy/Caddyfile
+CADDY_IMPORT='import /etc/caddy/Caddyfile.d/*.caddy'
+CADDY_IMPORT_MARK='# runtime-web install.sh: this import must stay first (rtweb.caddy holds the global options)'
 NODE_MIN_MAJOR=22
 NODE_MIN_MINOR=5
 BLOCK_BEGIN='# >>> runtime-web (managed by install.sh; do not edit inside) >>>'
@@ -73,6 +81,9 @@ APPS_DOMAIN=""
 EMAIL=""
 PUBLIC_URL=""
 DEFAULT_PLAN=""
+TARBALL=""
+TARBALL_SHA256=""
+SLUG=${RTWEB_SLUG:-rtweb}
 DRY_RUN=0
 UNINSTALL=0
 SKIP_SIG=0
@@ -112,6 +123,16 @@ while [ "$#" -gt 0 ]; do
     --default-plan)
       [ "$#" -ge 2 ] || die "--default-plan needs a plan name"
       DEFAULT_PLAN=$2
+      shift 2
+      ;;
+    --tarball)
+      [ "$#" -ge 2 ] || die "--tarball needs a path"
+      TARBALL=$2
+      shift 2
+      ;;
+    --sha256)
+      [ "$#" -ge 2 ] || die "--sha256 needs a hex digest"
+      TARBALL_SHA256=$2
       shift 2
       ;;
     --verify-signature)
@@ -162,6 +183,19 @@ fi
 if [ -n "$DEFAULT_PLAN" ]; then
   printf '%s' "$DEFAULT_PLAN" | grep -Eq '^[a-z0-9][a-z0-9_-]*$' || die "bad --default-plan '$DEFAULT_PLAN'"
 fi
+printf '%s' "$SLUG" | grep -Eq '^[a-z0-9][a-z0-9-]*$' || die "bad RTWEB_SLUG '$SLUG'"
+if [ -n "$TARBALL" ]; then
+  tb=$(basename "$TARBALL")
+  tv=${tb#runtime-web-}
+  tv=${tv%.tar.gz}
+  { [ "$tb" = "runtime-web-$tv.tar.gz" ] && valid_version "$tv"; } || die "--tarball must be named runtime-web-X.Y.Z.tar.gz (got $tb)"
+  [ -z "$VERSION" ] || [ "$VERSION" = "$tv" ] || die "--version $VERSION does not match --tarball $tb"
+  VERSION=$tv
+  [ "$UNINSTALL" = 1 ] || [ -f "$TARBALL" ] || [ "$DRY_RUN" = 1 ] || die "--tarball $TARBALL: no such file"
+  [ -z "$TARBALL_SHA256" ] || printf '%s' "$TARBALL_SHA256" | grep -Eq '^[0-9a-f]{64}$' || die "bad --sha256 (64 hex chars)"
+  [ -n "$TARBALL_SHA256" ] || [ "$SKIP_SIG" = 1 ] ||
+    die "--tarball is not signature-checked: pass --sha256 HEX or --insecure-skip-signature to install it anyway"
+fi
 [ "$UNINSTALL" = 1 ] || [ -n "$DOMAIN" ] || die "--domain is required (see --help)"
 [ "$UNINSTALL" = 1 ] || [ -n "$EMAIL" ] || die "--email is required: Caddy needs an ACME account e-mail (see --help)"
 [ -n "$PUBLIC_URL" ] || PUBLIC_URL="https://$APPS_DOMAIN"
@@ -207,11 +241,13 @@ if [ "$UNINSTALL" = 1 ]; then
   say "removing $PREFIX, $ETC (secrets, caddy.env), $CADDY_SITE and $CADDY_DROPIN"
   run rm -rf "$PREFIX" "$ETC"
   run rm -f "$CADDY_SITE" "$CADDY_DROPIN"
+  rmdir /etc/systemd/system/caddy.service.d 2>/dev/null || true
   if [ "$DRY_RUN" = 1 ]; then
-    say "would remove RTWEB_OP_TOKEN / RTWEB_RELAY_SECRET from $RT_ENV and the runtime-web block from $RT_TOML"
+    say "would remove RTWEB_OP_TOKEN / RTWEB_RELAY_SECRET from $RT_ENV, the runtime-web block from $RT_TOML and the import install.sh added to $CADDY_MAIN"
   else
     [ -f "$RT_ENV" ] && drop_env_keys "$RT_ENV" RTWEB_OP_TOKEN RTWEB_RELAY_SECRET
     [ -f "$RT_TOML" ] && strip_block "$RT_TOML"
+    [ -f "$CADDY_MAIN" ] && drop_caddy_import "$CADDY_MAIN"
   fi
   if have systemctl; then
     run systemctl daemon-reload
@@ -221,6 +257,7 @@ if [ "$UNINSTALL" = 1 ]; then
   cat >&2 <<EOF
 rtweb-install: Runtime Web files, secrets, the rtweb plan + bindings and the Caddy site are removed. Left in place:
   - the runtime node (rt), its data, RT_ROOT_TOKEN and the rest of $RT_TOML (backup: $RT_TOML.pre-rtweb)
+  - Caddy's certificates and $CADDY_MAIN without the Caddyfile.d import install.sh added (backup: $CADDY_MAIN.pre-rtweb)
   - the runtime tenant 'runtime-web' and service 'rtweb' (delete them with the control API:
     DELETE /v1/tenants/<id> using the root token)
 EOF
@@ -255,7 +292,7 @@ fi
 
 HAVE_COSIGN=0
 have cosign && HAVE_COSIGN=1
-if [ "$HAVE_COSIGN" = 0 ] && [ "$SKIP_SIG" = 0 ]; then
+if [ "$HAVE_COSIGN" = 0 ] && [ "$SKIP_SIG" = 0 ] && [ -z "$TARBALL" ]; then
   if [ "$DRY_RUN" = 1 ]; then
     say "warning: cosign not found (a real install refuses to run without it, unless --insecure-skip-signature)"
   else
@@ -269,17 +306,26 @@ if [ -z "$VERSION" ]; then
 fi
 tarball="runtime-web-$VERSION.tar.gz"
 say "Runtime Web $VERSION"
-fetch "$BASE_URL/v$VERSION/SHA256SUMS" "$tmp/SHA256SUMS"
-fetch "$BASE_URL/v$VERSION/$tarball" "$tmp/$tarball"
-
-if [ "$HAVE_COSIGN" = 1 ] || [ "$DRY_RUN" = 1 ]; then
-  fetch "$BASE_URL/v$VERSION/SHA256SUMS.sigstore.json" "$tmp/SHA256SUMS.sigstore.json"
-  verify_sums "$tmp/SHA256SUMS" "$CERT_IDENTITY_REGEXP" || die "cosign could not verify SHA256SUMS: refusing to install"
-  say "SHA256SUMS signature verified (Sigstore, $REPO release workflow identity)"
+if [ -n "$TARBALL" ]; then
+  say "WARNING: --tarball $TARBALL: a local file, not a signed release"
+  run cp "$TARBALL" "$tmp/$tarball"
+  if [ -n "$TARBALL_SHA256" ]; then
+    printf '%s  %s\n' "$TARBALL_SHA256" "$tarball" >"$tmp/SHA256SUMS"
+    check_sum "$tmp/SHA256SUMS" "$tmp/$tarball" "$tarball"
+  fi
 else
-  say "WARNING: --insecure-skip-signature: SHA256SUMS is NOT signature-checked; it only detects corruption"
+  fetch "$BASE_URL/v$VERSION/SHA256SUMS" "$tmp/SHA256SUMS"
+  fetch "$BASE_URL/v$VERSION/$tarball" "$tmp/$tarball"
+
+  if [ "$HAVE_COSIGN" = 1 ] || [ "$DRY_RUN" = 1 ]; then
+    fetch "$BASE_URL/v$VERSION/SHA256SUMS.sigstore.json" "$tmp/SHA256SUMS.sigstore.json"
+    verify_sums "$tmp/SHA256SUMS" "$CERT_IDENTITY_REGEXP" || die "cosign could not verify SHA256SUMS: refusing to install"
+    [ "$DRY_RUN" = 1 ] || say "SHA256SUMS signature verified (Sigstore, $REPO release workflow identity)"
+  else
+    say "WARNING: --insecure-skip-signature: SHA256SUMS is NOT signature-checked; it only detects corruption"
+  fi
+  check_sum "$tmp/SHA256SUMS" "$tmp/$tarball" "$tarball"
 fi
-check_sum "$tmp/SHA256SUMS" "$tmp/$tarball" "$tarball"
 
 dest="$PREFIX/$VERSION"
 run install -d -m 0755 "$PREFIX"
@@ -362,20 +408,19 @@ if have caddy; then
   run install -d -m 0755 /etc/caddy/Caddyfile.d
   run install -m 0644 "$APP/deploy/Caddyfile" "$CADDY_SITE"
   if [ "$DRY_RUN" = 1 ]; then
-    say "would write $ETC/caddy.env (0600: RTWEB_DOMAIN=$DOMAIN, RTWEB_APPS_DOMAIN=$APPS_DOMAIN, RTWEB_ACME_EMAIL, RTWEB_RELAY_SECRET) for caddy and import $CADDY_SITE"
+    say "would write $ETC/caddy.env (0600: RTWEB_DOMAIN=$DOMAIN, RTWEB_APPS_DOMAIN=$APPS_DOMAIN, RTWEB_ACME_EMAIL, RTWEB_SLUG=$SLUG, RTWEB_RELAY_SECRET) for caddy and import $CADDY_SITE"
   else
-    grep -q 'Caddyfile.d/' /etc/caddy/Caddyfile 2>/dev/null ||
-      printf '\nimport /etc/caddy/Caddyfile.d/*.caddy\n' >>/etc/caddy/Caddyfile
+    caddy_import "$CADDY_MAIN"
     # deploy/Caddyfile reads RTWEB_DOMAIN, RTWEB_APPS_DOMAIN, RTWEB_ACME_EMAIL and RTWEB_RELAY_SECRET (the relay's shared secret);
     # systemd loads the 0600 file as root before dropping to the caddy user.
-    printf 'RTWEB_DOMAIN=%s\nRTWEB_APPS_DOMAIN=%s\nRTWEB_ACME_EMAIL=%s\nRTWEB_RELAY_SECRET=%s\n' "$DOMAIN" "$APPS_DOMAIN" "$EMAIL" "$relay" >"$ETC/caddy.env"
+    printf 'RTWEB_DOMAIN=%s\nRTWEB_APPS_DOMAIN=%s\nRTWEB_ACME_EMAIL=%s\nRTWEB_SLUG=%s\nRTWEB_RELAY_SECRET=%s\n' "$DOMAIN" "$APPS_DOMAIN" "$EMAIL" "$SLUG" "$relay" >"$ETC/caddy.env"
     chmod 0600 "$ETC/caddy.env"
     install -d -m 0755 /etc/systemd/system/caddy.service.d
     printf '[Service]\nEnvironmentFile=%s\n' "$ETC/caddy.env" >"$CADDY_DROPIN"
     chmod 0644 "$CADDY_DROPIN"
     # Validate with the same environment Caddy will run with; a broken site must not be (re)started.
     (
-      export RTWEB_DOMAIN="$DOMAIN" RTWEB_APPS_DOMAIN="$APPS_DOMAIN" RTWEB_ACME_EMAIL="$EMAIL" RTWEB_RELAY_SECRET="$relay"
+      export RTWEB_DOMAIN="$DOMAIN" RTWEB_APPS_DOMAIN="$APPS_DOMAIN" RTWEB_ACME_EMAIL="$EMAIL" RTWEB_SLUG="$SLUG" RTWEB_RELAY_SECRET="$relay"
       caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >"$tmp/caddy-validate.log" 2>&1
     ) || {
       sed 's/^/  /' "$tmp/caddy-validate.log" >&2
@@ -401,7 +446,7 @@ else
   (
     RT_ROOT_TOKEN=$(root_token)
     export RT_ROOT_TOKEN
-    RTWEB_ORIGIN="https://$DOMAIN" RTWEB_HOST="$DOMAIN" RTWEB_RUNTIME_PUBLIC_URL="$PUBLIC_URL" \
+    RTWEB_SLUG="$SLUG" RTWEB_ORIGIN="https://$DOMAIN" RTWEB_HOST="$DOMAIN" RTWEB_RUNTIME_PUBLIC_URL="$PUBLIC_URL" \
       RTWEB_DEFAULT_PLAN="$DEFAULT_PLAN" RTWEB_VERSION="$VERSION" \
       node "$APP/server/scripts/install.mjs"
   ) || die "install.mjs failed (re-run is safe: it is idempotent)"
@@ -449,7 +494,7 @@ run() {
 usage() {
   cat <<'EOF'
 usage: install.sh --domain HOST --email ADDR [--apps-domain HOST] [--public-url URL] [--default-plan NAME] [--version X.Y.Z] [--runtime-version X.Y.Z]
-                  [--insecure-skip-signature] [--dry-run] | --uninstall [--dry-run]
+                  [--tarball PATH [--sha256 HEX]] [--insecure-skip-signature] [--dry-run] | --uninstall [--dry-run]
 
 Installs Runtime Web as an App on a 21 Cloud Runtime node and puts Caddy with on-demand TLS in front of it.
 The release's SHA256SUMS must carry a valid Sigstore signature from the release workflow (needs cosign), and the
@@ -530,14 +575,14 @@ install_rt() {
       esac
       [ "$(sha256 "$tmp/rt/$name.tar.gz")" = "$pinned" ] || die "checksum mismatch for $name.tar.gz: refusing to install"
     fi
-    say "runtime SHA256SUMS matches the pinned checksum"
+    [ "$DRY_RUN" = 1 ] || say "runtime SHA256SUMS matches the pinned checksum"
   elif [ "$HAVE_COSIGN" = 0 ] && [ "$DRY_RUN" = 0 ]; then
     die "--runtime-version $RT_VERSION is not the pinned $RT_PINNED_VERSION: verifying it needs cosign"
   fi
   if [ "$HAVE_COSIGN" = 1 ] || [ "$DRY_RUN" = 1 ]; then
     fetch "$url/SHA256SUMS.sigstore.json" "$tmp/rt/SHA256SUMS.sigstore.json"
     verify_sums "$tmp/rt/SHA256SUMS" "$RT_CERT_IDENTITY_REGEXP" || die "cosign could not verify the runtime SHA256SUMS"
-    say "runtime SHA256SUMS signature verified (Sigstore, $RT_REPO release workflow identity)"
+    [ "$DRY_RUN" = 1 ] || say "runtime SHA256SUMS signature verified (Sigstore, $RT_REPO release workflow identity)"
   fi
   check_sum "$tmp/rt/SHA256SUMS" "$tmp/rt/$name.tar.gz" "$name.tar.gz"
   run tar -xzf "$tmp/rt/$name.tar.gz" -C "$tmp/rt" --no-same-owner
@@ -598,6 +643,53 @@ strip_block() {
     $0 == l { legacy = 1 }
     !skip && !legacy { print }
   ' "$1" >"$1.rtweb-tmp"
+  chmod 0644 "$1.rtweb-tmp"
+  mv "$1.rtweb-tmp" "$1"
+}
+
+# caddy_import FILE: put the Caddyfile.d import first in the main Caddyfile. rtweb.caddy starts with the global
+# options block (email, on_demand_tls), which Caddy accepts only before every site block: distribution Caddyfiles
+# end with this import after their own `:80` site, which fails with "server block without any key is global
+# configuration, and if used, it must be first". An existing bare import line moves to the top (site order does not
+# matter); a main Caddyfile with its own global options block cannot take a second one.
+caddy_import() {
+  if [ ! -f "$1" ]; then
+    printf '%s\n%s\n' "$CADDY_IMPORT_MARK" "$CADDY_IMPORT" >"$1"
+    chmod 0644 "$1"
+    return 0
+  fi
+  [ -f "$1.pre-rtweb" ] || cp -p "$1" "$1.pre-rtweb"
+  first=$(awk -v m="$CADDY_IMPORT_MARK" -v i="$CADDY_IMPORT" '
+    { sub(/^[ \t]+/, ""); sub(/[ \t]+$/, "") }
+    $0 == "" || $0 ~ /^#/ || $0 == i { next }
+    { print; exit }' "$1")
+  case "$first" in
+    "{"*) die "$1 has its own global options block: move its options into the block at the top of $CADDY_SITE (or the reverse), put '$CADDY_IMPORT' at the top of $1, and re-run" ;;
+  esac
+  # Remember whether the import was there before us (moved, so uninstall keeps it) or added by us.
+  mark=$CADDY_IMPORT_MARK
+  if grep -qxF "$CADDY_IMPORT_MARK (moved)" "$1" || { ! grep -qxF "$CADDY_IMPORT_MARK" "$1" && grep -qxF "$CADDY_IMPORT" "$1"; }; then
+    mark="$CADDY_IMPORT_MARK (moved)"
+  fi
+  {
+    printf '%s\n%s\n' "$mark" "$CADDY_IMPORT"
+    awk -v m="$CADDY_IMPORT_MARK" -v i="$CADDY_IMPORT" '$0 == m || $0 == m " (moved)" || $0 == i { next } { print }' "$1"
+  } >"$1.rtweb-tmp"
+  chmod 0644 "$1.rtweb-tmp"
+  mv "$1.rtweb-tmp" "$1"
+}
+
+# drop_caddy_import FILE: undo caddy_import (the original is kept as FILE.pre-rtweb).
+drop_caddy_import() {
+  if grep -qxF "$CADDY_IMPORT_MARK (moved)" "$1"; then
+    grep -vxF "$CADDY_IMPORT_MARK (moved)" "$1" >"$1.rtweb-tmp" || true
+    chmod 0644 "$1.rtweb-tmp"
+    mv "$1.rtweb-tmp" "$1"
+    return 0
+  fi
+  grep -qxF "$CADDY_IMPORT_MARK" "$1" || return 0
+  awk -v m="$CADDY_IMPORT_MARK" -v i="$CADDY_IMPORT" '$0 == m { drop = 1; next } drop && $0 == i { drop = 0; next } { drop = 0; print }' \
+    "$1" >"$1.rtweb-tmp"
   chmod 0644 "$1.rtweb-tmp"
   mv "$1.rtweb-tmp" "$1"
 }

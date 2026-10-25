@@ -2,7 +2,8 @@
 # Env (install.sh writes them to /etc/rtweb/caddy.env, mode 0600):
 #      RTWEB_RELAY_SECRET (same value the node exports for binding rtctl-tenant; 64 hex chars, never empty),
 #      RTWEB_DOMAIN (console host, e.g. console.example.com), RTWEB_APPS_DOMAIN (Apps host, e.g.
-#      apps.console.example.com), RTWEB_ACME_EMAIL.
+#      apps.console.example.com), RTWEB_ACME_EMAIL, RTWEB_SLUG (the console service slug, install.mjs's
+#      RTWEB_SLUG; default rtweb).
 # The runtime never terminates TLS: Caddy does, and forwards plain HTTP to the invoke listener 127.0.0.1:8080,
 # which routes by Host (custom hosts mapped to services). The node trusts X-Forwarded-For from loopback only
 # (ingress.trusted_proxies = 127.0.0.1/32, ::1/128), so Caddy must overwrite the header with the real peer:
@@ -13,7 +14,7 @@
 	on_demand_tls {
 		# 200 only for an `active` custom domain (T8). Caddy calls it over loopback; the public sites below
 		# answer 404 for every /api/internal/* path, so it is not reachable from outside.
-		ask http://127.0.0.1:8080/s/rtweb/api/internal/tls-ask
+		ask http://127.0.0.1:8080/s/{$RTWEB_SLUG}/api/internal/tls-ask
 	}
 }
 
@@ -55,7 +56,8 @@ http://127.0.0.1:8082 {
 # Console host: mapped by the operator to service rtweb (PUT /v1/services/{s}/hosts/{host}).
 {$RTWEB_DOMAIN} {
 	# HSTS for the console host only: tenant custom domains decide their own policy.
-	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	# `?` sets it only when the service did not (the console sends its own): one header, never two.
+	header ?Strict-Transport-Security "max-age=31536000; includeSubDomains"
 	import rtweb_upstream
 }
 
@@ -65,7 +67,7 @@ http://127.0.0.1:8082 {
 # No HSTS here: Apps set their own headers, and includeSubDomains is not assumed for this host.
 {$RTWEB_APPS_DOMAIN} {
 	# The console itself is a service too: keep it off the Apps origin (it only answers on its own host).
-	@console path /s/rtweb /s/rtweb/*
+	@console path /s/{$RTWEB_SLUG} /s/{$RTWEB_SLUG}/*
 	respond @console 404
 	import rtweb_upstream
 }

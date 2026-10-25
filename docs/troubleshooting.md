@@ -166,9 +166,25 @@ DNS record first, as above. The endpoint answers only on loopback, so run the co
 | `this installer needs sha256sum or shasum to verify downloads` | Install coreutils |
 | `node ... is too old: need >= 22.5` | Install Node.js 22.5 or newer |
 | `cosign is required to verify the release signature` | Install [cosign](https://docs.sigstore.dev/cosign/system_config/installation/), or pass `--insecure-skip-signature` to install on checksums alone. The latter is not recommended |
-| `caddy validate failed` | Run the printed `caddy validate` command, fix the error, and run the installer again. Caddy is not restarted in this case |
+| `caddy validate failed` | The installer prints Caddy's error. Fix it, check with `caddy validate --config /etc/caddy/Caddyfile` (with the variables from `/etc/rtweb/caddy.env` exported), and run the installer again. Caddy is not restarted in this case |
+| `server block without any key is global configuration, and if used, it must be first` | The Caddyfile.d import sits after a site block. The installer moves it to the top of `/etc/caddy/Caddyfile`; if you edited the file, put `import /etc/caddy/Caddyfile.d/*.caddy` back on the first line |
+| `/etc/caddy/Caddyfile has its own global options block` | Caddy takes one global options block. Merge yours into the block at the top of `/etc/caddy/Caddyfile.d/rtweb.caddy` (or the reverse), put the import first, and run the installer again |
+| `--tarball is not signature-checked` | Pass `--sha256 HEX` with the tarball's digest, or `--insecure-skip-signature` |
 | `rt did not become ready` | Read `journalctl -u rt -n 200 --no-pager`. A typo in `/etc/rt/rt.toml` stops the node at start |
 | `caddy not found` | Install Caddy, then run the installer again |
+
+### Test an install without public DNS
+
+With made-up names such as `console.test`, Caddy cannot get public certificates, and `journalctl -u caddy` shows
+ACME errors for them. Everything else works. To check routing on such a host, add `local_certs` to the global block at
+the top of `/etc/caddy/Caddyfile.d/rtweb.caddy`, restart Caddy, and call it with `--resolve`:
+
+```bash
+curl -k --resolve console.test:443:127.0.0.1 https://console.test/api/setup        # {"needed":true}
+curl -k --resolve apps.test:443:127.0.0.1 -o /dev/null -w '%{http_code}\n' https://apps.test/s/rtweb/   # 404
+```
+
+The next run of the installer writes the site file again, without `local_certs`.
 
 ## Run the console and the tests locally
 

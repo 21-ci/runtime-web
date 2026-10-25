@@ -63,6 +63,7 @@ install onto an existing node, upgrades and uninstalling.
 | `--default-plan NAME` | `free` | Runtime plan for new org tenants (`RTWEB_DEFAULT_PLAN`) |
 | `--runtime-version X.Y.Z` | the version pinned in `install.sh` | Runtime release to install when `rt` is missing. Any other version needs cosign |
 | `--insecure-skip-signature` | off | Install on checksums alone, without the Sigstore check. Not recommended |
+| `--tarball PATH` | off | Install from a local `runtime-web-X.Y.Z.tar.gz` (the release layout) instead of downloading one: a local build or an air-gapped host. It is not signature-checked, so it also needs `--sha256 HEX` (checked against the file) or `--insecure-skip-signature` |
 | `--dry-run` | off | Print every step without changing the host |
 | `--uninstall` | off | Remove Runtime Web from the host. See [Uninstall](#uninstall) |
 
@@ -75,7 +76,22 @@ and the runtime routes a mapped host before it looks at `/s/<app>/`, so app link
 the console. The apps host is not mapped to any service, so the runtime routes it by path. The server refuses to
 start when `RTWEB_RUNTIME_PUBLIC_URL` has the same origin as `RTWEB_ORIGIN`.
 
+Set `RTWEB_SLUG` in the environment to give the console service a slug other than `rtweb`. The installer passes the
+same value to `install.mjs` and to the Caddy site, which blocks `/s/<slug>/` on the Apps host and calls the `tls-ask`
+endpoint under it. Choose it on the first install: changing it later creates a second service.
+
 Set `GITHUB_TOKEN` in the environment to avoid GitHub API rate limits when the installer looks up the latest release.
+
+### Tested platforms
+
+The installer is tested end to end (install, a second run, `--dry-run`, `--uninstall`) on:
+
+| Platform | Architecture | Runtime | Caddy | Node.js | Notes |
+|---|---|---|---|---|---|
+| Ubuntu 24.04 (systemd container) | aarch64 | rt 0.1.1 (pinned release asset) | 2.6.2 (Ubuntu package) | 22.20.0 | Fake `.test` domains: certificates came from Caddy's local CA, set by hand for the test |
+
+Other systemd distributions with the same tools should work. Public certificates, real DNS and on-demand TLS for
+custom domains need a host reachable from the internet, so they are not part of that test.
 
 ## What the installer does
 
@@ -89,8 +105,10 @@ Set `GITHUB_TOKEN` in the environment to avoid GitHub API rate limits when the i
    environment file. Then it merges the `rtweb` plan and bindings from `deploy/rt.rtweb.toml` into `/etc/rt/rt.toml`,
    adds `trusted_proxies` for loopback so client IPs come from Caddy, and restarts `rt`.
 5. Installs the Caddy site: the console host with HSTS, the Apps host (no HSTS), on-demand TLS for custom domains (gated by the console's
-   `tls-ask` endpoint), and a loopback relay for tenant-scoped API calls. It runs `caddy validate` and stops if the
-   configuration is invalid.
+   `tls-ask` endpoint), and a loopback relay for tenant-scoped API calls. The site file starts with Caddy's global
+   options, which Caddy accepts only before every site, so the installer puts
+   `import /etc/caddy/Caddyfile.d/*.caddy` at the top of `/etc/caddy/Caddyfile` (backup:
+   `/etc/caddy/Caddyfile.pre-rtweb`). It runs `caddy validate` and stops if the configuration is invalid.
 6. Runs `server/scripts/install.mjs` with the node's root token. It creates the `runtime-web` tenant, publishes the
    `rtctl` SDK, creates the `rtweb` service with its secrets, uploads the console bundle and maps the console host.
 7. Prints the first-run setup URL and firewall hints.
@@ -155,7 +173,8 @@ sudo sh install.sh --uninstall
 
 This removes the Runtime Web files under `/opt/runtime-web`, the secrets in `/etc/rtweb`, the Caddy site and its
 systemd drop-in, the `RTWEB_OP_TOKEN` and `RTWEB_RELAY_SECRET` entries in the rt environment file, and the managed block
-in `/etc/rt/rt.toml`.
+in `/etc/rt/rt.toml`. It also removes the `import` line the installer added to `/etc/caddy/Caddyfile`; a line that was
+there before stays.
 
 It keeps the runtime node, its data and `RT_ROOT_TOKEN`. It also keeps the `runtime-web` tenant and the `rtweb`
 service. Delete them with the control API when you no longer need them:
