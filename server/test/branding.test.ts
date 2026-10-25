@@ -194,11 +194,20 @@ describe("branding helpers", () => {
     expect(mix("#000000", "#ffffff", 0.5)).toBe("#808080");
   });
 
+  it("sniffs a crafted run of comments in linear time", () => {
+    const start = performance.now();
+    expect(sniff(svg("<!--" + "--><!--".repeat(50_000)))).toBeNull();
+    expect(performance.now() - start).toBeLessThan(1000);
+  });
+
   it("sniffs formats by magic bytes", () => {
     expect(sniff(new Uint8Array([0xff, 0xd8, 0xff, 0xe0]))).toBe("image/jpeg");
     expect(sniff(new Uint8Array([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]))).toBe("image/webp");
     expect(sniff(new Uint8Array([0, 0, 1, 0, 1, 0, 16]))).toBe("image/x-icon");
     expect(sniff(svg('<?xml version="1.0"?>\n<svg></svg>'))).toBe("image/svg+xml");
+    expect(sniff(svg("<!-- a --> <!-- b -->\n<svg viewBox='0 0 1 1'/>"))).toBe("image/svg+xml");
+    expect(sniff(svg("<!-- never closed <svg>"))).toBeNull();
+    expect(sniff(svg("<svgx></svgx>"))).toBeNull();
     expect(sniff(new Uint8Array([0xc3, 0x28]))).toBeNull();
   });
 

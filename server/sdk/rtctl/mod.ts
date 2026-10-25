@@ -151,7 +151,7 @@ function bytesToB64(b: Uint8Array): string {
   return btoa(s);
 }
 function isText(ct: string): boolean {
-  return ct === "" || /^text\/|json|javascript|typescript|xml|event-stream|x-ndjson/.test(ct);
+  return ct === "" || ct.startsWith("text/") || /json|javascript|typescript|xml|event-stream|x-ndjson/.test(ct);
 }
 
 export function createCore(d: CoreDeps) {

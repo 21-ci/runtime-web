@@ -21,8 +21,30 @@ export function sniff(b: Uint8Array): AssetMime | null {
   if (startsWith(b, [0x52, 0x49, 0x46, 0x46]) && startsWith(b, [0x57, 0x45, 0x42, 0x50], 8)) return "image/webp";
   if (startsWith(b, [0x00, 0x00, 0x01, 0x00]) && b.length > 6) return "image/x-icon";
   const text = svgText(b);
-  if (text !== null && /^(?:<\?xml[^>]*>\s*)?(?:<!--[\s\S]*?-->\s*)*<svg[\s>]/i.test(text)) return "image/svg+xml";
+  if (text !== null && startsWithSvgTag(text)) return "image/svg+xml";
   return null;
+}
+
+// startsWithSvgTag skips an XML declaration and leading comments, then expects <svg. A linear scan
+// instead of a regex like (?:<!--[\s\S]*?-->\s*)*, which backtracks exponentially on crafted input.
+function startsWithSvgTag(text: string): boolean {
+  let i = 0;
+  const skipSpace = () => {
+    while (i < text.length && /\s/.test(text[i] as string)) i++;
+  };
+  if (text.startsWith("<?xml", i)) {
+    const end = text.indexOf(">", i);
+    if (end < 0) return false;
+    i = end + 1;
+  }
+  skipSpace();
+  while (text.startsWith("<!--", i)) {
+    const end = text.indexOf("-->", i + 4);
+    if (end < 0) return false;
+    i = end + 3;
+    skipSpace();
+  }
+  return /^<svg[\s>]/i.test(text.slice(i, i + 5));
 }
 
 function svgText(b: Uint8Array): string | null {
