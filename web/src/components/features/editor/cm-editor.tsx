@@ -6,7 +6,7 @@ import { bracketMatching, HighlightStyle, indentOnInput, syntaxHighlighting } fr
 import { tags as t } from "@lezer/highlight";
 import { linter, lintGutter, lintKeymap, setDiagnostics, type Diagnostic as CmDiagnostic } from "@codemirror/lint";
 import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
-import { EditorState } from "@codemirror/state";
+import { Compartment, EditorState } from "@codemirror/state";
 import {
   drawSelection,
   EditorView,
@@ -89,6 +89,12 @@ export default function CodeEditor(props: CodeEditorProps) {
 
   const { path, readOnly } = props;
   const { t } = useTranslation("editor");
+  // The label lives in a compartment so a language change relabels the editor without
+  // recreating it (which would drop undo history and the cursor).
+  const labels = useRef(new Compartment());
+  const label = t("editor.label", { path });
+  const latestLabel = useRef(label);
+  latestLabel.current = label;
   useEffect(() => {
     if (!host.current) return;
     const v = new EditorView({
@@ -136,8 +142,8 @@ export default function CodeEditor(props: CodeEditorProps) {
           ),
           EditorState.readOnly.of(readOnly),
           EditorView.editable.of(!readOnly),
+          labels.current.of(EditorView.contentAttributes.of({ "aria-label": latestLabel.current })),
           EditorView.contentAttributes.of({
-            "aria-label": t("editor.label", { path }),
             role: "textbox",
             "aria-multiline": "true",
             "aria-readonly": String(readOnly),
@@ -154,7 +160,13 @@ export default function CodeEditor(props: CodeEditorProps) {
       v.destroy();
       view.current = null;
     };
-  }, [path, readOnly, t]);
+  }, [path, readOnly]);
+
+  useEffect(() => {
+    view.current?.dispatch({
+      effects: labels.current.reconfigure(EditorView.contentAttributes.of({ "aria-label": label })),
+    });
+  }, [label]);
 
   // External replacement (reload after a stale save).
   const { value, diagnostics } = props;
