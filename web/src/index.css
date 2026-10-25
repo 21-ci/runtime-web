@@ -12,7 +12,14 @@
  * the server CSP forbids inline). Filled controls pair a fill token with an --on-* text token;
  * every pair is checked for WCAG AA (4.5:1) in src/styles/contrast.test.ts.
  */
-:root {
+:root,
+.light {
+  /* Corner radii; instance branding (/api/branding/theme.css) may override them. */
+  --r-sm: 4px;
+  --r-md: 6px;
+  --r-lg: 10px;
+  --r-xl: 12px;
+  --r-2xl: 16px;
   /* Surfaces: white canvas, soft off-white chrome. */
   --bg: #ffffff;
   --panel: #f7f7f5;
@@ -215,11 +222,11 @@
   --color-field: var(--field);
   --color-secondary: var(--secondary);
   --color-secondary-hover: var(--secondary-hover);
-  --radius-sm: 4px;
-  --radius-md: 6px;
-  --radius-lg: 10px;
-  --radius-xl: 12px;
-  --radius-2xl: 16px;
+  --radius-sm: var(--r-sm);
+  --radius-md: var(--r-md);
+  --radius-lg: var(--r-lg);
+  --radius-xl: var(--r-xl);
+  --radius-2xl: var(--r-2xl);
   --shadow-menu: var(--menu-shadow);
   --shadow-card: var(--card-shadow);
   --ease-ui: var(--motion-ease);

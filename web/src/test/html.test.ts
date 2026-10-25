@@ -22,4 +22,10 @@ describe("index.html is CSP-safe (default-src 'self')", () => {
     const head = html.slice(0, html.indexOf("</head>"));
     expect(head).toMatch(/<script src="\/theme-init\.js"><\/script>/);
   });
+
+  it("links the branding stylesheet and favicon from the same origin", () => {
+    const head = html.slice(0, html.indexOf("</head>"));
+    expect(head).toMatch(/<link rel="stylesheet" href="\/api\/branding\/theme\.css" data-brand-theme \/>/);
+    expect(head).toMatch(/<link rel="icon" href="\/api\/branding\/assets\/icon" \/>/);
+  });
 });

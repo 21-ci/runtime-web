@@ -41,6 +41,7 @@ import { useApps, useOrgs, useProjects, type AppSummary } from "@/hooks/orgs";
 import { cn } from "@/lib/utils";
 import { useCreateAppGate } from "./create-app-gate";
 import { OrgSwitcher } from "./org-switcher";
+import { SidebarBrand } from "@/components/features/branding/brand";
 import { SHORTCUT_LABEL, useShell } from "./shell-context";
 
 // PROJECT_HUES gives each project its own small solid tile.
@@ -90,9 +91,12 @@ export function SidebarFrame({
   onCollapse,
   onSearch,
   label = "Sidebar",
+  brand,
   children,
 }: {
   top: ReactNode;
+  /** Optional instance brand row above the header. */
+  brand?: ReactNode;
   footer?: ReactNode;
   onCollapse?: () => void;
   onSearch?: () => void;
@@ -101,6 +105,7 @@ export function SidebarFrame({
 }) {
   return (
     <nav aria-label={label} className="flex min-h-full flex-col gap-0.5 px-2.5 py-2.5">
+      {brand}
       <div className="group flex items-center gap-1">
         {top}
         {onCollapse ? (
@@ -171,6 +176,7 @@ export function Sidebar({
 
   return (
     <SidebarFrame
+      brand={<SidebarBrand />}
       top={org ? <OrgSwitcher org={org} /> : <NoOrgHeader pending={orgs.isPending} />}
       onCollapse={onCollapse}
       onSearch={

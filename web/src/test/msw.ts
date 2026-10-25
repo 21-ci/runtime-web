@@ -1,11 +1,30 @@
 import { http, HttpResponse } from "msw";
 import { setupServer } from "msw/node";
 
+export const defaultBranding = {
+  product_name: "",
+  accent: "",
+  accent_adjusted: false,
+  palette: null,
+  logo_light_url: null,
+  logo_dark_url: null,
+  icon_url: null,
+  login_headline: "",
+  login_subtitle: "",
+  support_url: "",
+  support_email: "",
+  hide_powered_by: false,
+  radius: "default",
+  tint: "neutral",
+  etag: "brand0",
+};
+
 // Handlers are written by hand from docs/reference/api.md. Tests override per case with server.use(...).
 export const handlers = [
   http.get("/api/auth/providers", () =>
     HttpResponse.json({ password_login_disabled: false, providers: [] }),
   ),
+  http.get("/api/branding", () => HttpResponse.json(defaultBranding)),
   http.get("/api/setup", () => HttpResponse.json({ needed: false })),
   http.get("/api/me", () => HttpResponse.json({ error: { code: "unauthenticated", message: "signed out" } }, { status: 401 })),
 ];

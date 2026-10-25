@@ -1,6 +1,7 @@
 import { useNavigate } from "@tanstack/react-router";
-import { Check, ChevronDown, LogOut, ShieldCheck } from "lucide-react";
+import { Check, ChevronDown, LifeBuoy, LogOut, Mail, ShieldCheck } from "lucide-react";
 
+import { useBranding } from "@/components/features/branding/hooks";
 import { useMe } from "@/components/features/security/hooks";
 
 import {
@@ -30,6 +31,7 @@ export function AccountMenu() {
   const navigate = useNavigate();
   const { theme, setTheme } = useShell();
   const me = useMe();
+  const { data: brand } = useBranding();
   const name = me.data?.user.name ?? me.data?.user.email ?? "?";
   const email = me.data?.user.email;
 
@@ -68,6 +70,28 @@ export function AccountMenu() {
             {theme === t.value ? <Check aria-hidden="true" /> : null}
           </DropdownMenuItem>
         ))}
+        {brand?.support_url || brand?.support_email ? (
+          <>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel>Help</DropdownMenuLabel>
+            {brand.support_url ? (
+              <DropdownMenuItem asChild>
+                <a href={brand.support_url} target="_blank" rel="noopener noreferrer">
+                  <LifeBuoy aria-hidden="true" />
+                  Get help
+                </a>
+              </DropdownMenuItem>
+            ) : null}
+            {brand.support_email ? (
+              <DropdownMenuItem asChild>
+                <a href={`mailto:${brand.support_email}`}>
+                  <Mail aria-hidden="true" />
+                  Email support
+                </a>
+              </DropdownMenuItem>
+            ) : null}
+          </>
+        ) : null}
         <DropdownMenuSeparator />
         <DropdownMenuItem onSelect={onLogout} disabled={logout.isPending}>
           <LogOut aria-hidden="true" />

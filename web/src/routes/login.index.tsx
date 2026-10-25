@@ -3,6 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuthForm, FormField } from "@/components/auth/auth-form";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { useBranding } from "@/components/features/branding/hooks";
 import { ApiError } from "@/lib/api";
 import { useAuthProviders, useLogin } from "@/hooks/auth";
 import { safeNext } from "@/lib/safe-next";
@@ -38,6 +39,7 @@ function loginMessage(err: ApiError): string {
 }
 
 function LoginPage() {
+  const { data: brand } = useBranding();
   const search = Route.useSearch();
   const next = safeNext(search.next);
   const navigate = useNavigate();
@@ -79,7 +81,13 @@ function LoginPage() {
   const formError = login.error instanceof ApiError ? loginMessage(login.error) : null;
 
   return (
-    <AuthShell title="Welcome back" description="Sign in to your Runtime workspace to pick up where you left off.">
+    <AuthShell
+      title={brand?.login_headline || "Welcome back"}
+      description={
+        brand?.login_subtitle ||
+        (brand?.product_name ? `Sign in to ${brand.product_name}.` : "Sign in to your Runtime workspace to pick up where you left off.")
+      }
+    >
       {search.error ? (
         <p role="alert" className="mb-4 text-sm text-danger">
           {OAUTH_ERRORS[search.error] ?? "Sign-in failed. Try again."}

@@ -75,7 +75,7 @@ const pairs = [
 
 describe("contrast: WCAG AA (4.5:1) for filled controls and badges", () => {
   for (const theme of [
-    { label: "light", selector: ":root" },
+    { label: "light", selector: ".light" },
     { label: "dark", selector: ".dark" },
   ]) {
     it(`meets 4.5:1 in ${theme.label} theme`, () => {

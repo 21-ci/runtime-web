@@ -11,6 +11,7 @@ import {
   type OAuthProvider,
   type ProviderId,
 } from "@/components/features/admin/use-admin";
+import { BrandingSection } from "@/components/features/branding/branding-section";
 import { QueryError } from "@/components/features/empty/query-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -35,7 +36,7 @@ function AdminSettingsPage() {
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <PageHeader icon={Settings} entity="admin" title="Instance settings" description="Public URL, sign-in policy and providers." />
+      <PageHeader icon={Settings} entity="admin" title="Instance settings" description="Public URL, sign-in policy, providers and branding." />
       {settings.isError ? (
         <QueryError error={settings.error} onRetry={() => void settings.refetch()} notFoundTitle="Not available" />
       ) : settings.isPending ? (
@@ -45,6 +46,7 @@ function AdminSettingsPage() {
       ) : (
         <SettingsForm initial={settings.data} />
       )}
+      <BrandingSection />
     </div>
   );
 }

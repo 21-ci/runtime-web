@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { AuthForm, FormField } from "@/components/auth/auth-form";
 import { AuthShell } from "@/components/auth/auth-shell";
+import { useBranding } from "@/components/features/branding/hooks";
 import { useSetup, useSetupStatus } from "@/hooks/auth";
 import { ApiError } from "@/lib/api";
 
@@ -15,6 +16,7 @@ export const Route = createFileRoute("/setup")({
 // SetupPage creates the first instance admin. It only shows while GET /api/setup says needed,
 // and it always requires the setup token (RTWEB_SETUP_TOKEN or the one logged at startup).
 function SetupPage() {
+  const { data: brand } = useBranding();
   const status = useSetupStatus();
   const setup = useSetup();
   const navigate = useNavigate();
@@ -56,7 +58,7 @@ function SetupPage() {
   }
 
   return (
-    <AuthShell title="Set up Runtime" description="Create the first admin account. It only takes a minute.">
+    <AuthShell title={`Set up ${brand?.product_name || "Runtime"}`} description="Create the first admin account. It only takes a minute.">
       {status.isPending ? (
         <div className="flex flex-col gap-3" aria-busy="true">
           <Skeleton className="h-8 w-full" />
