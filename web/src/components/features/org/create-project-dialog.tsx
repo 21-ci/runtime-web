@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -30,6 +31,7 @@ export function CreateProjectDialog({
   open?: boolean;
   onOpenChange?: (open: boolean) => void;
 }) {
+  const { t } = useTranslation(["org", "common"]);
   const [localOpen, setLocalOpen] = useState(false);
   const open = controlledOpen ?? localOpen;
   const setOpen = (next: boolean) => {
@@ -49,8 +51,8 @@ export function CreateProjectDialog({
       .map((s) => s.trim())
       .filter(Boolean);
     const next: Record<string, string> = {};
-    if (!slug) next.slug = "Enter a project name.";
-    if (environments.length === 0) next.environments = "Add at least one environment.";
+    if (!slug) next.slug = t("createProject.errors.slug");
+    if (environments.length === 0) next.environments = t("createProject.errors.environments");
     setErrors(next);
     if (Object.keys(next).length > 0) return;
     create.mutate(
@@ -59,7 +61,7 @@ export function CreateProjectDialog({
         onSuccess: () => setOpen(false),
         onError: (err) => {
           if (!(err instanceof ApiError)) {
-            toast.error("Could not create the project. Try again.");
+            toast.error(t("createProject.failed"));
             return;
           }
           const fields = err.fieldErrors();
@@ -75,22 +77,22 @@ export function CreateProjectDialog({
       {trigger ? <DialogTrigger asChild>{trigger}</DialogTrigger> : null}
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New project</DialogTitle>
-          <DialogDescription>Projects group apps and set which environments they deploy to.</DialogDescription>
+          <DialogTitle>{t("createProject.title")}</DialogTitle>
+          <DialogDescription>{t("createProject.description")}</DialogDescription>
         </DialogHeader>
         <AuthForm errors={errors} onSubmit={onSubmit}>
-          <FormField label="Slug" name="slug" error={errors.slug} autoComplete="off" />
-          <FormField label="Name (optional)" name="name" autoComplete="off" />
+          <FormField label={t("createProject.slug")} name="slug" error={errors.slug} autoComplete="off" />
+          <FormField label={t("createProject.name")} name="name" autoComplete="off" />
           <FormField
-            label="Environments"
+            label={t("createProject.environments")}
             name="environments"
             defaultValue="dev, prod"
-            hint="Comma-separated, for example dev, staging, prod."
+            hint={t("createProject.environmentsHint")}
             error={errors.environments}
           />
           <DialogFooter>
             <Button type="submit" variant="default" disabled={create.isPending}>
-              Create project
+              {t("createProject.submit")}
             </Button>
           </DialogFooter>
         </AuthForm>

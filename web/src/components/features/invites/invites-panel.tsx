@@ -1,5 +1,6 @@
 import { useId, useState, type FormEvent } from "react";
 import { Copy, MailPlus, X } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { AuthForm, FormField } from "@/components/auth/auth-form";
@@ -24,13 +25,15 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { ApiError } from "@/lib/api";
+import { formatDate } from "@/lib/format";
 import type { OrgRole } from "@/lib/types";
 
-import { ROLE_LABEL, assignableRoles } from "../members/roles";
+import { ROLE_KEY, assignableRoles } from "../members/roles";
 import { useCreateInvite, useInvites, useRevokeInvite, type Invite } from "./hooks";
 
 // InvitesPanel lists pending invites and creates new ones. The invite link is shown once.
 export function InvitesPanel({ org, role }: { org: string; role: OrgRole }) {
+  const { t } = useTranslation(["invites", "common", "members"]);
   const canManage = role === "owner" || role === "admin";
   const invites = useInvites(org, canManage);
   const [pendingRevoke, setPendingRevoke] = useState<Invite | null>(null);
@@ -44,7 +47,7 @@ export function InvitesPanel({ org, role }: { org: string; role: OrgRole }) {
     revoke.mutate(pendingRevoke.id, {
       onSuccess: () => {
         setPendingRevoke(null);
-        toast.success(`Revoked the invite for ${email}.`);
+        toast.success(t("toast.revoked", { email }));
       },
     });
   }
@@ -53,35 +56,38 @@ export function InvitesPanel({ org, role }: { org: string; role: OrgRole }) {
     <section aria-labelledby="invites-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
       <header>
         <h2 id="invites-heading" className="text-[15px] font-semibold">
-          Pending invites
+          {t("title")}
         </h2>
-        <p className="text-sm text-muted">Invites expire after 7 days. Revoke one to stop its link from working.</p>
+        <p className="text-sm text-muted">{t("description")}</p>
       </header>
 
       {invites.isError ? (
-        <QueryError error={invites.error} onRetry={() => void invites.refetch()} notFoundTitle="Org not found" />
+        <QueryError error={invites.error} onRetry={() => void invites.refetch()} notFoundTitle={t("orgNotFound")} />
       ) : invites.isPending ? (
         <Skeleton className="h-16 w-full" />
       ) : invites.data.length === 0 ? (
-        <EmptyState entity="invites" icon={MailPlus} title="No pending invites" description="Invite a teammate with the form below." />
+        <EmptyState entity="invites" icon={MailPlus} title={t("empty.title")} description={t("empty.description")} />
       ) : (
-        <ul aria-label="Pending invites" className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
+        <ul aria-label={t("listAria")} className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
           {invites.data.map((inv) => (
             <li key={inv.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm">
               <span>
                 <span className="font-medium">{inv.email}</span>
                 <span className="ml-2 text-muted">
-                  {inv.role ? ROLE_LABEL[inv.role] : "No role"} · expires {new Date(inv.expires_at).toLocaleDateString()}
+                  {t("item.meta", {
+                    role: inv.role ? t(ROLE_KEY[inv.role]) : t("item.noRole"),
+                    date: formatDate(inv.expires_at),
+                  })}
                 </span>
               </span>
               <Button
                 variant="ghost"
                 size="sm"
-                aria-label={`Revoke invite for ${inv.email}`}
+                aria-label={t("revoke.label", { email: inv.email })}
                 onClick={() => setPendingRevoke(inv)}
               >
                 <X className="size-4" aria-hidden />
-                Revoke invite
+                {t("revoke.button")}
               </Button>
             </li>
           ))}
@@ -93,15 +99,15 @@ export function InvitesPanel({ org, role }: { org: string; role: OrgRole }) {
       <Dialog open={pendingRevoke !== null} onOpenChange={(open) => !open && setPendingRevoke(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Revoke this invite?</DialogTitle>
-            <DialogDescription>{pendingRevoke?.email} will need a new invite to join.</DialogDescription>
+            <DialogTitle>{t("revoke.title")}</DialogTitle>
+            <DialogDescription>{t("revoke.description", { email: pendingRevoke?.email ?? "" })}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setPendingRevoke(null)}>
-              Cancel
+              {t("common:cancel")}
             </Button>
             <Button variant="danger" onClick={confirmRevoke} disabled={revoke.isPending}>
-              Revoke
+              {t("revoke.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -111,6 +117,7 @@ export function InvitesPanel({ org, role }: { org: string; role: OrgRole }) {
 }
 
 function InviteForm({ org, role }: { org: string; role: OrgRole }) {
+  const { t } = useTranslation(["invites", "common", "members"]);
   const create = useCreateInvite(org);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [link, setLink] = useState<string | null>(null);
@@ -124,7 +131,7 @@ function InviteForm({ org, role }: { org: string; role: OrgRole }) {
     const email = String(data.get("email") ?? "").trim();
     const picked = String(data.get("role") ?? "member") as OrgRole;
     if (!email.includes("@")) {
-      setErrors({ email: "Enter an email address." });
+      setErrors({ email: t("errors.email") });
       return;
     }
     setErrors({});
@@ -137,7 +144,7 @@ function InviteForm({ org, role }: { org: string; role: OrgRole }) {
         },
         onError: (err) => {
           if (err instanceof ApiError && err.code === "invalid") setErrors(err.fieldErrors());
-          else toast.error("Could not send the invite. Try again.");
+          else toast.error(t("toast.createFailed"));
         },
       },
     );
@@ -146,9 +153,9 @@ function InviteForm({ org, role }: { org: string; role: OrgRole }) {
   return (
     <div className="flex flex-col gap-3">
       <AuthForm errors={errors} onSubmit={onSubmit}>
-        <FormField label="Email" name="email" type="email" autoComplete="off" error={errors.email} />
+        <FormField label={t("common:email")} name="email" type="email" autoComplete="off" error={errors.email} />
         <div className="flex flex-col gap-1.5">
-          <Label htmlFor={roleId}>Role</Label>
+          <Label htmlFor={roleId}>{t("common:role")}</Label>
           <Select name="role" defaultValue="member">
             <SelectTrigger id={roleId}>
               <SelectValue />
@@ -156,7 +163,7 @@ function InviteForm({ org, role }: { org: string; role: OrgRole }) {
             <SelectContent>
               {roles.map((r) => (
                 <SelectItem key={r} value={r}>
-                  {ROLE_LABEL[r]}
+                  {t(ROLE_KEY[r])}
                 </SelectItem>
               ))}
             </SelectContent>
@@ -164,19 +171,19 @@ function InviteForm({ org, role }: { org: string; role: OrgRole }) {
         </div>
         <div>
           <Button type="submit" variant="default" disabled={create.isPending}>
-            Create invite
+            {t("form.submit")}
           </Button>
         </div>
       </AuthForm>
       {link ? (
         <div className="flex items-center gap-2 rounded-lg border border-line bg-panel p-3 text-sm">
           <code className="min-w-0 flex-1 break-all font-mono">{link}</code>
-          <Button variant="secondary" size="sm" aria-label="Copy invite link" onClick={() => void navigator.clipboard.writeText(link)}>
+          <Button variant="secondary" size="sm" aria-label={t("form.copyLinkAria")} onClick={() => void navigator.clipboard.writeText(link)}>
             <Copy className="size-4" aria-hidden />
-            Copy
+            {t("common:copy")}
           </Button>
           <Button variant="ghost" size="sm" onClick={() => setLink(null)}>
-            Done
+            {t("common:done")}
           </Button>
         </div>
       ) : null}

@@ -24,8 +24,8 @@ export function scopesForRole(role: OrgRole): string[] {
 }
 
 export const EXPIRY_OPTIONS = [
-  { value: "never", label: "Never", days: null },
-  { value: "30", label: "30 days", days: 30 },
-  { value: "90", label: "90 days", days: 90 },
-  { value: "365", label: "1 year", days: 365 },
+  { value: "never", labelKey: "expiry.never", days: null },
+  { value: "30", labelKey: "expiry.days30", days: 30 },
+  { value: "90", labelKey: "expiry.days90", days: 90 },
+  { value: "365", labelKey: "expiry.year1", days: 365 },
 ] as const;

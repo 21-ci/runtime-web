@@ -1,1 +1,65 @@
-{}
+{
+  "general": {
+    "title": "Tashkilot sozlamalari"
+  },
+  "identity": {
+    "title": "Tashkilot",
+    "description": "Ushbu ish maydonining maʼlumotlari. Nomini oʻzgartirish hozircha mavjud emas.",
+    "slug": "Slug",
+    "role": "Sizning rolingiz"
+  },
+  "quota": {
+    "title": "Kvota",
+    "unavailable": "Kvota mavjud emas",
+    "resetsAt": "Kunlik hisoblagichlar {{time}} da qayta tiklanadi",
+    "amount": "{{used}} / {{limit}} {{period}}",
+    "used": "{{used}} ishlatilgan",
+    "usage": "{{label}}: foydalanish",
+    "rows": {
+      "invocations": "Chaqiruvlar",
+      "egress": "Chiquvchi trafik",
+      "storage": "Saqlash hajmi",
+      "apps": "Ilovalar",
+      "schedules": "Jadvallar"
+    },
+    "period": {
+      "day": "kuniga",
+      "total": "jami",
+      "month": "oyiga",
+      "perService": "ilovaga"
+    }
+  },
+  "usageCard": {
+    "title": "Bugungi foydalanish",
+    "aria": "Foydalanish",
+    "empty": "Bugun hali chaqiruvlar yoʻq.",
+    "invocations": "Chaqiruvlar",
+    "cpu": "CPU",
+    "egress": "Chiquvchi trafik",
+    "deletedApp": "Oʻchirilgan ilova"
+  },
+  "rotate": {
+    "title": "Standart kalit",
+    "description": "Konsol ilovalarni boshqarish uchun tashkilotning standart kalitidan foydalanadi. Agar kalit oshkor boʻlgan boʻlsa, uni almashtiring. Maxsus tokenlarga taʼsir qilmaydi.",
+    "button": "Standart kalitni almashtirish",
+    "dialogTitle": "{{org}} tashkilotining standart kalitini almashtirilsinmi?",
+    "dialogDescription": "Eski standart kalit ishlamay qoladi. Tasdiqlash uchun tashkilot slugini kiriting.",
+    "confirmLabel": "Tasdiqlash uchun {{org}} ni kiriting",
+    "confirm": "Kalitni almashtirish",
+    "toast": "Standart kalit almashtirildi. Maxsus tokenlar ishlashda davom etadi."
+  },
+  "createProject": {
+    "title": "Yangi loyiha",
+    "description": "Loyihalar ilovalarni guruhlaydi va ular joylashtiriladigan muhitlarni belgilaydi.",
+    "slug": "Slug",
+    "name": "Nomi (ixtiyoriy)",
+    "environments": "Muhitlar",
+    "environmentsHint": "Vergul bilan ajratilgan, masalan: dev, staging, prod.",
+    "submit": "Loyiha yaratish",
+    "errors": {
+      "slug": "Loyiha nomini kiriting.",
+      "environments": "Kamida bitta muhit qoʻshing."
+    },
+    "failed": "Loyihani yaratib boʻlmadi. Qayta urinib koʻring."
+  }
+}

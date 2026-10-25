@@ -1,3 +1,5 @@
+import { useTranslation } from "react-i18next";
+
 import { SectionCard } from "@/components/ui/section-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useUsage } from "@/hooks/orgs";
@@ -11,6 +13,7 @@ export function UsageCard({ org, enabled }: { org: string; enabled: boolean }) {
 }
 
 function UsageCardBody({ org }: { org: string }) {
+  const { t } = useTranslation(["org"]);
   const usage = useUsage(org, true, new Date().toISOString().slice(0, 10));
   const rows = usage.data ?? [];
   const total = rows.reduce((sum, r) => sum + r.invocations, 0);
@@ -18,31 +21,31 @@ function UsageCardBody({ org }: { org: string }) {
   const egress = rows.reduce((sum, r) => sum + r.egress_bytes, 0);
 
   return (
-    <SectionCard title="Usage today" aria-label="Usage">
+    <SectionCard title={t("usageCard.title")} aria-label={t("usageCard.aria")}>
       {usage.isPending ? (
         <Skeleton className="h-16 w-full" />
       ) : rows.length === 0 ? (
-        <p className="text-sm text-muted">No invocations yet today.</p>
+        <p className="text-sm text-muted">{t("usageCard.empty")}</p>
       ) : (
         <>
           <dl className="mb-3 grid grid-cols-3 gap-2 text-[12px] text-muted">
             <div className="min-w-0">
-              <dt className="truncate">Invocations</dt>
+              <dt className="truncate">{t("usageCard.invocations")}</dt>
               <dd className="truncate text-[15px] font-semibold tabular-nums text-text">{formatCount(total)}</dd>
             </div>
             <div className="min-w-0">
-              <dt className="truncate">CPU</dt>
+              <dt className="truncate">{t("usageCard.cpu")}</dt>
               <dd className="truncate text-[15px] font-semibold tabular-nums text-text">{formatDuration(cpu)}</dd>
             </div>
             <div className="min-w-0">
-              <dt className="truncate">Egress</dt>
+              <dt className="truncate">{t("usageCard.egress")}</dt>
               <dd className="truncate text-[15px] font-semibold tabular-nums text-text">{formatBytes(egress)}</dd>
             </div>
           </dl>
           <ul className="flex flex-col divide-y divide-line text-sm">
             {rows.map((r) => (
               <li key={`${r.day}/${r.app ?? "deleted"}`} className="flex min-w-0 justify-between gap-3 py-1.5">
-                <span className="truncate">{r.app ?? "Deleted app"}</span>
+                <span className="truncate">{r.app ?? t("usageCard.deletedApp")}</span>
                 <span className="shrink-0 tabular-nums text-muted">{formatCount(r.invocations)}</span>
               </li>
             ))}

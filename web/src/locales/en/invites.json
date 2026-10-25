@@ -1,1 +1,32 @@
-{}
+{
+  "title": "Pending invites",
+  "description": "Invites expire after 7 days. Revoke one to stop its link from working.",
+  "listAria": "Pending invites",
+  "orgNotFound": "Org not found",
+  "empty": {
+    "title": "No pending invites",
+    "description": "Invite a teammate with the form below."
+  },
+  "item": {
+    "noRole": "No role",
+    "meta": "{{role}} · expires {{date}}"
+  },
+  "revoke": {
+    "label": "Revoke invite for {{email}}",
+    "button": "Revoke invite",
+    "title": "Revoke this invite?",
+    "description": "{{email}} will need a new invite to join.",
+    "confirm": "Revoke"
+  },
+  "toast": {
+    "revoked": "Revoked the invite for {{email}}.",
+    "createFailed": "Could not send the invite. Try again."
+  },
+  "form": {
+    "submit": "Create invite",
+    "copyLinkAria": "Copy invite link"
+  },
+  "errors": {
+    "email": "Enter an email address."
+  }
+}

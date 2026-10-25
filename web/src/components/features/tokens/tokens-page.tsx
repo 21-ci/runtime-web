@@ -1,5 +1,6 @@
 import { useId, useState, type FormEvent } from "react";
 import { Copy, KeyRound, Trash2 } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { AuthForm, FormField } from "@/components/auth/auth-form";
@@ -28,6 +29,7 @@ import {
 } from "@/components/ui/select";
 import { useProjects } from "@/hooks/orgs";
 import { ApiError } from "@/lib/api";
+import { formatDate, formatDateTime } from "@/lib/format";
 import type { OrgRole } from "@/lib/types";
 
 import { useCreateToken, useRevokeToken, useTokens, type Token } from "./hooks";
@@ -38,6 +40,7 @@ const DAY_MS = 24 * 60 * 60 * 1000;
 // TokensPage manages org-level custom tokens. Only owners and admins reach the actions; the
 // scope picker offers only what the caller's role may grant.
 export function TokensPage({ org, role }: { org: string; role: OrgRole }) {
+  const { t } = useTranslation(["tokens", "common"]);
   const canManage = role === "owner" || role === "admin";
   const tokens = useTokens(org, canManage);
   const [pendingRevoke, setPendingRevoke] = useState<Token | null>(null);
@@ -47,8 +50,8 @@ export function TokensPage({ org, role }: { org: string; role: OrgRole }) {
     return (
       <EmptyState entity="tokens"
         icon={KeyRound}
-        title="Tokens are for admins"
-        description="Tokens need the owner or admin role. Ask an admin to create one."
+        title={t("adminsOnly.title")}
+        description={t("adminsOnly.description")}
       />
     );
   }
@@ -59,7 +62,7 @@ export function TokensPage({ org, role }: { org: string; role: OrgRole }) {
     revoke.mutate(pendingRevoke.id, {
       onSuccess: () => {
         setPendingRevoke(null);
-        toast.success(`Revoked ${name}.`);
+        toast.success(t("toast.revoked", { name }));
       },
     });
   }
@@ -69,62 +72,60 @@ export function TokensPage({ org, role }: { org: string; role: OrgRole }) {
       <header className="flex flex-wrap items-start justify-between gap-3">
         <div>
           <h2 id="tokens-heading" className="text-[15px] font-semibold">
-            API tokens
+            {t("section.title")}
           </h2>
-          <p className="text-sm text-muted">
-            Tokens let CI, the CLI and other tools act for this org. A token's secret is shown once.
-          </p>
+          <p className="text-sm text-muted">{t("section.description")}</p>
         </div>
         <NewTokenDialog org={org} role={role} />
       </header>
 
       {tokens.isError ? (
-        <QueryError error={tokens.error} onRetry={() => void tokens.refetch()} notFoundTitle="Org not found" />
+        <QueryError error={tokens.error} onRetry={() => void tokens.refetch()} notFoundTitle={t("orgNotFound")} />
       ) : tokens.isPending ? (
         <Skeleton className="h-32 w-full" />
       ) : tokens.data.length === 0 ? (
         <EmptyState entity="tokens"
           icon={KeyRound}
-          title="No tokens yet"
-          description="Create a token for a CI job or a script."
+          title={t("empty.title")}
+          description={t("empty.description")}
         />
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Scopes</TableHead>
-              <TableHead>Access</TableHead>
-              <TableHead>Expires</TableHead>
-              <TableHead>Last used</TableHead>
+              <TableHead>{t("common:name")}</TableHead>
+              <TableHead>{t("columns.scopes")}</TableHead>
+              <TableHead>{t("columns.access")}</TableHead>
+              <TableHead>{t("columns.expires")}</TableHead>
+              <TableHead>{t("columns.lastUsed")}</TableHead>
               <TableHead>
-                <span className="sr-only">Actions</span>
+                <span className="sr-only">{t("common:actions")}</span>
               </TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
-            {tokens.data.map((t) => (
-              <TableRow key={t.id}>
+            {tokens.data.map((tok) => (
+              <TableRow key={tok.id}>
                 <TableCell className="font-medium">
-                  {t.name}
-                  <span className="block text-xs text-muted">by {t.created_by.name}</span>
+                  {tok.name}
+                  <span className="block text-xs text-muted">{t("createdBy", { name: tok.created_by.name })}</span>
                 </TableCell>
                 <TableCell>
                   <span className="flex flex-wrap gap-1">
-                    {t.scopes.map((s) => (
+                    {tok.scopes.map((s) => (
                       <Badge key={s} variant="outline">
                         {s}
                       </Badge>
                     ))}
                   </span>
                 </TableCell>
-                <TableCell>{describeAccess(t.projects, t.environments)}</TableCell>
-                <TableCell>{t.expires_at ? new Date(t.expires_at).toLocaleDateString() : "Never"}</TableCell>
-                <TableCell>{t.last_used_at ? new Date(t.last_used_at).toLocaleString() : "Not yet"}</TableCell>
+                <TableCell>{describeAccess(t("allProjects"), tok.projects, tok.environments)}</TableCell>
+                <TableCell>{tok.expires_at ? formatDate(tok.expires_at) : t("expiry.never")}</TableCell>
+                <TableCell>{tok.last_used_at ? formatDateTime(tok.last_used_at) : t("lastUsedNever")}</TableCell>
                 <TableCell className="text-right">
-                  <Button variant="ghost" size="sm" aria-label={`Revoke ${t.name}`} onClick={() => setPendingRevoke(t)}>
+                  <Button variant="ghost" size="sm" aria-label={t("revoke.label", { name: tok.name })} onClick={() => setPendingRevoke(tok)}>
                     <Trash2 className="size-4" aria-hidden />
-                    Revoke
+                    {t("revoke.button")}
                   </Button>
                 </TableCell>
               </TableRow>
@@ -136,15 +137,15 @@ export function TokensPage({ org, role }: { org: string; role: OrgRole }) {
       <Dialog open={pendingRevoke !== null} onOpenChange={(open) => !open && setPendingRevoke(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Revoke {pendingRevoke?.name}?</DialogTitle>
-            <DialogDescription>Anything using this token stops working right away.</DialogDescription>
+            <DialogTitle>{t("revoke.title", { name: pendingRevoke?.name ?? "" })}</DialogTitle>
+            <DialogDescription>{t("revoke.description")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setPendingRevoke(null)}>
-              Cancel
+              {t("common:cancel")}
             </Button>
             <Button variant="danger" onClick={confirmRevoke} disabled={revoke.isPending}>
-              Revoke token
+              {t("revoke.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>
@@ -155,6 +156,7 @@ export function TokensPage({ org, role }: { org: string; role: OrgRole }) {
 
 // NewTokenDialog runs the create form, then shows the secret once. Closing the dialog drops it.
 function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
+  const { t } = useTranslation(["tokens", "common"]);
   const [open, setOpen] = useState(false);
   const [created, setCreated] = useState<{ name: string; secret: string } | null>(null);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -197,8 +199,8 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
     const name = String(data.get("name") ?? "").trim();
     const expiry = EXPIRY_OPTIONS.find((o) => o.value === String(data.get("expiry") ?? "never"));
     const next: Record<string, string> = {};
-    if (!name) next.name = "Enter a name so you can recognize this token later.";
-    if (scopes.length === 0) next.scopes = "Pick at least one scope.";
+    if (!name) next.name = t("errors.name");
+    if (scopes.length === 0) next.scopes = t("errors.scopes");
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -214,7 +216,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
         onSuccess: (res) => setCreated({ name: res.token.name, secret: res.secret }),
         onError: (err) => {
           if (err instanceof ApiError && err.code === "invalid") setErrors(err.fieldErrors());
-          else toast.error("Could not create the token. Try again.");
+          else toast.error(t("toast.createFailed"));
         },
       },
     );
@@ -223,41 +225,41 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogTrigger asChild>
-        <Button variant="default">New token</Button>
+        <Button variant="default">{t("new.button")}</Button>
       </DialogTrigger>
       <DialogContent>
         {created ? (
           <>
             <DialogHeader>
-              <DialogTitle>Token {created.name} created</DialogTitle>
-              <DialogDescription>Copy the secret now. You will not be able to see it again.</DialogDescription>
+              <DialogTitle>{t("created.title", { name: created.name })}</DialogTitle>
+              <DialogDescription>{t("created.description")}</DialogDescription>
             </DialogHeader>
             <div className="flex items-center gap-2 rounded-lg border border-line bg-panel p-3">
               <code className="min-w-0 flex-1 break-all font-mono text-sm">{created.secret}</code>
               <Button
                 variant="secondary"
                 size="sm"
-                aria-label="Copy token secret"
+                aria-label={t("created.copySecret")}
                 onClick={() => void navigator.clipboard.writeText(created.secret)}
               >
                 <Copy className="size-4" aria-hidden />
-                Copy
+                {t("common:copy")}
               </Button>
             </div>
             <DialogFooter>
-              <Button onClick={() => onOpenChange(false)}>Done</Button>
+              <Button onClick={() => onOpenChange(false)}>{t("common:done")}</Button>
             </DialogFooter>
           </>
         ) : (
           <>
             <DialogHeader>
-              <DialogTitle>New token</DialogTitle>
-              <DialogDescription>Choose what this token may do. Scopes are limited to your role.</DialogDescription>
+              <DialogTitle>{t("new.title")}</DialogTitle>
+              <DialogDescription>{t("new.description")}</DialogDescription>
             </DialogHeader>
             <AuthForm errors={errors} onSubmit={onSubmit}>
-              <FormField label="Name" name="name" autoComplete="off" error={errors.name} />
+              <FormField label={t("common:name")} name="name" autoComplete="off" error={errors.name} />
               <fieldset className="flex flex-col gap-2">
-                <legend className="mb-1 text-[13px] font-medium">Scopes</legend>
+                <legend className="mb-1 text-[13px] font-medium">{t("form.scopes")}</legend>
                 {errors.scopes ? <p className="text-sm text-danger">{errors.scopes}</p> : null}
                 <div className="grid grid-cols-2 gap-2">
                   {scopeOptions.map((s) => (
@@ -277,7 +279,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
               </fieldset>
               {projectList.data && projectList.data.length > 0 ? (
                 <fieldset className="flex flex-col gap-2">
-                  <legend className="mb-1 text-sm font-medium">Projects (leave empty for all)</legend>
+                  <legend className="mb-1 text-sm font-medium">{t("form.projects")}</legend>
                   {projectList.data.map((p) => (
                     <label key={p.slug} className="flex items-center gap-2 text-sm">
                       <input
@@ -295,7 +297,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
               ) : null}
               {envOptions.length > 0 ? (
                 <fieldset className="flex flex-col gap-2">
-                  <legend className="mb-1 text-sm font-medium">Environments (leave empty for all)</legend>
+                  <legend className="mb-1 text-sm font-medium">{t("form.environments")}</legend>
                   {envOptions.map((env) => (
                     <label key={env} className="flex items-center gap-2 text-sm">
                       <input
@@ -312,7 +314,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
                 </fieldset>
               ) : null}
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor={expiryId}>Expires</Label>
+                <Label htmlFor={expiryId}>{t("form.expires")}</Label>
                 <Select name="expiry" defaultValue="never">
                   <SelectTrigger id={expiryId} className="h-[34px] px-2 text-sm">
                     <SelectValue />
@@ -320,7 +322,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
                   <SelectContent>
                     {EXPIRY_OPTIONS.map((o) => (
                       <SelectItem key={o.value} value={o.value}>
-                        {o.label}
+                        {t(o.labelKey)}
                       </SelectItem>
                     ))}
                   </SelectContent>
@@ -328,7 +330,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
               </div>
               <DialogFooter>
                 <Button type="submit" variant="default" disabled={create.isPending}>
-                  Create token
+                  {t("form.submit")}
                 </Button>
               </DialogFooter>
             </AuthForm>
@@ -340,7 +342,7 @@ function NewTokenDialog({ org, role }: { org: string; role: OrgRole }) {
 }
 
 // describeAccess summarizes a token's project and environment restriction for the table.
-function describeAccess(projects: string[], environments: string[]): string {
-  const p = projects.length === 0 ? "All projects" : projects.join(", ");
+function describeAccess(allProjects: string, projects: string[], environments: string[]): string {
+  const p = projects.length === 0 ? allProjects : projects.join(", ");
   return environments.length === 0 ? p : `${p} (${environments.join(", ")})`;
 }
