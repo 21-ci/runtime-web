@@ -1,0 +1,48 @@
+# Runtime Web
+
+> Self-hosted console for writing, deploying and running apps on 21 Cloud Runtime (Apache-2.0). The console is a React
+> single-page app (`web/`) served by a TypeScript backend (`server/`) that runs as the App `rtweb` on a runtime node.
+> Users make orgs and projects, create apps, edit code in the browser, read logs, set triggers, custom domains and
+> scoped tokens. An installer (`install.sh`) sets up the node, the console and Caddy with automatic TLS on one Linux host.
+
+Docs site: https://21-ci.github.io/runtime-web/ . Source: https://github.com/21-ci/runtime-web .
+
+## Install and operate
+
+- [Install](https://21-ci.github.io/runtime-web/getting-started/install/): requirements, the installer and its options, upgrade, uninstall
+- [Manual install](https://21-ci.github.io/runtime-web/getting-started/manual-install/): deploy onto an existing 21 Cloud Runtime node
+- [First run](https://21-ci.github.io/runtime-web/getting-started/first-run/): setup token, instance admin account
+- [Admin guide](https://21-ci.github.io/runtime-web/admin/): instance admin console, account recovery
+- [Operations](https://21-ci.github.io/runtime-web/admin/operations/): node, custom domains and TLS, backups and keys, upgrades
+- [Troubleshooting](https://21-ci.github.io/runtime-web/troubleshooting/): health checks, logs, common failures
+- [Configuration](https://21-ci.github.io/runtime-web/reference/configuration/): every service env var, secret, installer variable and Caddy variable
+- [Security model](https://21-ci.github.io/runtime-web/security-model/): trust boundaries, sessions, authorization, what is not protected
+
+## Use the console
+
+- [User guide](https://21-ci.github.io/runtime-web/user-guide/): orgs, projects, apps, editor, logs, triggers, tokens and keys, domains, members, two-factor auth and OAuth
+
+## API
+
+- [HTTP API reference](https://21-ci.github.io/runtime-web/reference/api/): every route of the console API with its auth rules and errors. Source of truth: `docs/reference/api.md` in the repository, checked by `server/test/contract.test.ts`
+
+## Contribute
+
+- [Contributing](https://github.com/21-ci/runtime-web/blob/main/CONTRIBUTING.md): ground rules, checks, pull requests
+- [Contributor docs](https://21-ci.github.io/runtime-web/contributing/): dev setup, testing and coverage, adding an endpoint or a page, architecture, code style, design tokens, CI and releases
+- [AGENTS.md](https://github.com/21-ci/runtime-web/blob/main/AGENTS.md): guide for coding agents working on this repository
+- [Skills](https://github.com/21-ci/runtime-web/tree/main/.claude/skills): `add-api-endpoint`, `ui-design`, `release`
+
+## Policies
+
+- [SECURITY.md](https://github.com/21-ci/runtime-web/blob/main/SECURITY.md): reporting vulnerabilities, supported versions
+- [SUPPORT.md](https://github.com/21-ci/runtime-web/blob/main/SUPPORT.md): where to ask questions and report bugs
+- [GOVERNANCE.md](https://github.com/21-ci/runtime-web/blob/main/GOVERNANCE.md): roles and decisions
+- [RELEASING.md](https://github.com/21-ci/runtime-web/blob/main/RELEASING.md): how a version is cut and signed
+- [LICENSE](https://github.com/21-ci/runtime-web/blob/main/LICENSE): Apache-2.0
+
+## Terms
+
+- App: a unit of user code deployed to 21 Cloud Runtime. Never called a "val" or a "service" in the console.
+- Org, project, member, grant: the access model. Org roles are owner, admin and member; project roles are admin, developer and viewer.
+- Token: a scoped credential. Key: the default org key.
