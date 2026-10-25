@@ -49,11 +49,13 @@ FROM --platform=$BUILDPLATFORM ${GO_IMAGE} AS entry
 ARG TARGETOS
 ARG TARGETARCH
 WORKDIR /src
+# No cgo anywhere: the binary is static and vet/test need no C toolchain.
+ENV CGO_ENABLED=0
 COPY docker/entry/ ./
 RUN --mount=type=cache,target=/root/.cache/go-build \
     go vet ./... \
  && go test ./... \
- && CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+ && GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
     go build -trimpath -buildvcs=false -ldflags="-s -w" -o /out/rtweb-entry .
 
 FROM ${RT_IMAGE} AS rt
