@@ -125,7 +125,7 @@ if [ $ONLY_SECURITY -eq 0 ]; then
   else
     skip shellcheck "shellcheck not installed"
   fi
-  step install-dry-run sh install.sh --dry-run --version 0.0.0 --domain console.example.com --email ops@example.com
+  step install-dry-run sh install.sh --dry-run --version 0.0.0 --domain console.example.com --email ops@acme-corp.dev
 
   echo "== docs"
   if [ $FAST -eq 1 ]; then

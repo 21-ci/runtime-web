@@ -176,6 +176,13 @@ if [ -n "$APPS_DOMAIN" ]; then
 fi
 if [ -n "$EMAIL" ]; then
   printf '%s' "$EMAIL" | grep -Eq '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]+$' || die "bad --email '$EMAIL'"
+  # Let's Encrypt refuses ACME accounts on reserved domains, and Caddy would only fail later, at the first certificate.
+  email_domain=$(printf '%s' "${EMAIL##*@}" | tr '[:upper:]' '[:lower:]')
+  case "$email_domain" in
+    example.com | example.net | example.org | *.example.com | *.example.net | *.example.org | \
+      *.example | *.test | *.invalid | *.localhost | localhost | *.local)
+      die "--email $EMAIL: Let's Encrypt refuses addresses at $email_domain (a reserved domain); use a real mailbox you read" ;;
+  esac
 fi
 if [ -n "$PUBLIC_URL" ]; then
   printf '%s' "$PUBLIC_URL" | grep -Eq '^https?://[A-Za-z0-9.:-]+(/[A-Za-z0-9._~/-]*)?$' || die "bad --public-url '$PUBLIC_URL'"

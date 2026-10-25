@@ -39,13 +39,13 @@ install onto an existing node, upgrades and uninstalling.
 2. Preview the steps. A dry run changes nothing on the host:
 
     ```bash
-    sh install.sh --dry-run --domain console.example.com --email ops@example.com
+    sh install.sh --dry-run --domain console.example.com --email you@your-company.com
     ```
 
 3. Install. Use the console host name you set up in DNS and an e-mail address for the Let's Encrypt account:
 
     ```bash
-    sudo sh install.sh --domain console.example.com --email ops@example.com
+    sudo sh install.sh --domain console.example.com --email you@your-company.com
     ```
 
 4. Copy the setup token that the installer prints. It is shown once. Then continue with
@@ -89,7 +89,7 @@ The installer is tested end to end (install, a second run, `--dry-run`, `--unins
 | Platform | Architecture | Runtime | Caddy | Node.js | Notes |
 |---|---|---|---|---|---|
 | Ubuntu 24.04 (systemd container) | aarch64 | rt 0.1.1 (pinned release asset) | 2.6.2 (Ubuntu package) | 22.20.0 | Fake `.test` domains: certificates came from Caddy's local CA, set by hand for the test |
-| Debian 12 (systemd container) | x86_64 | rt 0.1.1 (pinned release asset) | 2.6.2 (Debian package) | 22.20.0 | Same fake `.test` setup. Let's Encrypt refuses the `example.com` e-mail, so the test enabled `local_certs` by hand |
+| Debian 12 (systemd container) | x86_64 | rt 0.1.1 (pinned release asset) | 2.6.2 (Debian package) | 22.20.0 | Same fake `.test` setup. Fake `.test` hosts get no public certificate, so the test enabled `local_certs` by hand |
 
 Other systemd distributions with the same tools should work. Public certificates, real DNS and on-demand TLS for
 custom domains need a host reachable from the internet, so they are not part of that test.
@@ -160,7 +160,7 @@ the same ones the installer runs. See [Manual install](manual-install.md).
 3. Run the installer again with the new version. Keep the same `--domain` and `--email`:
 
     ```bash
-    sudo sh install.sh --version X.Y.Z --domain console.example.com --email ops@example.com
+    sudo sh install.sh --version X.Y.Z --domain console.example.com --email you@your-company.com
     ```
 
 The installer keeps the existing secrets, including `RTWEB_SEAL_KEY`, and uploads a new service version only when the
