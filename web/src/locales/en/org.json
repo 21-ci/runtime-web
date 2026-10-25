@@ -1,0 +1,65 @@
+{
+  "general": {
+    "title": "Organization settings"
+  },
+  "identity": {
+    "title": "Organization",
+    "description": "Identity of this workspace. Renaming is not available yet.",
+    "slug": "Slug",
+    "role": "Your role"
+  },
+  "quota": {
+    "title": "Quota",
+    "unavailable": "Quota not available",
+    "resetsAt": "Daily counters reset {{time}}",
+    "amount": "{{used}} / {{limit}} {{period}}",
+    "used": "{{used}} used",
+    "usage": "{{label}} usage",
+    "rows": {
+      "invocations": "Invocations",
+      "egress": "Egress",
+      "storage": "Storage",
+      "apps": "Apps",
+      "schedules": "Schedules"
+    },
+    "period": {
+      "day": "per day",
+      "total": "total",
+      "month": "per month",
+      "perService": "per app"
+    }
+  },
+  "usageCard": {
+    "title": "Usage today",
+    "aria": "Usage",
+    "empty": "No invocations yet today.",
+    "invocations": "Invocations",
+    "cpu": "CPU",
+    "egress": "Egress",
+    "deletedApp": "Deleted app"
+  },
+  "rotate": {
+    "title": "Default key",
+    "description": "The console uses the org's default key to manage apps. Rotate it if it may have leaked. Custom tokens are not affected.",
+    "button": "Rotate default key",
+    "dialogTitle": "Rotate the default key of {{org}}?",
+    "dialogDescription": "The old default key stops working. Type the org slug to confirm.",
+    "confirmLabel": "Type {{org}} to confirm",
+    "confirm": "Rotate key",
+    "toast": "Default key rotated. Custom tokens keep working."
+  },
+  "createProject": {
+    "title": "New project",
+    "description": "Projects group apps and set which environments they deploy to.",
+    "slug": "Slug",
+    "name": "Name (optional)",
+    "environments": "Environments",
+    "environmentsHint": "Comma-separated, for example dev, staging, prod.",
+    "submit": "Create project",
+    "errors": {
+      "slug": "Enter a project name.",
+      "environments": "Add at least one environment."
+    },
+    "failed": "Could not create the project. Try again."
+  }
+}

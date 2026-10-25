@@ -1,0 +1,39 @@
+{
+  "title": "Участники",
+  "description": "Роль определяет, что участник может делать в организации.",
+  "count_one": "{{count}} участник",
+  "count_few": "{{count}} участника",
+  "count_many": "{{count}} участников",
+  "count_other": "{{count}} участника",
+  "orgNotFound": "Организация не найдена",
+  "orgNotFoundHint": "Возможно, она удалена или у вас нет доступа.",
+  "empty": {
+    "title": "Нет участников",
+    "description": "Пригласите коллегу, чтобы начать."
+  },
+  "roles": {
+    "owner": "Владелец",
+    "admin": "Администратор",
+    "member": "Участник"
+  },
+  "projectRoles": {
+    "admin": "администратор",
+    "developer": "разработчик",
+    "viewer": "наблюдатель"
+  },
+  "grant": "{{project}}: {{role}}",
+  "roleFor": "Роль для {{email}}",
+  "removeLabel": "Удалить {{email}}",
+  "remove": {
+    "title": "Удалить {{name}}?",
+    "description": "Участник потеряет доступ ко всем проектам этой организации.",
+    "confirm": "Удалить участника"
+  },
+  "toast": {
+    "roleChanged_owner": "{{name}} теперь владелец.",
+    "roleChanged_admin": "{{name}} теперь администратор.",
+    "roleChanged_member": "{{name}} теперь участник.",
+    "removed": "Участник {{name}} удалён.",
+    "lastOwner": "В организации должен быть хотя бы один владелец."
+  }
+}

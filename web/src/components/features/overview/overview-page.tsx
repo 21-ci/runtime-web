@@ -1,0 +1,215 @@
+import { Link } from "@tanstack/react-router";
+import { Code2, Download, ExternalLink, FileCode2, History } from "lucide-react";
+import { useState } from "react";
+import { useTranslation } from "react-i18next";
+
+import { useAppView, appPath } from "@/components/features/app-header/hooks";
+import { useFiles } from "@/components/features/editor/hooks";
+import { QueryError } from "@/components/features/empty/query-error";
+import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
+import { LetterTile, hueFor } from "@/components/ui/icon-tile";
+import { SectionCard, SMALL_CONTROL } from "@/components/ui/section-card";
+import { StatTile } from "@/components/ui/page-header";
+import { Skeleton } from "@/components/ui/skeleton";
+import { PreviewFrame } from "@/components/ui/preview-frame";
+import { UrlBar } from "@/components/ui/url-bar";
+import { useProjects } from "@/hooks/orgs";
+import { formatCount } from "@/lib/format";
+
+import { EventsPanel } from "./events-panel";
+import { useAppStats, type AppStats } from "./hooks";
+
+type TileLabel = "stats.requests" | "stats.errors" | "stats.errorRate" | "stats.p50" | "stats.p95" | "stats.p99";
+
+const TILES: { key: keyof AppStats; label: TileLabel; suffix?: string }[] = [
+  { key: "requests", label: "stats.requests" },
+  { key: "errors", label: "stats.errors" },
+  { key: "error_rate", label: "stats.errorRate", suffix: "%" },
+  { key: "p50_ms", label: "stats.p50", suffix: " ms" },
+  { key: "p95_ms", label: "stats.p95", suffix: " ms" },
+  { key: "p99_ms", label: "stats.p99", suffix: " ms" },
+];
+
+function formatTile(key: keyof AppStats, value: unknown, suffix?: string): string {
+  if (typeof value !== "number") return "-";
+  const shown = key === "error_rate" ? (value * 100).toFixed(1) : formatCount(value);
+  return `${shown}${suffix ?? ""}`;
+}
+
+const ACCESS_KEY = {
+  public: "access.public",
+  key: "access.key",
+  internal: "access.internal",
+} as const;
+const BUILD_VARIANT: Record<string, "success" | "danger" | "warning" | "default"> = {
+  ready: "success",
+  failed: "danger",
+  building: "warning",
+  pending: "warning",
+};
+const BUILD_KEY = {
+  ready: "build.ready",
+  failed: "build.failed",
+  building: "build.building",
+  pending: "build.pending",
+} as const;
+
+// OverviewPage is the app's landing page (val.town model): identity, live URL with a response
+// preview, the last five minutes of stats, the code files, runtime events and the data export
+// (project admins only; the project role says which).
+export function OverviewPage({ org, app }: { org: string; app: string }) {
+  const { t } = useTranslation(["overview", "common"]);
+  const view = useAppView(org, app);
+  const stats = useAppStats(org, app, "5m");
+  const files = useFiles(org, app);
+  const projects = useProjects(org);
+  const [previewKey, setPreviewKey] = useState(0);
+
+  if (view.isError) {
+    return <QueryError error={view.error} onRetry={() => void view.refetch()} notFoundTitle={t("app.notFound")} />;
+  }
+  if (view.isPending) {
+    return (
+      <div className="flex flex-col gap-5" aria-busy="true">
+        <Skeleton className="h-16 w-2/3" />
+        <Skeleton className="h-10 w-full" />
+        <Skeleton className="h-64 w-full" />
+      </div>
+    );
+  }
+
+  const a = view.data;
+  const project = projects.data?.find((p) => p.slug === a.project);
+  const canExport = project?.role === "admin";
+  const name = a.name ?? a.slug;
+  const build = a.status.build_state;
+  const buildKey = BUILD_KEY[build as keyof typeof BUILD_KEY];
+  const accessKey = ACCESS_KEY[a.access as keyof typeof ACCESS_KEY];
+
+  return (
+    <div className="flex flex-col gap-6">
+      <header className="flex flex-col gap-4">
+        <div className="flex flex-wrap items-start gap-4">
+          <LetterTile label={name} hue={hueFor(a.slug)} size="xl" solid />
+          <div className="min-w-0 flex-1">
+            <p className="text-sm text-muted">
+              <Link to="/$org/projects/$p" params={{ org, p: a.project }} className="hover:underline">
+                {project?.name ?? a.project}
+              </Link>
+              <span className="mx-1 text-muted/60">/</span>
+              {a.environment}
+            </p>
+            <h1 className="truncate text-xl font-semibold tracking-[-0.01em] tracking-[-0.015em]">{name}</h1>
+            <div className="mt-2 flex flex-wrap items-center gap-1.5">
+              <Badge variant={BUILD_VARIANT[build] ?? "default"} dot>
+                {buildKey ? t(buildKey) : build}
+              </Badge>
+              <Badge variant="blue">{accessKey ? t(accessKey) : a.access}</Badge>
+              <Badge variant="default">{a.runtime === "wasm" ? "WebAssembly" : "HTTP"}</Badge>
+              {a.live_version !== null ? <Badge variant="outline">{t("liveVersion", { version: a.live_version })}</Badge> : null}
+            </div>
+          </div>
+          <div className="flex basis-full flex-wrap items-center gap-2 sm:basis-auto">
+            <Button asChild variant="secondary">
+              <Link to="/$org/apps/$app/code" params={{ org, app }}>
+                <Code2 aria-hidden="true" /> {t("editCode")}
+              </Link>
+            </Button>
+            <Button asChild variant="default">
+              <a href={a.url} target="_blank" rel="noreferrer">
+                <ExternalLink aria-hidden="true" /> {t("open")}
+              </a>
+            </Button>
+          </div>
+        </div>
+        {a.status.last_error ? (
+          <p role="note" className="rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger-text">
+            {t("lastError", { error: a.status.last_error })}
+          </p>
+        ) : null}
+      </header>
+
+      <section aria-label={t("liveUrl")} className="flex flex-col gap-3">
+        <UrlBar
+          url={a.url}
+          badge={<Badge variant="success">HTTP</Badge>}
+          onReload={() => setPreviewKey((k) => k + 1)}
+        />
+        <PreviewFrame url={a.url} title={t("preview")} reloadKey={previewKey} className="h-[320px]" />
+      </section>
+
+      <section aria-labelledby="stats-heading" className="flex flex-col gap-2">
+        <div className="flex items-baseline justify-between">
+          <h2 id="stats-heading" className="text-[15px] font-semibold">
+            {t("stats.title")}
+          </h2>
+          <Link to="/$org/apps/$app/logs" params={{ org, app }} className="text-[13px] text-muted hover:text-text hover:underline">
+            {t("stats.viewLogs")}
+          </Link>
+        </div>
+        {stats.isError ? (
+          <QueryError error={stats.error} onRetry={() => void stats.refetch()} notFoundTitle={t("stats.notFound")} />
+        ) : stats.isPending ? (
+          <Skeleton className="h-20 w-full" />
+        ) : (
+          <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
+            {TILES.map((tile) => (
+              <StatTile key={tile.key} label={t(tile.label)} value={formatTile(tile.key, stats.data[tile.key], tile.suffix)} />
+            ))}
+          </dl>
+        )}
+      </section>
+
+      <SectionCard
+        title={t("code.title")}
+        flush
+        actions={
+          <Link to="/$org/apps/$app/versions" params={{ org, app }} className={SMALL_CONTROL}>
+            <History aria-hidden="true" /> {t("code.history")}
+          </Link>
+        }
+      >
+        {files.isPending ? (
+          <div className="p-4" aria-busy="true">
+            <Skeleton className="h-10 w-full" />
+          </div>
+        ) : files.isError || !files.data ? (
+          <p className="px-5 py-4 text-sm text-muted">{t("code.unavailable")}</p>
+        ) : (
+          <ul className="divide-y divide-line">
+            {Object.keys(files.data.files)
+              .sort()
+              .map((path) => (
+                <li key={path}>
+                  <Link
+                    to="/$org/apps/$app/code"
+                    params={{ org, app }}
+                    className="flex h-11 items-center gap-3 px-5 text-sm outline-none transition-colors hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus"
+                  >
+                    <FileCode2 className="size-4 shrink-0 text-tag-blue-text" aria-hidden="true" />
+                    <span className="min-w-0 flex-1 truncate font-medium">{path}</span>
+                    {path === files.data?.entry ? <Badge variant="success">{t("code.entry")}</Badge> : null}
+                    <span className="hidden text-[12px] text-muted sm:inline">{t("code.version", { version: files.data?.version })}</span>
+                  </Link>
+                </li>
+              ))}
+          </ul>
+        )}
+      </SectionCard>
+
+      <EventsPanel org={org} app={app} />
+
+      {canExport ? (
+        <SectionCard title={t("data.title")} description={t("data.description")}>
+          <Button asChild variant="secondary" className="self-start">
+            <a href={`/api${appPath(org, app)}/export`} download>
+              <Download aria-hidden="true" />
+              {t("data.export")}
+            </a>
+          </Button>
+        </SectionCard>
+      ) : null}
+    </div>
+  );
+}

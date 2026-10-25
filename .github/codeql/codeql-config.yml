@@ -1,0 +1,10 @@
+# CodeQL paths shared by .github/workflows/security.yml and scripts/ci-local.sh. Both run the
+# security-extended suite (named in each, since only the Action resolves the shorthand here).
+name: runtime-web
+paths-ignore:
+  # Tests read fixtures and build HTML on purpose; they never ship.
+  - "**/*.test.ts"
+  - "**/*.test.tsx"
+  - server/test
+  - web/src/test
+  - e2e

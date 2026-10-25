@@ -1,0 +1,272 @@
+{
+  "tempPassword": "Temporary password",
+  "inviteLink": "Invite link",
+  "none": "None",
+  "notAvailable": "Not available",
+  "unknown": "Unknown",
+  "secret": {
+    "unavailable": "Copy is not available here. Select the text and copy it.",
+    "copied": "{{label}} copied",
+    "failed": "Copy failed. Select the text and copy it.",
+    "copyLabel": "Copy {{label}}"
+  },
+  "kv": {
+    "yes": "yes",
+    "no": "no",
+    "none": "none",
+    "empty": "empty",
+    "caption": "{{source}} {{metric}}",
+    "rowsSource_one": "{{count}} row · {{source}}",
+    "rowsSource_other": "{{count}} rows · {{source}}"
+  },
+  "audit": {
+    "title": "Audit log",
+    "description": "Every instance-wide change, newest first.",
+    "filters": "Filter audit log",
+    "organization": "Organization",
+    "actor": "Actor",
+    "action": "Action",
+    "allOrgs": "All organizations",
+    "anyActor": "Any actor",
+    "actionPlaceholder": "for example app.create",
+    "empty": {
+      "title": "No entries match",
+      "description": "Clear a filter to see more of the log."
+    },
+    "columns": {
+      "when": "When",
+      "actor": "Actor",
+      "organization": "Organization",
+      "action": "Action",
+      "target": "Target",
+      "detail": "Detail"
+    },
+    "asInstanceAdmin": "As instance admin",
+    "notFound": "Audit log not found",
+    "instance": "Instance",
+    "loadMore": "Load more entries"
+  },
+  "invites": {
+    "title": "Pending invites",
+    "revoked": "Invite for {{email}} revoked",
+    "empty": {
+      "title": "No pending invites",
+      "description": "Create an invite link to add someone without setting a password for them."
+    },
+    "columns": {
+      "organization": "Organization",
+      "expires": "Expires"
+    },
+    "revoke": "Revoke",
+    "notFound": "Invites not found",
+    "revokeLabel": "Revoke invite for {{email}}",
+    "revokeTitle": "Revoke invite for {{email}}?",
+    "revokeDescription": "The invite link stops working immediately. Create a new one if you still need to add them.",
+    "revokeConfirm": "Revoke invite"
+  },
+  "users": {
+    "title": "Users",
+    "description": "Everyone who can sign in to this instance.",
+    "createInvite": "Create invite link",
+    "newUser": "New user",
+    "search": "Search users",
+    "searchPlaceholder": "Search by name or email",
+    "empty": {
+      "noMatch": "No users match",
+      "noUsers": "No users yet",
+      "tryOther": "Try another name or email.",
+      "create": "Create the first user or send an invite link."
+    },
+    "columns": {
+      "name": "Name",
+      "email": "Email",
+      "status": "Status"
+    },
+    "badges": {
+      "instanceAdmin": "Instance admin",
+      "disabled": "Disabled",
+      "twoFactorOn": "2FA on",
+      "twoFactorOff": "2FA off",
+      "mustChange": "Must change password"
+    },
+    "actionsFor": "Actions for {{name}}",
+    "menu": {
+      "enable": "Enable user",
+      "disable": "Disable user",
+      "resetPassword": "Reset password",
+      "reset2fa": "Reset 2FA",
+      "delete": "Delete user"
+    },
+    "loadMore": "Load more users",
+    "notFound": "Users not found",
+    "toast": {
+      "enabled": "{{name}} enabled",
+      "disabled": "{{name}} disabled",
+      "deleted": "{{name}} was deleted",
+      "twoFactorReset": "2FA reset for {{name}}"
+    },
+    "dialog": {
+      "resetPasswordTitle": "Reset password for {{name}}?",
+      "reset2faTitle": "Reset 2FA for {{name}}?",
+      "deleteTitle": "Delete {{name}}?",
+      "resetPasswordConfirm": "Reset password",
+      "reset2faConfirm": "Reset 2FA",
+      "deleteConfirm": "Delete user",
+      "resetPasswordBody": "A new temporary password is generated and every session of this user is signed out. The old password stops working.",
+      "reset2faBody": "Two-factor sign-in is removed and every session of this user is signed out. They can enroll again from their security page.",
+      "deleteBody": "Deleting disables the account, signs it out everywhere, and anonymizes its name and email. Past audit entries stay, but they show the anonymized account.",
+      "cannotUndo": "This cannot be undone."
+    },
+    "tempPasswordTitle": "Temporary password for {{name}}",
+    "tempPasswordNote": "Share it with {{email}} now. It is shown once and cannot be retrieved later. {{name}} must change it at first sign-in, and their other sessions are signed out."
+  },
+  "newUser": {
+    "title": "New user",
+    "description": "The user signs in with a temporary password and must change it at first sign-in.",
+    "emailRequired": "Enter an email address.",
+    "nameRequired": "Enter a name.",
+    "emailTaken": "An account with this email already exists.",
+    "tempPasswordNote": "Share it with {{email}} now. It is shown once and cannot be retrieved later.",
+    "instanceAdmin": "Instance admin",
+    "submit": "Create user"
+  },
+  "invite": {
+    "title": "Invite link",
+    "description": "Creates a single-use link that expires in 7 days.",
+    "emailRequired": "Enter an email address.",
+    "linkNote": "Shown once. Copy it now, it cannot be shown again. Revoke the invite if it leaks.",
+    "organization": "Organization (optional)",
+    "noOrganization": "No organization",
+    "role": "Role in organization",
+    "submit": "Create invite link"
+  },
+  "orgs": {
+    "title": "Organizations",
+    "description": "Every org on this instance, with its usage.",
+    "new": "New organization",
+    "emptyTitle": "No organizations yet",
+    "emptyDescription": "Create an organization and pick its owner from the users.",
+    "columns": {
+      "name": "Name",
+      "slug": "Slug",
+      "usage": "Usage, last 30 days"
+    },
+    "actionsFor": "Actions for {{name}}",
+    "rename": "Rename",
+    "delete": "Delete organization",
+    "usageUnavailable": "Usage unavailable",
+    "notFound": "Organizations not found",
+    "usage": "{{invocations}} invocations, {{egress}} egress",
+    "create": {
+      "title": "New organization",
+      "description": "The owner can add members, projects and apps.",
+      "name": "Name",
+      "slug": "Slug",
+      "owner": "Owner",
+      "chooseUser": "Choose a user",
+      "submit": "Create organization",
+      "slugRequired": "Enter a slug.",
+      "nameRequired": "Enter a name.",
+      "ownerRequired": "Pick an owner.",
+      "slugTaken": "This slug is already taken.",
+      "created": "Organization {{name}} created"
+    },
+    "renameDialog": {
+      "title": "Rename {{name}}",
+      "description": "The slug stays the same, so existing links keep working.",
+      "name": "Name",
+      "submit": "Save name",
+      "nameRequired": "Enter a name.",
+      "renamed": "Organization renamed"
+    },
+    "deleteDialog": {
+      "title": "Delete {{name}}?",
+      "description": "Only empty organizations can be deleted. Remove its projects and apps first.",
+      "cannotUndo": "This cannot be undone.",
+      "confirm": "Delete organization",
+      "deleted": "{{name}} deleted",
+      "notEmpty": "This organization still has projects or apps. Remove them first."
+    }
+  },
+  "node": {
+    "title": "Node",
+    "description": "The runtime node as it reports itself.",
+    "status": "Status",
+    "statusDescription": "Version, capacity and memory.",
+    "scheduler": "Scheduler",
+    "schedulerDescription": "Queues and worker state.",
+    "configTitle": "Configuration",
+    "configDescription": "Runtime settings the console can change.",
+    "formLabel": "Node configuration",
+    "degradation": "Degradation mode",
+    "profile": "Default profile",
+    "rateLimit": "Rate limit (JSON)",
+    "restartBadge": "applies after restart",
+    "rateLimitInvalid": "Enter a JSON object, for example {}.",
+    "save": "Save configuration",
+    "saved": "Saved. Restart the node to apply: {{keys}}.",
+    "savedNoRestart": "Node configuration saved.",
+    "saveFailed": "Could not save the node configuration. Try again.",
+    "drainTitle": "Drain",
+    "drainDescription": "Stop the node from accepting new work. Existing work finishes first.",
+    "drainButton": "Drain node",
+    "drainStarted": "Drain started.",
+    "drainFailed": "Could not start the drain. Try again.",
+    "drainDialogTitle": "Drain this node?",
+    "drainDialogDescription": "New work stops being accepted. Type drain to confirm.",
+    "drainConfirmLabel": "Type drain to confirm"
+  },
+  "cache": {
+    "title": "Cache",
+    "description": "Read-only view of the node cache as the runtime reports it.",
+    "cardTitle": "Node cache"
+  },
+  "domains": {
+    "title": "Domains",
+    "description": "Custom domains across every org, with certificate state.",
+    "caption": "Custom domains across all orgs",
+    "emptyTitle": "No custom domains yet",
+    "emptyDescription": "Domains that org members add to their apps show up here.",
+    "columns": {
+      "host": "Host",
+      "organization": "Org",
+      "app": "App",
+      "status": "Status",
+      "certificate": "Certificate",
+      "certExpires": "Cert expires"
+    },
+    "status": {
+      "active": "active",
+      "pending": "pending",
+      "failed": "failed"
+    },
+    "cert": {
+      "issued": "issued",
+      "pending": "pending",
+      "error": "error",
+      "none": "none"
+    }
+  },
+  "settings": {
+    "title": "Instance settings",
+    "description": "Public URL, sign-in policy, providers and branding.",
+    "formLabel": "Instance settings",
+    "publicUrl": "Public URL",
+    "publicUrlHint": "Set on the server. Shown for reference.",
+    "policy": "Sign-in policy",
+    "require2fa": "Require 2FA for all users",
+    "ssoOnly": "Disable password login (SSO only)",
+    "ssoHint": "Available once an OAuth provider is enabled. Instance admins can always sign in with a password.",
+    "providers": "OAuth providers",
+    "enableProvider": "Enable {{name}}",
+    "clientId": "{{name}} client ID",
+    "clientSecret": "{{name}} client secret",
+    "secretSet": "Secret set",
+    "secretKeep": "Leave blank to keep the current secret",
+    "issuer": "Issuer URL",
+    "displayName": "Display name",
+    "save": "Save settings",
+    "saved": "Instance settings saved.",
+    "saveFailed": "Could not save the settings. Try again."
+  }
+}

@@ -1,0 +1,165 @@
+{
+  "title": "Triggerlar",
+  "description": "Ilovani ishga tushiradigan hamma narsa: HTTP, jadvallar va navbat.",
+  "appNotFound": "Ilova topilmadi",
+  "kind": {
+    "cron": "Cron",
+    "interval": "Interval"
+  },
+  "http": {
+    "title": "HTTP",
+    "description": "Ilovani kim chaqirishi va qaysi soʻrovlar unga yetib borishi.",
+    "access": "Kirish",
+    "accessOptions": {
+      "public": "Ochiq",
+      "key": "Kalit bilan",
+      "internal": "Ichki"
+    },
+    "accessHint": {
+      "public": "URL manzili bor har kim uni chaqirishi mumkin.",
+      "key": "Chaqiruvchilarga chaqiruv tokeni kerak.",
+      "internal": "Faqat shu tashkilotdagi boshqa ilovalar uni chaqira oladi."
+    },
+    "methods": "Ruxsat etilgan metodlar",
+    "prefixes": "Yoʻl prefikslari (har qatorga bittadan)",
+    "keepNote": "IP ruxsat roʻyxati va soʻrovlar chastotasi cheklovi oʻzgarishsiz qoladi.",
+    "save": "HTTP marshrutini saqlash",
+    "toast": {
+      "saved": "HTTP marshruti saqlandi"
+    }
+  },
+  "schedules": {
+    "title": "Jadvallar",
+    "description": "Ilovani belgilangan interval yoki cron ifodasi boʻyicha ishga tushirish.",
+    "add": "Jadval qoʻshish",
+    "everySeconds": "Har {{seconds}} s",
+    "next": "Keyingisi: {{when}}",
+    "enabledFor": "Yoqilgan: {{label}}",
+    "deleteFor": "{{label}} jadvalini oʻchirish",
+    "emptyTitle": "Jadvallar hali yoʻq",
+    "emptyDescription": "Ilovani taymer boʻyicha ishga tushirish uchun bittasini qoʻshing.",
+    "notFound": "Jadvallar topilmadi",
+    "deleteTitle": "Bu jadvalni oʻchirasizmi?",
+    "deleteDescription": "Jadval ishlashni toʻxtatadi, keyingi ishga tushirish bekor qilinadi.",
+    "deleteConfirm": "Jadvalni oʻchirish",
+    "deleted": "Jadval oʻchirildi",
+    "created": "Jadval yaratildi",
+    "dialog": {
+      "kind": "Turi",
+      "cronNotInPlan": "Cron tarifingizga kirmaydi. Oʻrniga interval ishlating.",
+      "cronExpression": "Cron ifodasi",
+      "cronHint": "Daqiqa, soat, oyning kuni, oy, haftaning kuni.",
+      "cronPreviewFallback": "Bu ifoda uchun oldindan koʻrish mavjud emas. Beshta maydonni tekshiring.",
+      "timezone": "Vaqt mintaqasi",
+      "every": "Har (soniyada)",
+      "payload": "Yuklama (JSON)",
+      "errorPayload": "Yuklama toʻgʻri JSON boʻlishi kerak.",
+      "errorCronEmpty": "Cron ifodasini kiriting.",
+      "errorInterval": "Interval sekundlarda butun son boʻlishi va kamida 1 boʻlishi kerak.",
+      "create": "Jadval yaratish"
+    }
+  },
+  "oneOff": {
+    "title": "Bir martalik vazifalar",
+    "description": "Kodingiz std:schedule orqali navbatga qoʻygan, ishga tushishini kutayotgan vazifalar.",
+    "empty": "Kutilayotgan vazifalar yoʻq.",
+    "runs": "Ishga tushadi: {{when}}",
+    "notFound": "Vazifalar topilmadi"
+  },
+  "queue": {
+    "title": "Navbat",
+    "description": "Ishlovchini tekshirish uchun sinov xabarini yuboring.",
+    "notFound": "Navbat topilmadi",
+    "depth": "Chuqurlik",
+    "inFlight": "Jarayonda",
+    "oldest": "Eng eskisi",
+    "deadLettered": "Yetkazilmagan",
+    "oldestSeconds": "{{seconds}} s",
+    "body": "Xabar matni (JSON)",
+    "delay": "Kechikish soniyalarda (ixtiyoriy)",
+    "bodyInvalid": "Xabar matni toʻgʻri JSON boʻlishi kerak.",
+    "send": "Sinov xabarini yuborish",
+    "sending": "Yuborilmoqda…",
+    "toast": {
+      "enqueued": "Sinov xabari navbatga qoʻyildi"
+    }
+  },
+  "dlq": {
+    "title": "Yetkazilmagan xabarlar navbati",
+    "description": "Barcha urinishlardan keyin xato bilan tugagan xabarlar.",
+    "redrive": "Qayta ishga tushirish",
+    "purge": "DLQ ni tozalash",
+    "empty": "Yetkazilmagan xabarlar navbati boʻsh",
+    "emptyDescription": "Xato bilan tugagan xabarlar shu yerda chiqadi.",
+    "notFound": "DLQ topilmadi",
+    "attempts_one": "{{count}} urinish, xato {{when}}",
+    "attempts_other": "{{count}} urinish, xato {{when}}",
+    "redriveTitle": "Yetkazilmagan xabarlarni navbatga qaytarasizmi?",
+    "redriveDescription_one": "{{count}} ta xabar navbatga qaytadi va ilovaning joriy kodi bilan qayta ishlanadi.",
+    "redriveDescription_other": "{{count}} ta xabar navbatga qaytadi va ilovaning joriy kodi bilan qayta ishlanadi.",
+    "purgeTitle": "Yetkazilmagan xabarlar navbatini tozalaysizmi?",
+    "purgeDescription": "Yetkazilmagan barcha xabarlar butunlay oʻchiriladi. Buni qaytarib boʻlmaydi.",
+    "purgeConfirm": "Tozalash",
+    "purgeWord": "tozalash",
+    "purgeTypeLabel": "Tasdiqlash uchun {{word}} deb yozing",
+    "toast": {
+      "redriven_one": "{{count}} ta xabar qayta ishga tushirildi",
+      "redriven_other": "{{count}} ta xabar qayta ishga tushirildi",
+      "purged": "Yetkazilmagan xabarlar navbati tozalandi"
+    }
+  },
+  "errors": {
+    "planLimit": "Bu trigger tarifingizda ruxsat etilmagan yoki jadvallar limiti tugagan. Mavjud jadvallardan birini oʻchiring yoki instans administratoridan tarifni oʻzgartirishni soʻrang.",
+    "busy": "Ish muhiti hozir band. Bir ozdan keyin qayta urinib koʻring.",
+    "tooMany": "Soʻrovlar juda koʻp. {{wait}}",
+    "retryIn": "{{seconds}} s dan keyin qayta urinib koʻring.",
+    "retryLater": "Bir ozdan keyin qayta urinib koʻring."
+  },
+  "cron": {
+    "at": "Soat {{time}}",
+    "minuteOfHour": "Soatning {{minute}}-daqiqasida",
+    "everyMinute": "Har minutda",
+    "everyMinutes_one": "Har {{count}} minutda",
+    "everyMinutes_other": "Har {{count}} minutda",
+    "minuteEveryHour": "{{minute}}-daqiqada, har soatda",
+    "minuteEveryHours_one": "{{minute}}-daqiqada, har {{count}} soatda",
+    "minuteEveryHours_other": "{{minute}}-daqiqada, har {{count}} soatda",
+    "everyDay": "har kuni",
+    "dayOfMonth": "har oyning {{day}}-kuni",
+    "onDate": "{{month}} {{day}}",
+    "dayRange": "{{from}}–{{to}}",
+    "full": "{{time}}, {{day}}",
+    "dayNames": {
+      "sunday": "Yakshanba",
+      "monday": "Dushanba",
+      "tuesday": "Seshanba",
+      "wednesday": "Chorshanba",
+      "thursday": "Payshanba",
+      "friday": "Juma",
+      "saturday": "Shanba"
+    },
+    "weekdays": {
+      "sunday": "har yakshanba",
+      "monday": "har dushanba",
+      "tuesday": "har seshanba",
+      "wednesday": "har chorshanba",
+      "thursday": "har payshanba",
+      "friday": "har juma",
+      "saturday": "har shanba"
+    },
+    "months": {
+      "january": "Yanvar",
+      "february": "Fevral",
+      "march": "Mart",
+      "april": "Aprel",
+      "may": "May",
+      "june": "Iyun",
+      "july": "Iyul",
+      "august": "Avgust",
+      "september": "Sentyabr",
+      "october": "Oktyabr",
+      "november": "Noyabr",
+      "december": "Dekabr"
+    }
+  }
+}

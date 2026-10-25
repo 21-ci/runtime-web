@@ -1,0 +1,32 @@
+{
+  "title": "Kutilayotgan takliflar",
+  "description": "Takliflar 7 kundan keyin muddati tugaydi. Havolasi ishlamasligi uchun taklifni bekor qiling.",
+  "listAria": "Kutilayotgan takliflar",
+  "orgNotFound": "Tashkilot topilmadi",
+  "empty": {
+    "title": "Kutilayotgan takliflar yoʻq",
+    "description": "Quyidagi shakl orqali hamkasbingizni taklif qiling."
+  },
+  "item": {
+    "noRole": "Rolsiz",
+    "meta": "{{role}} · muddati {{date}} da tugaydi"
+  },
+  "revoke": {
+    "label": "{{email}} uchun taklifni bekor qilish",
+    "button": "Taklifni bekor qilish",
+    "title": "Bu taklif bekor qilinsinmi?",
+    "description": "{{email}} qoʻshilish uchun yangi taklif olishi kerak boʻladi.",
+    "confirm": "Bekor qilish"
+  },
+  "toast": {
+    "revoked": "{{email}} uchun taklif bekor qilindi.",
+    "createFailed": "Taklifni yuborib boʻlmadi. Qayta urinib koʻring."
+  },
+  "form": {
+    "submit": "Taklif yaratish",
+    "copyLinkAria": "Taklif havolasini nusxalash"
+  },
+  "errors": {
+    "email": "Elektron pochta manzilini kiriting."
+  }
+}

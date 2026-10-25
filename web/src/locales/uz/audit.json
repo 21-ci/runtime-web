@@ -1,0 +1,26 @@
+{
+  "title": "Audit jurnali",
+  "description": "Bu tashkilotda kim nimani oʻzgartirgani, eng yangisi birinchi.",
+  "filters": {
+    "actor": "Foydalanuvchi ID (ijrochi)",
+    "action": "Amal",
+    "apply": "Filtrlarni qoʻllash"
+  },
+  "columns": {
+    "when": "Qachon",
+    "actor": "Ijrochi",
+    "action": "Amal",
+    "target": "Obyekt"
+  },
+  "unknownActor": "Nomaʼlum",
+  "orgNotFound": "Tashkilot topilmadi",
+  "loadMore": "Yana yuklash",
+  "empty": {
+    "title": "Mos yozuvlar yoʻq",
+    "description": "Boshqa filtrlarni sinab koʻring."
+  },
+  "adminOnly": {
+    "title": "Audit jurnali faqat administratorlar uchun",
+    "description": "Jurnal uchun ega yoki administratorga murojaat qiling."
+  }
+}

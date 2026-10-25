@@ -4,3 +4,21 @@ node_modules/
 dist/
 data/
 .env
+.idea/
+
+# local design captures and scratch screenshots (the README image lives in docs/assets/)
+docs/screenshots/
+
+# build output
+bin/
+site/
+.claude/*
+!.claude/skills/
+
+# runtime-web server: generated SPA embedding (scripts/gen-assets.mjs)
+server/src/gen/
+server/.gen-blobs.json
+# test coverage reports
+coverage/
+.venv/
+.ci-local/

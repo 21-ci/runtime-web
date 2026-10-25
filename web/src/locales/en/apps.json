@@ -1,0 +1,58 @@
+{
+  "notFound": {
+    "description": "It may have been deleted or you lack access."
+  },
+  "app": {
+    "notFound": "App not found"
+  },
+  "project": {
+    "notFound": "Project not found",
+    "appsNotFound": "Apps not found",
+    "environments": "Environments:",
+    "environmentsLabel": "Environments",
+    "newApp": "New app",
+    "apps": "Apps",
+    "appsInProject_one": "{{count}} app in this project",
+    "appsInProject_other": "{{count}} apps in this project"
+  },
+  "build": {
+    "ready": "Ready",
+    "failed": "Failed",
+    "building": "Building",
+    "pending": "Pending"
+  },
+  "new": {
+    "title": "New app",
+    "description": "Pick a template, then name the app and choose where it runs.",
+    "project": "Project",
+    "environment": "Environment",
+    "appName": "App name",
+    "appNameHint": "Lowercase letters, digits and dashes.",
+    "displayName": "Display name (optional)",
+    "template": "Template",
+    "create": "Create app",
+    "chooseProject": "Choose a project.",
+    "chooseEnvironment": "Choose an environment.",
+    "enterName": "Enter an app name.",
+    "slugTaken": "This app name is taken on this runtime.",
+    "failed": "Could not create the app. Try again."
+  },
+  "templates": {
+    "http": {
+      "title": "HTTP handler",
+      "blurb": "Answer web requests"
+    },
+    "cron": {
+      "title": "Scheduled job",
+      "blurb": "Run on a timer"
+    },
+    "queue": {
+      "title": "Queue worker",
+      "blurb": "Process messages"
+    },
+    "sqliteCrud": {
+      "title": "SQLite CRUD",
+      "blurb": "JSON API over a table"
+    }
+  }
+}

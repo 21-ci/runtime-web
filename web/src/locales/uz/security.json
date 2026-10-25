@@ -1,0 +1,101 @@
+{
+  "title": "Hisob xavfsizligi",
+  "mfaRequired": "Ushbu instans ikki bosqichli autentifikatsiyani talab qiladi. Runtime Web xizmatidan foydalanishni davom ettirish uchun uni sozlang.",
+  "accountNotFound": "Hisob topilmadi",
+  "sessionsNotFound": "Seanslar topilmadi",
+  "historyNotFound": "Tarix topilmadi",
+  "codeLabel": "Autentifikatsiya kodi",
+  "passwordLabel": "Parol",
+  "currentPasswordLabel": "Joriy parol",
+  "enterPassword": "Parolingizni kiriting.",
+  "wrongPassword": "Parol notoʻgʻri.",
+  "wrongCode": "Kod notoʻgʻri.",
+  "twoFactor": {
+    "title": "Ikki bosqichli autentifikatsiya",
+    "description": "Har safar tizimga kirganingizda autentifikator ilovangizdagi kod soʻralsin.",
+    "on": "Ikki bosqichli autentifikatsiya yoqilgan.",
+    "setUp": "Ikki bosqichli autentifikatsiyani sozlash"
+  },
+  "enroll": {
+    "passwordPrompt": "2FA sozlashni boshlash uchun joriy parolingizni kiriting.",
+    "enterPassword": "Joriy parolingizni kiriting.",
+    "wrongPassword": "Parol notoʻgʻri. Qayta urinib koʻring.",
+    "continue": "Davom etish",
+    "failed": "2FA sozlashni boshlab boʻlmadi. Qayta urinib koʻring.",
+    "scan": "QR-kodni autentifikator ilovangiz bilan skanerlang, soʻng u koʻrsatgan 6 xonali kodni kiriting.",
+    "qrAlt": "Autentifikator ilovasi uchun QR-kod",
+    "preparingQr": "QR-kod tayyorlanmoqda",
+    "cannotScan": "Skanerlab boʻlmayaptimi? Kalitni qoʻlda kiriting:",
+    "codeRequired": "Ilovangizdagi 6 xonali kodni kiriting.",
+    "invalidCode": "Kod notoʻgʻri. Qayta urinib koʻring.",
+    "confirmFailed": "2FA ni yoqib boʻlmadi. Qaytadan boshlang.",
+    "turnOn": "2FA ni yoqish",
+    "rateLimited": "Urinishlar juda koʻp. Kutib, qayta urinib koʻring."
+  },
+  "recovery": {
+    "title": "Tiklash kodlari",
+    "regenDescription": "Yangi kodlar yaratilsa, eski kodlar ishlamay qoladi.",
+    "regenerate": "Yangi tiklash kodlarini yaratish",
+    "regenFailed": "Yangi kodlarni yaratib boʻlmadi.",
+    "description": "Har bir kod autentifikatoringiz ishlamaganda bir marta ishlaydi. Ularni xavfsiz joyda saqlang. Ular faqat hozir koʻrsatiladi.",
+    "download": "Yuklab olish",
+    "downloadLabel": "Tiklash kodlarini yuklab olish",
+    "print": "Chop etish",
+    "printLabel": "Tiklash kodlarini chop etish",
+    "saved": "Tiklash kodlarini saqladim",
+    "fileHeader": "Runtime Web tiklash kodlari"
+  },
+  "disable": {
+    "title": "Ikki bosqichli autentifikatsiyani oʻchirish",
+    "required": "Parol va kodni kiriting.",
+    "failed": "2FA ni oʻchirib boʻlmadi.",
+    "button": "2FA ni oʻchirish"
+  },
+  "sessions": {
+    "title": "Seanslar",
+    "description": "Hisobingizga kirilgan qurilmalar.",
+    "signOutOthers": "Boshqa seanslardan chiqish",
+    "list": "Seanslar",
+    "current": "Joriy seans",
+    "revoke": "Bekor qilish",
+    "revokeLabel": "{{device}} seansini bekor qilish",
+    "lastActive": "{{ip}} · oxirgi faollik: {{time}}"
+  },
+  "logins": {
+    "title": "Kirish tarixi",
+    "description": "Hisobingizga kirish boʻyicha soʻnggi urinishlar.",
+    "empty": "Hali kirishlar yoʻq",
+    "when": "Vaqt",
+    "device": "Qurilma",
+    "method": "Usul",
+    "result": "Natija",
+    "methods": {
+      "password": "Parol",
+      "oauth": "OAuth",
+      "invite": "Taklif"
+    },
+    "results": {
+      "ok": "Kirildi",
+      "bad_password": "Notoʻgʻri parol",
+      "bad_totp": "Notoʻgʻri kod",
+      "rate_limited": "Limit oshib ketdi",
+      "disabled": "Hisob oʻchirilgan",
+      "sso_only": "Faqat SSO orqali",
+      "mfa_pending": "2FA kutilmoqda"
+    }
+  },
+  "linked": {
+    "title": "Bogʻlangan kirish",
+    "description": "Provayderni bogʻlab, u orqali kiring. Bogʻlash faqat shu tizimga kirilgan seansda mumkin.",
+    "identityTaken": "Bu hisob boshqa Runtime Web foydalanuvchisiga bogʻlangan.",
+    "failed": "Bogʻlashni boshlab boʻlmadi. Qayta urinib koʻring.",
+    "none": "Tashqi kirish provayderlari sozlanmagan.",
+    "link": "Bogʻlash",
+    "linkLabel": "{{name}} ni bogʻlash"
+  },
+  "toast": {
+    "signedOut_one": "Boshqa seansdan chiqildi: {{count}} ta.",
+    "signedOut_other": "Boshqa seanslardan chiqildi: {{count}} ta.",
+    "twoFactorOff": "Ikki bosqichli autentifikatsiya oʻchirildi."
+  }
+}

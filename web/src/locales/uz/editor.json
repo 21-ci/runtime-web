@@ -1,0 +1,44 @@
+{
+  "breadcrumb": "Kod",
+  "readOnlyAccess": "Sizda bu ilova kodiga faqat koʻrish huquqi bor.",
+  "readOnlyVersion": "Bu versiya faqat oʻqish uchun.",
+  "wasm": "Bu versiya WebAssembly komponenti. Uning manbasini bu yerda tahrirlab boʻlmaydi; yangi yigʻishni asboblaringiz orqali joylashtiring.",
+  "save": "Saqlash",
+  "saveDirty": "Saqlash *",
+  "saved": "{{version}}-versiya saqlandi",
+  "preview": {
+    "button": "Koʻrinish",
+    "toggle": "Javob panelini koʻrsatish yoki yashirish",
+    "label": "Koʻrinish",
+    "frame": "Ilova koʻrinishi"
+  },
+  "files": {
+    "title": "Fayllar",
+    "select": "Fayl",
+    "entry": "kirish"
+  },
+  "problems": {
+    "failed": "Yigʻish amalga oshmadi: {{message}}. Ishlayotgan versiya oʻzgarmadi.",
+    "failedVersion": "Yigʻish amalga oshmadi ({{version}}-versiya): {{message}}. Ishlayotgan versiya oʻzgarmadi.",
+    "list": "Yigʻish muammolari"
+  },
+  "status": {
+    "building": "Yigʻilmoqda",
+    "failed": "Yigʻish xato, v{{version}}",
+    "live": "Ishlayotgan v{{version}}",
+    "liveLabel": "Ishlayotgan v{{version}}, versiyalarni ochish"
+  },
+  "stale": {
+    "title": "Kod boshqa joyda oʻzgartirilgan",
+    "description": "Siz ochganingizdan keyin kimdir bu ilovani saqlagan. Ularning versiyasini olish uchun sahifani qayta yuklang (sizning oʻzgarishlaringiz bekor qilinadi) yoki oʻzingizniki bilan ustiga yozing.",
+    "reload": "Qayta yuklash",
+    "overwrite": "Ustiga yozish"
+  },
+  "logs": "Loglar",
+  "logsDock": "Loglar paneli",
+  "editor": {
+    "label": "Kod muharriri: {{path}}"
+  },
+  "appNotFound": "Ilova topilmadi",
+  "appNotFoundHint": "Ehtimol, u oʻchirilgan yoki sizda ruxsat yoʻq."
+}

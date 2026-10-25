@@ -1,0 +1,37 @@
+{
+  "title": "Aʼzolar",
+  "description": "Rol aʼzoning tashkilotda nima qila olishini belgilaydi.",
+  "count_one": "{{count}} ta aʼzo",
+  "count_other": "{{count}} ta aʼzo",
+  "orgNotFound": "Tashkilot topilmadi",
+  "orgNotFoundHint": "U oʻchirilgan yoki sizda ruxsat yoʻq boʻlishi mumkin.",
+  "empty": {
+    "title": "Aʼzolar yoʻq",
+    "description": "Boshlash uchun hamkasbingizni taklif qiling."
+  },
+  "roles": {
+    "owner": "Ega",
+    "admin": "Administrator",
+    "member": "Aʼzo"
+  },
+  "projectRoles": {
+    "admin": "administrator",
+    "developer": "dasturchi",
+    "viewer": "kuzatuvchi"
+  },
+  "grant": "{{project}}: {{role}}",
+  "roleFor": "{{email}} uchun rol",
+  "removeLabel": "{{email}} ni olib tashlash",
+  "remove": {
+    "title": "{{name}} olib tashlansinmi?",
+    "description": "U ushbu tashkilotdagi barcha loyihalarga kirish huquqini yoʻqotadi.",
+    "confirm": "Aʼzoni olib tashlash"
+  },
+  "toast": {
+    "roleChanged_owner": "{{name}} endi ega.",
+    "roleChanged_admin": "{{name}} endi administrator.",
+    "roleChanged_member": "{{name}} endi aʼzo.",
+    "removed": "{{name}} olib tashlandi.",
+    "lastOwner": "Tashkilotda kamida bitta ega boʻlishi kerak."
+  }
+}

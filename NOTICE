@@ -1,0 +1,14 @@
+Runtime Web
+Copyright 2026 The Runtime Web Authors
+
+This product includes software developed by the Runtime Web Authors
+(https://github.com/21-ci/runtime-web), licensed under the Apache License,
+Version 2.0 (see LICENSE).
+
+The console and the server bundle include third-party npm packages, among them
+React, TanStack, Tailwind CSS and CodeMirror. Their licenses are listed in the
+SBOM (SPDX JSON) attached to every GitHub Release.
+
+The installer sets up 21 Cloud Runtime (https://github.com/21-ci/runtime), a
+separate product with its own license and NOTICE. The release tarball of
+Runtime Web does not contain it.

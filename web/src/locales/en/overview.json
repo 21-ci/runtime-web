@@ -1,0 +1,105 @@
+{
+  "title": "Overview",
+  "workspace": "{{name}} workspace",
+  "quick": {
+    "label": "Quick actions",
+    "newApp": "New app",
+    "newAppHint": "Deploy code in seconds",
+    "newProject": "New project",
+    "newProjectHint": "Group apps together",
+    "inviteMember": "Invite member",
+    "inviteMemberHint": "Bring your team in",
+    "createToken": "Create token",
+    "createTokenHint": "Access the API",
+    "addDomain": "Add domain",
+    "addDomainHint": "Serve an app on your URL"
+  },
+  "projects": {
+    "title": "Projects",
+    "notFound": "Organization not found",
+    "appCount_one": "{{count}} app",
+    "appCount_other": "{{count}} apps"
+  },
+  "apps": {
+    "title": "Apps",
+    "menu": "Apps menu",
+    "filter": "Filter apps by project",
+    "allProjects": "All projects",
+    "projectLabel": "Project",
+    "new": "New app",
+    "emptyTitle": "No apps yet",
+    "emptyDescription": "Create an app to see it here."
+  },
+  "activity": {
+    "title": "Recent activity",
+    "adminsOnly": "Activity is for admins",
+    "adminsHint": "Ask an owner or admin.",
+    "error": "Could not load activity",
+    "emptyTitle": "No activity yet",
+    "emptyDescription": "Changes in this org show up here.",
+    "system": "System"
+  },
+  "members": {
+    "title": "Members",
+    "titleCount": "Members ({{count}})",
+    "menu": "Members menu",
+    "invite": "Invite member",
+    "manage": "Manage members",
+    "empty": "No members to show"
+  },
+  "build": {
+    "ready": "Ready",
+    "failed": "Failed",
+    "building": "Building",
+    "pending": "Pending"
+  },
+  "access": {
+    "public": "Public",
+    "key": "Key required",
+    "internal": "Internal"
+  },
+  "liveVersion": "v{{version}}",
+  "app": {
+    "notFound": "App not found"
+  },
+  "editCode": "Edit code",
+  "open": "Open",
+  "lastError": "Last error: {{error}}",
+  "stats": {
+    "title": "Last 5 minutes",
+    "viewLogs": "View logs",
+    "notFound": "Stats not found",
+    "requests": "Requests",
+    "errors": "Errors",
+    "errorRate": "Error rate",
+    "p50": "p50",
+    "p95": "p95",
+    "p99": "p99"
+  },
+  "code": {
+    "title": "Code",
+    "history": "History",
+    "unavailable": "Code is not available for this version.",
+    "entry": "entry",
+    "version": "v{{version}}"
+  },
+  "events": {
+    "title": "Events",
+    "description": "What the runtime did with this app, newest first.",
+    "emptyTitle": "No events yet",
+    "emptyDescription": "Runtime events for this app appear here.",
+    "loadMore": "Load more",
+    "loading": "Loading…",
+    "value": "Value",
+    "items": "Items",
+    "none": "none",
+    "notFound": "Events not found"
+  },
+  "data": {
+    "title": "Data",
+    "description": "Download the app's SQLite database as a file.",
+    "export": "Export data"
+  },
+  "liveUrl": "Live URL",
+  "preview": "Response preview"
+}

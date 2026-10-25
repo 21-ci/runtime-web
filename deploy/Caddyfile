@@ -1,0 +1,81 @@
+# Runtime Web edge for a 21 Cloud Runtime node (docs/contributing/architecture.md D5, D10, D11).
+# Env (install.sh writes them to /etc/rtweb/caddy.env, mode 0600):
+#      RTWEB_RELAY_SECRET (same value the node exports for binding rtctl-tenant; 64 hex chars, never empty),
+#      RTWEB_DOMAIN (console host, e.g. console.example.com), RTWEB_APPS_DOMAIN (Apps host, e.g.
+#      apps.console.example.com), RTWEB_ACME_EMAIL, RTWEB_SLUG (the console service slug, install.mjs's
+#      RTWEB_SLUG; default rtweb).
+# The runtime never terminates TLS: Caddy does, and forwards plain HTTP to the invoke listener 127.0.0.1:8080,
+# which routes by Host (custom hosts mapped to services). The node trusts X-Forwarded-For from loopback only
+# (ingress.trusted_proxies = 127.0.0.1/32, ::1/128), so Caddy must overwrite the header with the real peer:
+# a client-sent X-Forwarded-For is never passed on.
+
+{
+	email {$RTWEB_ACME_EMAIL}
+	on_demand_tls {
+		# 200 only for an `active` custom domain (T8). Caddy calls it over loopback; the public sites below
+		# answer 404 for every /api/internal/* path, so it is not reachable from outside.
+		ask http://127.0.0.1:8080/s/{$RTWEB_SLUG}/api/internal/tls-ask
+	}
+}
+
+(rtweb_upstream) {
+	# Internal routes (tls-ask, asset upload) are for the node itself, via 127.0.0.1:8080 only.
+	@internal path /api/internal/* /s/*/api/internal/*
+	respond @internal 404
+	reverse_proxy 127.0.0.1:8080 {
+		# Replace, never append: the runtime takes the first hop from the right that is not a trusted proxy.
+		header_up X-Forwarded-For {remote_host}
+		header_up -X-Real-IP
+		header_up -Forwarded
+	}
+}
+
+# Relay (loopback only): the rtctl-tenant binding calls here with x-relay-auth; the per-org
+# tenant key travels as x-rtweb-key and becomes Authorization. Both headers are dropped upstream.
+# The secret must match exactly and be at least 32 characters: an empty or unset RTWEB_RELAY_SECRET
+# matches nothing (fails closed) instead of turning the check into "header present".
+http://127.0.0.1:8082 {
+	bind 127.0.0.1
+	@authed {
+		expression `size("{$RTWEB_RELAY_SECRET}") >= 32 && {http.request.header.x-relay-auth} == "{$RTWEB_RELAY_SECRET}"`
+		header_regexp key x-rtweb-key ^rtk_[A-Za-z0-9_-]+$
+	}
+	handle @authed {
+		reverse_proxy 127.0.0.1:8081 {
+			header_up Authorization "Bearer {http.request.header.x-rtweb-key}"
+			header_up -x-rtweb-key
+			header_up -x-relay-auth
+			header_up -x-rt-tenant
+		}
+	}
+	handle {
+		respond "forbidden" 403
+	}
+}
+
+# Console host: mapped by the operator to service rtweb (PUT /v1/services/{s}/hosts/{host}).
+{$RTWEB_DOMAIN} {
+	# HSTS for the console host only: tenant custom domains decide their own policy.
+	# `?` sets it only when the service did not (the console sends its own): one header, never two.
+	header ?Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	import rtweb_upstream
+}
+
+# Apps host: NOT mapped to any service, so the runtime path-routes /s/{slug}/ to the App (rt-triggers
+# routes.rs: a mapped Host wins over /s/). It is a separate origin from the console on purpose: App code
+# must never run where the console's session cookie and same-origin /api checks would trust it.
+# No HSTS here: Apps set their own headers, and includeSubDomains is not assumed for this host.
+{$RTWEB_APPS_DOMAIN} {
+	# The console itself is a service too: keep it off the Apps origin (it only answers on its own host).
+	@console path /s/{$RTWEB_SLUG} /s/{$RTWEB_SLUG}/*
+	respond @console 404
+	import rtweb_upstream
+}
+
+# Every other host: app custom domains, certificates issued on demand after `ask` says yes.
+https:// {
+	tls {
+		on_demand
+	}
+	import rtweb_upstream
+}

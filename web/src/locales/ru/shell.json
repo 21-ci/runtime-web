@@ -1,0 +1,135 @@
+{
+  "nav": {
+    "overview": "Обзор",
+    "members": "Участники",
+    "tokens": "Токены",
+    "auditLog": "Журнал аудита",
+    "settings": "Настройки",
+    "projects": "Проекты",
+    "accountSecurity": "Безопасность аккаунта",
+    "allProjects": "Все проекты",
+    "app": "Приложение",
+    "appNavigation": "Навигация по приложению",
+    "appSections": "Разделы приложения",
+    "project": "Проект",
+    "allAppsInProject": "Все приложения проекта"
+  },
+  "appNav": {
+    "overview": "Обзор",
+    "code": "Код",
+    "logs": "Логи",
+    "triggers": "Триггеры",
+    "versions": "Версии",
+    "env": "Окружение и секреты",
+    "domains": "Домены",
+    "settings": "Настройки"
+  },
+  "instance": {
+    "title": "Инстанс",
+    "users": "Пользователи",
+    "organizations": "Организации",
+    "auditLog": "Журнал аудита",
+    "node": "Узел",
+    "cache": "Кэш",
+    "domains": "Домены",
+    "settings": "Настройки"
+  },
+  "sidebar": {
+    "label": "Боковая панель",
+    "collapse": "Свернуть боковую панель",
+    "collapseTitle": "Свернуть боковую панель (⌘\\)",
+    "openCommandMenu": "Открыть меню команд",
+    "search": "Поиск…",
+    "searchTitle": "Поиск",
+    "searchProjectsAndApps": "Поиск проектов и приложений",
+    "noOrganization": "Нет организации",
+    "newProject": "Новый проект",
+    "newApp": "Новое приложение",
+    "newAppIn": "Новое приложение в «{{name}}»",
+    "moreFor": "Ещё для «{{name}}»",
+    "openProject": "Открыть проект",
+    "projectsFailed": "Не удалось загрузить проекты.",
+    "noProjects": "Нет проектов",
+    "noAppsYet": "Пока нет приложений"
+  },
+  "top": {
+    "skipToContent": "Перейти к содержимому",
+    "openNavigation": "Открыть навигацию",
+    "navigation": "Навигация",
+    "consoleNavigation": "Навигация по консоли",
+    "expandSidebar": "Развернуть боковую панель",
+    "expandSidebarTitle": "Развернуть боковую панель (⌘\\)",
+    "search": "Поиск"
+  },
+  "account": {
+    "menu": "Меню аккаунта",
+    "theme": "Тема",
+    "themeSystem": "Системная",
+    "themeLight": "Светлая",
+    "themeDark": "Тёмная",
+    "language": "Язык",
+    "help": "Помощь",
+    "getHelp": "Получить помощь",
+    "emailSupport": "Написать в поддержку",
+    "logOut": "Выйти"
+  },
+  "themeToggle": {
+    "label": "Тема",
+    "light": "Светлая тема",
+    "dark": "Тёмная тема",
+    "system": "Системная тема"
+  },
+  "orgSwitcher": {
+    "switch": "Сменить организацию",
+    "organizations": "Организации"
+  },
+  "breadcrumb": {
+    "label": "Навигационная цепочка"
+  },
+  "palette": {
+    "label": "Меню команд",
+    "placeholder": "Поиск приложений, проектов, действий…",
+    "empty": "Ничего не найдено.",
+    "actions": "Действия",
+    "newApp": "Новое приложение",
+    "newProject": "Новый проект",
+    "toggleTheme": "Сменить тему",
+    "toggleSidebar": "Боковая панель",
+    "expandSidebar": "Развернуть боковую панель",
+    "collapseSidebar": "Свернуть боковую панель",
+    "goTo": "Перейти",
+    "goToOverview": "Перейти к обзору",
+    "instanceAdmin": "Администрирование инстанса",
+    "settings": "Настройки",
+    "projects": "Проекты",
+    "apps": "Приложения",
+    "hintNavigate": "↑↓ выбор",
+    "hintSelect": "↵ открыть",
+    "hintClose": "esc закрыть"
+  },
+  "settings": {
+    "org": "Настройки организации",
+    "members": "Участники",
+    "tokens": "Токены",
+    "auditLog": "Журнал аудита",
+    "accountSecurity": "Безопасность аккаунта",
+    "instanceUsers": "Инстанс: пользователи",
+    "instanceOrgs": "Инстанс: организации",
+    "instanceAudit": "Инстанс: журнал аудита",
+    "instanceNode": "Инстанс: узел",
+    "instanceCache": "Инстанс: кэш",
+    "instanceDomains": "Инстанс: домены",
+    "instanceSettings": "Инстанс: настройки"
+  },
+  "home": {
+    "title": "Консоль Runtime",
+    "orgsFailed": "Не удалось загрузить организации",
+    "noOrgs": "Пока нет организаций",
+    "noOrgsHint": "Попросите владельца прислать приглашение. Администраторы инстанса могут создать организацию в разделе «Администрирование».",
+    "openAdmin": "Открыть администрирование"
+  },
+  "runtimeStatus": {
+    "busy": "Среда выполнения занята. Повторите через минуту.",
+    "unavailable": "Среда выполнения недоступна. Изменения применятся, когда она восстановится."
+  }
+}

@@ -1,0 +1,3 @@
+# Trivy accepted findings (read by security.yml and release.yml via --ignorefile).
+# One ID per line, each with a reason and an expiry, for example:
+#   CVE-2026-00000 exp:2026-12-31  # not reachable: dev-only transitive dep, upstream fix pending

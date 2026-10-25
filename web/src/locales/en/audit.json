@@ -1,0 +1,26 @@
+{
+  "title": "Audit log",
+  "description": "Who changed what in this org, newest first.",
+  "filters": {
+    "actor": "Actor user ID",
+    "action": "Action",
+    "apply": "Apply filters"
+  },
+  "columns": {
+    "when": "When",
+    "actor": "Actor",
+    "action": "Action",
+    "target": "Target"
+  },
+  "unknownActor": "Unknown",
+  "orgNotFound": "Org not found",
+  "loadMore": "Load more",
+  "empty": {
+    "title": "No matching entries",
+    "description": "Try different filters."
+  },
+  "adminOnly": {
+    "title": "Audit log is for admins",
+    "description": "Ask an owner or admin for the log."
+  }
+}

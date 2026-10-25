@@ -1,0 +1,135 @@
+{
+  "nav": {
+    "overview": "Overview",
+    "members": "Members",
+    "tokens": "Tokens",
+    "auditLog": "Audit log",
+    "settings": "Settings",
+    "projects": "Projects",
+    "accountSecurity": "Account security",
+    "allProjects": "All projects",
+    "app": "App",
+    "appNavigation": "App navigation",
+    "appSections": "App sections",
+    "project": "Project",
+    "allAppsInProject": "All apps in project"
+  },
+  "appNav": {
+    "overview": "Overview",
+    "code": "Code",
+    "logs": "Logs",
+    "triggers": "Triggers",
+    "versions": "Versions",
+    "env": "Env & Secrets",
+    "domains": "Domains",
+    "settings": "Settings"
+  },
+  "instance": {
+    "title": "Instance",
+    "users": "Users",
+    "organizations": "Organizations",
+    "auditLog": "Audit log",
+    "node": "Node",
+    "cache": "Cache",
+    "domains": "Domains",
+    "settings": "Settings"
+  },
+  "sidebar": {
+    "label": "Sidebar",
+    "collapse": "Collapse sidebar",
+    "collapseTitle": "Collapse sidebar (⌘\\)",
+    "openCommandMenu": "Open command menu",
+    "search": "Search…",
+    "searchTitle": "Search",
+    "searchProjectsAndApps": "Search projects and apps",
+    "noOrganization": "No organization",
+    "newProject": "New project",
+    "newApp": "New app",
+    "newAppIn": "New app in {{name}}",
+    "moreFor": "More for {{name}}",
+    "openProject": "Open project",
+    "projectsFailed": "Could not load projects.",
+    "noProjects": "No projects",
+    "noAppsYet": "No apps yet"
+  },
+  "top": {
+    "skipToContent": "Skip to content",
+    "openNavigation": "Open navigation",
+    "navigation": "Navigation",
+    "consoleNavigation": "Console navigation",
+    "expandSidebar": "Expand sidebar",
+    "expandSidebarTitle": "Expand sidebar (⌘\\)",
+    "search": "Search"
+  },
+  "account": {
+    "menu": "Account menu",
+    "theme": "Theme",
+    "themeSystem": "System",
+    "themeLight": "Light",
+    "themeDark": "Dark",
+    "language": "Language",
+    "help": "Help",
+    "getHelp": "Get help",
+    "emailSupport": "Email support",
+    "logOut": "Log out"
+  },
+  "themeToggle": {
+    "label": "Theme",
+    "light": "Light theme",
+    "dark": "Dark theme",
+    "system": "System theme"
+  },
+  "orgSwitcher": {
+    "switch": "Switch org",
+    "organizations": "Organizations"
+  },
+  "breadcrumb": {
+    "label": "Breadcrumb"
+  },
+  "palette": {
+    "label": "Command menu",
+    "placeholder": "Search apps, projects, actions…",
+    "empty": "No matches.",
+    "actions": "Actions",
+    "newApp": "New app",
+    "newProject": "New project",
+    "toggleTheme": "Toggle theme",
+    "toggleSidebar": "Toggle sidebar",
+    "expandSidebar": "Expand sidebar",
+    "collapseSidebar": "Collapse sidebar",
+    "goTo": "Go to",
+    "goToOverview": "Go to Overview",
+    "instanceAdmin": "Instance admin",
+    "settings": "Settings",
+    "projects": "Projects",
+    "apps": "Apps",
+    "hintNavigate": "↑↓ to navigate",
+    "hintSelect": "↵ to select",
+    "hintClose": "esc to close"
+  },
+  "settings": {
+    "org": "Organization settings",
+    "members": "Members",
+    "tokens": "Tokens",
+    "auditLog": "Audit log",
+    "accountSecurity": "Account security",
+    "instanceUsers": "Instance: users",
+    "instanceOrgs": "Instance: organizations",
+    "instanceAudit": "Instance: audit log",
+    "instanceNode": "Instance: node",
+    "instanceCache": "Instance: cache",
+    "instanceDomains": "Instance: domains",
+    "instanceSettings": "Instance: settings"
+  },
+  "home": {
+    "title": "Runtime Console",
+    "orgsFailed": "Could not load organizations",
+    "noOrgs": "No organizations yet",
+    "noOrgsHint": "Ask an owner for an invite. Instance admins can create one in Admin.",
+    "openAdmin": "Open Admin"
+  },
+  "runtimeStatus": {
+    "busy": "The runtime is busy. Retry in a moment.",
+    "unavailable": "The runtime is unreachable. Changes are not applied until it recovers."
+  }
+}

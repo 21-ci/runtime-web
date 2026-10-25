@@ -1,0 +1,62 @@
+{
+  "title": "Custom domains",
+  "description": "HTTPS certificates are issued automatically once DNS is verified.",
+  "keepTxt": "Keep the TXT record; removing it deactivates the domain.",
+  "failedHint": "The TXT record was missing, so the domain is inactive. Restore it and verify again.",
+  "notFound": "App not found",
+  "page": {
+    "title": "Domains",
+    "description": "Serve this app on your own hostnames."
+  },
+  "status": {
+    "pending": "Pending",
+    "active": "Active",
+    "failed": "Failed"
+  },
+  "cert": {
+    "none": "No certificate yet",
+    "pending": "Certificate pending",
+    "issued": "Certificate issued",
+    "error": "Certificate error",
+    "expires": "Expires {{date}}."
+  },
+  "dns": {
+    "intro": "Add these DNS records for <host>{{host}}</host>.",
+    "txtName": "TXT name",
+    "txtValue": "TXT value",
+    "cnameTarget": "CNAME target"
+  },
+  "copy": {
+    "txtName": "Copy TXT name",
+    "txtValue": "Copy TXT value",
+    "cnameTarget": "Copy CNAME target",
+    "done": "Copied.",
+    "failed": "Could not copy. Select the text instead."
+  },
+  "form": {
+    "label": "Domain",
+    "placeholder": "www.example.com",
+    "empty": "Enter a host name, for example www.example.com.",
+    "taken": "Another app already uses this host.",
+    "failed": "Could not add the domain. Try again.",
+    "add": "Add domain"
+  },
+  "empty": {
+    "title": "No custom domains",
+    "description": "Add a host name to point your own domain at this app."
+  },
+  "verify": {
+    "label": "Verify {{host}}",
+    "button": "Verify",
+    "active": "{{host}} is active.",
+    "mismatch": "The TXT record does not match yet. Try again after DNS updates."
+  },
+  "remove": {
+    "label": "Remove {{host}}",
+    "button": "Remove",
+    "title": "Remove {{host}}?",
+    "description": "Requests to this host stop working right away.",
+    "confirm": "Remove domain",
+    "done": "Removed {{host}}."
+  }
+}

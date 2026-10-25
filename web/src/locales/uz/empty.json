@@ -1,0 +1,16 @@
+{
+  "noApps": {
+    "title": "Bu loyihada ilovalar yoʻq",
+    "description": "Kodni loyiha muhitlaridan biriga joylashtirish uchun shablondan ilova yarating.",
+    "action": "Ilova yaratish"
+  },
+  "noProjects": {
+    "title": "Hali loyihalar yoʻq",
+    "description": "Loyiha ilovalarni va ular joylashtiriladigan muhitlarni birlashtiradi. Boshlash uchun bittasini yarating.",
+    "action": "Loyiha yaratish"
+  },
+  "queryError": {
+    "title": "Yuklab boʻlmadi",
+    "description": "Yuklashda nimadir xato ketdi. Ulanishni tekshirib, qayta urinib koʻring."
+  }
+}

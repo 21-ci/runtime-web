@@ -1,0 +1,144 @@
+{
+  "replaceNote": "Saqlash bu butun blokni almashtiradi.",
+  "page": {
+    "title": "Sozlamalar",
+    "description": "{{name}} · {{environment}}",
+    "notFound": "Ilova topilmadi",
+    "notFoundDescription": "U oʻchirilgan yoki sizda kirish huquqi yoʻq boʻlishi mumkin."
+  },
+  "nav": {
+    "label": "Sozlamalar boʻlimlari",
+    "general": "Umumiy",
+    "access": "Kirish",
+    "limits": "Cheklovlar",
+    "advanced": "Qoʻshimcha",
+    "danger": "Xavfli hudud"
+  },
+  "status": {
+    "label": "Ilova holati",
+    "tier": "daraja {{tier}}",
+    "inflight": "{{count}} ta bajarilmoqda"
+  },
+  "access": {
+    "title": "Kirish",
+    "description": "Bu ilovani HTTP orqali kim chaqira olishi.",
+    "label": "Kirish",
+    "formLabel": "Kirish sozlamalari",
+    "modes": {
+      "public": "Ochiq",
+      "key": "Kalit",
+      "internal": "Ichki"
+    },
+    "help": {
+      "public": "URLʼga ega boʻlgan har kim bu ilovani chaqira oladi.",
+      "key": "Chaqiruvchilar invoke tokenini yuborishi kerak.",
+      "internal": "Bu ilovani faqat shu tashkilotdagi boshqa ilovalar chaqira oladi."
+    },
+    "keyHint": "Kalit rejimi uchun invoke token kerak. Uni yarating va chaqiruvchiga bering.",
+    "shownOnce": "Bir marta koʻrsatiladi. Hozir nusxalab oling.",
+    "createToken": "Invoke token yaratish",
+    "save": "Kirishni saqlash",
+    "saved": "Kirish saqlandi",
+    "tokenFailed": "Invoke tokenni yaratib boʻlmadi. Qayta urinib koʻring."
+  },
+  "callers": {
+    "title": "Chaqiruvchilar",
+    "description": "Bu ilovani chaqirishi mumkin boʻlgan shu tashkilotdagi ilovalar.",
+    "legend": "Ruxsat etilgan chaqiruvchilar",
+    "none": "Bu tashkilotda boshqa ilovalar hali yoʻq.",
+    "notFound": "Ilovalar topilmadi",
+    "formLabel": "Chaqiruvchilar sozlamalari",
+    "save": "Roʻyxatni saqlash",
+    "saved": "Chaqiruvchilar roʻyxati saqlandi"
+  },
+  "scaling": {
+    "title": "Masshtablash",
+    "description": "Nechta instans ishlashi: boʻsh turgandan eng yuqori yuklanishgacha.",
+    "min": "Minimal instanslar",
+    "max": "Maksimal instanslar",
+    "formLabel": "Masshtablash sozlamalari",
+    "minInvalid": "Butun son kiriting, 0 yoki undan katta.",
+    "maxInvalid": "Butun son kiriting, 1 yoki undan katta.",
+    "maxBelowMin": "Maksimal qiymat minimaldan kam boʻlmasligi kerak.",
+    "save": "Masshtablashni saqlash",
+    "saved": "Masshtablash saqlandi"
+  },
+  "limits": {
+    "title": "Cheklovlar",
+    "description": "Bu ilova nimani soʻragani va nimani olishi.",
+    "requested": "Soʻralgan",
+    "effective": "Amaldagi",
+    "nothingRequested": "Hech narsa soʻralmagan.",
+    "noLimits": "Cheklovlar qoʻllanilmaydi.",
+    "sourceLabel": "Manba:",
+    "sources": {
+      "plan": "tashkilot tarifi",
+      "profile": "ishga tushirish muhiti profili",
+      "service": "ilovaning oʻz soʻralgan cheklovlari"
+    },
+    "profile": "Profil",
+    "profilePlaceholder": "masalan, small…",
+    "json": "Soʻralgan cheklovlar (JSON)",
+    "invalid": "Soʻralgan cheklovlar toʻgʻri JSON (obyekt) boʻlishi kerak.",
+    "formLabel": "Cheklovlar sozlamalari",
+    "save": "Cheklovlarni saqlash",
+    "saved": "Cheklovlar saqlandi"
+  },
+  "unlimited": "cheklovsiz",
+  "egress": {
+    "title": "Chiquvchi trafik",
+    "description": "Bu ilovaning chiquvchi trafik siyosati.",
+    "json": "Chiquvchi trafik (JSON)",
+    "invalid": "Chiquvchi trafik toʻgʻri JSON (obyekt) boʻlishi kerak.",
+    "formLabel": "Chiquvchi trafik sozlamalari",
+    "save": "Chiquvchi trafikni saqlash",
+    "saved": "Chiquvchi trafik saqlandi"
+  },
+  "ingress": {
+    "title": "Kiruvchi trafik",
+    "description": "Qaysi soʻrovlar ilovaga yetib borishi va qayerdan.",
+    "formLabel": "Kiruvchi trafik sozlamalari",
+    "methods": "Metodlar",
+    "pathPrefixes": "Yoʻl prefikslari",
+    "pathPrefix": "Yoʻl prefiksi {{index}}",
+    "removePathPrefix": "Yoʻl prefiksi {{index}} ni olib tashlash",
+    "addPathPrefix": "Yoʻl prefiksi qoʻshish",
+    "ipRanges": "Ruxsat etilgan IP diapazonlari (CIDR)",
+    "ipAllow": "Ruxsat etilgan IP {{index}}",
+    "removeIpAllow": "Ruxsat etilgan IP {{index}} ni olib tashlash",
+    "addIpRange": "IP diapazon qoʻshish",
+    "ipInvalid": "CIDR prefiks emas (masalan, 10.0.0.0/8)",
+    "rateLimit": "Soʻrovlar chegarasi (JSON)",
+    "rateLimitInvalid": "Soʻrovlar chegarasi JSON obyekt boʻlishi kerak.",
+    "save": "Kiruvchi trafikni saqlash",
+    "saved": "Kiruvchi trafik saqlandi"
+  },
+  "advanced": {
+    "slug": "Slug",
+    "slugHint": "Ilovani runtime va API da aniqlaydi.",
+    "copySlug": "Slugni nusxalash",
+    "liveUrl": "Jonli URL",
+    "runtime": "Runtime",
+    "runtimeProfile": "{{runtime}} · profil {{profile}}",
+    "envSecrets": "Muhit va maxfiy qiymatlar",
+    "envSecretsHint": "Oʻzgaruvchilar va maxfiy qiymatlar alohida sahifaga koʻchirilgan.",
+    "openEnvSecrets": "Muhit va maxfiy qiymatlarni ochish",
+    "domains": "Domenlar",
+    "domainsHint": "Bu ilova uchun maxsus host nomlari.",
+    "openDomains": "Domenlarni ochish",
+    "exportData": "Maʼlumotlarni eksport qilish",
+    "exportHint": "Ilovaning SQLite bazasini yuklab olish.",
+    "download": "Yuklab olish"
+  },
+  "danger": {
+    "title": "Ilovani oʻchirish",
+    "description": "Oʻchirish uning kodi, maʼlumotlari va domenlarini oʻchiradi. Buni bekor qilib boʻlmaydi.",
+    "button": "Ilovani oʻchirish",
+    "confirmTitle": "{{slug}} oʻchirilsinmi?",
+    "confirmDescription": "Bu doimiy. Tasdiqlash uchun ilova slugini kiriting.",
+    "typeToConfirm": "Tasdiqlash uchun <mono>{{value}}</mono> ni kiriting",
+    "confirm": "Doimiy oʻchirish",
+    "deleted": "{{name}} oʻchirildi",
+    "failed": "Ilovani oʻchirib boʻlmadi. Qayta urinib koʻring."
+  }
+}

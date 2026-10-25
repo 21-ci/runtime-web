@@ -1,0 +1,101 @@
+{
+  "title": "Account security",
+  "mfaRequired": "This instance requires two-factor authentication. Set it up to keep using Runtime Web.",
+  "accountNotFound": "Account not found",
+  "sessionsNotFound": "Sessions not found",
+  "historyNotFound": "History not found",
+  "codeLabel": "Authentication code",
+  "passwordLabel": "Password",
+  "currentPasswordLabel": "Current password",
+  "enterPassword": "Enter your password.",
+  "wrongPassword": "That password is not right.",
+  "wrongCode": "That code is not right.",
+  "twoFactor": {
+    "title": "Two-factor authentication",
+    "description": "Ask for a code from your authenticator app each time you sign in.",
+    "on": "Two-factor authentication is on.",
+    "setUp": "Set up two-factor authentication"
+  },
+  "enroll": {
+    "passwordPrompt": "Enter your current password to start 2FA setup.",
+    "enterPassword": "Enter your current password.",
+    "wrongPassword": "Wrong password. Try again.",
+    "continue": "Continue",
+    "failed": "Could not start 2FA setup. Try again.",
+    "scan": "Scan this QR code with your authenticator app, then enter the 6-digit code it shows.",
+    "qrAlt": "QR code for your authenticator app",
+    "preparingQr": "Preparing the QR code",
+    "cannotScan": "Cannot scan? Enter this key:",
+    "codeRequired": "Enter the 6-digit code from your app.",
+    "invalidCode": "That code is not right. Try again.",
+    "confirmFailed": "Could not turn on 2FA. Start again.",
+    "turnOn": "Turn on 2FA",
+    "rateLimited": "Too many attempts. Wait and try again."
+  },
+  "recovery": {
+    "title": "Recovery codes",
+    "regenDescription": "Creating new codes makes your old codes stop working.",
+    "regenerate": "Create new recovery codes",
+    "regenFailed": "Could not create new codes.",
+    "description": "Each code works once when you cannot use your authenticator. Store them somewhere safe. They are shown only now.",
+    "download": "Download",
+    "downloadLabel": "Download recovery codes",
+    "print": "Print",
+    "printLabel": "Print recovery codes",
+    "saved": "I have saved my recovery codes",
+    "fileHeader": "Runtime Web recovery codes"
+  },
+  "disable": {
+    "title": "Turn off two-factor authentication",
+    "required": "Enter your password and a code.",
+    "failed": "Could not turn off 2FA.",
+    "button": "Turn off 2FA"
+  },
+  "sessions": {
+    "title": "Sessions",
+    "description": "Devices signed in to your account.",
+    "signOutOthers": "Sign out other sessions",
+    "list": "Sessions",
+    "current": "This session",
+    "revoke": "Revoke",
+    "revokeLabel": "Revoke session {{device}}",
+    "lastActive": "{{ip}} · last active {{time}}"
+  },
+  "logins": {
+    "title": "Login history",
+    "description": "Recent sign-in attempts on your account.",
+    "empty": "No sign-ins yet",
+    "when": "When",
+    "device": "Device",
+    "method": "Method",
+    "result": "Result",
+    "methods": {
+      "password": "Password",
+      "oauth": "OAuth",
+      "invite": "Invite"
+    },
+    "results": {
+      "ok": "Signed in",
+      "bad_password": "Wrong password",
+      "bad_totp": "Wrong code",
+      "rate_limited": "Rate limited",
+      "disabled": "Account disabled",
+      "sso_only": "Single sign-on only",
+      "mfa_pending": "Two-factor pending"
+    }
+  },
+  "linked": {
+    "title": "Linked sign-in",
+    "description": "Link a provider to sign in with it. Linking needs this signed-in session.",
+    "identityTaken": "That account is already linked to another Runtime Web user.",
+    "failed": "Could not start linking. Try again.",
+    "none": "No external sign-in providers are configured.",
+    "link": "Link",
+    "linkLabel": "Link {{name}}"
+  },
+  "toast": {
+    "signedOut_one": "Signed out {{count}} other session.",
+    "signedOut_other": "Signed out {{count}} other sessions.",
+    "twoFactorOff": "Two-factor authentication is off."
+  }
+}
