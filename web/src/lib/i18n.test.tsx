@@ -6,7 +6,7 @@ import { renderAt } from "@/test/render";
 
 import { ApiError } from "./api";
 import { errorMessage } from "./error-message";
-import { formatBytes, formatDuration, formatRelative } from "./format";
+import { formatBytes, formatDate, formatDateTime, formatDuration, formatRelative } from "./format";
 import { detectLanguage, i18n, LANGUAGE_STORAGE_KEY, setLanguage } from "./i18n";
 
 afterEach(() => {
@@ -59,6 +59,14 @@ describe("formatting follows the language", () => {
     expect(formatDuration(2500)).toBe("2,5 с");
     expect(formatRelative(now - 5 * 60_000, now)).toBe("5 мин назад");
     expect(formatRelative(now + 2 * 3.6e6, now)).toBe("через 2 ч");
+  });
+
+  it("writes Uzbek dates as dd.MM.yyyy, which browsers lack locale data for", async () => {
+    await setLanguage("uz");
+    const ts = new Date(2026, 9, 5, 8, 4).getTime();
+    expect(formatDate(ts)).toBe("05.10.2026");
+    expect(formatDateTime(ts)).toBe("05.10.2026, 08:04");
+    expect(formatRelative(ts, ts + 40 * 86_400_000)).toBe("05.10.2026");
   });
 });
 

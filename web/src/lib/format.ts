@@ -63,18 +63,36 @@ export function formatRelative(ts: number, now = Date.now()): string {
   else if (abs < hour) span = { unit: "min", n: Math.round(abs / minute) };
   else if (abs < day) span = { unit: "h", n: Math.round(abs / hour) };
   else if (abs < 30 * day) span = { unit: "d", n: Math.round(abs / day) };
-  else return new Date(ts).toLocaleDateString(intlLocale());
+  else return formatDate(ts);
   const value = i18n.t(`common:units.${span.unit}`, { value: num(span.n) });
   return diff < 0 ? i18n.t("common:time.ago", { value }) : i18n.t("common:time.in", { value });
 }
 
+// Chrome ships without Uzbek date data and falls back to "2026 M10 25", so Uzbek dates are
+// written out as dd.MM.yyyy and HH:mm, the numeric style used in Uzbekistan.
+function uzbek(): boolean {
+  return intlLocale().startsWith("uz");
+}
+
+function pad(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+function uzDate(d: Date): string {
+  return `${pad(d.getDate())}.${pad(d.getMonth() + 1)}.${d.getFullYear()}`;
+}
+
 export function formatDateTime(ts: number): string {
-  return new Date(ts).toLocaleString(intlLocale(), { dateStyle: "medium", timeStyle: "short" });
+  const d = new Date(ts);
+  if (uzbek()) return `${uzDate(d)}, ${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return d.toLocaleString(intlLocale(), { dateStyle: "medium", timeStyle: "short" });
 }
 
 // formatDate renders the calendar date only, in the current UI language.
 export function formatDate(ts: number): string {
-  return new Date(ts).toLocaleDateString(intlLocale(), { dateStyle: "medium" });
+  const d = new Date(ts);
+  if (uzbek()) return uzDate(d);
+  return d.toLocaleDateString(intlLocale(), { dateStyle: "medium" });
 }
 
 // formatQuantity picks a unit from the metric name: *_bytes → bytes, *_ms → duration, else count.

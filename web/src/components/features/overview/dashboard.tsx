@@ -21,6 +21,7 @@ import { useRecentActivity } from "@/components/features/audit/hooks";
 import { NoProjects } from "@/components/features/empty/no-projects";
 import { QueryError } from "@/components/features/empty/query-error";
 import { useMembers } from "@/components/features/members/hooks";
+import { ROLE_KEY } from "@/components/features/members/roles";
 import { CreateProjectDialog } from "@/components/features/org/create-project-dialog";
 import { OrgAvatar } from "@/components/layout/org-switcher";
 import { Badge } from "@/components/ui/badge";
@@ -83,7 +84,7 @@ function QuickAction({
     <>
       <IconTile icon={icon} entity={entity} size="md" solid />
       <span className="flex w-full min-w-0 flex-col gap-0.5">
-        <span className="truncate text-sm font-medium text-text" title={title}>
+        <span className="line-clamp-2 break-words text-sm font-medium text-text" title={title}>
           {title}
         </span>
         <span className="line-clamp-2 break-words text-[12px] leading-snug text-muted" title={subtitle}>
@@ -185,7 +186,7 @@ function ProjectsCard({ org }: { org: string }) {
                         </Badge>
                       ))}
                     </span>
-                    <span className="w-14 shrink-0 text-right text-[12px] tabular-nums text-muted">
+                    <span className="shrink-0 whitespace-nowrap text-right text-[12px] tabular-nums text-muted">
                       {apps.data ? t("projects.appCount", { count }) : ""}
                     </span>
                     <ChevronRight className="size-4 shrink-0 text-muted/60" aria-hidden="true" />
@@ -339,7 +340,7 @@ function ActivityCard({ org, canSee }: { org: string; canSee: boolean }) {
 }
 
 function MembersCard({ org }: { org: string }) {
-  const { t } = useTranslation(["overview", "common"]);
+  const { t } = useTranslation(["overview", "common", "members"]);
   const members = useMembers(org);
   const list = members.data ?? [];
   return (
@@ -380,7 +381,7 @@ function MembersCard({ org }: { org: string }) {
                     {m.user.email}
                   </span>
                 </span>
-                <Badge className="capitalize">{m.role}</Badge>
+                <Badge>{t(ROLE_KEY[m.role])}</Badge>
               </li>
             );
           })}
