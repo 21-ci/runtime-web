@@ -1,7 +1,8 @@
 # Runtime Web edge for a 21 Cloud Runtime node (docs/contributing/architecture.md D5, D10, D11).
 # Env (install.sh writes them to /etc/rtweb/caddy.env, mode 0600):
 #      RTWEB_RELAY_SECRET (same value the node exports for binding rtctl-tenant; 64 hex chars, never empty),
-#      RTWEB_DOMAIN (console host, e.g. console.example.com), RTWEB_ACME_EMAIL.
+#      RTWEB_DOMAIN (console host, e.g. console.example.com), RTWEB_APPS_DOMAIN (Apps host, e.g.
+#      apps.console.example.com), RTWEB_ACME_EMAIL.
 # The runtime never terminates TLS: Caddy does, and forwards plain HTTP to the invoke listener 127.0.0.1:8080,
 # which routes by Host (custom hosts mapped to services). The node trusts X-Forwarded-For from loopback only
 # (ingress.trusted_proxies = 127.0.0.1/32, ::1/128), so Caddy must overwrite the header with the real peer:
@@ -55,6 +56,17 @@ http://127.0.0.1:8082 {
 {$RTWEB_DOMAIN} {
 	# HSTS for the console host only: tenant custom domains decide their own policy.
 	header Strict-Transport-Security "max-age=31536000; includeSubDomains"
+	import rtweb_upstream
+}
+
+# Apps host: NOT mapped to any service, so the runtime path-routes /s/{slug}/ to the App (rt-triggers
+# routes.rs: a mapped Host wins over /s/). It is a separate origin from the console on purpose: App code
+# must never run where the console's session cookie and same-origin /api checks would trust it.
+# No HSTS here: Apps set their own headers, and includeSubDomains is not assumed for this host.
+{$RTWEB_APPS_DOMAIN} {
+	# The console itself is a service too: keep it off the Apps origin (it only answers on its own host).
+	@console path /s/rtweb /s/rtweb/*
+	respond @console 404
 	import rtweb_upstream
 }
 

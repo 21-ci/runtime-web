@@ -7,7 +7,9 @@
 #   --version X.Y.Z        Runtime Web release (default: the latest)
 #   --domain HOST          console host name, served by Caddy with automatic TLS (required to install)
 #   --email ADDR           ACME account e-mail for Caddy (required to install)
-#   --public-url URL       public base of app URLs, RTWEB_RUNTIME_PUBLIC_URL (default: https://<domain>)
+#   --apps-domain HOST     host that serves Apps at /s/<app>/, its own origin so App code never runs on the
+#                          console origin (default: apps.<domain>; needs its own DNS record)
+#   --public-url URL       public base of app URLs, RTWEB_RUNTIME_PUBLIC_URL (default: https://<apps-domain>)
 #   --default-plan NAME    runtime plan for new org tenants, RTWEB_DEFAULT_PLAN (default: the server's "free")
 #   --runtime-version X    21 Cloud Runtime release to install when `rt` is missing (default: the pinned
 #                          RT_PINNED_VERSION below; any other version needs cosign)
@@ -67,6 +69,7 @@ LEGACY_MARK='# --- added by runtime-web install.sh ---'
 VERSION=""
 RT_VERSION=""
 DOMAIN=""
+APPS_DOMAIN=""
 EMAIL=""
 PUBLIC_URL=""
 DEFAULT_PLAN=""
@@ -89,6 +92,11 @@ while [ "$#" -gt 0 ]; do
     --domain)
       [ "$#" -ge 2 ] || die "--domain needs a host name"
       DOMAIN=$2
+      shift 2
+      ;;
+    --apps-domain)
+      [ "$#" -ge 2 ] || die "--apps-domain needs a host name"
+      APPS_DOMAIN=$2
       shift 2
       ;;
     --email)
@@ -138,6 +146,13 @@ if [ -n "$DOMAIN" ]; then
   printf '%s' "$DOMAIN" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$' ||
     die "bad --domain '$DOMAIN' (a fully qualified host name)"
 fi
+[ -n "$APPS_DOMAIN" ] || [ -z "$DOMAIN" ] || APPS_DOMAIN="apps.$DOMAIN"
+if [ -n "$APPS_DOMAIN" ]; then
+  printf '%s' "$APPS_DOMAIN" | grep -Eq '^[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?(\.[A-Za-z0-9]([A-Za-z0-9-]*[A-Za-z0-9])?)+$' ||
+    die "bad --apps-domain '$APPS_DOMAIN' (a fully qualified host name)"
+  [ "$(printf '%s' "$APPS_DOMAIN" | tr '[:upper:]' '[:lower:]')" != "$(printf '%s' "$DOMAIN" | tr '[:upper:]' '[:lower:]')" ] ||
+    die "--apps-domain must differ from --domain: Apps must never share the console origin"
+fi
 if [ -n "$EMAIL" ]; then
   printf '%s' "$EMAIL" | grep -Eq '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Za-z]+$' || die "bad --email '$EMAIL'"
 fi
@@ -149,7 +164,14 @@ if [ -n "$DEFAULT_PLAN" ]; then
 fi
 [ "$UNINSTALL" = 1 ] || [ -n "$DOMAIN" ] || die "--domain is required (see --help)"
 [ "$UNINSTALL" = 1 ] || [ -n "$EMAIL" ] || die "--email is required: Caddy needs an ACME account e-mail (see --help)"
-[ -n "$PUBLIC_URL" ] || PUBLIC_URL="https://$DOMAIN"
+[ -n "$PUBLIC_URL" ] || PUBLIC_URL="https://$APPS_DOMAIN"
+# Fail closed: App code served on the console origin could call /api with an admin's cookies.
+lc_domain=$(printf '%s' "$DOMAIN" | tr '[:upper:]' '[:lower:]')
+case "$(printf '%s' "$PUBLIC_URL" | tr '[:upper:]' '[:lower:]')" in
+  "https://$lc_domain" | "https://$lc_domain/"* | "https://$lc_domain:443" | "https://$lc_domain:443/"*)
+    [ "$UNINSTALL" = 1 ] || die "--public-url must not be the console origin https://$DOMAIN (Apps need their own origin)"
+    ;;
+esac
 
 [ "$DRY_RUN" = 1 ] && say "dry run: nothing on this host is changed"
 
@@ -340,20 +362,20 @@ if have caddy; then
   run install -d -m 0755 /etc/caddy/Caddyfile.d
   run install -m 0644 "$APP/deploy/Caddyfile" "$CADDY_SITE"
   if [ "$DRY_RUN" = 1 ]; then
-    say "would write $ETC/caddy.env (0600: RTWEB_DOMAIN, RTWEB_ACME_EMAIL, RTWEB_RELAY_SECRET) for caddy and import $CADDY_SITE"
+    say "would write $ETC/caddy.env (0600: RTWEB_DOMAIN=$DOMAIN, RTWEB_APPS_DOMAIN=$APPS_DOMAIN, RTWEB_ACME_EMAIL, RTWEB_RELAY_SECRET) for caddy and import $CADDY_SITE"
   else
     grep -q 'Caddyfile.d/' /etc/caddy/Caddyfile 2>/dev/null ||
       printf '\nimport /etc/caddy/Caddyfile.d/*.caddy\n' >>/etc/caddy/Caddyfile
-    # deploy/Caddyfile reads RTWEB_DOMAIN, RTWEB_ACME_EMAIL and RTWEB_RELAY_SECRET (the relay's shared secret);
+    # deploy/Caddyfile reads RTWEB_DOMAIN, RTWEB_APPS_DOMAIN, RTWEB_ACME_EMAIL and RTWEB_RELAY_SECRET (the relay's shared secret);
     # systemd loads the 0600 file as root before dropping to the caddy user.
-    printf 'RTWEB_DOMAIN=%s\nRTWEB_ACME_EMAIL=%s\nRTWEB_RELAY_SECRET=%s\n' "$DOMAIN" "$EMAIL" "$relay" >"$ETC/caddy.env"
+    printf 'RTWEB_DOMAIN=%s\nRTWEB_APPS_DOMAIN=%s\nRTWEB_ACME_EMAIL=%s\nRTWEB_RELAY_SECRET=%s\n' "$DOMAIN" "$APPS_DOMAIN" "$EMAIL" "$relay" >"$ETC/caddy.env"
     chmod 0600 "$ETC/caddy.env"
     install -d -m 0755 /etc/systemd/system/caddy.service.d
     printf '[Service]\nEnvironmentFile=%s\n' "$ETC/caddy.env" >"$CADDY_DROPIN"
     chmod 0644 "$CADDY_DROPIN"
     # Validate with the same environment Caddy will run with; a broken site must not be (re)started.
     (
-      export RTWEB_DOMAIN="$DOMAIN" RTWEB_ACME_EMAIL="$EMAIL" RTWEB_RELAY_SECRET="$relay"
+      export RTWEB_DOMAIN="$DOMAIN" RTWEB_APPS_DOMAIN="$APPS_DOMAIN" RTWEB_ACME_EMAIL="$EMAIL" RTWEB_RELAY_SECRET="$relay"
       caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile >"$tmp/caddy-validate.log" 2>&1
     ) || {
       sed 's/^/  /' "$tmp/caddy-validate.log" >&2
@@ -391,6 +413,7 @@ cat >&2 <<EOF
 
 Runtime Web $VERSION $done_msg.
 
+  DNS:              $DOMAIN (console) and $APPS_DOMAIN (Apps) must both point at this host
   First-run setup:  https://$DOMAIN/setup
                     (use the setup token install.mjs printed above; it works once)
 
@@ -425,7 +448,7 @@ run() {
 
 usage() {
   cat <<'EOF'
-usage: install.sh --domain HOST --email ADDR [--public-url URL] [--default-plan NAME] [--version X.Y.Z] [--runtime-version X.Y.Z]
+usage: install.sh --domain HOST --email ADDR [--apps-domain HOST] [--public-url URL] [--default-plan NAME] [--version X.Y.Z] [--runtime-version X.Y.Z]
                   [--insecure-skip-signature] [--dry-run] | --uninstall [--dry-run]
 
 Installs Runtime Web as an App on a 21 Cloud Runtime node and puts Caddy with on-demand TLS in front of it.

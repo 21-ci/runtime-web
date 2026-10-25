@@ -10,7 +10,8 @@
 // Env: RT_API (http://127.0.0.1:8081), RT_INVOKE (http://127.0.0.1:8080), RTWEB_TENANT ("runtime-web"),
 // RTWEB_SLUG ("rtweb"), RTWEB_PLAN ("rtweb"; falls back to "free" with a warning when the node lacks it),
 // RTWEB_ORIGIN (browser origin of the console, default `${RT_INVOKE}`), RTWEB_HOST (console host to map),
-// RTWEB_RUNTIME_PUBLIC_URL (public base of app URLs, default `${RT_INVOKE}`), RTWEB_DEFAULT_PLAN (plan for new org
+// RTWEB_RUNTIME_PUBLIC_URL (public base of app URLs, default `${RT_INVOKE}`,
+// with 127.0.0.1 swapped for localhost when that equals RTWEB_ORIGIN; never the console origin), RTWEB_DEFAULT_PLAN (plan for new org
 // tenants; the server defaults to "free"), RTWEB_VERSION (build label for /healthz; install.sh passes the release),
 // RTCTL_SDK_VERSION ("0.1.0").
 //
@@ -31,7 +32,13 @@ const SLUG = process.env.RTWEB_SLUG ?? "rtweb";
 const WANT_PLAN = process.env.RTWEB_PLAN ?? "rtweb";
 const ORIGIN = process.env.RTWEB_ORIGIN ?? INVOKE;
 const HOST = process.env.RTWEB_HOST ?? "";
-const PUBLIC_URL = process.env.RTWEB_RUNTIME_PUBLIC_URL ?? INVOKE;
+// Apps must never share the console origin: with both on the invoke listener, use the other loopback name.
+const PUBLIC_URL =
+  process.env.RTWEB_RUNTIME_PUBLIC_URL ?? (new URL(INVOKE).origin === new URL(ORIGIN).origin ? INVOKE.replace("//127.0.0.1", "//localhost") : INVOKE);
+if (PUBLIC_URL && new URL(PUBLIC_URL).origin === new URL(ORIGIN).origin) {
+  console.error(`RTWEB_RUNTIME_PUBLIC_URL (${PUBLIC_URL}) must not share the console origin RTWEB_ORIGIN (${ORIGIN})`);
+  process.exit(1);
+}
 const DEFAULT_PLAN = process.env.RTWEB_DEFAULT_PLAN ?? "";
 const VERSION = process.env.RTWEB_VERSION ?? "";
 const SDK_VERSION = process.env.RTCTL_SDK_VERSION ?? "0.1.0";
