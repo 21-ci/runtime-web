@@ -5,12 +5,24 @@
 | Workflow | Trigger | What it gates |
 |----------|---------|---------------|
 | `ci.yml` | PR, push to `main` | web: lint, Vitest + v8 coverage thresholds, build, gzip budget; server: lint, `tsc`, Vitest + coverage; shellcheck + `install.sh --dry-run`; `mkdocs build --strict` |
-| `security.yml` | PR, push to `main`, weekly | Trivy fs (vuln, secret, misconfig; HIGH/CRITICAL fail; SARIF to code scanning), `npm audit` (runtime deps and all deps incl. dev; high/critical fail), CodeQL (javascript-typescript), OpenSSF Scorecard |
+| `security.yml` | PR, push to `main`, weekly | Trivy fs (vuln, secret, misconfig; HIGH/CRITICAL fail; SARIF to code scanning), `npm audit` (runtime deps and all deps incl. dev; high/critical fail), CodeQL (javascript-typescript), OpenSSF Scorecard, zizmor + actionlint on the workflows |
+| `pr-title.yml` | PR opened or edited | the PR title is a Conventional Commit (it becomes the squash commit subject and the changelog line) |
+| `release-please.yml` | push to `main` | keeps the `chore: release X.Y.Z` PR open; merging it creates the tag and the GitHub Release |
 | `release.yml` | tag `vX.Y.Z[-pre]` | tarball, SBOM, Trivy scan of the artifact, SHA256SUMS, cosign keyless signature, SLSA provenance, GitHub Release, post-publish verification |
 
 Every action is pinned by full commit SHA with a version comment; Dependabot (`.github/dependabot.yml`) bumps them
-weekly together with the npm dependencies of `web/` and `server/`. Workflows start from `permissions: {}` and grant
+weekly together with the npm dependencies of `web/`, `server/` and `e2e/` and the pip requirements of the docs, each
+ecosystem grouped into one PR with a Conventional Commit prefix (`build(deps)`, `ci(deps)`, `test(deps)`, `docs(deps)`). Workflows start from `permissions: {}` and grant
 each job only what it needs. Accepted Trivy findings go in `.trivyignore` with a reason and an expiry.
+
+## Branch and tag rules
+
+Rulesets live in `.github/rulesets/` and are applied with `scripts/apply-rulesets.sh` (`gh api`, admin only). `main`
+takes changes only through PRs with signed commits and linear history (squash or rebase), never a force-push or a
+deletion, and requires these checks: `web`, `server`, `shell`, `docs`, `pr title`, `zizmor + actionlint`,
+`npm audit (web)`, `npm audit (server)`, `trivy fs`, `codeql`. Renaming a job means updating `main.json` and re-running
+the script. `v*` tags can be created only by the bypass list (repository admins and the release App) and never moved or
+deleted. `scripts/ci-local.sh` runs actionlint and zizmor when they are installed (`brew install actionlint zizmor`).
 
 ## Coverage
 
@@ -20,10 +32,15 @@ coverage improves; never lower them to make a PR pass.
 
 ## Cutting a release
 
-1. Set `"version": "X.Y.Z"` in `server/package.json` and `web/package.json` (the build job fails when they do
-   not match the tag). Add a `## [X.Y.Z]` section to `CHANGELOG.md` (it becomes the release notes via `scripts/release-notes.sh`).
-2. Make sure `main` is green, then tag and push: `git tag -s vX.Y.Z && git push origin vX.Y.Z`.
-   A `-rc.N` suffix publishes a pre-release.
+The full flow, with the one-time setup, is in [RELEASING.md](https://github.com/21-ci/runtime-web/blob/main/RELEASING.md).
+In short:
+
+1. PRs merge into `main` with Conventional Commit titles. release-please (`release-please.yml`, run with a GitHub App
+   token) keeps a `chore: release X.Y.Z` PR open that bumps `server/package.json`, `web/package.json` and
+   `.release-please-manifest.json` and writes the `CHANGELOG.md` section (config in `release-please-config.json`).
+2. Merging it tags `vX.Y.Z` and creates the GitHub Release. A maintainer can also tag by hand
+   (`git tag -s vX.Y.Z && git push origin vX.Y.Z`) when the package versions already match. A `-rc.N` suffix publishes
+   a pre-release.
 3. `release.yml` publishes these assets:
    - `runtime-web-X.Y.Z.tar.gz`: `server/` (`src/`, `sdk/rtctl/`, `scripts/install.mjs` + `gen-assets.mjs`, `rt.json`,
      `package*.json`), `web/dist/`,

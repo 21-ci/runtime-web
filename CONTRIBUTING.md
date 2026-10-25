@@ -59,13 +59,22 @@ Follow the project skills in [`.claude/skills/`](.claude/skills/): `add-api-endp
 
 1. Fork the repository, branch from `main`, and keep the branch focused.
 2. Make sure `make ci` passes locally.
-3. Fill in the description: what changed, why, how you tested it, and any doc or security impact.
-4. Expect at least one maintainer review. Code owners review security-sensitive paths.
-5. Maintainers merge with a squash commit whose title is the pull request title.
+3. Title the PR as a [Conventional Commit](https://www.conventionalcommits.org): `type(scope): summary`, with type one
+   of `feat`, `fix`, `perf`, `revert`, `docs`, `build`, `deps`, `refactor`, `test`, `ci`, `chore`, `style`, and `!`
+   for a breaking change (`feat(api)!: ...`). The `pr title` check enforces it. The title becomes the squash commit
+   subject and, for `feat`, `fix` and the other visible types, a line in `CHANGELOG.md`.
+4. Fill in the template: what changed, why, how you tested it, and any doc or security impact.
+5. Sign your commits (SSH or GPG signing, `git config commit.gpgsign true`): `main` accepts only signed commits.
+6. Expect a maintainer review. Code owners (`.github/CODEOWNERS`) are requested on security-sensitive paths. Required
+   checks must pass and review threads must be resolved.
+7. Maintainers merge with a squash commit whose title is the pull request title (or rebase, for a series of clean
+   commits). `main` keeps a linear history.
 
 ## Releases
 
-Maintainers cut releases as described in [RELEASING.md](RELEASING.md). Contributors do not need to change the version.
+Maintainers cut releases as described in [RELEASING.md](RELEASING.md): release-please turns the Conventional Commit
+titles on `main` into a release PR that bumps the version and writes the changelog. Contributors do not change the
+version or edit released `CHANGELOG.md` sections.
 
 ## Developer Certificate of Origin
 
