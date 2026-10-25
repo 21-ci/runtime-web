@@ -188,6 +188,13 @@ jobs:
             --config p/typescript --config p/javascript --config p/react --config p/nodejsscan \
             --config p/secrets --config p/github-actions \
             --sarif-output=semgrep.sarif --severity ERROR --error
+      # semgrep keeps `nosemgrep` findings in the SARIF (marked as suppressed) and code scanning would
+      # still raise them as alerts, so they are dropped before upload.
+      - name: drop suppressed findings from the SARIF
+        if: always() && hashFiles('semgrep.sarif') != ''
+        run: |
+          jq '.runs[].results |= map(select((.suppressions // []) | length == 0))' semgrep.sarif > semgrep.filtered.sarif
+          mv semgrep.filtered.sarif semgrep.sarif
       - uses: github/codeql-action/upload-sarif@9b3254085494b55a0f7c4c2b3d2d52cc712ce370 # v4.39.1
         if: always() && hashFiles('semgrep.sarif') != ''
         with:
