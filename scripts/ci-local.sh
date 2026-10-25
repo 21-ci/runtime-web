@@ -7,7 +7,8 @@
 #   scripts/ci-local.sh --fast       skip coverage (plain tests), docs and CodeQL
 #   scripts/ci-local.sh --security   only npm audit, Trivy, CodeQL, gitleaks, semgrep and osv-scanner
 #
-# Tools: node/npm (required); shellcheck, actionlint, zizmor, mkdocs (or .venv / docs/requirements.txt), trivy, codeql,
+# Tools: node/npm (required); go, hadolint, docker buildx, shellcheck, actionlint, zizmor, mkdocs (or .venv /
+# docs/requirements.txt), trivy, codeql,
 # gitleaks, semgrep and osv-scanner are used when installed and reported as SKIP otherwise. Logs go to .ci-local/<step>.log.
 set -uo pipefail
 
@@ -126,6 +127,34 @@ if [ $ONLY_SECURITY -eq 0 ]; then
     skip shellcheck "shellcheck not installed"
   fi
   step install-dry-run sh install.sh --dry-run --version 0.0.0 --domain console.example.com --email ops@acme-corp.dev
+
+  echo "== container image"
+  if have go; then
+    step entry-test sh -c 'cd docker/entry && go vet ./... && go test ./...'
+  else
+    skip entry-test "go not installed (docker/entry; the image build runs these tests too)"
+  fi
+  if have hadolint; then
+    step hadolint hadolint Dockerfile
+  else
+    skip hadolint "hadolint not installed (brew install hadolint)"
+  fi
+  if [ $FAST -eq 1 ]; then
+    skip docker-build "--fast"
+  elif have docker && docker buildx version >/dev/null 2>&1 && docker info >/dev/null 2>&1; then
+    # Native platform only (no emulation); docker.yml builds both platforms. Trivy gates the result when installed.
+    # "$t" expands inside sh -c, not here.
+    # shellcheck disable=SC2016
+    step docker-build sh -c 'for t in distroless slim; do docker buildx build --target "$t" -t "runtime-web:ci-local-$t" --load . || exit 1; done'
+    if have trivy; then
+      # shellcheck disable=SC2016
+      step docker-trivy sh -c 'for t in distroless slim; do trivy image --quiet --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed --ignorefile .trivyignore --exit-code 1 "runtime-web:ci-local-$t" || exit 1; done'
+    else
+      skip docker-trivy "trivy not installed (brew install trivy)"
+    fi
+  else
+    skip docker-build "docker with buildx not available"
+  fi
 
   echo "== workflows"
   if have actionlint; then

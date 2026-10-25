@@ -42,6 +42,7 @@ Vocabulary, use it exactly:
 | `web/src/test/` | Vitest setup, MSW handlers and render helpers |
 | `e2e/` | Playwright smoke suite against a runtime-hosted console (`RTWEB_URL`) |
 | `deploy/` | node `rt.toml` fragment (`rt.rtweb.toml`) and the Caddy site (`Caddyfile`) |
+| `Dockerfile`, `docker/` | container image (rt + console); `docker/entry/` is `rtweb-entry` (Go: supervisor, bootstrap mirroring `install.mjs`, edge and relay mirroring the Caddyfile) |
 | `scripts/` | bundle budget gate and its tests, release notes |
 | `install.sh` | host installer (runtime node, signed release, Caddy, `install.mjs`) |
 | `.github/` | CI, security scans (Trivy, CodeQL, Scorecard), signed releases, Dependabot |

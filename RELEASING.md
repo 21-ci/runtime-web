@@ -39,6 +39,10 @@ verify them are in [docs/contributing/ci-cd.md](docs/contributing/ci-cd.md).
 
    The `verify` job re-downloads the release and checks the checksums, signature and attestation. If any job fails,
    fix the cause on `main` and re-run the workflow, or delete the release and the tag and tag again.
+
+   The tag also starts `docker.yml`: it pushes `ghcr.io/21-ci/runtime-web:X.Y.Z`, `X.Y` and the `-slim` variants
+   only after Trivy passes on both platforms, then signs and attests them. Check the run, then
+   `docker pull ghcr.io/21-ci/runtime-web:X.Y.Z` and follow the quickstart in `docs/getting-started/docker.md`.
 6. **Announce.** Post in Discussions and update the docs site if the install steps changed.
 
 ## Other kinds of release
