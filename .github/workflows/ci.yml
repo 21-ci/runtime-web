@@ -130,7 +130,7 @@ jobs:
         if: hashFiles('mkdocs.yml') != ''
         run: |
           if [ -f docs/requirements.txt ]; then
-            python -m pip install -r docs/requirements.txt
+            python -m pip install --disable-pip-version-check --require-hashes -r docs/requirements.txt
           else
             echo "::error::mkdocs.yml exists but docs/requirements.txt does not"; exit 1
           fi
