@@ -29,7 +29,7 @@ value there is a placeholder for local use only.
 |---|---|
 | `RTWEB_SEAL_KEY` | 32 random bytes, base64. AES-256-GCM key for secrets at rest (OAuth client secrets, TOTP seeds, default org keys). Generated once, never rotated by install. Losing it makes sealed data unreadable. |
 | `RTWEB_SETUP_TOKEN` | First-run setup token, printed once by install. Delete the secret after setup; without it, setup answers `403`. |
-| `RTWEB_ASSET_TOKEN` | Rotated by every install run. Authorises the upload of console files too large for the bundle. |
+| `RTWEB_ASSET_TOKEN` | Set by each install run to authorise the upload of console files too large for the bundle. The same run deletes it after the upload is checked. |
 
 ## Install script (`server/scripts/install.mjs`)
 
@@ -68,4 +68,4 @@ and adds them to the rt environment file.
 - Back up `RTWEB_SEAL_KEY`, the rt environment file and `/etc/rtweb/` together with the node's data, and store the
   keys apart from the data backups.
 
-See the [security model](security-model.md) for why each of these matters.
+See the [security model](../security-model.md) for why each of these matters.

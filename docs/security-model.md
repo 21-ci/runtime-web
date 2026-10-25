@@ -87,8 +87,8 @@ action. Instance admins acting in an org are marked as such.
 
 ## Operator checklist
 
-See [Configuration: before production](configuration.md#before-production) and the
-[admin security checklist](admin-guide.md#security-checklist).
+See [Configuration: before production](reference/configuration.md#before-production) and the
+[admin security checklist](admin/operations.md#security-checklist).
 
 ## Reporting a vulnerability
 

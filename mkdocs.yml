@@ -1,9 +1,11 @@
 # Documentation site for Runtime Web. Built from this repository:
 #
-#   mkdocs build --strict    strict build (fails on any warning)
-#   mkdocs serve            live preview on http://127.0.0.1:8000
+#   .venv/bin/mkdocs build --strict    build into site/ (fails on any warning, as CI does)
+#   .venv/bin/mkdocs serve             live preview on http://127.0.0.1:8000
 #
-# Pages live in docs/. The HTTP API reference is docs/reference/api.md.
+# Install the toolchain once: python3 -m venv .venv && .venv/bin/pip install -r docs/requirements.txt
+# Pages live in docs/. The HTTP API reference is docs/reference/api.md. The README.md and CONTRIBUTING.md at the root
+# are read on GitHub and are not site pages.
 site_name: Runtime Web
 site_description: >-
   Self-hosted console for writing, deploying and running apps on 21 Cloud Runtime.
@@ -19,6 +21,8 @@ copyright: >-
 
 theme:
   name: material
+  logo: assets/images/logo.svg
+  favicon: assets/images/favicon.svg
   font:
     text: Inter
     code: JetBrains Mono
@@ -29,11 +33,15 @@ theme:
   palette:
     - media: "(prefers-color-scheme: light)"
       scheme: default
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-sunny
         name: Switch to dark mode
     - media: "(prefers-color-scheme: dark)"
       scheme: slate
+      primary: custom
+      accent: custom
       toggle:
         icon: material/weather-night
         name: Switch to light mode
@@ -42,12 +50,24 @@ theme:
     - navigation.sections
     - navigation.indexes
     - navigation.instant
+    - navigation.instant.progress
+    - navigation.tracking
+    - navigation.path
     - navigation.top
+    - navigation.footer
+    - toc.follow
     - search.suggest
+    - search.highlight
     - content.code.copy
+    - content.code.annotate
+    - content.tabs.link
+    - content.tooltips
 
 plugins:
   - search
+
+extra_css:
+  - assets/stylesheets/extra.css
 
 markdown_extensions:
   - admonition
@@ -82,8 +102,9 @@ validation:
 nav:
   - Home: index.md
   - Get started:
-      - getting-started/install.md
-      - Configuration: configuration.md
+      - Install: getting-started/install.md
+      - First run: getting-started/first-run.md
+      - Manual install: getting-started/manual-install.md
   - User guide:
       - user-guide/index.md
       - Orgs: user-guide/orgs.md
@@ -96,13 +117,24 @@ nav:
       - Domains: user-guide/domains.md
       - Members: user-guide/members.md
       - Two-factor auth and OAuth: user-guide/two-factor-and-oauth.md
-  - Admin guide: admin-guide.md
-  - Security model: security-model.md
+  - Admin guide:
+      - admin/index.md
+      - Operations: admin/operations.md
+      - Branding: admin/branding.md
+      - Languages: admin/languages.md
+  - Operate:
+      - Troubleshooting: troubleshooting.md
+      - Security model: security-model.md
   - Reference:
       - HTTP API: reference/api.md
+      - Configuration: reference/configuration.md
   - Contributing:
       - contributing/index.md
+      - Dev setup: contributing/dev-setup.md
+      - Testing and coverage: contributing/testing.md
+      - Adding an endpoint or a page: contributing/adding-endpoints-and-pages.md
       - Architecture: contributing/architecture.md
-      - CI and releases: contributing/ci-cd.md
       - Code style: contributing/code-style.md
       - Design tokens: contributing/design-tokens.md
+      - CI and releases: contributing/ci-cd.md
+      - Releases: contributing/releases.md

@@ -1,9 +1,13 @@
+---
+title: Runtime Web
+description: A self-hosted console for writing, deploying and running apps on 21 Cloud Runtime.
+---
+
 # Runtime Web
 
 Runtime Web is a self-hosted console for writing, deploying and running small apps on
-[21 Cloud Runtime](https://github.com/21-ci/runtime). It is what you use in the browser: sign up, make an org and a
-project, write an app, watch its logs, give it a route or a domain, and hand out a token to the people and services
-that need one.
+[21 Cloud Runtime](https://github.com/21-ci/runtime). Sign up, create an org and a project, write an app, watch its
+logs, give it a route or a domain, and hand out a token to the people and services that need one.
 
 Everything the console does goes through the runtime's API, so anything you can do here you can also script.
 
@@ -13,7 +17,7 @@ Everything the console does goes through the runtime's API, so anything you can 
 
 - **Install**
 
-    Install the console as an App on a 21 Cloud Runtime node with one script.
+    Install the console as an App on a 21 Cloud Runtime node with one script, or onto a node you already run.
 
     [:octicons-arrow-right-24: Install](getting-started/install.md)
 
@@ -25,25 +29,25 @@ Everything the console does goes through the runtime's API, so anything you can 
 
 - **Run an instance**
 
-    First run, instance admin, upgrades and backups.
+    The instance admin console, account recovery, backups, domains and upgrades.
 
-    [:octicons-arrow-right-24: Admin guide](admin-guide.md)
+    [:octicons-arrow-right-24: Admin guide](admin/index.md)
 
-- **Check the model**
+- **Fix a problem**
 
-    Trust boundaries, sessions, authorization and what is not protected.
+    Health checks, logs, and the common install and runtime failures with their fixes.
 
-    [:octicons-arrow-right-24: Security model](security-model.md)
+    [:octicons-arrow-right-24: Troubleshooting](troubleshooting.md)
 
 - **Call the API**
 
-    Every HTTP route the console exposes, with its auth rules.
+    Every HTTP route the console exposes, with its auth rules and errors.
 
     [:octicons-arrow-right-24: HTTP API](reference/api.md)
 
 - **Contribute**
 
-    Dev setup, make targets, tests and code style.
+    Dev setup, make targets, tests, coverage and how to add an endpoint or a page.
 
     [:octicons-arrow-right-24: Contributing](contributing/index.md)
 
@@ -53,8 +57,8 @@ Everything the console does goes through the runtime's API, so anything you can 
 
 - **Org**: the top-level group. Members belong to an org and have an org role.
 - **Project**: a folder of apps inside an org. Members get access to a project through grants.
-- **App**: a unit of your code. It has versions, a config (env vars and secrets), schedules, a queue, logs and
-    optionally custom domains.
+- **App**: a unit of your code. It has versions, a config (environment variables and secrets), triggers, logs and
+  optionally custom domains.
 - **Token**: a credential with explicit scopes that a person or a service uses to call the API.
 
 ## Status

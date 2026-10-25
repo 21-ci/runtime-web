@@ -24,7 +24,7 @@ Each org has at least one owner. The console refuses any change that would remov
 ## Usage and quotas
 
 The org page shows the usage of its apps against the plan's limits. When a limit is reached, the console says so
-and blocks the action that would exceed it. The plan is assigned by the instance (see the [admin guide](../admin-guide.md)).
+and blocks the action that would exceed it. The plan is assigned by the instance (see the [admin guide](../admin/index.md)).
 
 ## Delete an org
 

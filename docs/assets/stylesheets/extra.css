@@ -1,0 +1,57 @@
+/* Runtime Web docs: brand colours on top of Material for MkDocs. The palette matches 21 Cloud Runtime's docs. */
+
+:root {
+  --rt-grad: linear-gradient(135deg, #0e7490 0%, #4338ca 55%, #6d28d9 100%);
+}
+
+/* ---- Palette (primary: custom / accent: custom) ---------------------------------------- */
+
+[data-md-color-scheme="default"] {
+  --md-primary-fg-color: #4338ca;
+  --md-primary-fg-color--light: #6366f1;
+  --md-primary-fg-color--dark: #312e81;
+  --md-accent-fg-color: #0891b2;
+  --md-accent-fg-color--transparent: rgba(8, 145, 178, 0.1);
+  --md-typeset-a-color: #4338ca;
+}
+
+[data-md-color-scheme="slate"] {
+  --md-hue: 235;
+  --md-primary-fg-color: #312e81;
+  --md-primary-fg-color--light: #4f46e5;
+  --md-primary-fg-color--dark: #1e1b4b;
+  --md-accent-fg-color: #22d3ee;
+  --md-accent-fg-color--transparent: rgba(34, 211, 238, 0.1);
+  --md-typeset-a-color: #a5b4fc;
+}
+
+.md-header {
+  background: var(--rt-grad);
+}
+
+.md-tabs {
+  background: linear-gradient(135deg, #155e75 0%, #3730a3 55%, #5b21b6 100%);
+}
+
+[data-md-color-scheme="slate"] .md-header,
+[data-md-color-scheme="slate"] .md-tabs {
+  background: linear-gradient(135deg, #083344 0%, #1e1b4b 60%, #2e1065 100%);
+}
+
+/* ---- Typography ------------------------------------------------------------------------- */
+
+.md-typeset h1 {
+  font-weight: 700;
+  letter-spacing: -0.02em;
+}
+
+.md-typeset h2 {
+  font-weight: 650;
+  letter-spacing: -0.01em;
+}
+
+/* Numbered steps: a task page reads top to bottom, so keep the list markers prominent. */
+.md-typeset ol > li::marker {
+  font-weight: 650;
+  color: var(--md-primary-fg-color);
+}

@@ -1,92 +1,172 @@
+---
+title: Install
+description: Install Runtime Web on a Linux host with one script, or deploy it onto a runtime node you already run.
+---
+
 # Install
 
-Runtime Web runs as an App (the service `rtweb`) on a 21 Cloud Runtime node, with Caddy in front for TLS. The
-installer sets up all three on one Linux host. Before you expose an instance, read the [admin guide](../admin-guide.md)
-and the [security model](../security-model.md).
+Runtime Web runs as an App, the service `rtweb`, on a 21 Cloud Runtime node. The installer sets up the node, the
+console and a Caddy reverse proxy with automatic TLS on one Linux host. This page covers the quick install, the manual
+install onto an existing node, upgrades and uninstalling.
+
+!!! warning
+
+    Read the [security model](../security-model.md) before you expose an instance. Keep `RTWEB_INSECURE_COOKIES` unset
+    outside local development, and serve the console over `https`.
 
 ## Requirements
 
-- Linux on x86_64 or aarch64, as root
-- `curl`, `tar`, `sha256sum` or `shasum`, and Node.js 22.5 or newer (for `install.mjs`)
-- [Caddy](https://caddyserver.com/docs/install) with its systemd unit (the installer adds a site to it)
-- A DNS name for the console pointing at the host, and inbound 80/tcp and 443/tcp open
-- Optional: [cosign](https://docs.sigstore.dev/cosign/system_config/installation/) to verify the release signature
+| Requirement | Notes |
+|---|---|
+| Linux, x86_64 or aarch64, with systemd | The installer refuses other platforms |
+| Root access | `sudo` for the install, `--dry-run` needs no root |
+| `curl`, `tar`, `sha256sum` or `shasum` | Standard on most distributions |
+| Node.js 22.5 or newer | Runs the install script that creates the App |
+| [cosign](https://docs.sigstore.dev/cosign/system_config/installation/) | Verifies the release signature. Required unless you pass `--insecure-skip-signature` |
+| [Caddy](https://caddyserver.com/docs/install) | Serves the console over TLS. Install it with its systemd unit before you run the installer |
+| A DNS name for the console | An `A` or `AAAA` record that points at the host |
+| Ports 80 and 443 open | Caddy needs both: 80 for the ACME challenge, 443 for HTTPS |
 
-## Steps
+## Quick install
 
-1. Download the installer and look at it:
+1. Download the installer and check its options:
 
     ```bash
     curl -fsSL https://raw.githubusercontent.com/21-ci/runtime-web/main/install.sh -o install.sh
     sh install.sh --help
     ```
 
-2. See what it would do, without changing the host:
+2. Preview the steps. A dry run changes nothing on the host:
 
     ```bash
     sh install.sh --dry-run --domain console.example.com --email ops@example.com
     ```
 
-3. Install:
+3. Install. Use the host name you set up in DNS and an e-mail address for the Let's Encrypt account:
 
     ```bash
     sudo sh install.sh --domain console.example.com --email ops@example.com
     ```
 
-    Options: `--version X.Y.Z` (default: the latest release), `--runtime-version X.Y.Z`, `--public-url URL`
-    (public base of app URLs, default `https://<domain>`), `--default-plan NAME` (plan for new orgs, default `free`)
-    and `--insecure-skip-signature` (install without the Sigstore check; by default the installer refuses to run
-    when `cosign` is not on `PATH`).
+4. Copy the setup token that the installer prints. It is shown once. Then continue with
+   [First run](first-run.md).
 
-4. Copy the setup token that the installer prints (it is shown once), open `https://console.example.com/setup` and
-   continue with [First run](../admin-guide.md#first-run).
+### Installer options
 
-Re-running the installer is safe: it upgrades to the requested release, keeps the existing secrets and only uploads
-a new service version when the bundle changed. `sh install.sh --uninstall` removes the Runtime Web files, `/etc/rtweb`
-(secrets and `caddy.env`), the Caddy site and drop-in, `RTWEB_OP_TOKEN` / `RTWEB_RELAY_SECRET` from the rt
-environment file and the managed block (plan and bindings) from `rt.toml`; the runtime node and its data stay.
+| Option | Default | Purpose |
+|---|---|---|
+| `--domain HOST` | required | Console host name. Caddy serves it with automatic TLS |
+| `--email ADDR` | required | ACME account e-mail for Caddy |
+| `--version X.Y.Z` | latest release | Runtime Web release to install |
+| `--public-url URL` | `https://<domain>` | Public base of app URLs (`RTWEB_RUNTIME_PUBLIC_URL`) |
+| `--default-plan NAME` | `free` | Runtime plan for new org tenants (`RTWEB_DEFAULT_PLAN`) |
+| `--runtime-version X.Y.Z` | the version pinned in `install.sh` | Runtime release to install when `rt` is missing. Any other version needs cosign |
+| `--insecure-skip-signature` | off | Install on checksums alone, without the Sigstore check. Not recommended |
+| `--dry-run` | off | Print every step without changing the host |
+| `--uninstall` | off | Remove Runtime Web from the host. See [Uninstall](#uninstall) |
+
+Set `GITHUB_TOKEN` in the environment to avoid GitHub API rate limits when the installer looks up the latest release.
 
 ## What the installer does
 
-1. Checks the platform and tools.
-2. Downloads `runtime-web-<version>.tar.gz`, `SHA256SUMS` and `SHA256SUMS.sigstore.json`, verifies the Sigstore
-   signature of the release workflow with `cosign` (required unless `--insecure-skip-signature`) and the tarball
-   against `SHA256SUMS`, then unpacks to `/opt/runtime-web/<version>`.
-3. When `rt` is missing, installs it from the runtime's GitHub release assets of a pinned version: the release's
-   `SHA256SUMS` and the `rt` tarball must match sha256 values pinned in `install.sh` (another `--runtime-version`
-   needs cosign). Nothing is fetched from a branch or a raw file at a git ref. The unit is `deploy/rt.service`.
-4. Generates `RTWEB_RELAY_SECRET` (64 hex chars, never empty, never printed) into `/etc/rtweb/rtweb.env` (0600),
-   sets `RTWEB_OP_TOKEN="Bearer <root token>"` (the runtime's single operator credential) and the relay secret in the
-   rt environment file, merges `deploy/rt.rtweb.toml` (the `rtweb` plan and the `rtctl-op` / `rtctl-tenant`
-   bindings) into `/etc/rt/rt.toml`, adds `ingress.trusted_proxies = ["127.0.0.1/32", "::1/128"]` so client IPs come
-   from Caddy's `X-Forwarded-For`, and restarts `rt`.
-5. Installs `deploy/Caddyfile` as a Caddy site: the console host (with HSTS), on-demand TLS for app custom domains
-   (gated by the console's `tls-ask` endpoint, called over loopback only; `/api/internal/*` answers 404 from
-   outside) and the loopback relay for tenant-scoped control-API calls, which requires the exact relay secret. Caddy
-   overwrites `X-Forwarded-For` with the real peer and drops client `X-Real-IP` / `Forwarded`. A failing
-   `caddy validate` stops the install.
-6. Runs `server/scripts/install.mjs` with the node's root token: creates the `runtime-web` tenant, publishes the
-   `rtctl` SDK, creates the `rtweb` service with its secrets and env, uploads the bundle with the embedded console,
-   checks each asset part's sha256, deletes the one-run `RTWEB_ASSET_TOKEN`
-   secret, maps the console host and runs a smoke check.
+1. Checks the platform, the tools and the Node.js version.
+2. Downloads `runtime-web-<version>.tar.gz`, `SHA256SUMS` and the Sigstore bundle. It verifies the bundle with cosign
+   against the release workflow's identity, then checks the tarball against `SHA256SUMS`, and unpacks it to
+   `/opt/runtime-web`.
+3. Installs the `rt` node from the pinned runtime release when `rt` is not on the `PATH`, and enables its systemd unit.
+   If `/etc/default/rt` has no `RT_ROOT_TOKEN`, it generates one. The token is never printed.
+4. Generates `RTWEB_RELAY_SECRET` into `/etc/rtweb/rtweb.env` (mode `0600`). It also sets `RTWEB_OP_TOKEN` in the rt
+   environment file. Then it merges the `rtweb` plan and bindings from `deploy/rt.rtweb.toml` into `/etc/rt/rt.toml`,
+   adds `trusted_proxies` for loopback so client IPs come from Caddy, and restarts `rt`.
+5. Installs the Caddy site: the console host with HSTS, on-demand TLS for custom domains (gated by the console's
+   `tls-ask` endpoint), and a loopback relay for tenant-scoped API calls. It runs `caddy validate` and stops if the
+   configuration is invalid.
+6. Runs `server/scripts/install.mjs` with the node's root token. It creates the `runtime-web` tenant, publishes the
+   `rtctl` SDK, creates the `rtweb` service with its secrets, uploads the console bundle and maps the console host.
+7. Prints the first-run setup URL and firewall hints.
 
-## What runs
+If `caddy` is not on the `PATH`, the installer finishes the node and the console but skips the proxy. Install Caddy
+and run the installer again. The installer is idempotent.
 
-| Component | Role | Listens on |
-|---|---|---|
-| `rt` | 21 Cloud Runtime node: runs `rtweb` and the apps, storage, schedules, queues | `127.0.0.1:8080` (invoke), `:8081` (control API), `:9090` (metrics) |
-| `rtweb` service | console API and single-page app, state in `std:sql` and `std:kv` | inside the node |
-| Caddy | TLS for the console and app domains; relay `127.0.0.1:8082` | `:80`, `:443` |
+## Check the install
 
-Only Caddy is reachable from outside. Keep the node's listeners on loopback.
+Open the console's health endpoint. It answers `200` with the build version when the console and its database work:
 
-## Development install
+```bash
+curl -fsS https://console.example.com/healthz
+```
 
-On a machine with a local runtime node, `cp .env.example .env`, `set -a; . ./.env; set +a`, then
-`make server-install` (or `make server-deploy` for a quick dev deploy). See [Configuration](../configuration.md).
+```json
+{"ok":true,"db":true,"version":"0.1.0"}
+```
+
+On the host, the node reports readiness on its metrics listener:
+
+```bash
+curl -fsS http://127.0.0.1:9090/readyz
+```
+
+If a check fails, see [Troubleshooting](../troubleshooting.md).
+
+## Firewall
+
+Allow only Caddy's ports from outside. Keep the node's own listeners on loopback: invoke on `8080`, control API on
+`8081` and metrics on `9090`.
+
+```bash
+sudo ufw allow 80,443/tcp
+# or, with firewalld:
+sudo firewall-cmd --add-service=http --add-service=https --permanent && sudo firewall-cmd --reload
+```
+
+## Manual install onto an existing node
+
+If you already run a 21 Cloud Runtime node, you can deploy the console onto it without the installer. The steps are
+the same ones the installer runs. See [Manual install](manual-install.md).
+
+## Upgrade
+
+1. Back up first. See [Backups and keys](../admin/operations.md#backups-and-keys).
+2. Read the [changelog](https://github.com/21-ci/runtime-web/blob/main/CHANGELOG.md) for the version you move to.
+3. Run the installer again with the new version. Keep the same `--domain` and `--email`:
+
+    ```bash
+    sudo sh install.sh --version X.Y.Z --domain console.example.com --email ops@example.com
+    ```
+
+The installer keeps the existing secrets, including `RTWEB_SEAL_KEY`, and uploads a new service version only when the
+bundle changed. The new version migrates the database the first time it opens it.
+
+## Uninstall
+
+```bash
+sudo sh install.sh --uninstall
+```
+
+This removes the Runtime Web files under `/opt/runtime-web`, the secrets in `/etc/rtweb`, the Caddy site and its
+systemd drop-in, the `RTWEB_OP_TOKEN` and `RTWEB_RELAY_SECRET` entries in the rt environment file, and the managed block
+in `/etc/rt/rt.toml`.
+
+It keeps the runtime node, its data and `RT_ROOT_TOKEN`. It also keeps the `runtime-web` tenant and the `rtweb`
+service. Delete them with the control API when you no longer need them:
+
+!!! warning
+
+    Deleting the tenant deletes the console's data, including users and sealed secrets. Back up first.
+
+Run this as root in a shell that can read the rt environment file (`sudo -i`):
+
+```bash
+set -a; . /etc/default/rt; set +a
+export RT_API=http://127.0.0.1:8081
+TENANT_ID=$(curl -fsS "$RT_API/v1/tenants?limit=100" -H "Authorization: Bearer $RT_ROOT_TOKEN" \
+  | jq -r '.items[] | select(.name == "runtime-web") | .id')
+curl -fsS -X DELETE "$RT_API/v1/tenants/$TENANT_ID" -H "Authorization: Bearer $RT_ROOT_TOKEN"
+```
 
 ## Next steps
 
-- [Configuration](../configuration.md): every variable and where it lives
-- [First run](../admin-guide.md#first-run): create the first instance admin
-- [Orgs](../user-guide/orgs.md) and [Apps](../user-guide/apps.md): your first app
+- [First run](first-run.md): create the instance admin account
+- [Manual install](manual-install.md): deploy onto a node you already run
+- [Configuration](../reference/configuration.md): every variable and where it is set
+- [Troubleshooting](../troubleshooting.md): logs, health checks and common failures
