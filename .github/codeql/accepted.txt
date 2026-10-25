@@ -1,0 +1,6 @@
+# CodeQL results reviewed and accepted, one per line: <rule id> <path>  # reason
+# scripts/ci-local.sh ignores these; any other result fails the check. On GitHub, dismiss the
+# matching alert with the same reason.
+js/missing-origin-check web/src/components/features/editor/ts-worker.ts  # dedicated worker: only the page that created it can post to it
+js/file-access-to-http server/scripts/install.mjs  # operator installer: uploads the console's own built files to the operator's runtime
+js/file-access-to-http server/scripts/deploy.mjs  # operator dev deploy: same as install.mjs

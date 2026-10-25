@@ -21,3 +21,4 @@ server/.gen-blobs.json
 # test coverage reports
 coverage/
 .venv/
+.ci-local/

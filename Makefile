@@ -1,11 +1,17 @@
 .DEFAULT_GOAL := help
 
-.PHONY: help ci clean web web-test web-lint web-audit e2e budget server-deps server-assets server-ci server-test server-deploy server-install coverage
+.PHONY: help ci ci-local ci-security clean web web-test web-lint web-audit e2e budget server-deps server-assets server-ci server-test server-deploy server-install coverage
 
 help: ## Show this help
 	@grep -E '^[a-zA-Z_-]+:.*## ' $(MAKEFILE_LIST) | awk -F':.*## ' '{printf "  %-15s %s\n", $$1, $$2}'
 
 ci: web web-lint web-test budget server-ci ## Run the CI chain (web build/lint/test/budgets, server typecheck/lint/tests; e2e is separate)
+
+ci-local: ## Everything CI and the security workflow check, locally, with a pass/fail summary (scripts/ci-local.sh)
+	scripts/ci-local.sh
+
+ci-security: ## Only npm audit, Trivy and CodeQL (scripts/ci-local.sh --security)
+	scripts/ci-local.sh --security
 
 web: ## Install web deps (npm ci) and build the console (web/dist)
 	cd web && npm ci && npm run build
