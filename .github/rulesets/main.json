@@ -54,7 +54,10 @@
           { "context": "npm audit (web)" },
           { "context": "npm audit (server)" },
           { "context": "trivy fs" },
-          { "context": "codeql" }
+          { "context": "codeql" },
+          { "context": "gitleaks" },
+          { "context": "semgrep" },
+          { "context": "osv-scanner" }
         ]
       }
     }

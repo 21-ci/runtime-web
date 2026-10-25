@@ -5,10 +5,10 @@
 #
 #   scripts/ci-local.sh              everything (build, lint, i18n, coverage, budgets, shell, workflows, docs, security)
 #   scripts/ci-local.sh --fast       skip coverage (plain tests), docs and CodeQL
-#   scripts/ci-local.sh --security   only npm audit, Trivy and CodeQL
+#   scripts/ci-local.sh --security   only npm audit, Trivy, CodeQL, gitleaks, semgrep and osv-scanner
 #
-# Tools: node/npm (required); shellcheck, actionlint, zizmor, mkdocs (or .venv / docs/requirements.txt), trivy and
-# codeql are used when installed and reported as SKIP otherwise. Logs go to .ci-local/<step>.log.
+# Tools: node/npm (required); shellcheck, actionlint, zizmor, mkdocs (or .venv / docs/requirements.txt), trivy, codeql,
+# gitleaks, semgrep and osv-scanner are used when installed and reported as SKIP otherwise. Logs go to .ci-local/<step>.log.
 set -uo pipefail
 
 ROOT="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
@@ -169,6 +169,25 @@ elif have codeql; then
   step codeql run_codeql
 else
   skip codeql "codeql not installed (brew install --cask codeql)"
+fi
+if have gitleaks; then
+  # Full history, as security.yml; .gitleaksignore holds the reviewed false positives.
+  step gitleaks gitleaks git --redact --no-banner .
+else
+  skip gitleaks "gitleaks not installed (brew install gitleaks)"
+fi
+if have semgrep; then
+  # Blocks on ERROR only, as security.yml; .semgrepignore excludes the test files.
+  step semgrep env SEMGREP_SEND_METRICS=off semgrep scan --metrics=off \
+    --config p/typescript --config p/javascript --config p/react --config p/nodejsscan \
+    --config p/secrets --config p/github-actions --severity ERROR --error .
+else
+  skip semgrep "semgrep not installed (brew install semgrep)"
+fi
+if have osv-scanner; then
+  step osv-scanner osv-scanner scan --lockfile web/package-lock.json --lockfile server/package-lock.json
+else
+  skip osv-scanner "osv-scanner not installed (brew install osv-scanner)"
 fi
 
 echo

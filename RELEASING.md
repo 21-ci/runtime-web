@@ -117,7 +117,7 @@ scripts/apply-rulesets.sh
 It creates or updates the rulesets from `.github/rulesets/` with `gh api` (needs admin; rerun after changing a file).
 `main.json` protects the default branch: PRs only, signed commits, linear history (squash or rebase), no force-push or
 deletion, resolved review threads, and these required checks, up to date with `main`: `web`, `server`, `shell`,
-`docs`, `pr title`, `zizmor + actionlint`, `npm audit (web)`, `npm audit (server)`, `trivy fs`, `codeql`. A renamed CI
+`docs`, `pr title`, `zizmor + actionlint`, `npm audit (web)`, `npm audit (server)`, `trivy fs`, `codeql`, `gitleaks`, `semgrep`, `osv-scanner`. A renamed CI
 job must be renamed in `main.json` too, or every PR waits for a check that never reports.
 
 `tags.json` lets nobody create, move or delete `v*` tags. Add who may create them: Settings → Rules → Rulesets →

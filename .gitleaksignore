@@ -1,0 +1,31 @@
+# gitleaks allowlist: reviewed false positives, one fingerprint per finding (commit:file:rule:line).
+# Every entry is a placeholder, a test fixture or a removed sample; none is a live credential.
+# A new finding gets its own fingerprint here only after review; rotate and purge anything real.
+
+# .env.example: placeholder value shown to operators, not a key
+afa11ff6b124dd2a626a29bd9da63efd1dbd27b7:.env.example:generic-api-key:19
+
+# e2e/smoke.spec.ts: smoke-test passphrases for the throwaway account on the hosted console
+afa11ff6b124dd2a626a29bd9da63efd1dbd27b7:e2e/smoke.spec.ts:generic-api-key:16
+afa11ff6b124dd2a626a29bd9da63efd1dbd27b7:e2e/smoke.spec.ts:generic-api-key:17
+
+# web/src/components/features/tokens/scopes.ts: labelKey "expiry.days30/90" is an i18n key, not a credential
+cc6ac781d7e1ccc0f445af6838f7d491a49cbe44:web/src/components/features/tokens/scopes.ts:generic-api-key:28
+cc6ac781d7e1ccc0f445af6838f7d491a49cbe44:web/src/components/features/tokens/scopes.ts:generic-api-key:29
+9292b9be6e6e88f46d03e17efaf0cf3f8675a15e:web/src/components/features/tokens/scopes.ts:generic-api-key:28
+9292b9be6e6e88f46d03e17efaf0cf3f8675a15e:web/src/components/features/tokens/scopes.ts:generic-api-key:29
+
+# Test fixtures (*.test.ts(x)): fake tokens and passwords used as inputs to unit tests
+1724b670fb14ac98f4ff89a5b2e3e8b2c9c0146d:server/test/runtime/sdk.test.ts:generic-api-key:66
+1724b670fb14ac98f4ff89a5b2e3e8b2c9c0146d:server/test/runtime/sdk.test.ts:generic-api-key:91
+1724b670fb14ac98f4ff89a5b2e3e8b2c9c0146d:server/test/runtime/sdk.test.ts:generic-api-key:100
+1724b670fb14ac98f4ff89a5b2e3e8b2c9c0146d:server/test/runtime/sdk.test.ts:generic-api-key:105
+fd21b485ba6af76a3dfb51cb6dd40be20305db78:server/test/runtime/sdk.test.ts:generic-api-key:66
+fd21b485ba6af76a3dfb51cb6dd40be20305db78:server/test/runtime/sdk.test.ts:generic-api-key:91
+fd21b485ba6af76a3dfb51cb6dd40be20305db78:server/test/runtime/sdk.test.ts:generic-api-key:100
+fd21b485ba6af76a3dfb51cb6dd40be20305db78:server/test/runtime/sdk.test.ts:generic-api-key:105
+cf392e14132e46f5cce94e3ca29600115e2138a9:web/src/components/features/domains/domains-panel.test.tsx:generic-api-key:12
+88d988c5f97fdd6fa769d8d66601e9fb5076c136:web/src/components/features/admin/admin.test.tsx:generic-api-key:81
+
+# internal/config/config_test.go: Go test key removed from the tree; kept in history only (pre-TypeScript rewrite)
+1a03b70d43d9ec2a7ef4d118bf1609d0a6331d26:internal/config/config_test.go:generic-api-key:9

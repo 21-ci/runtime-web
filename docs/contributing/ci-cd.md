@@ -5,7 +5,7 @@
 | Workflow | Trigger | What it gates |
 |----------|---------|---------------|
 | `ci.yml` | PR, push to `main` | web: lint, Vitest + v8 coverage thresholds, build, gzip budget; server: lint, `tsc`, Vitest + coverage; shellcheck + `install.sh --dry-run`; `mkdocs build --strict` |
-| `security.yml` | PR, push to `main`, weekly | Trivy fs (vuln, secret, misconfig; HIGH/CRITICAL fail; SARIF to code scanning), `npm audit` (runtime deps and all deps incl. dev; high/critical fail), CodeQL (javascript-typescript), OpenSSF Scorecard, zizmor + actionlint on the workflows |
+| `security.yml` | PR, push to `main`, weekly | Trivy fs (vuln, secret, misconfig; HIGH/CRITICAL fail; SARIF to code scanning), `npm audit` (runtime deps and all deps incl. dev; high/critical fail), CodeQL (javascript-typescript), gitleaks (full git history, `fetch-depth: 0`; reviewed false positives in `.gitleaksignore`), semgrep (`p/typescript`, `p/javascript`, `p/react`, `p/nodejsscan`, `p/secrets`, `p/github-actions`; blocks on ERROR; test files excluded in `.semgrepignore`), osv-scanner (`web/package-lock.json` and `server/package-lock.json`; any known vulnerability fails), OpenSSF Scorecard, zizmor + actionlint on the workflows |
 | `pr-title.yml` | PR opened or edited | the PR title is a Conventional Commit (it becomes the squash commit subject and the changelog line) |
 | `release-please.yml` | push to `main` | keeps the `chore: release X.Y.Z` PR open; merging it creates the tag and the GitHub Release |
 | `release.yml` | tag `vX.Y.Z[-pre]` | tarball, SBOM, Trivy scan of the artifact, SHA256SUMS, cosign keyless signature, SLSA provenance, GitHub Release, post-publish verification |
@@ -20,9 +20,9 @@ each job only what it needs. Accepted Trivy findings go in `.trivyignore` with a
 Rulesets live in `.github/rulesets/` and are applied with `scripts/apply-rulesets.sh` (`gh api`, admin only). `main`
 takes changes only through PRs with signed commits and linear history (squash or rebase), never a force-push or a
 deletion, and requires these checks: `web`, `server`, `shell`, `docs`, `pr title`, `zizmor + actionlint`,
-`npm audit (web)`, `npm audit (server)`, `trivy fs`, `codeql`. Renaming a job means updating `main.json` and re-running
+`npm audit (web)`, `npm audit (server)`, `trivy fs`, `codeql`, `gitleaks`, `semgrep`, `osv-scanner`. Renaming a job means updating `main.json` and re-running
 the script. `v*` tags can be created only by the bypass list (repository admins and the release App) and never moved or
-deleted. `scripts/ci-local.sh` runs actionlint and zizmor when they are installed (`brew install actionlint zizmor`).
+deleted. `scripts/ci-local.sh` runs the same checks as `security.yml` and `ci.yml` when the tools are installed (`brew install actionlint zizmor gitleaks semgrep osv-scanner`); `--security` runs only the security section.
 
 ## Coverage
 

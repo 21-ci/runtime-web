@@ -5,6 +5,7 @@ import { conflict } from "../http/errors.ts";
 import type { Db, Stmt } from "../storage/types.ts";
 
 export const SETTING_REQUIRE_2FA = "auth.require_2fa";
+// nosemgrep: ajinabraham.njsscan.generic.hardcoded_secrets.node_password -- a settings key name, not a password
 export const SETTING_PASSWORD_LOGIN_DISABLED = "auth.password_login_disabled";
 
 export interface Policy {
