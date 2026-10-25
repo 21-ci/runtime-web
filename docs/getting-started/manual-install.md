@@ -57,11 +57,12 @@ management tool or a cluster. It does the same steps as the [installer](install.
     sudo install -m 0644 deploy/Caddyfile /etc/caddy/Caddyfile.d/rtweb.caddy
     ```
 
-    Write `/etc/rtweb/caddy.env` with mode `0600` and these three lines. The relay secret is the same value as in
+    Write `/etc/rtweb/caddy.env` with mode `0600` and these four lines. The relay secret is the same value as in
     step 2:
 
     ```bash
     RTWEB_DOMAIN=console.example.com
+    RTWEB_APPS_DOMAIN=apps.console.example.com
     RTWEB_ACME_EMAIL=ops@example.com
     RTWEB_RELAY_SECRET=<same value as step 2>
     ```
@@ -79,9 +80,12 @@ management tool or a cluster. It does the same steps as the [installer](install.
     RT_INVOKE=http://127.0.0.1:8080
     RTWEB_ORIGIN=https://console.example.com
     RTWEB_HOST=console.example.com
-    RTWEB_RUNTIME_PUBLIC_URL=https://console.example.com
+    RTWEB_RUNTIME_PUBLIC_URL=https://apps.console.example.com
     RTWEB_DEFAULT_PLAN=free
     ```
+
+    Both host names need DNS records that point at the host. `RTWEB_RUNTIME_PUBLIC_URL` must be a different origin
+    from `RTWEB_ORIGIN`: the service refuses to start otherwise, so App code never runs on the console origin.
 
     `RTWEB_ORIGIN` has no safe default for a manual install. `install.mjs` falls back to `RT_INVOKE`, which is
     `http`, and the service refuses to start with it unless `RTWEB_INSECURE_COOKIES=1` is set.

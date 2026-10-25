@@ -14,6 +14,7 @@ otherwise. Never paste a root token, a secret or a setup token into an issue or 
 |---|---|---|
 | Console through Caddy | `curl -fsS https://console.example.com/healthz` | `{"ok":true,"db":true,"version":"..."}` |
 | Console on the node | `curl -fsS http://127.0.0.1:8080/s/rtweb/api/healthz` | the same JSON, without TLS |
+| Apps host through Caddy | `curl -sSI https://apps.console.example.com/s/<app>/` | an HTTP status from the App (DNS and TLS for the Apps host work) |
 | Node ready | `curl -fsS http://127.0.0.1:9090/readyz` | HTTP `200` |
 | Caddy configuration | `caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile` | `Valid configuration` |
 
@@ -118,9 +119,18 @@ The browser console shows a message such as `Refused to frame ... because it vio
 causes are:
 
 - `RTWEB_RUNTIME_PUBLIC_URL` is empty, so the policy is `frame-src 'none'`.
-- Apps are served from the same origin as the console. The default install does this, so the preview always falls
-  back to the link. Serve app URLs from a second origin that routes to the node, then set it with
-  `--public-url` and run the installer again.
+- `RTWEB_RUNTIME_PUBLIC_URL` points at a host that is not served. The installer uses `https://apps.<domain>` by
+  default: check that its DNS record exists and that Caddy got a certificate for it
+  (`curl -I https://apps.console.example.com/s/<app>/`).
+
+The server refuses to start when `RTWEB_RUNTIME_PUBLIC_URL` has the same origin as `RTWEB_ORIGIN`, so a same-origin
+setup shows up as a startup `ConfigError`, not as a blocked preview.
+
+### App link opens the console instead of the App
+
+App URLs on the console host (`https://console.example.com/s/<app>/`) reach the console, because the runtime routes a
+host mapped to a service before it routes by path. Use the Apps host (`--apps-domain`, default `apps.<domain>`) and
+re-run the installer.
 
 The link in the fallback message still opens the app.
 

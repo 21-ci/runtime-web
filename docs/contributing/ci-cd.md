@@ -59,7 +59,7 @@ pinned in `install.sh`, generates `RTWEB_RELAY_SECRET` into `/etc/rtweb/rtweb.en
 `RTWEB_OP_TOKEN="Bearer <root token>"` in the rt environment file,
 wires the plan and bindings (`deploy/rt.rtweb.toml`) into `/etc/rt/rt.toml`, installs the Caddy site and runs
 `server/scripts/install.mjs` with `RT_ROOT_TOKEN` (from the rt environment file), `RTWEB_ORIGIN=https://<domain>`,
-`RTWEB_HOST=<domain>`, `RTWEB_RUNTIME_PUBLIC_URL` (`--public-url`, default `https://<domain>`), `RTWEB_DEFAULT_PLAN`
+`RTWEB_HOST=<domain>`, `RTWEB_RUNTIME_PUBLIC_URL` (`--public-url`, default `https://<apps-domain>`, `--apps-domain` defaults to `apps.<domain>`), `RTWEB_DEFAULT_PLAN`
 (`--default-plan`) and `RTWEB_VERSION`. Use `--dry-run` to see every step without changing anything and
 `--uninstall` to remove it again. The Caddyfile reads `{$RTWEB_DOMAIN}`, `{$RTWEB_ACME_EMAIL}` and
 `{$RTWEB_RELAY_SECRET}` from `/etc/rtweb/caddy.env` (0600), loaded by a systemd drop-in for `caddy.service`.

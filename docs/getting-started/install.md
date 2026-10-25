@@ -24,7 +24,7 @@ install onto an existing node, upgrades and uninstalling.
 | Node.js 22.5 or newer | Runs the install script that creates the App |
 | [cosign](https://docs.sigstore.dev/cosign/system_config/installation/) | Verifies the release signature. Required unless you pass `--insecure-skip-signature` |
 | [Caddy](https://caddyserver.com/docs/install) | Serves the console over TLS. Install it with its systemd unit before you run the installer |
-| A DNS name for the console | An `A` or `AAAA` record that points at the host |
+| Two DNS names | `A` or `AAAA` records for the console host (for example `console.example.com`) and the Apps host (default `apps.console.example.com`), both pointing at the host |
 | Ports 80 and 443 open | Caddy needs both: 80 for the ACME challenge, 443 for HTTPS |
 
 ## Quick install
@@ -42,7 +42,7 @@ install onto an existing node, upgrades and uninstalling.
     sh install.sh --dry-run --domain console.example.com --email ops@example.com
     ```
 
-3. Install. Use the host name you set up in DNS and an e-mail address for the Let's Encrypt account:
+3. Install. Use the console host name you set up in DNS and an e-mail address for the Let's Encrypt account:
 
     ```bash
     sudo sh install.sh --domain console.example.com --email ops@example.com
@@ -58,12 +58,22 @@ install onto an existing node, upgrades and uninstalling.
 | `--domain HOST` | required | Console host name. Caddy serves it with automatic TLS |
 | `--email ADDR` | required | ACME account e-mail for Caddy |
 | `--version X.Y.Z` | latest release | Runtime Web release to install |
-| `--public-url URL` | `https://<domain>` | Public base of app URLs (`RTWEB_RUNTIME_PUBLIC_URL`) |
+| `--apps-domain HOST` | `apps.<domain>` | Apps host. Caddy serves it with automatic TLS; it must differ from `--domain` |
+| `--public-url URL` | `https://<apps-domain>` | Public base of app URLs (`RTWEB_RUNTIME_PUBLIC_URL`). Must not be the console origin |
 | `--default-plan NAME` | `free` | Runtime plan for new org tenants (`RTWEB_DEFAULT_PLAN`) |
 | `--runtime-version X.Y.Z` | the version pinned in `install.sh` | Runtime release to install when `rt` is missing. Any other version needs cosign |
 | `--insecure-skip-signature` | off | Install on checksums alone, without the Sigstore check. Not recommended |
 | `--dry-run` | off | Print every step without changing the host |
 | `--uninstall` | off | Remove Runtime Web from the host. See [Uninstall](#uninstall) |
+
+### Why Apps get their own host
+
+Apps run untrusted code. If an App were served on the console origin, its pages could call the console API with a
+signed-in admin's cookies, and the same-origin `Origin` check would let the request through. Runtime Web therefore
+serves Apps at `https://<apps-domain>/s/<app>/`, a separate origin. The console host is mapped to the `rtweb` service,
+and the runtime routes a mapped host before it looks at `/s/<app>/`, so app links on the console host would only reach
+the console. The apps host is not mapped to any service, so the runtime routes it by path. The server refuses to
+start when `RTWEB_RUNTIME_PUBLIC_URL` has the same origin as `RTWEB_ORIGIN`.
 
 Set `GITHUB_TOKEN` in the environment to avoid GitHub API rate limits when the installer looks up the latest release.
 
@@ -78,7 +88,7 @@ Set `GITHUB_TOKEN` in the environment to avoid GitHub API rate limits when the i
 4. Generates `RTWEB_RELAY_SECRET` into `/etc/rtweb/rtweb.env` (mode `0600`). It also sets `RTWEB_OP_TOKEN` in the rt
    environment file. Then it merges the `rtweb` plan and bindings from `deploy/rt.rtweb.toml` into `/etc/rt/rt.toml`,
    adds `trusted_proxies` for loopback so client IPs come from Caddy, and restarts `rt`.
-5. Installs the Caddy site: the console host with HSTS, on-demand TLS for custom domains (gated by the console's
+5. Installs the Caddy site: the console host with HSTS, the Apps host (no HSTS), on-demand TLS for custom domains (gated by the console's
    `tls-ask` endpoint), and a loopback relay for tenant-scoped API calls. It runs `caddy validate` and stops if the
    configuration is invalid.
 6. Runs `server/scripts/install.mjs` with the node's root token. It creates the `runtime-web` tenant, publishes the
