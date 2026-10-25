@@ -70,11 +70,20 @@ describe("auth pages", { timeout: 15_000 }, () => {
 
   it("mfa page posts the code and lands on next", async () => {
     let body: unknown = null;
+    let signedIn = false;
     server.use(
       http.post("/api/auth/mfa", async ({ request }) => {
         body = await request.json();
+        signedIn = true;
         return HttpResponse.json({ user: testUser, csrf: "csrf-2" });
       }),
+      // Like the server: the session exists once MFA succeeds. Otherwise a refetch of /api/me on the
+      // destination page (it happens under load) gets the default 401 and bounces back to /login.
+      http.get("/api/me", () =>
+        signedIn
+          ? HttpResponse.json({ user: testUser, csrf: "csrf-2", orgs: [] })
+          : HttpResponse.json({ error: { code: "unauthenticated", message: "signed out" } }, { status: 401 }),
+      ),
       // The destination page loads its own data; answer it so the landing is stable (an unhandled
       // request errors out and can bounce the router before the assertion runs).
       http.get("/api/orgs", () => HttpResponse.json({ items: [] })),

@@ -1,0 +1,14 @@
+# Build context of the container image (Dockerfile): only what the build stages read.
+*
+!web/
+!server/src/
+!server/sdk/
+!server/scripts/gen-assets.mjs
+!server/rt.json
+!deploy/rt.rtweb.toml
+!docker/entry/
+!docker/rt.apps.toml
+**/node_modules
+**/dist
+**/coverage
+server/src/gen/

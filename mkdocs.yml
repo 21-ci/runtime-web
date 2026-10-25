@@ -105,6 +105,7 @@ nav:
       - Install: getting-started/install.md
       - First run: getting-started/first-run.md
       - Manual install: getting-started/manual-install.md
+      - Docker: getting-started/docker.md
   - User guide:
       - user-guide/index.md
       - Orgs: user-guide/orgs.md

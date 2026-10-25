@@ -9,6 +9,7 @@
 | `pr-title.yml` | PR opened or edited | the PR title is a Conventional Commit (it becomes the squash commit subject and the changelog line) |
 | `release-please.yml` | push to `main` | keeps the `chore: release X.Y.Z` PR open; merging it creates the tag and the GitHub Release |
 | `release.yml` | tag `vX.Y.Z[-pre]` | tarball, SBOM, Trivy scan of the artifact, SHA256SUMS, cosign keyless signature, SLSA provenance, GitHub Release, post-publish verification |
+| `docker.yml` | PR, push to `main`, tag `vX.Y.Z[-pre]` | hadolint; the container image (`Dockerfile`, flavors `distroless` and `slim`) for `linux/amd64` + `linux/arm64`, including the `rtweb-entry` Go tests. PRs build without pushing and gate the amd64 image on Trivy. `main` and tags push `ghcr.io/21-ci/runtime-web` by digest, gate both platforms on Trivy (fixable HIGH/CRITICAL fail; SARIF to code scanning), then tag (`edge` on `main`, `X.Y.Z` and `X.Y` on tags, `-slim` for slim), cosign-sign (keyless) and attest provenance and SBOM |
 
 Every action is pinned by full commit SHA with a version comment; Dependabot (`.github/dependabot.yml`) bumps them
 weekly together with the npm dependencies of `web/`, `server/` and `e2e/` and the pip requirements of the docs, each
@@ -47,7 +48,9 @@ In short:
      `deploy/Caddyfile`, `deploy/rt.rtweb.toml`, `install.sh`, `VERSION`
    - `runtime-web-X.Y.Z.spdx.json` (SBOM), `install.sh`
    - `SHA256SUMS`, `SHA256SUMS.sigstore.json`
-4. The `verify` job re-downloads the release and checks the checksums, signature and attestation. If it fails,
+4. The same tag starts `docker.yml`, which publishes `ghcr.io/21-ci/runtime-web:X.Y.Z` (and `X.Y`, plus the `-slim`
+   tags). A pre-release tag gets only `X.Y.Z-rc.N`.
+5. The `verify` job re-downloads the release and checks the checksums, signature and attestation. If it fails,
    delete the release and the tag, fix the cause, and tag again.
 
 Verify a release by hand:
@@ -59,6 +62,19 @@ cosign verify-blob --bundle SHA256SUMS.sigstore.json \
 sha256sum --check --ignore-missing SHA256SUMS
 gh attestation verify runtime-web-X.Y.Z.tar.gz -R 21-ci/runtime-web
 ```
+
+Verify an image:
+
+```sh
+cosign verify ghcr.io/21-ci/runtime-web:X.Y.Z \
+  --certificate-identity-regexp '^https://github\.com/21-ci/runtime-web/\.github/workflows/docker\.yml@refs/tags/v' \
+  --certificate-oidc-issuer https://token.actions.githubusercontent.com
+gh attestation verify oci://ghcr.io/21-ci/runtime-web:X.Y.Z -R 21-ci/runtime-web
+```
+
+The image pins `ghcr.io/21-ci/rt` by digest (`RT_IMAGE` in `Dockerfile`). When `install.sh` moves to a new runtime
+release (`RT_PINNED_VERSION`), bump `RT_IMAGE` in the same change. `docker/entry/bootstrap.go` repeats the steps of
+`server/scripts/install.mjs`: change both together.
 
 ## Installing
 

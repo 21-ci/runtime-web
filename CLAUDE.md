@@ -20,6 +20,7 @@ React console plus a TypeScript backend that runs as a 21 Cloud Runtime service
 | `server/scripts/` | `install.mjs`, `deploy.mjs`, `gen-assets.mjs` |
 | `web/` | React console (built to `web/dist`, embedded by `gen-assets`) |
 | `deploy/` | Node `rt.toml` fragment and Caddy relay |
+| `Dockerfile`, `docker/entry/` | Container image; `rtweb-entry` (Go) mirrors `install.mjs` and the Caddyfile rules: change them together |
 | `e2e/` | Playwright smoke against a hosted console (`RTWEB_URL`) |
 | `docs/reference/api.md` | HTTP contract (guarded by `server/test/contract.test.ts`) |
 | `docs/contributing/code-style.md` | Binding code style (read before writing code) |

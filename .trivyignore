@@ -1,3 +1,9 @@
 # Trivy accepted findings (read by security.yml and release.yml via --ignorefile).
 # One ID per line, each with a reason and an expiry, for example:
 #   CVE-2026-00000 exp:2026-12-31  # not reachable: dev-only transitive dep, upstream fix pending
+
+# hickory-resolver 0.25 inside the rt 0.1.1 binary (ghcr.io/21-ci/rt, container image): only reached through deno_fetch,
+# which Deno pins; App fetches go through rt-host's egress guard on hickory 0.26.2. Accepted upstream with the same
+# expiry in 21-ci/runtime .trivyignore; drop this when the image moves to an rt release built with hickory 0.26.
+# (Alex Sayfi, 2026-10-25)
+GHSA-5j98-2g5x-46v6 exp:2027-01-31
