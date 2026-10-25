@@ -375,7 +375,10 @@ function AssetPicker({
         onDrop={onDrop}
         data-testid={`${id}-drop`}
         className={cn(
-          "flex h-24 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-line-strong bg-field p-2 text-center",
+          // Each logo is shown on the theme it is for, so a dark-text logo stays visible.
+          kind === "logo-light" && "light",
+          kind === "logo-dark" && "dark",
+          "flex h-24 flex-col items-center justify-center gap-1 rounded-lg border border-dashed border-line-strong bg-field p-2 text-center text-text",
           over && "border-accent bg-accent-pale",
         )}
       >

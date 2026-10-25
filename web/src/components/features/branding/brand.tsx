@@ -76,7 +76,7 @@ export function SidebarBrand() {
   return (
     <div className="mb-1.5 flex h-8 min-w-0 items-center gap-2 px-1.5" data-testid="sidebar-brand">
       {data.logo_light_url ? (
-        <BrandLogo branding={data} className="h-6 max-w-[180px]" />
+        <BrandLogo branding={data} className="h-7 max-w-[190px]" />
       ) : (
         <>
           {data.icon_url ? <img src={data.icon_url} alt="" className="size-6 rounded-md object-contain" /> : null}
