@@ -1,1 +1,105 @@
-{}
+{
+  "title": "Umumiy koʻrinish",
+  "workspace": "{{name}} ish maydoni",
+  "quick": {
+    "label": "Tezkor amallar",
+    "newApp": "Yangi ilova",
+    "newAppHint": "Kodni soniyalar ichida joylashtiring",
+    "newProject": "Yangi loyiha",
+    "newProjectHint": "Ilovalarni guruhlang",
+    "inviteMember": "Aʼzoni taklif qilish",
+    "inviteMemberHint": "Jamoangizni qoʻshing",
+    "createToken": "Token yaratish",
+    "createTokenHint": "APIga kirish",
+    "addDomain": "Domen qoʻshish",
+    "addDomainHint": "Ilovani oʻz URL manzilingizda ishga tushiring"
+  },
+  "projects": {
+    "title": "Loyihalar",
+    "notFound": "Tashkilot topilmadi",
+    "appCount_one": "{{count}} ta ilova",
+    "appCount_other": "{{count}} ta ilova"
+  },
+  "apps": {
+    "title": "Ilovalar",
+    "menu": "Ilovalar menyusi",
+    "filter": "Ilovalarni loyiha boʻyicha filtrlash",
+    "allProjects": "Barcha loyihalar",
+    "projectLabel": "Loyiha",
+    "new": "Yangi ilova",
+    "emptyTitle": "Hali ilovalar yoʻq",
+    "emptyDescription": "Bu yerda chiqishi uchun ilova yarating."
+  },
+  "activity": {
+    "title": "Soʻnggi faollik",
+    "adminsOnly": "Faollik faqat administratorlar uchun",
+    "adminsHint": "Egasi yoki administratordan soʻrang.",
+    "error": "Faollikni yuklab boʻlmadi",
+    "emptyTitle": "Hali faollik yoʻq",
+    "emptyDescription": "Bu tashkilotdagi oʻzgarishlar shu yerda koʻrinadi.",
+    "system": "Tizim"
+  },
+  "members": {
+    "title": "Aʼzolar",
+    "titleCount": "Aʼzolar ({{count}})",
+    "menu": "Aʼzolar menyusi",
+    "invite": "Aʼzoni taklif qilish",
+    "manage": "Aʼzolarni boshqarish",
+    "empty": "Koʻrsatish uchun aʼzolar yoʻq"
+  },
+  "build": {
+    "ready": "Tayyor",
+    "failed": "Xato",
+    "building": "Yigʻilmoqda",
+    "pending": "Kutilmoqda"
+  },
+  "access": {
+    "public": "Ochiq",
+    "key": "Kalit talab qilinadi",
+    "internal": "Ichki"
+  },
+  "liveVersion": "v{{version}}",
+  "app": {
+    "notFound": "Ilova topilmadi"
+  },
+  "editCode": "Kodni tahrirlash",
+  "open": "Ochish",
+  "lastError": "Soʻnggi xato: {{error}}",
+  "stats": {
+    "title": "Oxirgi 5 daqiqa",
+    "viewLogs": "Loglarni koʻrish",
+    "notFound": "Statistika topilmadi",
+    "requests": "Soʻrovlar",
+    "errors": "Xatolar",
+    "errorRate": "Xatolar ulushi",
+    "p50": "p50",
+    "p95": "p95",
+    "p99": "p99"
+  },
+  "code": {
+    "title": "Kod",
+    "history": "Tarix",
+    "unavailable": "Bu versiya uchun kod mavjud emas.",
+    "entry": "kirish nuqtasi",
+    "version": "v{{version}}"
+  },
+  "events": {
+    "title": "Hodisalar",
+    "description": "Ish muhiti bu ilova bilan nima qilgani, eng yangilari birinchi.",
+    "emptyTitle": "Hali hodisalar yoʻq",
+    "emptyDescription": "Bu ilova uchun ish muhiti hodisalari shu yerda chiqadi.",
+    "loadMore": "Yana yuklash",
+    "loading": "Yuklanmoqda…",
+    "value": "Qiymat",
+    "items": "Elementlar",
+    "none": "yoʻq",
+    "notFound": "Hodisalar topilmadi"
+  },
+  "data": {
+    "title": "Maʼlumotlar",
+    "description": "Ilovaning SQLite maʼlumotlar bazasini fayl sifatida yuklab oling.",
+    "export": "Maʼlumotlarni eksport qilish"
+  },
+  "liveUrl": "Ishlayotgan manzil",
+  "preview": "Javobning oldindan koʻrinishi"
+}

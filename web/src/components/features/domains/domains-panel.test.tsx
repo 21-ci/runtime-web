@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
+import { setLanguage } from "@/lib/i18n";
 import { createQueryClient } from "@/lib/query";
 import { server } from "@/test/msw";
 
@@ -105,5 +106,18 @@ describe("DomainsPanel", () => {
 
     await user.click(await screen.findByRole("button", { name: "Verify www.example.com" }));
     expect(await screen.findByText("Active")).toBeInTheDocument();
+  });
+
+  it("renders in the selected language", async () => {
+    await setLanguage("ru");
+    try {
+      server.use(http.get("/api/orgs/acme/apps/hello/domains", () => HttpResponse.json({ items: [domain({})] })));
+      renderPanel();
+
+      expect(await screen.findByText("Свои домены")).toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: "Скопировать имя TXT" })).toBeInTheDocument();
+    } finally {
+      await setLanguage("en");
+    }
   });
 });

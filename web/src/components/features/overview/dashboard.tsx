@@ -15,6 +15,7 @@ import {
   type LucideIcon,
 } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useRecentActivity } from "@/components/features/audit/hooks";
 import { NoProjects } from "@/components/features/empty/no-projects";
@@ -38,7 +39,7 @@ import { IconTile, LetterTile, hueFor, type Entity, type Hue } from "@/component
 import { SectionCard, SMALL_CONTROL, SMALL_ICON } from "@/components/ui/section-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApps, useProjects } from "@/hooks/orgs";
-import { formatRelative } from "@/lib/format";
+import { formatDateTime, formatRelative } from "@/lib/format";
 import type { OrgRole } from "@/lib/types";
 
 const PROJECT_HUES: Hue[] = ["green", "blue", "pink", "yellow", "purple", "teal", "orange"];
@@ -49,6 +50,13 @@ const BUILD_VARIANT: Record<string, "success" | "danger" | "warning" | "default"
   building: "warning",
   pending: "warning",
 };
+
+const BUILD_KEY = {
+  ready: "build.ready",
+  failed: "build.failed",
+  building: "build.building",
+  pending: "build.pending",
+} as const;
 
 function QuickAction({
   icon,
@@ -121,6 +129,7 @@ function SkeletonGrid({ n = 4, h = "h-20" }: { n?: number; h?: string }) {
 }
 
 function ProjectsCard({ org }: { org: string }) {
+  const { t } = useTranslation(["overview", "common"]);
   const projects = useProjects(org);
   const apps = useApps(org);
   const list = projects.data ?? [];
@@ -129,21 +138,21 @@ function ProjectsCard({ org }: { org: string }) {
       {projects.isError ? (
         <>
           <h2 id="projects-heading" className="mb-3 text-[15px] font-semibold">
-            Projects
+            {t("projects.title")}
           </h2>
-          <QueryError error={projects.error} onRetry={() => void projects.refetch()} notFoundTitle="Organization not found" />
+          <QueryError error={projects.error} onRetry={() => void projects.refetch()} notFoundTitle={t("projects.notFound")} />
         </>
       ) : projects.isPending ? (
         <>
           <h2 id="projects-heading" className="mb-3 text-[15px] font-semibold">
-            Projects
+            {t("projects.title")}
           </h2>
           <SkeletonGrid n={2} h="h-12" />
         </>
       ) : list.length === 0 ? (
         <>
           <h2 id="projects-heading" className="mb-3 text-[15px] font-semibold">
-            Projects
+            {t("projects.title")}
           </h2>
           <NoProjects org={org} />
         </>
@@ -151,7 +160,7 @@ function ProjectsCard({ org }: { org: string }) {
         <div className="flex min-w-0 flex-col rounded-lg border border-line bg-surface shadow-card">
           <header className="flex items-center gap-2 px-5 pb-3 pt-4">
             <h2 id="projects-heading" className="text-[15px] font-semibold">
-              Projects
+              {t("projects.title")}
             </h2>
             <span className="text-[12px] text-muted">{list.length}</span>
           </header>
@@ -177,7 +186,7 @@ function ProjectsCard({ org }: { org: string }) {
                       ))}
                     </span>
                     <span className="w-14 shrink-0 text-right text-[12px] tabular-nums text-muted">
-                      {apps.data ? `${count} ${count === 1 ? "app" : "apps"}` : ""}
+                      {apps.data ? t("projects.appCount", { count }) : ""}
                     </span>
                     <ChevronRight className="size-4 shrink-0 text-muted/60" aria-hidden="true" />
                   </Link>
@@ -192,6 +201,7 @@ function ProjectsCard({ org }: { org: string }) {
 }
 
 function AppsCard({ org }: { org: string }) {
+  const { t } = useTranslation(["overview", "common"]);
   const apps = useApps(org);
   const projects = useProjects(org);
   const [project, setProject] = useState("*");
@@ -200,18 +210,18 @@ function AppsCard({ org }: { org: string }) {
 
   return (
     <SectionCard
-      title="Apps"
+      title={t("apps.title")}
       actions={
         <>
           <DropdownMenu>
-            <DropdownMenuTrigger className={SMALL_CONTROL} aria-label="Filter apps by project">
-              {project === "*" ? "All projects" : projectName(project)}
+            <DropdownMenuTrigger className={SMALL_CONTROL} aria-label={t("apps.filter")}>
+              {project === "*" ? t("apps.allProjects") : projectName(project)}
               <ChevronDown aria-hidden="true" />
             </DropdownMenuTrigger>
             <DropdownMenuContent align="end">
-              <DropdownMenuLabel>Project</DropdownMenuLabel>
+              <DropdownMenuLabel>{t("apps.projectLabel")}</DropdownMenuLabel>
               <DropdownMenuRadioGroup value={project} onValueChange={setProject}>
-                <DropdownMenuRadioItem value="*">All projects</DropdownMenuRadioItem>
+                <DropdownMenuRadioItem value="*">{t("apps.allProjects")}</DropdownMenuRadioItem>
                 {(projects.data ?? []).map((p) => (
                   <DropdownMenuRadioItem key={p.slug} value={p.slug}>
                     {p.name}
@@ -220,10 +230,10 @@ function AppsCard({ org }: { org: string }) {
               </DropdownMenuRadioGroup>
             </DropdownMenuContent>
           </DropdownMenu>
-          <CardMenu label="Apps menu">
+          <CardMenu label={t("apps.menu")}>
             <DropdownMenuItem asChild>
               <Link to="/$org/apps/new" params={{ org }}>
-                <Plus aria-hidden="true" /> New app
+                <Plus aria-hidden="true" /> {t("apps.new")}
               </Link>
             </DropdownMenuItem>
           </CardMenu>
@@ -233,7 +243,7 @@ function AppsCard({ org }: { org: string }) {
       {apps.isPending ? (
         <SkeletonGrid />
       ) : list.length === 0 ? (
-        <EmptyState bare entity="apps" icon={Boxes} title="No apps yet" description="Create an app to see it here." />
+        <EmptyState bare entity="apps" icon={Boxes} title={t("apps.emptyTitle")} description={t("apps.emptyDescription")} />
       ) : (
         <ul className="flex flex-col gap-2">
           {list.map((a) => (
@@ -250,7 +260,9 @@ function AppsCard({ org }: { org: string }) {
                   </span>
                   <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[12px] text-muted">
                     <Badge variant={BUILD_VARIANT[a.status.build_state] ?? "default"} dot className="h-4 shrink-0 px-1 text-[11px]">
-                      {a.status.build_state}
+                      {BUILD_KEY[a.status.build_state as keyof typeof BUILD_KEY]
+                        ? t(BUILD_KEY[a.status.build_state as keyof typeof BUILD_KEY])
+                        : a.status.build_state}
                     </Badge>
                     <span className="min-w-0 truncate" title={`${projectName(a.project)} / ${a.environment}`}>
                       {projectName(a.project)} / {a.environment}
@@ -267,21 +279,22 @@ function AppsCard({ org }: { org: string }) {
 }
 
 function ActivityCard({ org, canSee }: { org: string; canSee: boolean }) {
+  const { t } = useTranslation(["overview", "common"]);
   const activity = useRecentActivity(org, canSee);
   const items = activity.data ?? [];
   return (
     <SectionCard
-      title="Recent activity"
+      title={t("activity.title")}
       actions={
         canSee ? (
           <Link to="/$org/settings/audit" params={{ org }} className={SMALL_CONTROL}>
-            View all
+            {t("common:viewAll")}
           </Link>
         ) : null
       }
     >
       {!canSee ? (
-        <EmptyState bare entity="audit" icon={ScrollText} title="Activity is for admins" description="Ask an owner or admin." />
+        <EmptyState bare entity="audit" icon={ScrollText} title={t("activity.adminsOnly")} description={t("activity.adminsHint")} />
       ) : activity.isPending ? (
         <div className="flex flex-col gap-3" aria-busy="true">
           <Skeleton className="h-10" />
@@ -289,13 +302,13 @@ function ActivityCard({ org, canSee }: { org: string; canSee: boolean }) {
           <Skeleton className="h-10" />
         </div>
       ) : activity.isError ? (
-        <EmptyState bare entity="audit" icon={ScrollText} title="Could not load activity" />
+        <EmptyState bare entity="audit" icon={ScrollText} title={t("activity.error")} />
       ) : items.length === 0 ? (
-        <EmptyState bare entity="audit" icon={ScrollText} title="No activity yet" description="Changes in this org show up here." />
+        <EmptyState bare entity="audit" icon={ScrollText} title={t("activity.emptyTitle")} description={t("activity.emptyDescription")} />
       ) : (
         <ol className="relative flex flex-col">
           {items.map((e, i) => {
-            const who = e.actor.name ?? e.actor.email ?? "System";
+            const who = e.actor.name ?? e.actor.email ?? t("activity.system");
             return (
               <li key={e.id} className="relative flex gap-3 pb-4 last:pb-0">
                 {i < items.length - 1 ? <span aria-hidden="true" className="absolute bottom-0 left-3 top-7 w-px bg-line" /> : null}
@@ -311,7 +324,7 @@ function ActivityCard({ org, canSee }: { org: string; canSee: boolean }) {
                   </p>
                   <p className="mt-0.5 truncate text-[12px] text-muted" title={e.target}>
                     {e.target} ·{" "}
-                    <time dateTime={new Date(e.at).toISOString()} title={new Date(e.at).toLocaleString()}>
+                    <time dateTime={new Date(e.at).toISOString()} title={formatDateTime(e.at)}>
                       {formatRelative(e.at)}
                     </time>
                   </p>
@@ -326,22 +339,23 @@ function ActivityCard({ org, canSee }: { org: string; canSee: boolean }) {
 }
 
 function MembersCard({ org }: { org: string }) {
+  const { t } = useTranslation(["overview", "common"]);
   const members = useMembers(org);
   const list = members.data ?? [];
   return (
     <SectionCard
-      title={members.data ? `Members (${list.length})` : "Members"}
+      title={members.data ? t("members.titleCount", { count: list.length }) : t("members.title")}
       actions={
-        <CardMenu label="Members menu">
+        <CardMenu label={t("members.menu")}>
           <DropdownMenuItem asChild>
             <Link to="/$org/settings/members" params={{ org }}>
-              <UserPlus aria-hidden="true" /> Invite member
+              <UserPlus aria-hidden="true" /> {t("members.invite")}
             </Link>
           </DropdownMenuItem>
           <DropdownMenuSeparator />
           <DropdownMenuItem asChild>
             <Link to="/$org/settings/members" params={{ org }}>
-              <Eye aria-hidden="true" /> Manage members
+              <Eye aria-hidden="true" /> {t("members.manage")}
             </Link>
           </DropdownMenuItem>
         </CardMenu>
@@ -350,7 +364,7 @@ function MembersCard({ org }: { org: string }) {
       {members.isPending ? (
         <SkeletonGrid n={3} h="h-24" />
       ) : members.isError || list.length === 0 ? (
-        <EmptyState bare entity="members" title="No members to show" />
+        <EmptyState bare entity="members" title={t("members.empty")} />
       ) : (
         <ul className="flex flex-col divide-y divide-line">
           {list.map((m) => {
@@ -378,6 +392,7 @@ function MembersCard({ org }: { org: string }) {
 
 // Dashboard is the org overview: quick actions, then projects, apps, activity and members cards.
 export function Dashboard({ org, role }: { org: string; role: OrgRole | null | undefined }) {
+  const { t } = useTranslation("overview");
   const apps = useApps(org);
   const [createOpen, setCreateOpen] = useState(false);
   const isAdmin = role === "owner" || role === "admin";
@@ -385,19 +400,39 @@ export function Dashboard({ org, role }: { org: string; role: OrgRole | null | u
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <section aria-label="Quick actions">
+      <section aria-label={t("quick.label")}>
         <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
-          <QuickAction icon={Plus} entity="apps" title="New app" subtitle="Deploy code in seconds" to="/$org/apps/new" params={{ org }} />
+          <QuickAction icon={Plus} entity="apps" title={t("quick.newApp")} subtitle={t("quick.newAppHint")} to="/$org/apps/new" params={{ org }} />
           {isAdmin ? (
-            <QuickAction icon={FolderPlus} entity="projects" title="New project" subtitle="Group apps together" onClick={() => setCreateOpen(true)} />
+            <QuickAction
+              icon={FolderPlus}
+              entity="projects"
+              title={t("quick.newProject")}
+              subtitle={t("quick.newProjectHint")}
+              onClick={() => setCreateOpen(true)}
+            />
           ) : null}
-          <QuickAction icon={UserPlus} entity="members" title="Invite member" subtitle="Bring your team in" to="/$org/settings/members" params={{ org }} />
-          <QuickAction icon={KeyRound} entity="tokens" title="Create token" subtitle="Access the API" to="/$org/settings/tokens" params={{ org }} />
+          <QuickAction
+            icon={UserPlus}
+            entity="members"
+            title={t("quick.inviteMember")}
+            subtitle={t("quick.inviteMemberHint")}
+            to="/$org/settings/members"
+            params={{ org }}
+          />
+          <QuickAction
+            icon={KeyRound}
+            entity="tokens"
+            title={t("quick.createToken")}
+            subtitle={t("quick.createTokenHint")}
+            to="/$org/settings/tokens"
+            params={{ org }}
+          />
           <QuickAction
             icon={Globe}
             entity="domains"
-            title="Add domain"
-            subtitle="Serve an app on your URL"
+            title={t("quick.addDomain")}
+            subtitle={t("quick.addDomainHint")}
             to={firstApp ? "/$org/apps/$app/domains" : "/$org/apps/new"}
             params={firstApp ? { org, app: firstApp } : { org }}
           />

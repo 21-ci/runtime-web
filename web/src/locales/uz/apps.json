@@ -1,1 +1,58 @@
-{}
+{
+  "notFound": {
+    "description": "U oʻchirilgan yoki sizda ruxsat yoʻq boʻlishi mumkin."
+  },
+  "app": {
+    "notFound": "Ilova topilmadi"
+  },
+  "project": {
+    "notFound": "Loyiha topilmadi",
+    "appsNotFound": "Ilovalar topilmadi",
+    "environments": "Muhitlar:",
+    "environmentsLabel": "Muhitlar",
+    "newApp": "Yangi ilova",
+    "apps": "Ilovalar",
+    "appsInProject_one": "Loyihada {{count}} ta ilova",
+    "appsInProject_other": "Loyihada {{count}} ta ilova"
+  },
+  "build": {
+    "ready": "Tayyor",
+    "failed": "Xato",
+    "building": "Yigʻilmoqda",
+    "pending": "Kutilmoqda"
+  },
+  "new": {
+    "title": "Yangi ilova",
+    "description": "Shablonni tanlang, ilovaga nom bering va u qayerda ishlashini belgilang.",
+    "project": "Loyiha",
+    "environment": "Muhit",
+    "appName": "Ilova nomi",
+    "appNameHint": "Kichik lotin harflari, raqamlar va chiziqchalar.",
+    "displayName": "Koʻrinadigan nom (ixtiyoriy)",
+    "template": "Shablon",
+    "create": "Ilova yaratish",
+    "chooseProject": "Loyihani tanlang.",
+    "chooseEnvironment": "Muhitni tanlang.",
+    "enterName": "Ilova nomini kiriting.",
+    "slugTaken": "Bu ilova nomi ish muhitida allaqachon band.",
+    "failed": "Ilovani yaratib boʻlmadi. Qaytadan urining."
+  },
+  "templates": {
+    "http": {
+      "title": "HTTP ishlovchisi",
+      "blurb": "Veb soʻrovlarga javob beradi"
+    },
+    "cron": {
+      "title": "Rejalashtirilgan vazifa",
+      "blurb": "Taymer boʻyicha ishga tushadi"
+    },
+    "queue": {
+      "title": "Navbat ishchisi",
+      "blurb": "Xabarlarni qayta ishlaydi"
+    },
+    "sqliteCrud": {
+      "title": "SQLite CRUD",
+      "blurb": "Jadval ustidagi JSON API"
+    }
+  }
+}

@@ -1,5 +1,6 @@
 import { useState, type FormEvent } from "react";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 import { AuthForm, FormField } from "@/components/auth/auth-form";
 import { TEMPLATES } from "@/components/features/empty/no-apps";
@@ -35,6 +36,7 @@ export const Route = createFileRoute("/$org/apps/new")({
 // NewAppPage creates an app. The environment list comes from the chosen project, so an app can
 // only be created into an environment the project defines.
 function NewAppPage() {
+  const { t } = useTranslation(["apps", "common"]);
   const { org } = Route.useParams();
   const { project: initialProject } = Route.useSearch();
   const navigate = useNavigate();
@@ -56,9 +58,9 @@ function NewAppPage() {
     const slug = String(form.get("slug") ?? "").trim();
     const name = String(form.get("name") ?? "").trim();
     const next: Record<string, string> = {};
-    if (!project) next.project = "Choose a project.";
-    if (!environment) next.environment = "Choose an environment.";
-    if (!slug) next.slug = "Enter an app name.";
+    if (!project) next.project = t("new.chooseProject");
+    if (!environment) next.environment = t("new.chooseEnvironment");
+    if (!slug) next.slug = t("new.enterName");
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -70,10 +72,10 @@ function NewAppPage() {
         },
         onError: (err) => {
           if (!(err instanceof ApiError)) {
-            toast.error("Could not create the app. Try again.");
+            toast.error(t("new.failed"));
             return;
           }
-          if (err.code === "slug_taken") setErrors({ slug: "This app name is taken on this runtime." });
+          if (err.code === "slug_taken") setErrors({ slug: t("new.slugTaken") });
           else if (Object.keys(err.fieldErrors()).length > 0) setErrors(err.fieldErrors());
           else handleMutationError(err);
         },
@@ -83,12 +85,12 @@ function NewAppPage() {
 
   return (
     <div className="mx-auto flex w-full max-w-2xl flex-col gap-6">
-      <PageHeader icon={Plus} entity="apps" title="New app" description="Pick a template, then name the app and choose where it runs." />
+      <PageHeader icon={Plus} entity="apps" title={t("new.title")} description={t("new.description")} />
 
       <AuthForm errors={errors} onSubmit={onSubmit}>
         <div className="grid gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="project">Project</Label>
+            <Label htmlFor="project">{t("new.project")}</Label>
             <Select
               name="project"
               value={project}
@@ -112,9 +114,9 @@ function NewAppPage() {
           </div>
 
           <div className="flex flex-col gap-1.5">
-            <Label htmlFor="environment">Environment</Label>
+            <Label htmlFor="environment">{t("new.environment")}</Label>
             <Select name="environment" value={environment} onValueChange={setEnvChoice}>
-              <SelectTrigger id="environment" aria-label="Environment" aria-invalid={errors.environment ? true : undefined} className="h-9 px-3 text-sm">
+              <SelectTrigger id="environment" aria-label={t("new.environment")} aria-invalid={errors.environment ? true : undefined} className="h-9 px-3 text-sm">
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
@@ -129,13 +131,13 @@ function NewAppPage() {
           </div>
         </div>
 
-        <FormField label="App name" name="slug" error={errors.slug} hint="Lowercase letters, digits and dashes." autoComplete="off" />
-        <FormField label="Display name (optional)" name="name" autoComplete="off" />
+        <FormField label={t("new.appName")} name="slug" error={errors.slug} hint={t("new.appNameHint")} autoComplete="off" />
+        <FormField label={t("new.displayName")} name="name" autoComplete="off" />
 
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-medium">Template</legend>
-          <div role="radiogroup" aria-label="Template" className="grid gap-2 sm:grid-cols-2">
-            {TEMPLATES.map(({ id, title, blurb, Icon }) => {
+          <legend className="mb-1 text-sm font-medium">{t("new.template")}</legend>
+          <div role="radiogroup" aria-label={t("new.template")} className="grid gap-2 sm:grid-cols-2">
+            {TEMPLATES.map(({ id, titleKey, blurbKey, Icon }) => {
               const checked = template === id;
               return (
                 <button
@@ -151,8 +153,8 @@ function NewAppPage() {
                 >
                   <IconTile icon={Icon} hue={TEMPLATE_HUE[id]} size="md" solid />
                   <span className="min-w-0">
-                    <span className="block break-words text-sm font-medium">{title}</span>
-                    <span className="block break-words text-sm text-muted">{blurb}</span>
+                    <span className="block break-words text-sm font-medium">{t(titleKey)}</span>
+                    <span className="block break-words text-sm text-muted">{t(blurbKey)}</span>
                   </span>
                 </button>
               );
@@ -162,7 +164,7 @@ function NewAppPage() {
 
         <div className="flex justify-end">
           <Button type="submit" variant="default" disabled={create.isPending || !project}>
-            Create app
+            {t("new.create")}
           </Button>
         </div>
       </AuthForm>

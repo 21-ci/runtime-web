@@ -2,6 +2,7 @@ import { useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Copy, Globe, RefreshCw, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { Trans, useTranslation } from "react-i18next";
 
 import { AuthForm, FormField } from "@/components/auth/auth-form";
 import { QueryError } from "@/components/features/empty/query-error";
@@ -18,6 +19,7 @@ import {
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
 import { api, ApiError } from "@/lib/api";
+import { formatDate } from "@/lib/format";
 
 // Shape from docs/reference/api.md §8.5.
 export type Domain = {
@@ -36,14 +38,18 @@ export type Domain = {
   created_at: number;
 };
 
-const STATUS_LABEL: Record<Domain["status"], string> = { pending: "Pending", active: "Active", failed: "Failed" };
+const STATUS_KEY = {
+  pending: "status.pending",
+  active: "status.active",
+  failed: "status.failed",
+} as const;
 
-const CERT_LABEL: Record<Domain["cert_status"], string> = {
-  none: "No certificate yet",
-  pending: "Certificate pending",
-  issued: "Certificate issued",
-  error: "Certificate error",
-};
+const CERT_KEY = {
+  none: "cert.none",
+  pending: "cert.pending",
+  issued: "cert.issued",
+  error: "cert.error",
+} as const;
 
 function appPath(org: string, app: string) {
   return `/orgs/${encodeURIComponent(org)}/apps/${encodeURIComponent(app)}`;
@@ -77,6 +83,7 @@ function useDomainMutations(org: string, app: string) {
 }
 
 function CopyButton({ label, value }: { label: string; value: string }) {
+  const { t } = useTranslation("domains");
   return (
     <Button
       variant="ghost"
@@ -84,8 +91,8 @@ function CopyButton({ label, value }: { label: string; value: string }) {
       aria-label={label}
       onClick={() => {
         void navigator.clipboard.writeText(value).then(
-          () => toast.success("Copied."),
-          () => toast.error("Could not copy. Select the text instead."),
+          () => toast.success(t("copy.done")),
+          () => toast.error(t("copy.failed")),
         );
       }}
     >
@@ -96,31 +103,37 @@ function CopyButton({ label, value }: { label: string; value: string }) {
 }
 
 function DnsRecord({ host, domain }: { host: string; domain: Domain }) {
+  const { t } = useTranslation("domains");
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
       <p>
-        Add these DNS records for <span className="break-all font-mono">{host}</span>.
+        <Trans
+          ns="domains"
+          i18nKey="dns.intro"
+          values={{ host }}
+          components={{ host: <span className="break-all font-mono" /> }}
+        />
       </p>
       <dl className="grid gap-2">
         <div className="flex items-center justify-between gap-2">
-          <dt className="text-muted">TXT name</dt>
+          <dt className="text-muted">{t("dns.txtName")}</dt>
           <dd className="flex min-w-0 items-center gap-1">
             <code className="truncate font-mono">{domain.txt_name}</code>
-            <CopyButton label="Copy TXT name" value={domain.txt_name} />
+            <CopyButton label={t("copy.txtName")} value={domain.txt_name} />
           </dd>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <dt className="text-muted">TXT value</dt>
+          <dt className="text-muted">{t("dns.txtValue")}</dt>
           <dd className="flex min-w-0 items-center gap-1">
             <code className="truncate font-mono">{domain.txt_value}</code>
-            <CopyButton label="Copy TXT value" value={domain.txt_value} />
+            <CopyButton label={t("copy.txtValue")} value={domain.txt_value} />
           </dd>
         </div>
         <div className="flex items-center justify-between gap-2">
-          <dt className="text-muted">CNAME target</dt>
+          <dt className="text-muted">{t("dns.cnameTarget")}</dt>
           <dd className="flex min-w-0 items-center gap-1">
             <code className="truncate font-mono">{domain.cname_target}</code>
-            <CopyButton label="Copy CNAME target" value={domain.cname_target} />
+            <CopyButton label={t("copy.cnameTarget")} value={domain.cname_target} />
           </dd>
         </div>
       </dl>
@@ -131,6 +144,7 @@ function DnsRecord({ host, domain }: { host: string; domain: Domain }) {
 // DomainsPanel manages custom hosts for one app: DNS instructions, status and certificate state.
 // canWrite false (role lacks domains.manage) shows hosts and status only.
 export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: string; canWrite?: boolean }) {
+  const { t } = useTranslation(["domains", "common"]);
   const domains = useDomains(org, app);
   const { add, verify, remove } = useDomainMutations(org, app);
   const [errors, setErrors] = useState<Record<string, string>>({});
@@ -141,7 +155,7 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
     const form = e.currentTarget;
     const host = String(new FormData(form).get("host") ?? "").trim();
     if (host === "") {
-      setErrors({ host: "Enter a host name, for example www.example.com." });
+      setErrors({ host: t("form.empty") });
       return;
     }
     setErrors({});
@@ -149,8 +163,8 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
       onSuccess: () => form.reset(),
       onError: (err) => {
         if (err instanceof ApiError && err.code === "invalid") setErrors(err.fieldErrors());
-        else if (err instanceof ApiError && err.code === "host_taken") setErrors({ host: "Another app already uses this host." });
-        else toast.error("Could not add the domain. Try again.");
+        else if (err instanceof ApiError && err.code === "host_taken") setErrors({ host: t("form.taken") });
+        else toast.error(t("form.failed"));
       },
     });
   }
@@ -158,8 +172,8 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
   function onVerify(d: Domain) {
     verify.mutate(d.id, {
       onSuccess: (updated) => {
-        if (updated.status === "active") toast.success(`${updated.host} is active.`);
-        else toast.message("The TXT record does not match yet. Try again after DNS updates.");
+        if (updated.status === "active") toast.success(t("verify.active", { host: updated.host }));
+        else toast.message(t("verify.mismatch"));
       },
     });
   }
@@ -170,7 +184,7 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
     remove.mutate(pendingRemove.id, {
       onSuccess: () => {
         setPendingRemove(null);
-        toast.success(`Removed ${host}.`);
+        toast.success(t("remove.done", { host }));
       },
     });
   }
@@ -179,20 +193,20 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
     <section aria-labelledby="domains-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
       <header>
         <h2 id="domains-heading" className="text-[15px] font-semibold">
-          Custom domains
+          {t("title")}
         </h2>
-        <p className="text-sm text-muted">HTTPS certificates are issued automatically once DNS is verified.</p>
+        <p className="text-sm text-muted">{t("description")}</p>
       </header>
 
       {domains.isError ? (
-        <QueryError error={domains.error} onRetry={() => void domains.refetch()} notFoundTitle="App not found" />
+        <QueryError error={domains.error} onRetry={() => void domains.refetch()} notFoundTitle={t("notFound")} />
       ) : domains.isPending ? (
         <Skeleton className="h-32 w-full" />
       ) : domains.data.length === 0 ? (
         <EmptyState bare entity="domains"
           icon={Globe}
-          title="No custom domains"
-          description="Add a host name to point your own domain at this app."
+          title={t("empty.title")}
+          description={t("empty.description")}
         />
       ) : (
         <ul className="flex flex-col gap-3">
@@ -202,27 +216,27 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
                 <span className="min-w-0 break-all font-mono text-sm font-medium">{d.host}</span>
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge dot variant={d.status === "failed" ? "danger" : d.status === "active" ? "success" : "warning"}>
-                    {STATUS_LABEL[d.status]}
+                    {t(STATUS_KEY[d.status])}
                   </Badge>
                   <Badge variant={d.cert_status === "error" ? "danger" : "outline"}>
-                    {CERT_LABEL[d.cert_status]}
+                    {t(CERT_KEY[d.cert_status])}
                   </Badge>
                 </div>
               </div>
 
               {d.cert_status === "issued" && d.cert_not_after ? (
-                <p className="text-sm text-muted">Expires {new Date(d.cert_not_after).toLocaleDateString()}.</p>
+                <p className="text-sm text-muted">{t("cert.expires", { date: formatDate(d.cert_not_after) })}</p>
               ) : null}
               {d.cert_status === "error" && d.cert_error ? (
                 <p className="text-sm text-danger">{d.cert_error}</p>
               ) : null}
               {d.status === "failed" ? (
-                <p className="text-sm text-danger">The TXT record was missing, so the domain is inactive. Restore it and verify again.</p>
+                <p className="text-sm text-danger">{t("failedHint")}</p>
               ) : null}
 
               {d.status === "pending" ? <DnsRecord host={d.host} domain={d} /> : null}
 
-              <p className="text-sm text-muted">Keep the TXT record; removing it deactivates the domain.</p>
+              <p className="text-sm text-muted">{t("keepTxt")}</p>
 
               {canWrite ? (
               <div className="flex flex-wrap gap-2 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 focus-within:opacity-100 [@media(hover:none)]:opacity-100">
@@ -230,22 +244,22 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
                   <Button
                     variant="secondary"
                     size="sm"
-                    aria-label={`Verify ${d.host}`}
+                    aria-label={t("verify.label", { host: d.host })}
                     disabled={verify.isPending}
                     onClick={() => onVerify(d)}
                   >
                     <RefreshCw className="size-4" aria-hidden />
-                    Verify
+                    {t("verify.button")}
                   </Button>
                 ) : null}
                 <Button
                   variant="ghost"
                   size="sm"
-                  aria-label={`Remove ${d.host}`}
+                  aria-label={t("remove.label", { host: d.host })}
                   onClick={() => setPendingRemove(d)}
                 >
                   <Trash2 className="size-4" aria-hidden />
-                  Remove
+                  {t("remove.button")}
                 </Button>
               </div>
               ) : null}
@@ -256,10 +270,10 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
 
       {canWrite ? (
       <AuthForm errors={errors} onSubmit={onSubmit}>
-        <FormField label="Domain" name="host" autoComplete="off" spellCheck={false} placeholder="www.example.com" error={errors.host} />
+        <FormField label={t("form.label")} name="host" autoComplete="off" spellCheck={false} placeholder={t("form.placeholder")} error={errors.host} />
         <div>
           <Button type="submit" variant="default" disabled={add.isPending}>
-            Add domain
+            {t("form.add")}
           </Button>
         </div>
       </AuthForm>
@@ -268,15 +282,15 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
       <Dialog open={pendingRemove !== null} onOpenChange={(open) => !open && setPendingRemove(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Remove {pendingRemove?.host}?</DialogTitle>
-            <DialogDescription>Requests to this host stop working right away.</DialogDescription>
+            <DialogTitle>{t("remove.title", { host: pendingRemove?.host })}</DialogTitle>
+            <DialogDescription>{t("remove.description")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setPendingRemove(null)}>
-              Cancel
+              {t("common:cancel")}
             </Button>
             <Button variant="danger-solid" onClick={confirmRemove} disabled={remove.isPending}>
-              Remove domain
+              {t("remove.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

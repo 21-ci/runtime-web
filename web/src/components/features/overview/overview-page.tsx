@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { Code2, Download, ExternalLink, FileCode2, History } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { useAppView, appPath } from "@/components/features/app-header/hooks";
 import { useFiles } from "@/components/features/editor/hooks";
@@ -19,13 +20,15 @@ import { formatCount } from "@/lib/format";
 import { EventsPanel } from "./events-panel";
 import { useAppStats, type AppStats } from "./hooks";
 
-const TILES: { key: keyof AppStats; label: string; suffix?: string }[] = [
-  { key: "requests", label: "Requests" },
-  { key: "errors", label: "Errors" },
-  { key: "error_rate", label: "Error rate", suffix: "%" },
-  { key: "p50_ms", label: "p50", suffix: " ms" },
-  { key: "p95_ms", label: "p95", suffix: " ms" },
-  { key: "p99_ms", label: "p99", suffix: " ms" },
+type TileLabel = "stats.requests" | "stats.errors" | "stats.errorRate" | "stats.p50" | "stats.p95" | "stats.p99";
+
+const TILES: { key: keyof AppStats; label: TileLabel; suffix?: string }[] = [
+  { key: "requests", label: "stats.requests" },
+  { key: "errors", label: "stats.errors" },
+  { key: "error_rate", label: "stats.errorRate", suffix: "%" },
+  { key: "p50_ms", label: "stats.p50", suffix: " ms" },
+  { key: "p95_ms", label: "stats.p95", suffix: " ms" },
+  { key: "p99_ms", label: "stats.p99", suffix: " ms" },
 ];
 
 function formatTile(key: keyof AppStats, value: unknown, suffix?: string): string {
@@ -34,18 +37,29 @@ function formatTile(key: keyof AppStats, value: unknown, suffix?: string): strin
   return `${shown}${suffix ?? ""}`;
 }
 
-const ACCESS_LABEL = { public: "Public", key: "Key required", internal: "Internal" } as const;
+const ACCESS_KEY = {
+  public: "access.public",
+  key: "access.key",
+  internal: "access.internal",
+} as const;
 const BUILD_VARIANT: Record<string, "success" | "danger" | "warning" | "default"> = {
   ready: "success",
   failed: "danger",
   building: "warning",
   pending: "warning",
 };
+const BUILD_KEY = {
+  ready: "build.ready",
+  failed: "build.failed",
+  building: "build.building",
+  pending: "build.pending",
+} as const;
 
 // OverviewPage is the app's landing page (val.town model): identity, live URL with a response
 // preview, the last five minutes of stats, the code files, runtime events and the data export
 // (project admins only; the project role says which).
 export function OverviewPage({ org, app }: { org: string; app: string }) {
+  const { t } = useTranslation(["overview", "common"]);
   const view = useAppView(org, app);
   const stats = useAppStats(org, app, "5m");
   const files = useFiles(org, app);
@@ -53,7 +67,7 @@ export function OverviewPage({ org, app }: { org: string; app: string }) {
   const [previewKey, setPreviewKey] = useState(0);
 
   if (view.isError) {
-    return <QueryError error={view.error} onRetry={() => void view.refetch()} notFoundTitle="App not found" />;
+    return <QueryError error={view.error} onRetry={() => void view.refetch()} notFoundTitle={t("app.notFound")} />;
   }
   if (view.isPending) {
     return (
@@ -70,6 +84,8 @@ export function OverviewPage({ org, app }: { org: string; app: string }) {
   const canExport = project?.role === "admin";
   const name = a.name ?? a.slug;
   const build = a.status.build_state;
+  const buildKey = BUILD_KEY[build as keyof typeof BUILD_KEY];
+  const accessKey = ACCESS_KEY[a.access as keyof typeof ACCESS_KEY];
 
   return (
     <div className="flex flex-col gap-6">
@@ -87,70 +103,70 @@ export function OverviewPage({ org, app }: { org: string; app: string }) {
             <h1 className="truncate text-xl font-semibold tracking-[-0.01em] tracking-[-0.015em]">{name}</h1>
             <div className="mt-2 flex flex-wrap items-center gap-1.5">
               <Badge variant={BUILD_VARIANT[build] ?? "default"} dot>
-                {build}
+                {buildKey ? t(buildKey) : build}
               </Badge>
-              <Badge variant="blue">{ACCESS_LABEL[a.access] ?? a.access}</Badge>
+              <Badge variant="blue">{accessKey ? t(accessKey) : a.access}</Badge>
               <Badge variant="default">{a.runtime === "wasm" ? "WebAssembly" : "HTTP"}</Badge>
-              {a.live_version !== null ? <Badge variant="outline">v{a.live_version}</Badge> : null}
+              {a.live_version !== null ? <Badge variant="outline">{t("liveVersion", { version: a.live_version })}</Badge> : null}
             </div>
           </div>
           <div className="flex basis-full flex-wrap items-center gap-2 sm:basis-auto">
             <Button asChild variant="secondary">
               <Link to="/$org/apps/$app/code" params={{ org, app }}>
-                <Code2 aria-hidden="true" /> Edit code
+                <Code2 aria-hidden="true" /> {t("editCode")}
               </Link>
             </Button>
             <Button asChild variant="default">
               <a href={a.url} target="_blank" rel="noreferrer">
-                <ExternalLink aria-hidden="true" /> Open
+                <ExternalLink aria-hidden="true" /> {t("open")}
               </a>
             </Button>
           </div>
         </div>
         {a.status.last_error ? (
           <p role="note" className="rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger-text">
-            Last error: {a.status.last_error}
+            {t("lastError", { error: a.status.last_error })}
           </p>
         ) : null}
       </header>
 
-      <section aria-label="Live URL" className="flex flex-col gap-3">
+      <section aria-label={t("liveUrl")} className="flex flex-col gap-3">
         <UrlBar
           url={a.url}
           badge={<Badge variant="success">HTTP</Badge>}
           onReload={() => setPreviewKey((k) => k + 1)}
         />
-        <PreviewFrame url={a.url} title="Response preview" reloadKey={previewKey} className="h-[320px]" />
+        <PreviewFrame url={a.url} title={t("preview")} reloadKey={previewKey} className="h-[320px]" />
       </section>
 
       <section aria-labelledby="stats-heading" className="flex flex-col gap-2">
         <div className="flex items-baseline justify-between">
           <h2 id="stats-heading" className="text-[15px] font-semibold">
-            Last 5 minutes
+            {t("stats.title")}
           </h2>
           <Link to="/$org/apps/$app/logs" params={{ org, app }} className="text-[13px] text-muted hover:text-text hover:underline">
-            View logs
+            {t("stats.viewLogs")}
           </Link>
         </div>
         {stats.isError ? (
-          <QueryError error={stats.error} onRetry={() => void stats.refetch()} notFoundTitle="Stats not found" />
+          <QueryError error={stats.error} onRetry={() => void stats.refetch()} notFoundTitle={t("stats.notFound")} />
         ) : stats.isPending ? (
           <Skeleton className="h-20 w-full" />
         ) : (
           <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3 lg:grid-cols-6">
-            {TILES.map((t) => (
-              <StatTile key={t.key} label={t.label} value={formatTile(t.key, stats.data[t.key], t.suffix)} />
+            {TILES.map((tile) => (
+              <StatTile key={tile.key} label={t(tile.label)} value={formatTile(tile.key, stats.data[tile.key], tile.suffix)} />
             ))}
           </dl>
         )}
       </section>
 
       <SectionCard
-        title="Code"
+        title={t("code.title")}
         flush
         actions={
           <Link to="/$org/apps/$app/versions" params={{ org, app }} className={SMALL_CONTROL}>
-            <History aria-hidden="true" /> History
+            <History aria-hidden="true" /> {t("code.history")}
           </Link>
         }
       >
@@ -159,7 +175,7 @@ export function OverviewPage({ org, app }: { org: string; app: string }) {
             <Skeleton className="h-10 w-full" />
           </div>
         ) : files.isError || !files.data ? (
-          <p className="px-5 py-4 text-sm text-muted">Code is not available for this version.</p>
+          <p className="px-5 py-4 text-sm text-muted">{t("code.unavailable")}</p>
         ) : (
           <ul className="divide-y divide-line">
             {Object.keys(files.data.files)
@@ -173,8 +189,8 @@ export function OverviewPage({ org, app }: { org: string; app: string }) {
                   >
                     <FileCode2 className="size-4 shrink-0 text-tag-blue-text" aria-hidden="true" />
                     <span className="min-w-0 flex-1 truncate font-medium">{path}</span>
-                    {path === files.data?.entry ? <Badge variant="success">entry</Badge> : null}
-                    <span className="hidden text-[12px] text-muted sm:inline">v{files.data?.version}</span>
+                    {path === files.data?.entry ? <Badge variant="success">{t("code.entry")}</Badge> : null}
+                    <span className="hidden text-[12px] text-muted sm:inline">{t("code.version", { version: files.data?.version })}</span>
                   </Link>
                 </li>
               ))}
@@ -185,11 +201,11 @@ export function OverviewPage({ org, app }: { org: string; app: string }) {
       <EventsPanel org={org} app={app} />
 
       {canExport ? (
-        <SectionCard title="Data" description="Download the app's SQLite database as a file.">
+        <SectionCard title={t("data.title")} description={t("data.description")}>
           <Button asChild variant="secondary" className="self-start">
             <a href={`/api${appPath(org, app)}/export`} download>
               <Download aria-hidden="true" />
-              Export data
+              {t("data.export")}
             </a>
           </Button>
         </SectionCard>

@@ -4,14 +4,14 @@ import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import type { Template } from "@/hooks/orgs";
 
-export const TEMPLATES: { id: Template; title: string; blurb: string; Icon: typeof Globe }[] = [
-  { id: "http", title: "HTTP handler", blurb: "Answer web requests", Icon: Globe },
-  { id: "cron", title: "Scheduled job", blurb: "Run on a timer", Icon: Clock },
-  { id: "queue", title: "Queue worker", blurb: "Process messages", Icon: ListTodo },
-  { id: "sqlite-crud", title: "SQLite CRUD", blurb: "JSON API over a table", Icon: Database },
-];
+// TEMPLATES lists the app templates; titleKey and blurbKey are keys in the apps namespace.
+export const TEMPLATES = [
+  { id: "http", titleKey: "templates.http.title", blurbKey: "templates.http.blurb", Icon: Globe },
+  { id: "cron", titleKey: "templates.cron.title", blurbKey: "templates.cron.blurb", Icon: Clock },
+  { id: "queue", titleKey: "templates.queue.title", blurbKey: "templates.queue.blurb", Icon: ListTodo },
+  { id: "sqlite-crud", titleKey: "templates.sqliteCrud.title", blurbKey: "templates.sqliteCrud.blurb", Icon: Database },
+] as const;
 
 // NoApps is the empty project state: a create-app CTA that preselects the project.
 export function NoApps({ org, project }: { org: string; project: string }) {

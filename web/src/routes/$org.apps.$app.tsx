@@ -1,4 +1,5 @@
 import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 import { AppTabs } from "@/components/features/app-header/app-header";
 import { QueryError } from "@/components/features/empty/query-error";
@@ -16,6 +17,7 @@ export const Route = createFileRoute("/$org/apps/$app")({
 // renders the same sections as a tab strip below md. Sub-pages decide their own width through
 // their route's staticData.fullBleed.
 function AppPage() {
+  const { t } = useTranslation(["apps", "common"]);
   const { org, app } = Route.useParams();
   const apps = useApps(org);
 
@@ -25,8 +27,8 @@ function AppPage() {
         <QueryError
           error={apps.error}
           onRetry={() => void apps.refetch()}
-          notFoundTitle="App not found"
-          notFoundDescription="It may have been deleted or you lack access."
+          notFoundTitle={t("app.notFound")}
+          notFoundDescription={t("notFound.description")}
         />
       </PageBody>
     );
@@ -42,7 +44,7 @@ function AppPage() {
   if (!a) {
     return (
       <PageBody>
-        <EmptyState title="App not found" description="It may have been deleted or you lack access." />
+        <EmptyState title={t("app.notFound")} description={t("notFound.description")} />
       </PageBody>
     );
   }

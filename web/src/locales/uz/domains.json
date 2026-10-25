@@ -1,1 +1,62 @@
-{}
+{
+  "title": "Maxsus domenlar",
+  "description": "DNS tekshirilgandan soʻng HTTPS sertifikatlari avtomatik beriladi.",
+  "keepTxt": "TXT yozuvini saqlang; uni oʻchirsangiz, domen faolsizlanadi.",
+  "failedHint": "TXT yozuvi topilmadi, shuning uchun domen faol emas. Uni tiklang va qayta tekshiring.",
+  "notFound": "Ilova topilmadi",
+  "page": {
+    "title": "Domenlar",
+    "description": "Bu ilovani oʻz hostnomalaringizda ishlating."
+  },
+  "status": {
+    "pending": "Kutilmoqda",
+    "active": "Faol",
+    "failed": "Xato"
+  },
+  "cert": {
+    "none": "Sertifikat hali yoʻq",
+    "pending": "Sertifikat kutilmoqda",
+    "issued": "Sertifikat berildi",
+    "error": "Sertifikat xatosi",
+    "expires": "Muddati: {{date}}."
+  },
+  "dns": {
+    "intro": "<host>{{host}}</host> uchun quyidagi DNS yozuvlarini qoʻshing.",
+    "txtName": "TXT nomi",
+    "txtValue": "TXT qiymati",
+    "cnameTarget": "CNAME manzili"
+  },
+  "copy": {
+    "txtName": "TXT nomini nusxalash",
+    "txtValue": "TXT qiymatini nusxalash",
+    "cnameTarget": "CNAME manzilini nusxalash",
+    "done": "Nusxalandi.",
+    "failed": "Nusxalab boʻlmadi. Matnni oʻzingiz belgilang."
+  },
+  "form": {
+    "label": "Domen",
+    "placeholder": "www.example.com",
+    "empty": "Host nomini kiriting, masalan www.example.com.",
+    "taken": "Bu hostdan boshqa ilova foydalanmoqda.",
+    "failed": "Domenni qoʻshib boʻlmadi. Qaytadan urining.",
+    "add": "Domen qoʻshish"
+  },
+  "empty": {
+    "title": "Maxsus domenlar yoʻq",
+    "description": "Oʻz domeningizni ushbu ilovaga yoʻnaltirish uchun host nomini qoʻshing."
+  },
+  "verify": {
+    "label": "{{host}} ni tekshirish",
+    "button": "Tekshirish",
+    "active": "{{host}} faol.",
+    "mismatch": "TXT yozuvi hali mos kelmadi. DNS yangilangandan soʻng qayta urining."
+  },
+  "remove": {
+    "label": "{{host}} ni oʻchirish",
+    "button": "Oʻchirish",
+    "title": "{{host}} oʻchirilsinmi?",
+    "description": "Bu hostga soʻrovlar darhol toʻxtaydi.",
+    "confirm": "Domenni oʻchirish",
+    "done": "{{host}} oʻchirildi."
+  }
+}

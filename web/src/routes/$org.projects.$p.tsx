@@ -1,5 +1,6 @@
 import { FolderOpen, Plus } from "lucide-react";
 import { Link, createFileRoute } from "@tanstack/react-router";
+import { useTranslation } from "react-i18next";
 
 import { NoApps } from "@/components/features/empty/no-apps";
 import { QueryError } from "@/components/features/empty/query-error";
@@ -23,8 +24,15 @@ const BUILD_VARIANT: Record<string, "success" | "danger" | "warning" | "default"
   building: "warning",
   pending: "warning",
 };
+const BUILD_KEY = {
+  ready: "build.ready",
+  failed: "build.failed",
+  building: "build.building",
+  pending: "build.pending",
+} as const;
 
 function ProjectPage() {
+  const { t } = useTranslation(["apps", "common"]);
   const { org, p } = Route.useParams();
   const projects = useProjects(org);
   const envs = useEnvironments(org, p);
@@ -37,8 +45,8 @@ function ProjectPage() {
       <QueryError
         error={projects.error}
         onRetry={() => void projects.refetch()}
-        notFoundTitle="Project not found"
-        notFoundDescription="It may have been deleted or you lack access."
+        notFoundTitle={t("project.notFound")}
+        notFoundDescription={t("notFound.description")}
       />
     );
   }
@@ -46,10 +54,10 @@ function ProjectPage() {
     return <Skeleton className="h-40 w-full" />;
   }
   if (!project) {
-    return <EmptyState title="Project not found" description="It may have been deleted or you lack access." />;
+    return <EmptyState title={t("project.notFound")} description={t("notFound.description")} />;
   }
   if (apps.isError) {
-    return <QueryError error={apps.error} onRetry={() => void apps.refetch()} notFoundTitle="Apps not found" />;
+    return <QueryError error={apps.error} onRetry={() => void apps.refetch()} notFoundTitle={t("project.appsNotFound")} />;
   }
 
   const list = apps.data ?? [];
@@ -62,8 +70,8 @@ function ProjectPage() {
         entity="projects"
         title={project.name}
         description={
-          <span className="flex flex-wrap items-center gap-1.5" aria-label="Environments">
-            <span>Environments:</span>
+          <span className="flex flex-wrap items-center gap-1.5" aria-label={t("project.environmentsLabel")}>
+            <span>{t("project.environments")}</span>
             {(envs.data ?? project.environments).map((e) => (
               <Badge key={e} variant="outline">
                 {e}
@@ -75,7 +83,7 @@ function ProjectPage() {
           canCreate && list.length > 0 ? (
             <Button asChild variant="default">
               <Link to="/$org/apps/new" params={{ org }} search={{ project: p }}>
-                <Plus aria-hidden="true" /> New app
+                <Plus aria-hidden="true" /> {t("project.newApp")}
               </Link>
             </Button>
           ) : null
@@ -87,7 +95,7 @@ function ProjectPage() {
       ) : list.length === 0 ? (
         <NoApps org={org} project={p} />
       ) : (
-        <SectionCard title="Apps" description={`${list.length} ${list.length === 1 ? "app" : "apps"} in this project`} flush>
+        <SectionCard title={t("project.apps")} description={t("project.appsInProject", { count: list.length })} flush>
           <ul className="divide-y divide-line">
             {list.map((a) => (
               <li key={a.slug}>
@@ -102,7 +110,9 @@ function ProjectPage() {
                     {a.environment}
                   </Badge>
                   <Badge variant={BUILD_VARIANT[a.status.build_state] ?? "default"} dot>
-                    {a.status.build_state}
+                    {BUILD_KEY[a.status.build_state as keyof typeof BUILD_KEY]
+                      ? t(BUILD_KEY[a.status.build_state as keyof typeof BUILD_KEY])
+                      : a.status.build_state}
                   </Badge>
                   <span className="hidden w-12 text-right text-[12px] tabular-nums text-muted sm:inline">
                     {a.live_version !== null ? `v${a.live_version}` : "-"}

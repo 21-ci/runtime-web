@@ -1,10 +1,12 @@
 import { AlertTriangle, CheckCircle2, Circle, Hammer, Rocket, type LucideIcon } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { SectionCard } from "@/components/ui/section-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { QueryError } from "@/components/features/empty/query-error";
+import { i18n } from "@/lib/i18n";
 import { formatDateTime, formatQuantity, formatRelative, labelFor } from "@/lib/format";
 import { cn } from "@/lib/utils";
 
@@ -23,8 +25,14 @@ function eventStyle(kind: string): { Icon: LucideIcon; className: string } {
 // eventFields flattens the event payload into readable label/value pairs (one level deep).
 export function eventFields(data: unknown, prefix = ""): { label: string; value: string }[] {
   if (data === null || data === undefined) return [];
-  if (typeof data !== "object") return [{ label: prefix || "Value", value: String(data) }];
-  if (Array.isArray(data)) return [{ label: prefix || "Items", value: data.length === 0 ? "none" : JSON.stringify(data) }];
+  if (typeof data !== "object") return [{ label: prefix || i18n.t("overview:events.value"), value: String(data) }];
+  if (Array.isArray(data))
+    return [
+      {
+        label: prefix || i18n.t("overview:events.items"),
+        value: data.length === 0 ? i18n.t("overview:events.none") : JSON.stringify(data),
+      },
+    ];
   return Object.entries(data as Record<string, unknown>).flatMap(([k, v]) => {
     const label = prefix ? `${prefix} ${k.replace(/[_-]+/g, " ")}` : labelFor(k);
     if (v !== null && typeof v === "object" && !Array.isArray(v)) return eventFields(v, label);
@@ -67,19 +75,20 @@ function EventRow({ ev, last }: { ev: AppEvent; last: boolean }) {
 
 // EventsPanel lists the runtime events for the app, newest first, with cursor paging.
 export function EventsPanel({ org, app }: { org: string; app: string }) {
+  const { t } = useTranslation("overview");
   const events = useAppEvents(org, app);
 
   if (events.isError) {
-    return <QueryError error={events.error} onRetry={() => void events.refetch()} notFoundTitle="Events not found" />;
+    return <QueryError error={events.error} onRetry={() => void events.refetch()} notFoundTitle={t("events.notFound")} />;
   }
   if (events.isPending) return <Skeleton className="h-40 w-full" />;
 
   const items = events.data.pages.flatMap((p) => p.items);
 
   return (
-    <SectionCard title="Events" description="What the runtime did with this app, newest first." flush>
+    <SectionCard title={t("events.title")} description={t("events.description")} flush>
       {items.length === 0 ? (
-        <EmptyState bare entity="overview" title="No events yet" description="Runtime events for this app appear here." />
+        <EmptyState bare entity="overview" title={t("events.emptyTitle")} description={t("events.emptyDescription")} />
       ) : (
         <ol>
           {items.map((ev, i) => (
@@ -90,7 +99,7 @@ export function EventsPanel({ org, app }: { org: string; app: string }) {
       {events.hasNextPage ? (
         <div className="border-t border-line px-5 py-3">
           <Button variant="secondary" size="sm" disabled={events.isFetchingNextPage} onClick={() => void events.fetchNextPage()}>
-            {events.isFetchingNextPage ? "Loading…" : "Load more"}
+            {events.isFetchingNextPage ? t("events.loading") : t("events.loadMore")}
           </Button>
         </div>
       ) : null}
