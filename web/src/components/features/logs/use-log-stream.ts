@@ -49,17 +49,25 @@ export function useLogStream(org: string, app: string, level: LogLevel) {
   const bufferRef = useRef<LogLine[]>([]);
   const seenRef = useRef(new Set<number>());
 
-  useEffect(() => {
+  // A new stream (org, app or level changed) starts from empty state; reset during render rather
+  // than synchronously inside the effect.
+  const streamKey = `${org}\u0000${app}\u0000${level}`;
+  const [activeKey, setActiveKey] = useState(streamKey);
+  if (activeKey !== streamKey) {
+    setActiveKey(streamKey);
     setLines([]);
     setGap(false);
     setTerminal(null);
     setBuffered(0);
+    setConn("connecting");
+  }
+
+  useEffect(() => {
     bufferRef.current = [];
     seenRef.current = new Set();
 
     const qs = level ? `?level=${level}` : "";
     const es = new EventSource(`/api/orgs/${encodeURIComponent(org)}/apps/${encodeURIComponent(app)}/logs${qs}`);
-    setConn("connecting");
 
     es.addEventListener("open", () => setConn("connected"));
     es.addEventListener("log", (e) => {

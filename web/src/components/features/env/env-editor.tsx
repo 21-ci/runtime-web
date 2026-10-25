@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState, type FormEvent } from "react";
+import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Download, Eye, EyeOff, FileText, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -98,9 +98,12 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
   const [deleting, setDeleting] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  useEffect(() => {
-    if (env.data) setText(toEnvText(env.data));
-  }, [env.data]);
+  // Reset the raw text whenever fresh data arrives (adjusting state during render, not in an effect).
+  const [syncedData, setSyncedData] = useState<typeof env.data>(undefined);
+  if (env.data && env.data !== syncedData) {
+    setSyncedData(env.data);
+    setText(toEnvText(env.data));
+  }
 
   if (env.isError) {
     return <QueryError error={env.error} onRetry={() => void env.refetch()} notFoundTitle={t("appNotFound")} />;

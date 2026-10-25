@@ -75,7 +75,7 @@ describe("app shell", { timeout: 15_000 }, () => {
   it("usage card hidden for members", async () => {
     useShellHandlers();
     renderAt("/beta");
-    await screen.findByText(/no projects/i);
+    await screen.findByRole("heading", { name: /no projects yet/i });
     expect(screen.queryByRole("region", { name: /usage/i })).toBeNull();
   });
 

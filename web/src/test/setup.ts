@@ -47,7 +47,7 @@ if (!Element.prototype.hasPointerCapture) {
 }
 
 beforeAll(() => {
-  server.listen({ onUnhandledRequest: "error" });
+  server.listen({ onUnhandledFrame: "error" });
 });
 
 // Module-level state in lib/api must not leak between tests: each test starts signed out, with the

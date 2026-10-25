@@ -75,6 +75,11 @@ describe("auth pages", { timeout: 15_000 }, () => {
         body = await request.json();
         return HttpResponse.json({ user: testUser, csrf: "csrf-2" });
       }),
+      // The destination page loads its own data; answer it so the landing is stable (an unhandled
+      // request errors out and can bounce the router before the assertion runs).
+      http.get("/api/orgs", () => HttpResponse.json({ items: [] })),
+      http.get("/api/orgs/:org/projects", () => HttpResponse.json({ items: [] })),
+      http.get("/api/orgs/:org/apps", () => HttpResponse.json({ items: [], next_cursor: null })),
     );
     const router = renderAt("/login/mfa?next=/orgs/acme/apps");
     const user = userEvent.setup({ delay: null });
