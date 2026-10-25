@@ -10,7 +10,7 @@
 #   web         node:22-bookworm-slim     vite build of web/, gen-assets embeds it into server/src/gen (build platform)
 #   entry       golang:1.26-bookworm      rtweb-entry, the static PID 1: supervisor, bootstrap, edge, relay (cross-compiled)
 #   rt          ghcr.io/21-ci/rt:0.1.1    the runtime's own signed release image, only the rt binary is taken
-#   fs          debian:bookworm-slim      an empty /data owned by uid 10001
+#   fs          debian:bookworm-slim      an empty /data owned by uid 10001, CA bundle and passwd for slim
 #   distroless  distroless/cc-debian13    glibc + libgcc + CA certificates (rt links libc, libm, libgcc_s)
 #   slim        debian:bookworm-slim      the same files on a Debian userland, for operators who want a shell
 #
@@ -51,14 +51,24 @@ ARG TARGETARCH
 WORKDIR /src
 COPY docker/entry/ ./
 RUN --mount=type=cache,target=/root/.cache/go-build \
-    CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
-    go build -trimpath -buildvcs=false -ldflags="-s -w" -o /out/rtweb-entry . \
- && go vet ./...
+    go vet ./... \
+ && go test ./... \
+ && CGO_ENABLED=0 GOOS=${TARGETOS} GOARCH=${TARGETARCH} \
+    go build -trimpath -buildvcs=false -ldflags="-s -w" -o /out/rtweb-entry .
 
 FROM ${RT_IMAGE} AS rt
 
+# Built on the build platform, so no target stage runs a command and multi-arch builds need no emulation.
+# ca-certificates (architecture independent) and the rt user are only used by the slim flavor; their versions
+# float with the pinned base digest, which dependabot bumps.
 FROM --platform=$BUILDPLATFORM ${DEBIAN_IMAGE} AS fs
-RUN install -d -o 10001 -g 10001 -m 0750 /out/data
+# hadolint ignore=DL3008
+RUN apt-get update \
+ && apt-get install -y --no-install-recommends ca-certificates \
+ && rm -rf /var/lib/apt/lists/* \
+ && groupadd -g 10001 rt && useradd -u 10001 -g 10001 -d /data -s /usr/sbin/nologin -M rt \
+ && install -d -o 10001 -g 10001 -m 0750 /out/data \
+ && mkdir -p /out/etc && cp /etc/passwd /etc/group /out/etc/
 
 # ---------------------------------------------------------------------------------------------
 # Shared metadata and layout of both flavors
@@ -106,13 +116,9 @@ LABEL org.opencontainers.image.title="runtime-web" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${REVISION}" \
       org.opencontainers.image.base.name="debian:bookworm-slim"
-# ca-certificates: rt fetches npm/jsr imports of Apps over TLS. Nothing else is added; the version floats with the
-# pinned base digest (bookworm security updates), which dependabot bumps.
-# hadolint ignore=DL3008
-RUN apt-get update \
- && apt-get install -y --no-install-recommends ca-certificates \
- && rm -rf /var/lib/apt/lists/* \
- && groupadd -g 10001 rt && useradd -u 10001 -g 10001 -d /data -s /usr/sbin/nologin -M rt
+# CA certificates: rt fetches npm/jsr imports of Apps over TLS. passwd/group add the rt user (uid 10001).
+COPY --from=fs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
+COPY --from=fs /out/etc/passwd /out/etc/group /etc/
 COPY --from=rt /usr/local/bin/rt /usr/local/bin/rt
 COPY --from=entry /out/rtweb-entry /usr/local/bin/rtweb-entry
 COPY --from=web /out/ /usr/local/share/rtweb/
