@@ -60,7 +60,7 @@ export function PreviewFrame({
       title={title}
       src={url}
       sandbox="allow-scripts allow-forms allow-same-origin allow-popups"
-      className={cn("w-full rounded-lg border border-line bg-white shadow-card", className)}
+      className={cn("w-full rounded-lg border border-line bg-white shadow-card [color-scheme:light]", className)}
     />
   );
 }

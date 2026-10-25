@@ -1,4 +1,4 @@
-import { screen, within } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it } from "vitest";
 
@@ -64,6 +64,24 @@ describe("org dashboard", { timeout: 15_000 }, () => {
     const activity = await screen.findByRole("region", { name: "Recent activity" });
     expect(await within(activity).findByText("app.create", {})).toBeInTheDocument();
     expect(within(activity).getByText(/web\/hello/)).toBeInTheDocument();
+  });
+
+  it("asks for today's UTC usage only", async () => {
+    useShellHandlers();
+    dashboardHandlers();
+    const day = new Date().toISOString().slice(0, 10);
+    let asked = "";
+    server.use(
+      http.get("/api/orgs/:org/usage", ({ request }) => {
+        asked = new URL(request.url).search;
+        return HttpResponse.json({
+          items: [{ app: "hello", day, invocations: 6, cpu_ms: 10, egress_bytes: 0, storage_bytes: 0 }],
+        });
+      }),
+    );
+    renderAt("/acme");
+    expect(await screen.findByText("Usage today")).toBeInTheDocument();
+    await waitFor(() => expect(asked).toBe(`?from=${day}&to=${day}`));
   });
 
   it("shows members with name and email", async () => {

@@ -85,10 +85,11 @@ export function useLimits(org: string) {
 }
 
 // useUsage is only called for owners and admins (the card is hidden for members).
-export function useUsage(org: string, enabled: boolean) {
+// useUsage reads one runtime day (UTC, "YYYY-MM-DD"): the runtime resets its counters at UTC midnight.
+export function useUsage(org: string, enabled: boolean, day: string) {
   return useQuery({
-    queryKey: ["usage", org],
-    queryFn: () => api.get<{ items: Usage[] }>(`/orgs/${enc(org)}/usage`).then((r) => r.items),
+    queryKey: ["usage", org, day],
+    queryFn: () => api.get<{ items: Usage[] }>(`/orgs/${enc(org)}/usage?from=${day}&to=${day}`).then((r) => r.items),
     enabled,
   });
 }

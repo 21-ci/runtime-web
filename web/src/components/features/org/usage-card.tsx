@@ -11,7 +11,7 @@ export function UsageCard({ org, enabled }: { org: string; enabled: boolean }) {
 }
 
 function UsageCardBody({ org }: { org: string }) {
-  const usage = useUsage(org, true);
+  const usage = useUsage(org, true, new Date().toISOString().slice(0, 10));
   const rows = usage.data ?? [];
   const total = rows.reduce((sum, r) => sum + r.invocations, 0);
   const cpu = rows.reduce((sum, r) => sum + r.cpu_ms, 0);
