@@ -13,6 +13,12 @@
 # install.sh adds that to an existing [ingress] table (a second [ingress] here would break the merge).
 
 [plans.rtweb]
+# The console tenant serves its own JS, fonts and API: one page load is ~30 invocations, so the
+# default plan (rps 50 with an equal burst, 10 in flight, 100k a day) throttles normal use.
+# Login and TOTP keep their own per-account limits. 0 = no daily cap.
+rps = 300
+max_concurrency = 64
+invocations_per_day = 0
 max_services = 2
 max_schedules = 3
 min_schedule_seconds = 60
