@@ -63,7 +63,7 @@ management tool or a cluster. It does the same steps as the [installer](install.
     ```bash
     RTWEB_DOMAIN=console.example.com
     RTWEB_APPS_DOMAIN=apps.console.example.com
-    RTWEB_ACME_EMAIL=ops@example.com
+    RTWEB_ACME_EMAIL=you@your-company.com
     RTWEB_RELAY_SECRET=<same value as step 2>
     ```
 

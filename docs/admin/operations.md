@@ -61,7 +61,7 @@ loopback. See [Troubleshooting](../troubleshooting.md#tls-certificate-is-not-iss
 3. Run the installer with the new version, using the same `--domain` and `--email`:
 
     ```bash
-    sudo sh install.sh --version X.Y.Z --domain console.example.com --email ops@example.com
+    sudo sh install.sh --version X.Y.Z --domain console.example.com --email you@your-company.com
     ```
 
 The installer keeps the secrets, uploads and activates the new service version, and the new version migrates the

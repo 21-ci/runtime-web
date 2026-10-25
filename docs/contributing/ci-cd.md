@@ -50,7 +50,7 @@ gh attestation verify runtime-web-X.Y.Z.tar.gz -R 21-ci/runtime-web
 ```sh
 curl -fsSL https://raw.githubusercontent.com/21-ci/runtime-web/main/install.sh -o install.sh
 sudo sh install.sh \
-  --domain console.example.com --email ops@example.com
+  --domain console.example.com --email ops@acme-corp.dev
 ```
 
 It verifies the Sigstore signature on `SHA256SUMS` (cosign required; `--insecure-skip-signature` skips it) and the

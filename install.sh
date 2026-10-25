@@ -1,7 +1,7 @@
 #!/bin/sh
 # Install Runtime Web (the 21 Cloud console) on a Linux host, as an App on a 21 Cloud Runtime node.
 #
-#   curl -fsSL https://raw.githubusercontent.com/21-ci/runtime-web/main/install.sh | sudo sh -s -- --domain console.example.com --email ops@example.com
+#   curl -fsSL https://raw.githubusercontent.com/21-ci/runtime-web/main/install.sh | sudo sh -s -- --domain console.example.com --email you@your-company.com
 #
 # Options:
 #   --version X.Y.Z        Runtime Web release (default: the latest)

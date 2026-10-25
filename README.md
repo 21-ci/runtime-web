@@ -61,7 +61,7 @@ On a Linux host (x86_64 or aarch64) with systemd, Node.js 22.5+ and Caddy:
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/21-ci/runtime-web/main/install.sh -o install.sh
-sudo sh install.sh --domain console.example.com --email ops@example.com
+sudo sh install.sh --domain console.example.com --email you@your-company.com
 ```
 
 The installer sets up a 21 Cloud Runtime node if `rt` is missing, verifies a signed release, adds the console's plan
