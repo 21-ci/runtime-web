@@ -387,7 +387,7 @@ All routes require `instance.admin`. Every mutation is audited.
 | GET | `/api/admin/node/version` | | `200 {version: string; web_version: string}` | |
 | POST | `/api/admin/node/drain` | `{confirm: "drain"}` | `202 object` (runtime passthrough) | `422 invalid` (bad confirm) |
 | GET | `/api/admin/domains` | | `200 {items: (Domain & {org: {slug; name}})[]}` | |
-| GET | `/api/admin/audit` | `?org&actor&action&cursor&limit` | `200 Page<AuditEntry>` (instance-wide) | |
+| GET | `/api/admin/audit` | `?org&actor&action&exclude_action&cursor&limit` | `200 Page<AuditEntry>` (instance-wide) | |
 | GET | `/api/admin/settings` | | `200 InstanceSettings` | |
 | PUT | `/api/admin/settings` | `Partial<InstanceSettingsWrite>` | `200 InstanceSettings` | `422 invalid` (`details.fields.password_login_disabled` when SSO-only is enabled with no OAuth/OIDC provider configured; `auth.SetPolicy` returns `Conflict{sso_not_configured}`, and the handler maps it to this 422) |
 
@@ -489,7 +489,7 @@ type BrandingWrite = Omit<Branding, "accent_adjusted" | "palette" | "logo_light_
 | POST | `/api/orgs/{org}/default-key/rotate` | `defaultkey.rotate` | | `204` (custom tokens keep working) | `403`, `404` |
 | GET | `/api/orgs/{org}/limits` | `org.read` | | `200 Limits` (read-only quota bar) | `404` |
 | GET | `/api/orgs/{org}/usage` | `org.usage.read` | `?from&to` | `200 {items: Usage[]}` | `403`, `404` |
-| GET | `/api/orgs/{org}/audit` | `org.audit.read` | `?actor=<user id>&action=&cursor&limit` | `200 Page<AuditEntry>` (this org only) | `403`, `404` |
+| GET | `/api/orgs/{org}/audit` | `org.audit.read` | `?actor=<user id>&action=&exclude_action=a,b&cursor&limit` | `200 Page<AuditEntry>` (this org only) | `403`, `404` |
 | GET | `/api/orgs/{org}/projects` | `org.read` | | `200 {items: Project[]}` (members see granted projects only) | `404` |
 | POST | `/api/orgs/{org}/projects` | `project.create` | `{slug: string; name?: string; environments?: string[]}` | `201 Project` | `403`, `409 slug_taken`, `422` |
 | GET | `/api/orgs/{org}/projects/{p}` | `project.read` | | `200 Project` | `404` |

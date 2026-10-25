@@ -68,6 +68,8 @@ export interface AuditFilter {
   orgId?: string | undefined;
   actorId?: string | undefined;
   action?: string | undefined;
+  /** Actions to leave out (e.g. routine reads in an overview feed). */
+  excludeActions?: string[] | undefined;
   /** Cursor from a previous page ("<ts>:<id>"). */
   cursor?: string | undefined;
   limit?: number | undefined;
@@ -113,6 +115,10 @@ export async function listAudit(db: Db, f: AuditFilter = {}): Promise<AuditPage>
   if (f.action) {
     where.push("a.action = ?");
     args.push(f.action);
+  }
+  if (f.excludeActions?.length) {
+    where.push(`a.action NOT IN (${f.excludeActions.map(() => "?").join(", ")})`);
+    args.push(...f.excludeActions);
   }
   if (f.cursor) {
     const c = decodeCursor(f.cursor);

@@ -12,6 +12,14 @@ import { json } from "../http/json.ts";
 import { invalid } from "../http/errors.ts";
 import type { RequestContext, Router } from "../http/router.ts";
 
+// exclude_action is a comma-separated list of action names, at most 20.
+function excludeFrom(raw: string | null): string[] | undefined {
+  if (!raw) return undefined;
+  const list = raw.split(",").map((a) => a.trim()).filter(Boolean);
+  if (list.length > 20 || list.some((a) => !/^[a-z0-9_.]{1,64}$/.test(a))) throw invalid({ exclude_action: "invalid" });
+  return list;
+}
+
 function filterFrom(ctx: RequestContext, orgId: string | undefined): AuditFilter {
   const q = ctx.url.searchParams;
   const limitRaw = q.get("limit");
@@ -24,6 +32,7 @@ function filterFrom(ctx: RequestContext, orgId: string | undefined): AuditFilter
     orgId,
     actorId: q.get("actor") || undefined,
     action: q.get("action") || undefined,
+    excludeActions: excludeFrom(q.get("exclude_action")),
     cursor: q.get("cursor") || undefined,
     limit,
   };

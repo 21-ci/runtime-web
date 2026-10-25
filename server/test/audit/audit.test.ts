@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 import { audit, listAudit } from "../../src/audit/audit.ts";
 import { ensureMigrated } from "../../src/db/migrate.ts";
 import { testApp } from "../harness.ts";
+import { errCode, setupAdmin } from "../auth/helpers.ts";
 
 async function setup() {
   const app = testApp();
@@ -65,6 +66,11 @@ describe("audit listing", () => {
     expect((await listAudit(db, { orgId: "org_1", action: "app.deploy" })).items).toHaveLength(2);
     expect((await listAudit(db, { actorId: "usr_nobody" })).items).toHaveLength(0);
     expect((await listAudit(db, {})).items).toHaveLength(6);
+    expect((await listAudit(db, { orgId: "org_1", excludeActions: ["app.deploy"] })).items.map((e) => e.action)).toEqual([
+      "app.create",
+      "app.create",
+      "app.create",
+    ]);
   });
 
   it("pages newest first without repeats", async () => {
@@ -84,5 +90,22 @@ describe("audit listing", () => {
   it("rejects a malformed cursor with 422", async () => {
     const { db } = await setup();
     await expect(listAudit(db, { cursor: "nope" })).rejects.toMatchObject({ status: 422, code: "invalid" });
+  });
+});
+
+describe("GET /api/admin/audit exclude_action", () => {
+  it("leaves the listed actions out and rejects malformed lists", async () => {
+    const app = testApp();
+    const admin = await setupAdmin(app);
+    await audit(app.deps, { actor: { userId: "usr_a" }, orgId: null, action: "org.usage.read" });
+    await audit(app.deps, { actor: { userId: "usr_a" }, orgId: null, action: "app.create" });
+    const res = await admin.call("GET", "/api/admin/audit?exclude_action=org.usage.read");
+    expect(res.status).toBe(200);
+    const actions = ((await res.json()) as { items: { action: string }[] }).items.map((e) => e.action);
+    expect(actions).toContain("app.create");
+    expect(actions).not.toContain("org.usage.read");
+    const bad = await admin.call("GET", "/api/admin/audit?exclude_action=DROP%20TABLE");
+    expect(bad.status).toBe(422);
+    expect(await errCode(bad)).toBe("invalid");
   });
 });
