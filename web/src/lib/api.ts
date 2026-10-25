@@ -58,6 +58,18 @@ export function setCsrfToken(token: string | null) {
   csrf = token;
 }
 
+// resetApiForTests restores the module state set by the setters above (navigator, sign-out hook,
+// CSRF token and the redirect debounce) to its import-time defaults. Only the test setup calls it,
+// so a test's router or sign-out hook cannot receive a stray 401 from an earlier test.
+export function resetApiForTests() {
+  navigator_ = (to) => {
+    window.location.assign(to);
+  };
+  onSignedOut_ = () => {};
+  csrf = null;
+  signedOutAt = 0;
+}
+
 export function getCsrfToken(): string | null {
   return csrf;
 }

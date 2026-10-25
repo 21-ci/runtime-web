@@ -2,7 +2,7 @@ import "@testing-library/jest-dom/vitest";
 import { cleanup, configure } from "@testing-library/react";
 import { afterAll, afterEach, beforeAll } from "vitest";
 
-import { setCsrfToken, setNavigator, setOnSignedOut } from "@/lib/api";
+import { resetApiForTests } from "@/lib/api";
 // English resources are bundled, so i18n is ready synchronously and tests match English text.
 import { i18n, LANGUAGE_STORAGE_KEY } from "@/lib/i18n";
 
@@ -55,9 +55,7 @@ beforeAll(() => {
 afterEach(() => {
   cleanup();
   server.resetHandlers();
-  setCsrfToken(null);
-  setNavigator((to) => window.location.assign(to));
-  setOnSignedOut(() => {});
+  resetApiForTests();
   try {
     localStorage.removeItem(LANGUAGE_STORAGE_KEY);
   } catch {
