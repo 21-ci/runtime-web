@@ -4,9 +4,14 @@ node_modules/
 dist/
 data/
 .env
+.idea/
+
+# local design captures and scratch screenshots (the README image lives in docs/assets/)
+docs/screenshots/
 
 # build output
 bin/
+site/
 .claude/*
 !.claude/skills/
 
