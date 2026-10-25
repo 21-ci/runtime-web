@@ -69,6 +69,7 @@ export function createApp(deps: Deps): App {
   registerSettings(router, deps);
   registerInternal(router, deps);
   registerSpa(router, deps); // keep last: installs the SPA fallback
+  const appOrigin = deps.config.runtimePublicUrl ? new URL(deps.config.runtimePublicUrl).origin : undefined;
   return {
     fetch: async (req, info) =>
       withSecurityHeaders(
@@ -79,6 +80,7 @@ export function createApp(deps: Deps): App {
           clientIp: info?.clientIp ?? req.headers.get("x-rt-client-ip") ?? undefined,
         }),
         deps.config.origin,
+        appOrigin,
       ),
     routes: () => router.describe(),
   };

@@ -93,11 +93,13 @@ type ErrorBody = {
 
 Every response (SPA, assets, API, errors) carries `Content-Security-Policy: default-src 'self'; script-src 'self';
 style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self'; connect-src 'self'; worker-src 'self';
-object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'`, `X-Frame-Options: DENY`,
+object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; frame-src <app origin>`, `X-Frame-Options: DENY`,
 `Referrer-Policy: strict-origin-when-cross-origin`, `X-Content-Type-Options: nosniff`,
 `Cross-Origin-Opener-Policy: same-origin` and a deny-all `Permissions-Policy`; plus
 `Strict-Transport-Security: max-age=31536000; includeSubDomains` when `RTWEB_ORIGIN` is https.
 `'unsafe-inline'` applies to styles only (CodeMirror and sonner insert `<style>` at runtime); inline script is blocked.
+`frame-src` is the origin of `RTWEB_RUNTIME_PUBLIC_URL`, so the App page can preview the app in an
+iframe; it is `'none'` when that variable is unset or names the console's own origin.
 
 ### 1.5 Error codes (global mapping, `server/src/http/errors.ts`)
 

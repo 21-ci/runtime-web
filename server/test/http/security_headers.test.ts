@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { testApp, testConfig } from "../harness.ts";
 import type { AssetManifest } from "../../src/spa.ts";
-import { CSP } from "../../src/http/security.ts";
+import { CSP, cspFor } from "../../src/http/security.ts";
 
 const INDEX = "<!doctype html><html><head></head><body></body></html>";
 const assets: AssetManifest = {
@@ -23,6 +23,18 @@ describe("security headers (M4)", () => {
     for (const d of ["default-src 'self'", "script-src 'self'", "img-src 'self' data:", "connect-src 'self'", "worker-src 'self'",
       "frame-ancestors 'none'", "base-uri 'self'", "form-action 'self'", "object-src 'none'"]) expect(CSP).toContain(d);
     expect(CSP).not.toMatch(/script-src[^;]*unsafe/);
+    expect(CSP).toContain("frame-src 'none'");
+  });
+
+  it("frames only a foreign runtime app origin", () => {
+    expect(cspFor("https://console.example.com", "https://apps.example.com")).toContain("frame-src https://apps.example.com");
+    expect(cspFor("https://console.example.com", "https://console.example.com")).toContain("frame-src 'none'");
+  });
+
+  it("sends the runtime app origin as frame-src", async () => {
+    const app = testApp({ config: testConfig({ runtimePublicUrl: "https://apps.example.com/base" }) });
+    const res = await app.call("GET", "/api/health");
+    expect(res.headers.get("content-security-policy")).toMatch(/frame-src https:\/\/apps\.example\.com(;|$)/);
   });
 
   it("are set on SPA pages, assets, JSON, errors and 304s, with HSTS on https", async () => {
