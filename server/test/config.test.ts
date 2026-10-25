@@ -54,6 +54,8 @@ describe("runtime public URL and default plan", () => {
   it.each([
     [{ RTWEB_RUNTIME_PUBLIC_URL: "rt.example.com" }, /RTWEB_RUNTIME_PUBLIC_URL/],
     [{ RTWEB_RUNTIME_PUBLIC_URL: "ftp://rt.example.com" }, /RTWEB_RUNTIME_PUBLIC_URL/],
+    [{ RTWEB_RUNTIME_PUBLIC_URL: "https://console.example.com" }, /must not share the console origin/],
+    [{ RTWEB_RUNTIME_PUBLIC_URL: "https://CONSOLE.example.com:443/apps/" }, /must not share the console origin/],
     [{ RTWEB_DEFAULT_PLAN: "Bad Plan!" }, /RTWEB_DEFAULT_PLAN/],
   ])("rejects %o", (over, msg) => {
     expect(() => loadConfig(env({ ...base, ...over }))).toThrow(msg);

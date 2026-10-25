@@ -34,6 +34,10 @@ export function loadConfig(getenv: Getenv): Config {
   const sealKey = parseSealKey(getenv("RTWEB_SEAL_KEY"));
   const setupToken = getenv("RTWEB_SETUP_TOKEN") || undefined;
   const runtimePublicUrl = parsePublicUrl(getenv("RTWEB_RUNTIME_PUBLIC_URL"));
+  // App code served on the console origin could call /api with a signed-in admin's cookies.
+  if (runtimePublicUrl && new URL(runtimePublicUrl).origin === origin) {
+    throw new ConfigError("RTWEB_RUNTIME_PUBLIC_URL: must not share the console origin (RTWEB_ORIGIN); serve Apps on their own host");
+  }
   const defaultPlan = getenv("RTWEB_DEFAULT_PLAN") || "free";
   if (!/^[a-z0-9][a-z0-9_-]{0,62}$/.test(defaultPlan)) {
     throw new ConfigError("RTWEB_DEFAULT_PLAN: must be a runtime plan name (lowercase letters, digits, - and _)");
