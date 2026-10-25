@@ -3,7 +3,7 @@
 The console is a calm, neutral product UI: a white canvas with a soft off-white sidebar, hairline
 dividers, one restrained blue accent, and small colourful entity icons. The shell follows Dokploy's
 structure (sidebar with grouped sections, breadcrumb top bar, framed content) and the App pages follow
-val.town's model (the sidebar becomes the app's navigation, a live URL bar with preview, a code view
+a hosted-app model (the sidebar becomes the app's navigation, a live URL bar with preview, a code view
 with file list, editor, preview pane and a logs dock). Visual rhythm is Notion's: 14px UI text, 28px
 rows, 16px thin icons, hover washes instead of borders, no gradients, no glass, no neon.
 
@@ -135,7 +135,7 @@ Inter (self-hosted, `cv11 ss01`), IBM Plex Mono. Base 14px / 1.5. Scale:
   formatted: bytes → KiB/MiB/GiB, counts grouped) and Usage today.
 - **Project**: header with tile, name, environment chips; Apps as a table-like list (tile, name,
   env, build badge, updated).
-- **App overview** (val.town): identity block (xl tile, project/name, Access + build + runtime
+- **App overview** (hosted-app model): identity block (xl tile, project/name, Access + build + runtime
   badges, "Open" and "Edit code" buttons); UrlBar; response preview iframe; stats row (last 5
   minutes); Code card listing files with "History" → Versions; Events timeline (readable key/value
   summary per event, not raw JSON); Data export (admins).
