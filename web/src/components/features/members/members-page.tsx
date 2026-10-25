@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { Trash2, Users } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { QueryError } from "@/components/features/empty/query-error";
@@ -28,7 +29,7 @@ import { handleMutationError } from "@/lib/query";
 import type { OrgRole } from "@/lib/types";
 
 import { useMembers, useRemoveMember, useSetMemberRole, type Member } from "./hooks";
-import { ROLE_LABEL, assignableRoles } from "./roles";
+import { ROLE_KEY, assignableRoles, isProjectRole } from "./roles";
 
 // MembersPage lists org members with their roles and project grants, and hosts the invites panel.
 // Owner-only controls (granting or changing owner, removing an owner) are hidden from admins; the
@@ -40,14 +41,15 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
   const [pendingRemove, setPendingRemove] = useState<Member | null>(null);
   const canManage = role === "owner" || role === "admin";
   const callerIsOwner = role === "owner";
+  const { t } = useTranslation(["members", "common"]);
 
   function changeRole(m: Member, next: OrgRole) {
     setRole.mutate(
       { user: m.user.id, role: next },
       {
-        onSuccess: () => toast.success(`${m.user.name} is now ${ROLE_LABEL[next].toLowerCase()}.`),
+        onSuccess: () => toast.success(t("toast.roleChanged", { context: next, name: m.user.name })),
         onError: (err) => {
-          if (err instanceof ApiError && err.code === "last_owner") toast.error("An org needs at least one owner.");
+          if (err instanceof ApiError && err.code === "last_owner") toast.error(t("toast.lastOwner"));
           else handleMutationError(err);
         },
       },
@@ -60,10 +62,10 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
     remove.mutate(pendingRemove.user.id, {
       onSuccess: () => {
         setPendingRemove(null);
-        toast.success(`Removed ${name}.`);
+        toast.success(t("toast.removed", { name }));
       },
       onError: (err) => {
-        if (err instanceof ApiError && err.code === "last_owner") toast.error("An org needs at least one owner.");
+        if (err instanceof ApiError && err.code === "last_owner") toast.error(t("toast.lastOwner"));
         else handleMutationError(err);
       },
     });
@@ -72,21 +74,26 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
   return (
     <div className="flex flex-col gap-8">
       <section aria-labelledby="members-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
-        <header>
-          <h2 id="members-heading" className="text-[15px] font-semibold">
-            Members
-          </h2>
-          <p className="text-sm text-muted">Roles set what a member can do across the org.</p>
+        <header className="flex items-start justify-between gap-3">
+          <div>
+            <h2 id="members-heading" className="text-[15px] font-semibold">
+              {t("title")}
+            </h2>
+            <p className="text-sm text-muted">{t("description")}</p>
+          </div>
+          {members.data ? (
+            <span className="shrink-0 text-sm tabular-nums text-muted">{t("count", { count: members.data.length })}</span>
+          ) : null}
         </header>
 
         {members.isError ? (
-          <QueryError error={members.error} onRetry={() => void members.refetch()} notFoundTitle="Org not found" />
+          <QueryError error={members.error} onRetry={() => void members.refetch()} notFoundTitle={t("orgNotFound")} />
         ) : members.isPending ? (
           <Skeleton className="h-32 w-full" />
         ) : members.data.length === 0 ? (
-          <EmptyState entity="members" icon={Users} title="No members" description="Invite a teammate to get started." />
+          <EmptyState entity="members" icon={Users} title={t("empty.title")} description={t("empty.description")} />
         ) : (
-          <ul aria-label="Members" className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
+          <ul aria-label={t("title")} className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
             {members.data.map((m) => {
               // Admins cannot touch owner rows at all.
               const locked = !callerIsOwner && m.role === "owner";
@@ -100,7 +107,7 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
                     </span>
                     {grants.length > 0 ? (
                       <span className="block text-xs text-muted">
-                        {grants.map(([p, r]) => `${p}: ${r}`).join(", ")}
+                        {grants.map(([p, r]) => t("grant", { project: p, role: isProjectRole(r) ? t(`projectRoles.${r}`) : r })).join(", ")}
                       </span>
                     ) : null}
                   </span>
@@ -112,13 +119,13 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
                           disabled={setRole.isPending}
                           onValueChange={(v) => changeRole(m, v as OrgRole)}
                         >
-                          <SelectTrigger aria-label={`Role for ${m.user.email}`} className="h-[34px] w-auto min-w-32">
+                          <SelectTrigger aria-label={t("roleFor", { email: m.user.email })} className="h-[34px] w-auto min-w-32">
                             <SelectValue />
                           </SelectTrigger>
                           <SelectContent>
                             {assignableRoles(role).map((r) => (
                               <SelectItem key={r} value={r}>
-                                {ROLE_LABEL[r]}
+                                {t(ROLE_KEY[r])}
                               </SelectItem>
                             ))}
                           </SelectContent>
@@ -126,14 +133,14 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
                         <Button
                           variant="ghost"
                           size="icon"
-                          aria-label={`Remove ${m.user.email}`}
+                          aria-label={t("removeLabel", { email: m.user.email })}
                           onClick={() => setPendingRemove(m)}
                         >
                           <Trash2 className="size-4" aria-hidden />
                         </Button>
                       </>
                     ) : (
-                      <Badge variant="outline">{ROLE_LABEL[m.role]}</Badge>
+                      <Badge variant="outline">{t(ROLE_KEY[m.role])}</Badge>
                     )}
                   </span>
                 </li>
@@ -148,15 +155,15 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
       <Dialog open={pendingRemove !== null} onOpenChange={(open) => !open && setPendingRemove(null)}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Remove {pendingRemove?.user.name}?</DialogTitle>
-            <DialogDescription>They lose access to every project in this org.</DialogDescription>
+            <DialogTitle>{t("remove.title", { name: pendingRemove?.user.name ?? "" })}</DialogTitle>
+            <DialogDescription>{t("remove.description")}</DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setPendingRemove(null)}>
-              Cancel
+              {t("common:cancel")}
             </Button>
             <Button variant="danger" onClick={confirmRemove} disabled={remove.isPending}>
-              Remove member
+              {t("remove.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

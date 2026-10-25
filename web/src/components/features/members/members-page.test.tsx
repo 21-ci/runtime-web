@@ -4,6 +4,7 @@ import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
 
+import { setLanguage } from "@/lib/i18n";
 import { createQueryClient } from "@/lib/query";
 import { server } from "@/test/msw";
 
@@ -89,5 +90,19 @@ describe("MembersPage", () => {
     // A regular member row keeps its controls.
     const memberRow = screen.getByText("grace@example.test").closest("li");
     expect(within(memberRow!).getByRole("combobox", { name: /role/i })).toBeInTheDocument();
+  });
+
+  it("renders in Russian with plural counts", async () => {
+    await setLanguage("ru");
+    server.use(
+      http.get("/api/orgs/acme/members", () => HttpResponse.json({ items: members })),
+      http.get("/api/orgs/acme/invites", () => HttpResponse.json({ items: [] })),
+    );
+    renderPage("owner");
+
+    expect(await screen.findByText("2 участника")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Участники" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "Роль для grace@example.test" })).toBeInTheDocument();
+    expect(screen.getByText("web: разработчик")).toBeInTheDocument();
   });
 });
