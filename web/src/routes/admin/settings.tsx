@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Settings } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import {
@@ -25,6 +26,8 @@ export const Route = createFileRoute("/admin/settings")({
   component: AdminSettingsPage,
 });
 
+// Provider names are brands (GitHub, Google) and the OpenID Connect standard name, so they are not
+// translated.
 const PROVIDER_LABEL: Record<ProviderId, string> = {
   github: "GitHub",
   google: "Google",
@@ -32,13 +35,14 @@ const PROVIDER_LABEL: Record<ProviderId, string> = {
 };
 
 function AdminSettingsPage() {
+  const { t } = useTranslation(["admin", "common"]);
   const settings = useAdminSettings();
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <PageHeader icon={Settings} entity="admin" title="Instance settings" description="Public URL, sign-in policy, providers and branding." />
+      <PageHeader icon={Settings} entity="admin" title={t("settings.title")} description={t("settings.description")} />
       {settings.isError ? (
-        <QueryError error={settings.error} onRetry={() => void settings.refetch()} notFoundTitle="Not available" />
+        <QueryError error={settings.error} onRetry={() => void settings.refetch()} notFoundTitle={t("notAvailable")} />
       ) : settings.isPending ? (
         <div aria-busy="true">
           <Skeleton className="h-64 w-full" />
@@ -64,6 +68,7 @@ function fromSettings(s: InstanceSettings): Draft {
 // SettingsForm edits instance policy and OAuth providers. The client secret is write-only: the
 // field is always empty, and a blank value keeps the stored secret.
 function SettingsForm({ initial }: { initial: InstanceSettings }) {
+  const { t } = useTranslation(["admin", "common"]);
   const save = useSaveAdminSettings();
   const [draft, setDraft] = useState<Draft>(() => fromSettings(initial));
   const [secrets, setSecrets] = useState<Partial<Record<ProviderId, string>>>({});
@@ -102,34 +107,34 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
       onSuccess: (data) => {
         setDraft(fromSettings(data));
         setSecrets({});
-        toast.success("Instance settings saved.");
+        toast.success(t("settings.saved"));
       },
       onError: (err) => {
         if (err instanceof ApiError && Object.keys(err.fieldErrors()).length > 0) {
           setErrors(err.fieldErrors());
         } else {
-          toast.error("Could not save the settings. Try again.");
+          toast.error(t("settings.saveFailed"));
         }
       },
     });
   }
 
   return (
-    <form aria-label="Instance settings" onSubmit={onSubmit} noValidate className="flex max-w-3xl min-w-0 flex-col gap-6">
+    <form aria-label={t("settings.formLabel")} onSubmit={onSubmit} noValidate className="flex max-w-3xl min-w-0 flex-col gap-6">
       <section aria-labelledby="public-url-heading" className="flex flex-col gap-1.5">
         <h2 id="public-url-heading" className="text-[15px] font-semibold">
-          Public URL
+          {t("settings.publicUrl")}
         </h2>
-        <Label htmlFor="public_url">Public URL</Label>
+        <Label htmlFor="public_url">{t("settings.publicUrl")}</Label>
         <Input id="public_url" name="public_url" value={initial.public_url} readOnly aria-describedby="public-url-hint" />
         <p id="public-url-hint" className="text-sm text-muted">
-          Set on the server. Shown for reference.
+          {t("settings.publicUrlHint")}
         </p>
       </section>
 
       <section aria-labelledby="policy-heading" className="flex flex-col gap-3">
         <h2 id="policy-heading" className="text-[15px] font-semibold">
-          Sign-in policy
+          {t("settings.policy")}
         </h2>
         <label className="flex items-center gap-2 text-sm">
           <input
@@ -140,7 +145,7 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
             onChange={(e) => setDraft((d) => ({ ...d, require_2fa: e.target.checked }))}
             className="size-4"
           />
-          Require 2FA for all users
+          {t("settings.require2fa")}
         </label>
 
         <div className="flex flex-col gap-1">
@@ -156,10 +161,10 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
               onChange={(e) => setDraft((d) => ({ ...d, password_login_disabled: e.target.checked }))}
               className="size-4"
             />
-            Disable password login (SSO only)
+            {t("settings.ssoOnly")}
           </label>
           <p id="sso-hint" className="text-sm text-muted">
-            Available once an OAuth provider is enabled. Instance admins can always sign in with a password.
+            {t("settings.ssoHint")}
           </p>
           {errors.password_login_disabled ? (
             <p className="text-sm text-danger">{errors.password_login_disabled}</p>
@@ -169,7 +174,7 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
 
       <section aria-labelledby="providers-heading" className="flex flex-col gap-4">
         <h2 id="providers-heading" className="text-[15px] font-semibold">
-          OAuth providers
+          {t("settings.providers")}
         </h2>
         {draft.providers.map((p) => {
           const name = p.id === "oidc" ? (p.name || PROVIDER_LABEL.oidc) : PROVIDER_LABEL[p.id];
@@ -181,15 +186,15 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
                 <input
                   type="checkbox"
                   role="switch"
-                  aria-label={`Enable ${name}`}
+                  aria-label={t("settings.enableProvider", { name })}
                   checked={p.enabled}
                   onChange={(e) => updateProvider(p.id, { enabled: e.target.checked })}
                   className="size-4"
                 />
-                Enabled
+                {t("common:enabled")}
               </label>
               <div className="flex flex-col gap-1.5">
-                <Label htmlFor={`${p.id}-client-id`}>{name} client ID</Label>
+                <Label htmlFor={`${p.id}-client-id`}>{t("settings.clientId", { name })}</Label>
                 <Input
                   id={`${p.id}-client-id`}
                   name={`${p.id}_client_id`}
@@ -199,8 +204,8 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
               </div>
               <div className="flex flex-col gap-1.5">
                 <div className="flex items-center gap-2">
-                  <Label htmlFor={secretId}>{name} client secret</Label>
-                  {p.client_secret_set ? <Badge variant="success">Secret set</Badge> : null}
+                  <Label htmlFor={secretId}>{t("settings.clientSecret", { name })}</Label>
+                  {p.client_secret_set ? <Badge variant="success">{t("settings.secretSet")}</Badge> : null}
                 </div>
                 <Input
                   id={secretId}
@@ -208,14 +213,14 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
                   type="password"
                   autoComplete="new-password"
                   value={secrets[p.id] ?? ""}
-                  placeholder={p.client_secret_set ? "Leave blank to keep the current secret" : ""}
+                  placeholder={p.client_secret_set ? t("settings.secretKeep") : ""}
                   onChange={(e) => setSecrets((s) => ({ ...s, [p.id]: e.target.value }))}
                 />
               </div>
               {p.id === "oidc" ? (
                 <>
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="oidc-issuer">Issuer URL</Label>
+                    <Label htmlFor="oidc-issuer">{t("settings.issuer")}</Label>
                     <Input
                       id="oidc-issuer"
                       name="oidc_issuer"
@@ -224,7 +229,7 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
                     />
                   </div>
                   <div className="flex flex-col gap-1.5">
-                    <Label htmlFor="oidc-name">Display name</Label>
+                    <Label htmlFor="oidc-name">{t("settings.displayName")}</Label>
                     <Input
                       id="oidc-name"
                       name="oidc_name"
@@ -241,7 +246,7 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
 
       <div>
         <Button type="submit" variant="default" disabled={save.isPending}>
-          Save settings
+          {t("settings.save")}
         </Button>
       </div>
     </form>

@@ -1,4 +1,5 @@
 import { Fragment, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 
 import { QueryError } from "@/components/features/empty/query-error";
 import { Badge } from "@/components/ui/badge";
@@ -43,14 +44,22 @@ function chip(v: unknown): string {
   return typeof v === "object" ? JSON.stringify(v) : String(v);
 }
 
+// Word renders one of the small runtime-table words (yes, no, none, empty) in the UI language.
+function Word({ k }: { k: "kv.yes" | "kv.no" | "kv.none" | "kv.empty" }) {
+  const { t } = useTranslation("admin");
+  return <>{t(k)}</>;
+}
+
 // renderValue shows a runtime value readably: booleans as badges, numbers with units guessed
 // from the key, arrays as chips and nested objects as their own label/value rows. Long ids and
 // hashes wrap inside their cell instead of pushing the card wider.
 function renderValue(key: string, value: unknown): ReactNode {
   if (value === null || value === undefined) return <span className="text-muted">-</span>;
-  if (typeof value === "boolean") return <Badge variant={value ? "success" : "default"}>{value ? "yes" : "no"}</Badge>;
+  if (typeof value === "boolean") {
+    return <Badge variant={value ? "success" : "default"}><Word k={value ? "kv.yes" : "kv.no"} /></Badge>;
+  }
   if (Array.isArray(value)) {
-    if (value.length === 0) return <span className="text-muted">none</span>;
+    if (value.length === 0) return <span className="text-muted"><Word k="kv.none" /></span>;
     if (isTable(value)) return <ObjectTable rows={value} inset />;
     return (
       <span className="flex min-w-0 flex-wrap gap-1">
@@ -105,7 +114,7 @@ export function ObjectTable({ rows, inset = false, label }: { rows: Row[]; inset
 }
 
 function Rows({ entries, nested = false }: { entries: [string, unknown][]; nested?: boolean }) {
-  if (entries.length === 0) return <span className="text-muted">empty</span>;
+  if (entries.length === 0) return <span className="text-muted"><Word k="kv.empty" /></span>;
   const labels = labelsFor(entries.map(([k]) => k));
   return (
     <dl
@@ -153,11 +162,12 @@ export function KeyValueCard({
   tables?: "inline" | "omit";
   className?: string;
 }) {
+  const { t } = useTranslation("admin");
   const split = splitFields((query.data ?? {}) as Row);
   return (
     <SectionCard title={title} description={description} className={cn("h-full", className)}>
       {query.isError ? (
-        <QueryError error={query.error} onRetry={() => void query.refetch()} notFoundTitle="Not available" />
+        <QueryError error={query.error} onRetry={() => void query.refetch()} notFoundTitle={t("notAvailable")} />
       ) : query.isPending ? (
         <Pending />
       ) : (
@@ -181,6 +191,7 @@ export function KeyValueCard({
 // KeyValueTables renders each list field of a runtime object as its own full-width card with an
 // edge-to-edge table (the counterpart of KeyValueCard tables="omit").
 export function KeyValueTables({ query, source }: { query: Query; source: string }) {
+  const { t } = useTranslation("admin");
   if (query.isError) return null;
   if (query.isPending) return <Pending h="h-40" />;
   const { tables } = splitFields((query.data ?? {}) as Row);
@@ -190,10 +201,10 @@ export function KeyValueTables({ query, source }: { query: Query; source: string
         <SectionCard
           key={key}
           title={metricLabel(key)}
-          description={`${rows.length} ${rows.length === 1 ? "row" : "rows"} · ${source}`}
+          description={t("kv.rowsSource", { count: rows.length, source })}
           flush
         >
-          <ObjectTable rows={rows} label={`${source} ${metricLabel(key)}`} />
+          <ObjectTable rows={rows} label={t("kv.caption", { source, metric: metricLabel(key) })} />
         </SectionCard>
       ))}
     </>

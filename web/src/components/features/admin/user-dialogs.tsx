@@ -1,4 +1,5 @@
 import { useState, type FormEvent, type ReactNode } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { AuthForm, FormField } from "@/components/auth/auth-form";
@@ -19,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { ROLE_KEY } from "@/components/features/members/roles";
 import { ApiError } from "@/lib/api";
 import type { OrgRole } from "@/lib/types";
 
@@ -31,6 +33,7 @@ export const NONE_VALUE = "__none__";
 // CreateUserDialog creates an account with a temporary password. The password is shown once in the
 // same dialog; closing the dialog discards it.
 export function CreateUserDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { t } = useTranslation(["admin", "members", "common"]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [created, setCreated] = useState<{ email: string; temp_password: string } | null>(null);
   const create = useCreateAdminUser();
@@ -50,8 +53,8 @@ export function CreateUserDialog({ open, onOpenChange }: { open: boolean; onOpen
     const email = String(form.get("email") ?? "").trim();
     const name = String(form.get("name") ?? "").trim();
     const next: Record<string, string> = {};
-    if (!email) next.email = "Enter an email address.";
-    if (!name) next.name = "Enter a name.";
+    if (!email) next.email = t("newUser.emailRequired");
+    if (!name) next.name = t("newUser.nameRequired");
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -61,7 +64,7 @@ export function CreateUserDialog({ open, onOpenChange }: { open: boolean; onOpen
         onSuccess: (res) => setCreated({ email: res.user.email, temp_password: res.temp_password }),
         onError: (err) => {
           if (err instanceof ApiError && err.code === "email_taken") {
-            setErrors({ email: "An account with this email already exists." });
+            setErrors({ email: t("newUser.emailTaken") });
             return;
           }
           const fields = err instanceof ApiError ? err.fieldErrors() : {};
@@ -76,33 +79,31 @@ export function CreateUserDialog({ open, onOpenChange }: { open: boolean; onOpen
     <Dialog open={open} onOpenChange={close}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New user</DialogTitle>
-          <DialogDescription>
-            The user signs in with a temporary password and must change it at first sign-in.
-          </DialogDescription>
+          <DialogTitle>{t("newUser.title")}</DialogTitle>
+          <DialogDescription>{t("newUser.description")}</DialogDescription>
         </DialogHeader>
         {created ? (
           <div className="flex flex-col gap-4">
             <SecretOnce
-              label="Temporary password"
+              label={t("tempPassword")}
               value={created.temp_password}
-              note={`Share it with ${created.email} now. It is shown once and cannot be retrieved later.`}
+              note={t("newUser.tempPasswordNote", { email: created.email })}
             />
             <DialogFooter>
-              <Button onClick={() => close(false)}>Done</Button>
+              <Button onClick={() => close(false)}>{t("common:done")}</Button>
             </DialogFooter>
           </div>
         ) : (
           <AuthForm errors={errors} onSubmit={onSubmit}>
-            <FormField label="Email" name="email" type="email" autoComplete="off" error={errors.email} />
-            <FormField label="Name" name="name" autoComplete="off" error={errors.name} />
+            <FormField label={t("common:email")} name="email" type="email" autoComplete="off" error={errors.email} />
+            <FormField label={t("common:name")} name="name" autoComplete="off" error={errors.name} />
             <label className="flex items-center gap-2 text-sm">
               <input type="checkbox" name="instance_admin" className="size-4 accent-accent" />
-              Instance admin
+              {t("newUser.instanceAdmin")}
             </label>
             <DialogFooter>
               <Button type="submit" variant="default" disabled={create.isPending}>
-                Create user
+                {t("newUser.submit")}
               </Button>
             </DialogFooter>
           </AuthForm>
@@ -115,6 +116,7 @@ export function CreateUserDialog({ open, onOpenChange }: { open: boolean; onOpen
 // InviteDialog creates a single-use invite link, optionally bound to an org and role. The link is
 // shown once; the invites list keeps the pending record for revocation.
 export function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { t } = useTranslation(["admin", "members", "common"]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [link, setLink] = useState<string | null>(null);
   const orgs = useAdminOrgs();
@@ -136,7 +138,7 @@ export function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     const org = String(form.get("org") ?? "") === NONE_VALUE ? "" : String(form.get("org") ?? "");
     const role = String(form.get("role") ?? "member") as OrgRole;
     if (!email) {
-      setErrors({ email: "Enter an email address." });
+      setErrors({ email: t("invite.emailRequired") });
       return;
     }
     setErrors({});
@@ -154,47 +156,43 @@ export function InviteDialog({ open, onOpenChange }: { open: boolean; onOpenChan
     <Dialog open={open} onOpenChange={close}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Invite link</DialogTitle>
-          <DialogDescription>Creates a single-use link that expires in 7 days.</DialogDescription>
+          <DialogTitle>{t("invite.title")}</DialogTitle>
+          <DialogDescription>{t("invite.description")}</DialogDescription>
         </DialogHeader>
         {link ? (
           <div className="flex flex-col gap-4">
-            <SecretOnce
-              label="Invite link"
-              value={link}
-              note="Shown once. Copy it now, it cannot be shown again. Revoke the invite if it leaks."
-            />
+            <SecretOnce label={t("inviteLink")} value={link} note={t("invite.linkNote")} />
             <DialogFooter>
-              <Button onClick={() => close(false)}>Done</Button>
+              <Button onClick={() => close(false)}>{t("common:done")}</Button>
             </DialogFooter>
           </div>
         ) : (
           <AuthForm errors={errors} onSubmit={onSubmit}>
-            <FormField label="Email" name="email" type="email" autoComplete="off" error={errors.email} />
+            <FormField label={t("common:email")} name="email" type="email" autoComplete="off" error={errors.email} />
             <SelectField
-              label="Organization (optional)"
+              label={t("invite.organization")}
               name="org"
               error={errors.org}
               defaultValue={NONE_VALUE}
               options={[
-                { value: NONE_VALUE, label: "No organization" },
+                { value: NONE_VALUE, label: t("invite.noOrganization") },
                 ...(orgs.data ?? []).map((o) => ({ value: o.slug, label: `${o.name} (${o.slug})` })),
               ]}
             />
             <SelectField
-              label="Role in organization"
+              label={t("invite.role")}
               name="role"
               error={errors.role}
               defaultValue="member"
               options={[
-                { value: "member", label: "Member" },
-                { value: "admin", label: "Admin" },
-                { value: "owner", label: "Owner" },
+                { value: "member", label: t(ROLE_KEY.member) },
+                { value: "admin", label: t(ROLE_KEY.admin) },
+                { value: "owner", label: t(ROLE_KEY.owner) },
               ]}
             />
             <DialogFooter>
               <Button type="submit" variant="default" disabled={create.isPending}>
-                Create invite link
+                {t("invite.submit")}
               </Button>
             </DialogFooter>
           </AuthForm>
@@ -223,6 +221,7 @@ export function SecretDialog({
   note: string;
   children?: ReactNode;
 }) {
+  const { t } = useTranslation("common");
   return (
     <Dialog open={open} onOpenChange={(next) => !next && onClose()}>
       <DialogContent>
@@ -232,7 +231,7 @@ export function SecretDialog({
         <SecretOnce label={label} value={value} note={note} />
         {children}
         <DialogFooter>
-          <Button onClick={onClose}>Done</Button>
+          <Button onClick={onClose}>{t("done")}</Button>
         </DialogFooter>
       </DialogContent>
     </Dialog>

@@ -1,5 +1,6 @@
 import { Building2, MoreHorizontal } from "lucide-react";
 import { useMemo, useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { AuthForm, FormField } from "@/components/auth/auth-form";
@@ -25,6 +26,7 @@ import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ApiError } from "@/lib/api";
+import { formatBytes, formatCount } from "@/lib/format";
 
 import {
   errorMessage,
@@ -45,6 +47,7 @@ type OrgAction = { kind: "rename" | "delete"; org: AdminOrg };
 // OrgsPage lists every organization with 30-day usage. Creating an org picks its owner from the
 // user list; deleting is refused by the API while the org still holds projects or apps.
 export function OrgsPage() {
+  const { t } = useTranslation(["admin", "common"]);
   const orgs = useAdminOrgs();
   const [createOpen, setCreateOpen] = useState(false);
   const [action, setAction] = useState<OrgAction | null>(null);
@@ -54,17 +57,17 @@ export function OrgsPage() {
       <PageHeader
         icon={Building2}
         entity="admin"
-        title="Organizations"
-        description="Every org on this instance, with its usage."
+        title={t("orgs.title")}
+        description={t("orgs.description")}
         actions={
           <Button variant="default" onClick={() => setCreateOpen(true)}>
-            New organization
+            {t("orgs.new")}
           </Button>
         }
       />
 
       {orgs.isError ? (
-        <QueryError error={orgs.error} onRetry={() => void orgs.refetch()} notFoundTitle="Organizations not found" />
+        <QueryError error={orgs.error} onRetry={() => void orgs.refetch()} notFoundTitle={t("orgs.notFound")} />
       ) : orgs.isPending ? (
         <div className="flex flex-col gap-2" aria-busy="true">
           <Skeleton className="h-12" />
@@ -73,19 +76,19 @@ export function OrgsPage() {
       ) : (orgs.data ?? []).length === 0 ? (
         <EmptyState entity="admin"
           icon={Building2}
-          title="No organizations yet"
-          description="Create an organization and pick its owner from the users."
-          action={<Button variant="default" onClick={() => setCreateOpen(true)}>New organization</Button>}
+          title={t("orgs.emptyTitle")}
+          description={t("orgs.emptyDescription")}
+          action={<Button variant="default" onClick={() => setCreateOpen(true)}>{t("orgs.new")}</Button>}
         />
       ) : (
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Slug</TableHead>
-              <TableHead>Usage, last 30 days</TableHead>
+              <TableHead>{t("orgs.columns.name")}</TableHead>
+              <TableHead>{t("orgs.columns.slug")}</TableHead>
+              <TableHead>{t("orgs.columns.usage")}</TableHead>
               <TableHead>
-                <span className="sr-only">Actions</span>
+                <span className="sr-only">{t("common:actions")}</span>
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -105,6 +108,7 @@ export function OrgsPage() {
 }
 
 function OrgRow({ org, onAction }: { org: AdminOrg; onAction: (action: OrgAction) => void }) {
+  const { t } = useTranslation("admin");
   return (
     <TableRow>
       <TableCell className="whitespace-nowrap font-medium">{org.name}</TableCell>
@@ -115,15 +119,15 @@ function OrgRow({ org, onAction }: { org: AdminOrg; onAction: (action: OrgAction
       <TableCell className="text-right">
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label={`Actions for ${org.name}`}>
+            <Button variant="ghost" size="icon" aria-label={t("orgs.actionsFor", { name: org.name })}>
               <MoreHorizontal aria-hidden="true" />
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={() => onAction({ kind: "rename", org })}>Rename</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => onAction({ kind: "rename", org })}>{t("orgs.rename")}</DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem className="text-danger-text" onSelect={() => onAction({ kind: "delete", org })}>
-              Delete organization
+              {t("orgs.delete")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
@@ -134,33 +138,23 @@ function OrgRow({ org, onAction }: { org: AdminOrg; onAction: (action: OrgAction
 
 // OrgUsageCell sums the org's daily usage for the last 30 days.
 function OrgUsageCell({ slug }: { slug: string }) {
+  const { t } = useTranslation("admin");
   const range = useMemo(() => lastDays(30), []);
   const usage = useOrgUsage(slug, range);
   if (usage.isPending) return <Skeleton className="h-4 w-40" />;
-  if (usage.isError) return <span className="text-sm text-muted">Usage unavailable</span>;
+  if (usage.isError) return <span className="text-sm text-muted">{t("orgs.usageUnavailable")}</span>;
   const rows = usage.data ?? [];
   const invocations = rows.reduce((sum, r) => sum + r.invocations, 0);
   const egress = rows.reduce((sum, r) => sum + r.egress_bytes, 0);
   return (
     <span className="text-sm">
-      {invocations.toLocaleString()} invocations, {formatBytes(egress)} egress
+      {t("orgs.usage", { invocations: formatCount(invocations), egress: formatBytes(egress) })}
     </span>
   );
 }
 
-function formatBytes(n: number) {
-  if (n < 1024) return `${n} B`;
-  const units = ["KB", "MB", "GB", "TB"];
-  let value = n / 1024;
-  let i = 0;
-  while (value >= 1024 && i < units.length - 1) {
-    value /= 1024;
-    i += 1;
-  }
-  return `${value.toFixed(1)} ${units[i]}`;
-}
-
 function CreateOrgDialog({ open, onOpenChange }: { open: boolean; onOpenChange: (open: boolean) => void }) {
+  const { t } = useTranslation(["admin", "common"]);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const users = useUserOptions();
   const create = useCreateAdminOrg();
@@ -180,9 +174,9 @@ function CreateOrgDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
     const name = String(form.get("name") ?? "").trim();
     const owner = String(form.get("owner") ?? "") === NONE_VALUE ? "" : String(form.get("owner") ?? "");
     const next: Record<string, string> = {};
-    if (!slug) next.slug = "Enter a slug.";
-    if (!name) next.name = "Enter a name.";
-    if (!owner) next.owner = "Pick an owner.";
+    if (!slug) next.slug = t("orgs.create.slugRequired");
+    if (!name) next.name = t("orgs.create.nameRequired");
+    if (!owner) next.owner = t("orgs.create.ownerRequired");
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -190,12 +184,12 @@ function CreateOrgDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
       { slug, name, owner_user_id: owner },
       {
         onSuccess: () => {
-          toast.success(`Organization ${name} created`);
+          toast.success(t("orgs.create.created", { name }));
           close(false);
         },
         onError: (err) => {
           if (err instanceof ApiError && err.code === "slug_taken") {
-            setErrors({ slug: "This slug is already taken." });
+            setErrors({ slug: t("orgs.create.slugTaken") });
             return;
           }
           const fields = err instanceof ApiError ? err.fieldErrors() : {};
@@ -210,25 +204,25 @@ function CreateOrgDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
     <Dialog open={open} onOpenChange={close}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>New organization</DialogTitle>
-          <DialogDescription>The owner can add members, projects and apps.</DialogDescription>
+          <DialogTitle>{t("orgs.create.title")}</DialogTitle>
+          <DialogDescription>{t("orgs.create.description")}</DialogDescription>
         </DialogHeader>
         <AuthForm errors={errors} onSubmit={onSubmit}>
-          <FormField label="Slug" name="slug" autoComplete="off" error={errors.slug} />
-          <FormField label="Name" name="name" autoComplete="off" error={errors.name} />
+          <FormField label={t("orgs.create.slug")} name="slug" autoComplete="off" error={errors.slug} />
+          <FormField label={t("orgs.create.name")} name="name" autoComplete="off" error={errors.name} />
           <SelectField
-            label="Owner"
+            label={t("orgs.create.owner")}
             name="owner"
             error={errors.owner}
             defaultValue={NONE_VALUE}
             options={[
-              { value: NONE_VALUE, label: "Choose a user" },
+              { value: NONE_VALUE, label: t("orgs.create.chooseUser") },
               ...(users.data ?? []).map((u) => ({ value: u.id, label: `${u.name} (${u.email})` })),
             ]}
           />
           <DialogFooter>
             <Button type="submit" variant="default" disabled={create.isPending}>
-              Create organization
+              {t("orgs.create.submit")}
             </Button>
           </DialogFooter>
         </AuthForm>
@@ -238,6 +232,7 @@ function CreateOrgDialog({ open, onOpenChange }: { open: boolean; onOpenChange: 
 }
 
 function RenameOrgDialog({ org, onClose }: { org: AdminOrg; onClose: () => void }) {
+  const { t } = useTranslation(["admin", "common"]);
   const [error, setError] = useState<string | undefined>();
   const rename = useRenameAdminOrg();
 
@@ -245,14 +240,14 @@ function RenameOrgDialog({ org, onClose }: { org: AdminOrg; onClose: () => void 
     e.preventDefault();
     const name = String(new FormData(e.currentTarget).get("name") ?? "").trim();
     if (!name) {
-      setError("Enter a name.");
+      setError(t("orgs.renameDialog.nameRequired"));
       return;
     }
     rename.mutate(
       { slug: org.slug, name },
       {
         onSuccess: () => {
-          toast.success("Organization renamed");
+          toast.success(t("orgs.renameDialog.renamed"));
           onClose();
         },
         onError: (err) => setError(errorMessage(err)),
@@ -264,14 +259,14 @@ function RenameOrgDialog({ org, onClose }: { org: AdminOrg; onClose: () => void 
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Rename {org.name}</DialogTitle>
-          <DialogDescription>The slug stays the same, so existing links keep working.</DialogDescription>
+          <DialogTitle>{t("orgs.renameDialog.title", { name: org.name })}</DialogTitle>
+          <DialogDescription>{t("orgs.renameDialog.description")}</DialogDescription>
         </DialogHeader>
         <AuthForm errors={error ? { name: error } : {}} onSubmit={onSubmit}>
-          <FormField label="Name" name="name" defaultValue={org.name} autoComplete="off" error={error} />
+          <FormField label={t("orgs.renameDialog.name")} name="name" defaultValue={org.name} autoComplete="off" error={error} />
           <DialogFooter>
             <Button type="submit" variant="default" disabled={rename.isPending}>
-              Save name
+              {t("orgs.renameDialog.submit")}
             </Button>
           </DialogFooter>
         </AuthForm>
@@ -283,6 +278,7 @@ function RenameOrgDialog({ org, onClose }: { org: AdminOrg; onClose: () => void 
 // DeleteOrgDialog is irreversible, so the slug must be typed. A 409 org_not_empty keeps the dialog
 // open with the reason.
 function DeleteOrgDialog({ org, onClose }: { org: AdminOrg; onClose: () => void }) {
+  const { t } = useTranslation(["admin", "common"]);
   const [error, setError] = useState<string | undefined>();
   const remove = useDeleteAdminOrg();
 
@@ -290,27 +286,27 @@ function DeleteOrgDialog({ org, onClose }: { org: AdminOrg; onClose: () => void 
     <ConfirmDialog
       open
       onOpenChange={(open) => !open && onClose()}
-      title={`Delete ${org.name}?`}
+      title={t("orgs.deleteDialog.title", { name: org.name })}
       description={
         <>
-          <p>Only empty organizations can be deleted. Remove its projects and apps first.</p>
-          <p>This cannot be undone.</p>
+          <p>{t("orgs.deleteDialog.description")}</p>
+          <p>{t("orgs.deleteDialog.cannotUndo")}</p>
         </>
       }
-      confirmLabel="Delete organization"
+      confirmLabel={t("orgs.deleteDialog.confirm")}
       typedValue={org.slug}
       pending={remove.isPending}
       error={error}
       onConfirm={() =>
         remove.mutate(org.slug, {
           onSuccess: () => {
-            toast.success(`${org.name} deleted`);
+            toast.success(t("orgs.deleteDialog.deleted", { name: org.name }));
             onClose();
           },
           onError: (err) =>
             setError(
               err instanceof ApiError && err.code === "org_not_empty"
-                ? "This organization still has projects or apps. Remove them first."
+                ? t("orgs.deleteDialog.notEmpty")
                 : errorMessage(err),
             ),
         })

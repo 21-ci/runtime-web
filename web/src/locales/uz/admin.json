@@ -1,1 +1,272 @@
-{}
+{
+  "tempPassword": "Vaqtinchalik parol",
+  "inviteLink": "Taklif havolasi",
+  "none": "Yoʻq",
+  "notAvailable": "Mavjud emas",
+  "unknown": "Nomaʼlum",
+  "secret": {
+    "unavailable": "Bu yerda nusxalash mavjud emas. Matnni belgilab, nusxalang.",
+    "copied": "{{label}} nusxalandi",
+    "failed": "Nusxalash amalga oshmadi. Matnni belgilab, nusxalang.",
+    "copyLabel": "{{label}} ni nusxalash"
+  },
+  "kv": {
+    "yes": "ha",
+    "no": "yoʻq",
+    "none": "yoʻq",
+    "empty": "boʻsh",
+    "caption": "{{source}} {{metric}}",
+    "rowsSource_one": "{{count}} qator · {{source}}",
+    "rowsSource_other": "{{count}} qator · {{source}}"
+  },
+  "audit": {
+    "title": "Audit jurnali",
+    "description": "Instans miqyosidagi barcha oʻzgarishlar, eng yangisi birinchi.",
+    "filters": "Audit jurnalini filtrlash",
+    "organization": "Tashkilot",
+    "actor": "Ijrochi",
+    "action": "Amal",
+    "allOrgs": "Barcha tashkilotlar",
+    "anyActor": "Istalgan ijrochi",
+    "actionPlaceholder": "masalan, app.create",
+    "empty": {
+      "title": "Mos yozuvlar yoʻq",
+      "description": "Jurnalning koʻproq qismini koʻrish uchun filtrni tozalang."
+    },
+    "columns": {
+      "when": "Vaqti",
+      "actor": "Ijrochi",
+      "organization": "Tashkilot",
+      "action": "Amal",
+      "target": "Obʼyekt",
+      "detail": "Tafsilot"
+    },
+    "asInstanceAdmin": "Instans administratori sifatida",
+    "notFound": "Audit jurnali topilmadi",
+    "instance": "Instans",
+    "loadMore": "Yana yozuvlarni yuklash"
+  },
+  "invites": {
+    "title": "Kutilayotgan takliflar",
+    "revoked": "{{email}} uchun taklif bekor qilindi",
+    "empty": {
+      "title": "Kutilayotgan takliflar yoʻq",
+      "description": "Parol oʻrnatmasdan biror kishini qoʻshish uchun taklif havolasini yarating."
+    },
+    "columns": {
+      "organization": "Tashkilot",
+      "expires": "Muddati"
+    },
+    "revoke": "Bekor qilish",
+    "notFound": "Takliflar topilmadi",
+    "revokeLabel": "{{email}} uchun taklifni bekor qilish",
+    "revokeTitle": "{{email}} uchun taklifni bekor qilasizmi?",
+    "revokeDescription": "Taklif havolasi darhol ishlamaydi. Agar kishini hali ham qoʻshish kerak boʻlsa, yangisini yarating.",
+    "revokeConfirm": "Taklifni bekor qilish"
+  },
+  "users": {
+    "title": "Foydalanuvchilar",
+    "description": "Ushbu instansga kira oladigan barcha foydalanuvchilar.",
+    "createInvite": "Taklif havolasini yaratish",
+    "newUser": "Yangi foydalanuvchi",
+    "search": "Foydalanuvchilarni qidirish",
+    "searchPlaceholder": "Ism yoki email boʻyicha qidirish",
+    "empty": {
+      "noMatch": "Mos foydalanuvchilar yoʻq",
+      "noUsers": "Hozircha foydalanuvchilar yoʻq",
+      "tryOther": "Boshqa ism yoki emailni sinab koʻring.",
+      "create": "Birinchi foydalanuvchini yarating yoki taklif havolasini yuboring."
+    },
+    "columns": {
+      "name": "Ism",
+      "email": "Email",
+      "status": "Holat"
+    },
+    "badges": {
+      "instanceAdmin": "Instans administratori",
+      "disabled": "Bloklangan",
+      "twoFactorOn": "2FA yoqilgan",
+      "twoFactorOff": "2FA oʻchirilgan",
+      "mustChange": "Parolni almashtirish talab etiladi"
+    },
+    "actionsFor": "{{name}} uchun amallar",
+    "menu": {
+      "enable": "Foydalanuvchini faollashtirish",
+      "disable": "Foydalanuvchini bloklash",
+      "resetPassword": "Parolni tiklash",
+      "reset2fa": "2FA ni tiklash",
+      "delete": "Foydalanuvchini oʻchirish"
+    },
+    "loadMore": "Yana foydalanuvchilarni yuklash",
+    "notFound": "Foydalanuvchilar topilmadi",
+    "toast": {
+      "enabled": "{{name}} faollashtirildi",
+      "disabled": "{{name}} bloklandi",
+      "deleted": "{{name}} oʻchirildi",
+      "twoFactorReset": "{{name}} uchun 2FA tiklandi"
+    },
+    "dialog": {
+      "resetPasswordTitle": "{{name}} uchun parolni tiklaysizmi?",
+      "reset2faTitle": "{{name}} uchun 2FA ni tiklaysizmi?",
+      "deleteTitle": "{{name}} ni oʻchirasizmi?",
+      "resetPasswordConfirm": "Parolni tiklash",
+      "reset2faConfirm": "2FA ni tiklash",
+      "deleteConfirm": "Foydalanuvchini oʻchirish",
+      "resetPasswordBody": "Yangi vaqtinchalik parol yaratiladi va ushbu foydalanuvchining barcha seanslari yopiladi. Eski parol ishlamaydi.",
+      "reset2faBody": "Ikki bosqichli kirish oʻchiriladi va ushbu foydalanuvchining barcha seanslari yopiladi. U xavfsizlik sahifasi orqali qayta ulanishi mumkin.",
+      "deleteBody": "Oʻchirish hisobni bloklaydi, uni hamma joydan chiqaradi hamda ismi va emailini anonimlashtiradi. Oldingi audit yozuvlari saqlanadi, ammo anonimlashtirilgan hisobni koʻrsatadi.",
+      "cannotUndo": "Buni qaytarib boʻlmaydi."
+    },
+    "tempPasswordTitle": "{{name}} uchun vaqtinchalik parol",
+    "tempPasswordNote": "Uni hozir {{email}} bilan ulashing. U bir marta koʻrsatiladi va keyinchalik olib boʻlmaydi. {{name}} birinchi kirishda uni almashtirishi kerak, boshqa seanslari esa yopiladi."
+  },
+  "newUser": {
+    "title": "Yangi foydalanuvchi",
+    "description": "Foydalanuvchi vaqtinchalik parol bilan kiradi va birinchi kirishda uni almashtirishi kerak.",
+    "emailRequired": "Email manzilini kiriting.",
+    "nameRequired": "Ismni kiriting.",
+    "emailTaken": "Bu email bilan hisob allaqachon mavjud.",
+    "tempPasswordNote": "Uni hozir {{email}} bilan ulashing. U bir marta koʻrsatiladi va keyinchalik olib boʻlmaydi.",
+    "instanceAdmin": "Instans administratori",
+    "submit": "Foydalanuvchini yaratish"
+  },
+  "invite": {
+    "title": "Taklif havolasi",
+    "description": "Muddati 7 kun boʻlgan bir martalik havola yaratadi.",
+    "emailRequired": "Email manzilini kiriting.",
+    "linkNote": "Bir marta koʻrsatiladi. Hozir nusxalang, keyin qayta koʻrsatilmaydi. Havola oshkor boʻlsa, taklifni bekor qiling.",
+    "organization": "Tashkilot (ixtiyoriy)",
+    "noOrganization": "Tashkilotsiz",
+    "role": "Tashkilotdagi rol",
+    "submit": "Taklif havolasini yaratish"
+  },
+  "orgs": {
+    "title": "Tashkilotlar",
+    "description": "Ushbu instansdagi barcha tashkilotlar va ularning foydalanilishi.",
+    "new": "Yangi tashkilot",
+    "emptyTitle": "Hozircha tashkilotlar yoʻq",
+    "emptyDescription": "Tashkilot yarating va uning egasini foydalanuvchilar orasidan tanlang.",
+    "columns": {
+      "name": "Nomi",
+      "slug": "Slug",
+      "usage": "Foydalanish, oxirgi 30 kun"
+    },
+    "actionsFor": "{{name}} uchun amallar",
+    "rename": "Nomini oʻzgartirish",
+    "delete": "Tashkilotni oʻchirish",
+    "usageUnavailable": "Foydalanish maʼlumoti yoʻq",
+    "notFound": "Tashkilotlar topilmadi",
+    "usage": "{{invocations}} chaqiriq, {{egress}} chiquvchi trafik",
+    "create": {
+      "title": "Yangi tashkilot",
+      "description": "Egasi aʼzolar, loyihalar va ilovalarni qoʻshishi mumkin.",
+      "name": "Nomi",
+      "slug": "Slug",
+      "owner": "Ega",
+      "chooseUser": "Foydalanuvchini tanlang",
+      "submit": "Tashkilotni yaratish",
+      "slugRequired": "Slug kiriting.",
+      "nameRequired": "Nom kiriting.",
+      "ownerRequired": "Egani tanlang.",
+      "slugTaken": "Bu slug allaqachon band.",
+      "created": "{{name}} tashkiloti yaratildi"
+    },
+    "renameDialog": {
+      "title": "{{name}} nomini oʻzgartirish",
+      "description": "Slug oʻzgarmaydi, shuning uchun mavjud havolalar ishlashda davom etadi.",
+      "name": "Nomi",
+      "submit": "Nomni saqlash",
+      "nameRequired": "Nom kiriting.",
+      "renamed": "Tashkilot nomi oʻzgartirildi"
+    },
+    "deleteDialog": {
+      "title": "{{name}} ni oʻchirasizmi?",
+      "description": "Faqat boʻsh tashkilotlarni oʻchirish mumkin. Avval ularning loyihalari va ilovalarini oʻchiring.",
+      "cannotUndo": "Buni qaytarib boʻlmaydi.",
+      "confirm": "Tashkilotni oʻchirish",
+      "deleted": "{{name}} tashkiloti oʻchirildi",
+      "notEmpty": "Bu tashkilotda hali loyihalar yoki ilovalar bor. Avval ularni oʻchiring."
+    }
+  },
+  "node": {
+    "title": "Tugun",
+    "description": "Ish vaqti tugunining oʻzi koʻrsatgan holati.",
+    "status": "Holat",
+    "statusDescription": "Versiya, sigʻim va xotira.",
+    "scheduler": "Rejalashtiruvchi",
+    "schedulerDescription": "Navbatlar va ishchilar holati.",
+    "configTitle": "Sozlamalar",
+    "configDescription": "Konsol oʻzgartira oladigan ish vaqti sozlamalari.",
+    "formLabel": "Tugun sozlamalari",
+    "degradation": "Pasayish rejimi",
+    "profile": "Standart profil",
+    "rateLimit": "Chastota chegarasi (JSON)",
+    "restartBadge": "qayta ishga tushirilgandan keyin qoʻllanadi",
+    "rateLimitInvalid": "JSON obyektini kiriting, masalan {}.",
+    "save": "Sozlamalarni saqlash",
+    "saved": "Saqlandi. Qoʻllash uchun tugunni qayta ishga tushiring: {{keys}}.",
+    "savedNoRestart": "Tugun sozlamalari saqlandi.",
+    "saveFailed": "Tugun sozlamalarini saqlab boʻlmadi. Qayta urinib koʻring.",
+    "drainTitle": "Toʻxtatish",
+    "drainDescription": "Tugun yangi ishlarni qabul qilishni toʻxtatadi. Joriy ishlar avval tugaydi.",
+    "drainButton": "Tugunni toʻxtatish",
+    "drainStarted": "Toʻxtatish boshlandi.",
+    "drainFailed": "Toʻxtatishni boshlab boʻlmadi. Qayta urinib koʻring.",
+    "drainDialogTitle": "Bu tugunni toʻxtatasizmi?",
+    "drainDialogDescription": "Yangi ishlar qabul qilinmaydi. Tasdiqlash uchun drain deb yozing.",
+    "drainConfirmLabel": "Tasdiqlash uchun drain deb yozing"
+  },
+  "cache": {
+    "title": "Kesh",
+    "description": "Ish vaqti koʻrsatganidek tugun keshining faqat koʻrish uchun shakli.",
+    "cardTitle": "Tugun keshi"
+  },
+  "domains": {
+    "title": "Domenlar",
+    "description": "Barcha tashkilotlardagi maxsus domenlar va sertifikat holati.",
+    "caption": "Barcha tashkilotlardagi maxsus domenlar",
+    "emptyTitle": "Hozircha maxsus domenlar yoʻq",
+    "emptyDescription": "Tashkilot aʼzolari ilovalariga qoʻshgan domenlar shu yerda chiqadi.",
+    "columns": {
+      "host": "Host",
+      "organization": "Tashkilot",
+      "app": "Ilova",
+      "status": "Holat",
+      "certificate": "Sertifikat",
+      "certExpires": "Sertifikat muddati"
+    },
+    "status": {
+      "active": "faol",
+      "pending": "kutilmoqda",
+      "failed": "xato"
+    },
+    "cert": {
+      "issued": "berilgan",
+      "pending": "kutilmoqda",
+      "error": "xato",
+      "none": "yoʻq"
+    }
+  },
+  "settings": {
+    "title": "Instans sozlamalari",
+    "description": "Ochiq URL, kirish siyosati, provayderlar va brending.",
+    "formLabel": "Instans sozlamalari",
+    "publicUrl": "Ochiq URL",
+    "publicUrlHint": "Serverda belgilanadi. Maʼlumot uchun koʻrsatilgan.",
+    "policy": "Kirish siyosati",
+    "require2fa": "Barcha foydalanuvchilar uchun 2FA talab qilish",
+    "ssoOnly": "Parol bilan kirishni oʻchirish (faqat SSO)",
+    "ssoHint": "Kamida bitta OAuth provayder yoqilgandan keyin mavjud boʻladi. Instans administratorlari har doim parol bilan kira oladi.",
+    "providers": "OAuth provayderlar",
+    "enableProvider": "{{name}} ni yoqish",
+    "clientId": "{{name}} client ID",
+    "clientSecret": "{{name}} client secret",
+    "secretSet": "Maxfiy qiymat oʻrnatilgan",
+    "secretKeep": "Joriy maxfiy qiymatni saqlab qolish uchun boʻsh qoldiring",
+    "issuer": "Issuer URL",
+    "displayName": "Koʻrinadigan nom",
+    "save": "Sozlamalarni saqlash",
+    "saved": "Instans sozlamalari saqlandi.",
+    "saveFailed": "Sozlamalarni saqlab boʻlmadi. Qayta urinib koʻring."
+  }
+}

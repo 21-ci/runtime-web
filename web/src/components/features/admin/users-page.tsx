@@ -1,5 +1,6 @@
 import { MoreHorizontal, Search, UserRound, Users } from "lucide-react";
 import { useState } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { EmptyState } from "@/components/ui/empty-state";
@@ -36,6 +37,7 @@ type UserAction = { kind: "resetPassword" | "reset2fa" | "delete"; user: AdminUs
 // UsersPage is the instance user directory: create users (temporary password or invite link),
 // disable, reset password or 2FA, and soft delete. Destructive actions wait behind a dialog.
 export function UsersPage() {
+  const { t } = useTranslation(["admin", "common"]);
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const [inviteOpen, setInviteOpen] = useState(false);
@@ -73,7 +75,7 @@ export function UsersPage() {
       resetTotp.mutate(user.id, {
         onSuccess: () => {
           closeAction();
-          toast.success(`2FA reset for ${user.name}`);
+          toast.success(t("users.toast.twoFactorReset", { name: user.name }));
         },
         onError,
       });
@@ -81,7 +83,7 @@ export function UsersPage() {
       remove.mutate(user.id, {
         onSuccess: () => {
           closeAction();
-          toast.success(`${user.name} was deleted`);
+          toast.success(t("users.toast.deleted", { name: user.name }));
         },
         onError,
       });
@@ -92,7 +94,10 @@ export function UsersPage() {
     patch.mutate(
       { id: user.id, body: { disabled: !user.disabled } },
       {
-        onSuccess: () => toast.success(user.disabled ? `${user.name} enabled` : `${user.name} disabled`),
+        onSuccess: () =>
+          toast.success(
+            user.disabled ? t("users.toast.enabled", { name: user.name }) : t("users.toast.disabled", { name: user.name }),
+          ),
         onError: (err) => toast.error(errorMessage(err)),
       },
     );
@@ -100,20 +105,42 @@ export function UsersPage() {
 
   const pendingLoad = users.isPending;
 
+  function actionTitle(a: UserAction) {
+    switch (a.kind) {
+      case "resetPassword":
+        return t("users.dialog.resetPasswordTitle", { name: a.user.name });
+      case "reset2fa":
+        return t("users.dialog.reset2faTitle", { name: a.user.name });
+      case "delete":
+        return t("users.dialog.deleteTitle", { name: a.user.name });
+    }
+  }
+
+  function actionConfirm(a: UserAction) {
+    switch (a.kind) {
+      case "resetPassword":
+        return t("users.dialog.resetPasswordConfirm");
+      case "reset2fa":
+        return t("users.dialog.reset2faConfirm");
+      case "delete":
+        return t("users.dialog.deleteConfirm");
+    }
+  }
+
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <PageHeader
         icon={Users}
         entity="admin"
-        title="Users"
-        description="Everyone who can sign in to this instance."
+        title={t("users.title")}
+        description={t("users.description")}
         actions={
           <>
             <Button variant="secondary" onClick={() => setInviteOpen(true)}>
-              Create invite link
+              {t("users.createInvite")}
             </Button>
             <Button variant="default" onClick={() => setCreateOpen(true)}>
-              New user
+              {t("users.newUser")}
             </Button>
           </>
         }
@@ -123,8 +150,8 @@ export function UsersPage() {
         <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-muted" aria-hidden="true" />
         <Input
           type="search"
-          aria-label="Search users"
-          placeholder="Search by name or email"
+          aria-label={t("users.search")}
+          placeholder={t("users.searchPlaceholder")}
           value={search}
           onChange={(e) => setSearch(e.target.value)}
           className="pl-9"
@@ -132,7 +159,7 @@ export function UsersPage() {
       </div>
 
       {users.isError ? (
-        <QueryError error={users.error} onRetry={() => void users.refetch()} notFoundTitle="Users not found" />
+        <QueryError error={users.error} onRetry={() => void users.refetch()} notFoundTitle={t("users.notFound")} />
       ) : pendingLoad ? (
         <div className="flex flex-col gap-2" aria-busy="true">
           <Skeleton className="h-12" />
@@ -142,11 +169,11 @@ export function UsersPage() {
       ) : items.length === 0 ? (
         <EmptyState entity="members"
           icon={UserRound}
-          title={search ? "No users match" : "No users yet"}
-          description={search ? "Try another name or email." : "Create the first user or send an invite link."}
+          title={search ? t("users.empty.noMatch") : t("users.empty.noUsers")}
+          description={search ? t("users.empty.tryOther") : t("users.empty.create")}
           action={
             search ? undefined : (
-              <Button variant="default" onClick={() => setCreateOpen(true)}>New user</Button>
+              <Button variant="default" onClick={() => setCreateOpen(true)}>{t("users.newUser")}</Button>
             )
           }
         />
@@ -154,11 +181,11 @@ export function UsersPage() {
         <Table>
           <TableHeader>
             <TableRow>
-              <TableHead>Name</TableHead>
-              <TableHead>Email</TableHead>
-              <TableHead>Status</TableHead>
+              <TableHead>{t("users.columns.name")}</TableHead>
+              <TableHead>{t("users.columns.email")}</TableHead>
+              <TableHead>{t("users.columns.status")}</TableHead>
               <TableHead>
-                <span className="sr-only">Actions</span>
+                <span className="sr-only">{t("common:actions")}</span>
               </TableHead>
             </TableRow>
           </TableHeader>
@@ -169,42 +196,42 @@ export function UsersPage() {
                 <TableCell className="whitespace-nowrap">{u.email}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
-                    {u.instance_admin ? <Badge variant="info">Instance admin</Badge> : null}
-                    {u.disabled ? <Badge variant="danger">Disabled</Badge> : null}
+                    {u.instance_admin ? <Badge variant="info">{t("users.badges.instanceAdmin")}</Badge> : null}
+                    {u.disabled ? <Badge variant="danger">{t("users.badges.disabled")}</Badge> : null}
                     {u.totp_enabled ? (
-                      <Badge variant="success">2FA on</Badge>
+                      <Badge variant="success">{t("users.badges.twoFactorOn")}</Badge>
                     ) : (
-                      <Badge variant="outline">2FA off</Badge>
+                      <Badge variant="outline">{t("users.badges.twoFactorOff")}</Badge>
                     )}
-                    {u.must_change_password ? <Badge variant="outline">Must change password</Badge> : null}
+                    {u.must_change_password ? <Badge variant="outline">{t("users.badges.mustChange")}</Badge> : null}
                   </div>
                 </TableCell>
                 <TableCell className="text-right">
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
-                      <Button variant="ghost" size="icon" aria-label={`Actions for ${u.name}`}>
+                      <Button variant="ghost" size="icon" aria-label={t("users.actionsFor", { name: u.name })}>
                         <MoreHorizontal aria-hidden="true" />
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent align="end">
                       <DropdownMenuItem onSelect={() => toggleDisabled(u)}>
-                        {u.disabled ? "Enable user" : "Disable user"}
+                        {u.disabled ? t("users.menu.enable") : t("users.menu.disable")}
                       </DropdownMenuItem>
                       <DropdownMenuItem onSelect={() => setAction({ kind: "resetPassword", user: u })}>
-                        Reset password
+                        {t("users.menu.resetPassword")}
                       </DropdownMenuItem>
                       <DropdownMenuItem
                         disabled={!u.totp_enabled}
                         onSelect={() => setAction({ kind: "reset2fa", user: u })}
                       >
-                        Reset 2FA
+                        {t("users.menu.reset2fa")}
                       </DropdownMenuItem>
                       <DropdownMenuSeparator />
                       <DropdownMenuItem
                         className="text-danger-text"
                         onSelect={() => setAction({ kind: "delete", user: u })}
                       >
-                        Delete user
+                        {t("users.menu.delete")}
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
@@ -218,7 +245,7 @@ export function UsersPage() {
       {users.hasNextPage ? (
         <div>
           <Button variant="secondary" onClick={() => void users.fetchNextPage()} disabled={users.isFetchingNextPage}>
-            Load more users
+            {t("users.loadMore")}
           </Button>
         </div>
       ) : null}
@@ -232,9 +259,9 @@ export function UsersPage() {
         <ConfirmDialog
           open
           onOpenChange={(open) => !open && closeAction()}
-          title={titleFor(action)}
+          title={actionTitle(action)}
           description={<DescriptionFor action={action} />}
-          confirmLabel={confirmLabelFor(action)}
+          confirmLabel={actionConfirm(action)}
           onConfirm={runAction}
           pending={resetPassword.isPending || resetTotp.isPending || remove.isPending}
           error={actionError}
@@ -246,62 +273,28 @@ export function UsersPage() {
         <SecretDialog
           open
           onClose={() => setSecret(null)}
-          title={`Temporary password for ${secret.user.name}`}
-          label="Temporary password"
+          title={t("users.tempPasswordTitle", { name: secret.user.name })}
+          label={t("tempPassword")}
           value={secret.value}
-          note={`Share it with ${secret.user.email} now. It is shown once and cannot be retrieved later. ${secret.user.name} must change it at first sign-in, and their other sessions are signed out.`}
+          note={t("users.tempPasswordNote", { email: secret.user.email, name: secret.user.name })}
         />
       ) : null}
     </div>
   );
 }
 
-function titleFor(action: UserAction) {
-  switch (action.kind) {
-    case "resetPassword":
-      return `Reset password for ${action.user.name}?`;
-    case "reset2fa":
-      return `Reset 2FA for ${action.user.name}?`;
-    case "delete":
-      return `Delete ${action.user.name}?`;
-  }
-}
-
-function confirmLabelFor(action: UserAction) {
-  switch (action.kind) {
-    case "resetPassword":
-      return "Reset password";
-    case "reset2fa":
-      return "Reset 2FA";
-    case "delete":
-      return "Delete user";
-  }
-}
-
 function DescriptionFor({ action }: { action: UserAction }) {
+  const { t } = useTranslation(["admin", "common"]);
   switch (action.kind) {
     case "resetPassword":
-      return (
-        <p>
-          A new temporary password is generated and every session of this user is signed out. The old password
-          stops working.
-        </p>
-      );
+      return <p>{t("users.dialog.resetPasswordBody")}</p>;
     case "reset2fa":
-      return (
-        <p>
-          Two-factor sign-in is removed and every session of this user is signed out. They can enroll again from
-          their security page.
-        </p>
-      );
+      return <p>{t("users.dialog.reset2faBody")}</p>;
     case "delete":
       return (
         <>
-          <p>
-            Deleting disables the account, signs it out everywhere, and anonymizes its name and email. Past audit
-            entries stay, but they show the anonymized account.
-          </p>
-          <p>This cannot be undone.</p>
+          <p>{t("users.dialog.deleteBody")}</p>
+          <p>{t("users.dialog.cannotUndo")}</p>
         </>
       );
   }

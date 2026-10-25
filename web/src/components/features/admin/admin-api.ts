@@ -1,7 +1,7 @@
 import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import type { Org } from "@/hooks/orgs";
-import { ApiError, api } from "@/lib/api";
+import { api } from "@/lib/api";
 import type { OrgRole, User } from "@/lib/types";
 
 // Shapes from docs/reference/api.md §2, §5.2 and §6. Timestamps are unix milliseconds.
@@ -223,8 +223,6 @@ export function useRevokeAdminInvite() {
   });
 }
 
-// errorMessage turns a failed admin action into text for an inline message or a toast.
-export function errorMessage(err: unknown): string {
-  if (err instanceof ApiError && err.message) return err.message;
-  return "Something went wrong. Try again.";
-}
+// errorMessage turns a failed admin action into text for an inline message or a toast (the shared
+// mapper, so admin errors translate like the rest of the console).
+export { errorMessage } from "@/lib/error-message";

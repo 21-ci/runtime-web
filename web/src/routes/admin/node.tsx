@@ -1,6 +1,7 @@
 import { useState, type FormEvent } from "react";
 import { createFileRoute } from "@tanstack/react-router";
 import { Server } from "lucide-react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { KeyValueCard, KeyValueTables } from "@/components/features/admin/key-value-card";
@@ -37,24 +38,25 @@ export const Route = createFileRoute("/admin/node")({
 // AdminNodePage: Status and Scheduler summaries side by side at equal height, the scheduler's
 // process and machine lists as full-width tables, then configuration and drain.
 function AdminNodePage() {
+  const { t } = useTranslation(["admin", "common"]);
   const status = useNodeStatus();
   const scheduler = useNodeScheduler();
   const config = useNodeConfig();
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <PageHeader icon={Server} entity="admin" title="Node" description="The runtime node as it reports itself." />
+      <PageHeader icon={Server} entity="admin" title={t("node.title")} description={t("node.description")} />
 
       <div className="grid min-w-0 gap-4 md:grid-cols-2">
-        <KeyValueCard title="Status" description="Version, capacity and memory." query={status} tables="omit" />
-        <KeyValueCard title="Scheduler" description="Queues and worker state." query={scheduler} tables="omit" />
+        <KeyValueCard title={t("node.status")} description={t("node.statusDescription")} query={status} tables="omit" />
+        <KeyValueCard title={t("node.scheduler")} description={t("node.schedulerDescription")} query={scheduler} tables="omit" />
       </div>
-      <KeyValueTables query={status} source="Status" />
-      <KeyValueTables query={scheduler} source="Scheduler" />
+      <KeyValueTables query={status} source={t("node.status")} />
+      <KeyValueTables query={scheduler} source={t("node.scheduler")} />
 
-      <SectionCard title="Configuration" description="Runtime settings the console can change.">
+      <SectionCard title={t("node.configTitle")} description={t("node.configDescription")}>
         {config.isError ? (
-          <QueryError error={config.error} onRetry={() => void config.refetch()} notFoundTitle="Not available" />
+          <QueryError error={config.error} onRetry={() => void config.refetch()} notFoundTitle={t("notAvailable")} />
         ) : config.isPending ? (
           <div aria-busy="true">
             <Skeleton className="h-40 w-full" />
@@ -72,6 +74,7 @@ function AdminNodePage() {
 // NodeConfigForm edits the three runtime settings the console exposes. Other runtime keys are not
 // shown and not sent.
 function NodeConfigForm({ initial }: { initial: NodeConfig }) {
+  const { t } = useTranslation(["admin", "common"]);
   const save = useSaveNodeConfig();
   const [degradation, setDegradation] = useState(initial.degradation_mode ?? "");
   const [profile, setProfile] = useState(initial.default_profile ?? "");
@@ -86,7 +89,7 @@ function NodeConfigForm({ initial }: { initial: NodeConfig }) {
       if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("not object");
       parsed = value as Record<string, unknown>;
     } catch {
-      setErrors({ rate_limit: "Enter a JSON object, for example {}." });
+      setErrors({ rate_limit: t("node.rateLimitInvalid") });
       return;
     }
     setErrors({});
@@ -95,16 +98,16 @@ function NodeConfigForm({ initial }: { initial: NodeConfig }) {
       {
         onSuccess: (res) => {
           if (res.pending_restart.length > 0) {
-            toast.success(`Saved. Restart the node to apply: ${res.pending_restart.join(", ")}.`);
+            toast.success(t("node.saved", { keys: res.pending_restart.join(", ") }));
           } else {
-            toast.success("Node configuration saved.");
+            toast.success(t("node.savedNoRestart"));
           }
         },
         onError: (err) => {
           if (err instanceof ApiError && Object.keys(err.fieldErrors()).length > 0) {
             setErrors(err.fieldErrors());
           } else {
-            toast.error("Could not save the node configuration. Try again.");
+            toast.error(t("node.saveFailed"));
           }
         },
       },
@@ -112,9 +115,9 @@ function NodeConfigForm({ initial }: { initial: NodeConfig }) {
   }
 
   return (
-    <form aria-label="Node configuration" onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
+    <form aria-label={t("node.formLabel")} onSubmit={onSubmit} noValidate className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="degradation_mode">Degradation mode</Label>
+        <Label htmlFor="degradation_mode">{t("node.degradation")}</Label>
         <Input
           id="degradation_mode"
           name="degradation_mode"
@@ -126,7 +129,7 @@ function NodeConfigForm({ initial }: { initial: NodeConfig }) {
       </div>
 
       <div className="flex flex-col gap-1.5">
-        <Label htmlFor="default_profile">Default profile</Label>
+        <Label htmlFor="default_profile">{t("node.profile")}</Label>
         <Input
           id="default_profile"
           name="default_profile"
@@ -139,8 +142,8 @@ function NodeConfigForm({ initial }: { initial: NodeConfig }) {
 
       <div className="flex flex-col gap-1.5">
         <div className="flex items-center gap-2">
-          <Label htmlFor="rate_limit">Rate limit (JSON)</Label>
-          <Badge variant="outline">applies after restart</Badge>
+          <Label htmlFor="rate_limit">{t("node.rateLimit")}</Label>
+          <Badge variant="outline">{t("node.restartBadge")}</Badge>
         </div>
         <textarea
           id="rate_limit"
@@ -157,7 +160,7 @@ function NodeConfigForm({ initial }: { initial: NodeConfig }) {
 
       <div>
         <Button type="submit" variant="default" disabled={save.isPending}>
-          Save configuration
+          {t("node.save")}
         </Button>
       </div>
     </form>
@@ -167,6 +170,7 @@ function NodeConfigForm({ initial }: { initial: NodeConfig }) {
 // DrainSection stops the node from taking new work. It is irreversible from this page, so the
 // confirm button stays disabled until "drain" is typed.
 function DrainSection() {
+  const { t } = useTranslation(["admin", "common"]);
   const drain = useDrainNode();
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
@@ -179,32 +183,32 @@ function DrainSection() {
   function onDrain() {
     drain.mutate(undefined, {
       onSuccess: () => {
-        toast.success("Drain started.");
+        toast.success(t("node.drainStarted"));
         onOpenChange(false);
       },
-      onError: () => toast.error("Could not start the drain. Try again."),
+      onError: () => toast.error(t("node.drainFailed")),
     });
   }
 
   return (
-    <SectionCard title="Drain" description="Stop the node from accepting new work. Existing work finishes first.">
+    <SectionCard title={t("node.drainTitle")} description={t("node.drainDescription")}>
       <Dialog open={open} onOpenChange={onOpenChange}>
         <DialogTrigger asChild>
-          <Button variant="danger">Drain node</Button>
+          <Button variant="danger">{t("node.drainButton")}</Button>
         </DialogTrigger>
         <DialogContent>
-          <DialogTitle>Drain this node?</DialogTitle>
-          <DialogDescription>New work stops being accepted. Type drain to confirm.</DialogDescription>
+          <DialogTitle>{t("node.drainDialogTitle")}</DialogTitle>
+          <DialogDescription>{t("node.drainDialogDescription")}</DialogDescription>
           <div className="mt-4 flex flex-col gap-1.5">
-            <Label htmlFor="drain-confirm">Type drain to confirm</Label>
+            <Label htmlFor="drain-confirm">{t("node.drainConfirmLabel")}</Label>
             <Input id="drain-confirm" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
           </div>
           <DialogFooter>
             <Button variant="secondary" onClick={() => onOpenChange(false)}>
-              Cancel
+              {t("common:cancel")}
             </Button>
             <Button variant="danger" disabled={typed !== "drain" || drain.isPending} onClick={onDrain}>
-              Drain node
+              {t("node.drainButton")}
             </Button>
           </DialogFooter>
         </DialogContent>

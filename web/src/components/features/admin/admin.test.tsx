@@ -4,6 +4,7 @@ import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 
 import { setCsrfToken } from "@/lib/api";
+import { setLanguage } from "@/lib/i18n";
 import { server } from "@/test/msw";
 import { renderAt } from "@/test/render";
 import { me, useShellHandlers } from "@/test/shell-fixtures";
@@ -381,6 +382,18 @@ describe("admin cache", () => {
     expect(await screen.findByRole("heading", { name: "Cache" })).toBeInTheDocument();
     expect(await screen.findByText("42")).toBeInTheDocument();
     expect(screen.getByText("0.93")).toBeInTheDocument();
+  });
+
+  it("renders in Russian", async () => {
+    await setLanguage("ru");
+    try {
+      useAdminStubs();
+      renderAt("/admin/cache");
+      expect(await screen.findByRole("heading", { name: "Кэш" })).toBeInTheDocument();
+      expect(screen.getByRole("region", { name: "Кэш узла" })).toBeInTheDocument();
+    } finally {
+      await setLanguage("en");
+    }
   });
 });
 
