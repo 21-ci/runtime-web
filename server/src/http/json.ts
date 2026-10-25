@@ -28,8 +28,12 @@ export async function readJson<T = Record<string, unknown>>(req: Request): Promi
   if (!ct.toLowerCase().startsWith("application/json")) {
     throw badRequest("bad_request", "expected application/json");
   }
-  const text = await req.text();
-  if (text.length > MAX_JSON_BYTES) throw new AppError(413, "too_large", "body too large");
+  const tooLarge = () => new AppError(413, "too_large", "body too large");
+  if (Number(req.headers.get("content-length") ?? 0) > MAX_JSON_BYTES) throw tooLarge();
+  // The cap is in bytes: text.length counts UTF-16 units, so multi-byte bodies could reach ~3x the cap.
+  const bytes = new Uint8Array(await req.arrayBuffer());
+  if (bytes.length > MAX_JSON_BYTES) throw tooLarge();
+  const text = new TextDecoder().decode(bytes);
   try {
     const v: unknown = JSON.parse(text);
     if (v === null || typeof v !== "object" || Array.isArray(v)) throw new Error("not an object");
