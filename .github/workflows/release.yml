@@ -26,7 +26,6 @@ concurrency:
 
 env:
   NODE_VERSION: "22"
-  TRIVY_VERSION: v0.76.1
   CERT_IDENTITY_REGEXP: ^https://github\.com/21-ci/runtime-web/\.github/workflows/release\.yml@refs/tags/v
   CERT_OIDC_ISSUER: https://token.actions.githubusercontent.com
 
@@ -76,6 +75,7 @@ jobs:
       - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
         with:
           node-version: ${{ env.NODE_VERSION }}
+          package-manager-cache: false
       - name: Test and build web
         working-directory: web
         run: |
@@ -118,7 +118,7 @@ jobs:
           upload-release-assets: false
       - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
-          version: ${{ env.TRIVY_VERSION }}
+          version: v0.76.1 # keep in step with the other workflow
       - name: Trivy scan of the artifact (HIGH/CRITICAL fixable block)
         env:
           VERSION: ${{ steps.v.outputs.version }}
@@ -176,11 +176,18 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           TAG: ${{ github.ref_name }}
         run: |
-          flags=""
-          if [ "$PRERELEASE" = true ]; then flags="--prerelease"; fi
-          # shellcheck disable=SC2086
-          gh release create "$TAG" -R "$GITHUB_REPOSITORY" --verify-tag --title "Runtime Web $VERSION" \
-            --notes-file "$RUNNER_TEMP/notes.md" $flags dist/out/*
+          # release-please creates the Release when its PR merges; a tag pushed by hand has none yet.
+          if gh release view "$TAG" -R "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
+            gh release edit "$TAG" -R "$GITHUB_REPOSITORY" --title "Runtime Web $VERSION" \
+              --notes-file "$RUNNER_TEMP/notes.md" --prerelease="$PRERELEASE"
+            gh release upload "$TAG" -R "$GITHUB_REPOSITORY" --clobber dist/out/*
+          else
+            flags=""
+            if [ "$PRERELEASE" = true ]; then flags="--prerelease"; fi
+            # shellcheck disable=SC2086
+            gh release create "$TAG" -R "$GITHUB_REPOSITORY" --verify-tag --title "Runtime Web $VERSION" \
+              --notes-file "$RUNNER_TEMP/notes.md" $flags dist/out/*
+          fi
 
   verify:
     name: verify

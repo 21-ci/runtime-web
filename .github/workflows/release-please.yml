@@ -1,0 +1,70 @@
+# release-please keeps a release PR open on main that bumps the version in server/package.json and web/package.json
+# (release.yml checks both against the tag) and updates CHANGELOG.md from the Conventional Commits since the last tag. Merging it creates the
+# vX.Y.Z tag and a GitHub Release; the tag push runs release.yml, which builds, signs and uploads the assets to it.
+#
+# It runs with a GitHub App token, not GITHUB_TOKEN: events made with GITHUB_TOKEN do not start workflows, so with it
+# neither CI on the release PR nor release.yml on the tag would run. Secrets: RELEASE_APP_ID, RELEASE_APP_PRIVATE_KEY
+# (an org-owned GitHub App with contents: write and pull-requests: write on this repository; RELEASING.md).
+name: release-please
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+concurrency:
+  group: release-please-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release-please:
+    name: release-please
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
+    permissions:
+      contents: read
+    steps:
+      - uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+      - id: app
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3.3.0
+        with:
+          app-id: ${{ secrets.RELEASE_APP_ID }}
+          private-key: ${{ secrets.RELEASE_APP_PRIVATE_KEY }}
+          # Only what release-please needs: commit the release PR branch, open it, create the tag.
+          permission-contents: write
+          permission-pull-requests: write
+      - id: rp
+        uses: googleapis/release-please-action@45996ed1f6d02564a971a2fa1b5860e934307cf7 # v5.0.0
+        with:
+          token: ${{ steps.app.outputs.token }}
+          target-branch: ${{ github.ref_name }}
+          config-file: release-please-config.json
+          manifest-file: .release-please-manifest.json
+      # release-please bumps package.json but not package-lock.json; keep the lockfiles' own version in step.
+      - name: Sync package-lock.json on the release PR
+        if: steps.rp.outputs.pr != ''
+        env:
+          PR_JSON: ${{ steps.rp.outputs.pr }}
+          APP_TOKEN: ${{ steps.app.outputs.token }}
+        run: |
+          set -euo pipefail
+          branch=$(printf '%s' "$PR_JSON" | jq -r '.headBranchName // empty')
+          [ -n "$branch" ] || { echo "no release PR branch"; exit 0; }
+          git clone --quiet --depth 1 --branch "$branch" \
+            "https://x-access-token:${APP_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" rp
+          cd rp
+          for dir in server web; do
+            version=$(jq -r .version "$dir/package.json")
+            (cd "$dir" && npm version "$version" --no-git-tag-version --allow-same-version --ignore-scripts >/dev/null)
+          done
+          if git diff --quiet -- server/package-lock.json web/package-lock.json; then
+            echo "lockfiles already in step"; exit 0
+          fi
+          git config user.name "release-please[bot]"
+          git config user.email "55107282+release-please[bot]@users.noreply.github.com"
+          git commit -q -m "chore: sync package-lock.json with the release version" -- server/package-lock.json web/package-lock.json
+          git push -q origin "HEAD:$branch"

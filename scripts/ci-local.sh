@@ -3,11 +3,11 @@
 # Every step runs even when an earlier one fails; a summary at the end lists what failed and the
 # script exits non-zero if anything did.
 #
-#   scripts/ci-local.sh              everything (build, lint, i18n, coverage, budgets, shell, docs, security)
+#   scripts/ci-local.sh              everything (build, lint, i18n, coverage, budgets, shell, workflows, docs, security)
 #   scripts/ci-local.sh --fast       skip coverage (plain tests), docs and CodeQL
 #   scripts/ci-local.sh --security   only npm audit, Trivy and CodeQL
 #
-# Tools: node/npm (required); shellcheck, mkdocs (or .venv / docs/requirements.txt), trivy and
+# Tools: node/npm (required); shellcheck, actionlint, zizmor, mkdocs (or .venv / docs/requirements.txt), trivy and
 # codeql are used when installed and reported as SKIP otherwise. Logs go to .ci-local/<step>.log.
 set -uo pipefail
 
@@ -126,6 +126,18 @@ if [ $ONLY_SECURITY -eq 0 ]; then
     skip shellcheck "shellcheck not installed"
   fi
   step install-dry-run sh install.sh --dry-run --version 0.0.0 --domain console.example.com --email ops@acme-corp.dev
+
+  echo "== workflows"
+  if have actionlint; then
+    step actionlint actionlint
+  else
+    skip actionlint "actionlint not installed (brew install actionlint)"
+  fi
+  if have zizmor; then
+    step zizmor zizmor --min-severity medium .github/workflows
+  else
+    skip zizmor "zizmor not installed (brew install zizmor)"
+  fi
 
   echo "== docs"
   if [ $FAST -eq 1 ]; then

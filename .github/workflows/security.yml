@@ -4,6 +4,7 @@
 #   npm-audit  npm audit --omit=dev for web and server (production dependencies only)
 #   codeql     javascript-typescript (security-extended)
 #   scorecard  OpenSSF Scorecard (main and schedule only; publishes to the public API)
+#   workflows  zizmor (workflow security, medium and up) and actionlint (syntax, shellcheck on run: blocks)
 #
 # Accepted findings go in .trivyignore with an expiry and a reason.
 name: Security
@@ -23,9 +24,6 @@ concurrency:
   group: security-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  TRIVY_VERSION: v0.76.1
-
 jobs:
   trivy:
     name: trivy fs
@@ -43,7 +41,7 @@ jobs:
           persist-credentials: false
       - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
-          version: ${{ env.TRIVY_VERSION }}
+          version: v0.76.1 # keep in step with the other workflow
       - name: Trivy (SARIF, all severities, for code scanning)
         run: >-
           trivy fs --scanners vuln,secret,misconfig --ignorefile .trivyignore
@@ -141,3 +139,26 @@ jobs:
         with:
           sarif_file: scorecard.sarif
           category: scorecard
+
+  workflows:
+    name: zizmor + actionlint
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      security-events: write
+    steps:
+      - uses: step-security/harden-runner@dc2769abcc0fcfbadfc1df54081c1608579ef6b2 # v2.22.2
+        with:
+          egress-policy: audit
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: zizmorcore/zizmor-action@85b2b9fb8e3325e7a23d7d0a9d7ba5ae0f999e3e # v0.7.1
+        with:
+          version: 1.31.1
+          min-severity: medium
+      # Built with the runner's Go toolchain at a pinned version.
+      - name: Install actionlint v1.7.12
+        run: GOBIN="$RUNNER_TEMP/bin" go install github.com/rhysd/actionlint/cmd/actionlint@v1.7.12
+      - run: '"$RUNNER_TEMP/bin/actionlint" -color'

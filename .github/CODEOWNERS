@@ -1,0 +1,24 @@
+# Code owners are requested for review on every PR touching the paths below (the main ruleset does not yet require
+# their approval; set require_code_owner_review in .github/rulesets/main.json once there are two maintainers).
+# @21-ci/maintainers and @21-ci/security are GitHub teams (GOVERNANCE.md); create them in the org first.
+
+*                           @21-ci/maintainers
+
+# Trust boundaries: security-sensitive code needs a security-aware reviewer.
+/server/src/auth/           @21-ci/security
+/server/src/authz/          @21-ci/security
+/server/src/crypto/         @21-ci/security
+/server/src/http/           @21-ci/security
+/server/src/keys/           @21-ci/security
+/server/src/config.ts       @21-ci/security
+/server/sdk/                @21-ci/security
+/SECURITY.md                @21-ci/security
+/docs/security-model.md     @21-ci/security
+
+# Release, install and supply chain
+/.github/                   @21-ci/maintainers @21-ci/security
+/install.sh                 @21-ci/maintainers @21-ci/security
+/deploy/                    @21-ci/maintainers @21-ci/security
+/server/scripts/            @21-ci/maintainers @21-ci/security
+/release-please-config.json @21-ci/maintainers @21-ci/security
+/.trivyignore               @21-ci/security
