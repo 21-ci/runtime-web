@@ -17,6 +17,7 @@ import { registerApps } from "./routes/apps.ts";
 import { registerDomains } from "./routes/domains.ts";
 import { registerAudit } from "./routes/audit.ts";
 import { registerSettings } from "./routes/settings.ts";
+import { registerBranding } from "./routes/branding.ts";
 import { registerInternal } from "./routes/internal.ts";
 import type { AppLookup, TxtLookup } from "./domains/types.ts";
 import { appLookup } from "./apps/service.ts";
@@ -67,6 +68,7 @@ export function createApp(deps: Deps): App {
   registerDomains(router, deps);
   registerAudit(router, deps);
   registerSettings(router, deps);
+  registerBranding(router, deps);
   registerInternal(router, deps);
   registerSpa(router, deps); // keep last: installs the SPA fallback
   const appOrigin = deps.config.runtimePublicUrl ? new URL(deps.config.runtimePublicUrl).origin : undefined;

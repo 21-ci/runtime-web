@@ -52,6 +52,10 @@ const AUDITED: Record<string, string[]> = {
   "POST /api/orgs/:org/apps/:app/domains/:id/verify": ["domain.verify"],
   "DELETE /api/orgs/:org/apps/:app/domains/:id": ["domain.remove"],
   "PUT /api/admin/settings": ["settings.update"],
+  "PUT /api/admin/branding": ["branding.update"],
+  "DELETE /api/admin/branding": ["branding.reset"],
+  "PUT /api/admin/branding/assets/:kind": ["branding.asset_update"],
+  "DELETE /api/admin/branding/assets/:kind": ["branding.asset_delete"],
   // Setup's first org is audited by createOrg.
   "POST /api/setup": ["org.create"],
 };

@@ -184,6 +184,22 @@ export const migrations: readonly Migration[] = [
       )`,
     ],
   },
+  {
+    // Instance branding images (logos, icon). Text fields live in settings under "branding";
+    // images are base64 TEXT so both SQLite builds round-trip them without BLOB quirks.
+    version: 3,
+    name: "branding-assets",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS branding_assets (
+        kind TEXT PRIMARY KEY,
+        mime TEXT NOT NULL,
+        data TEXT NOT NULL,
+        hash TEXT NOT NULL,
+        size INTEGER NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`,
+    ],
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = migrations.reduce((max, m) => Math.max(max, m.version), 0);

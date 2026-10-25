@@ -422,6 +422,55 @@ type InstanceSettingsWrite = {
 
 There is no plan field anywhere: every org uses `RTWEB_DEFAULT_PLAN`.
 
+### 6.1 Branding
+
+White-label settings for the instance. The read routes are **public** (the login page renders the
+brand before sign-in) and return display fields only. Writes require `instance.admin`, CSRF and
+Origin like every unsafe route, need `If-Match: <etag>` (`428 precondition_required` when missing,
+`409 stale` when another admin changed the brand) and are audited (`branding.update`,
+`branding.reset`, `branding.asset_update`, `branding.asset_delete`).
+
+| Method | Path | Request | Response | Errors |
+|---|---|---|---|---|
+| GET | `/api/branding` | | `200 Branding` + `ETag` | |
+| GET | `/api/branding/theme.css` | | `200 text/css` token overrides (`no-cache` + `ETag`, `304`) | |
+| GET | `/api/branding/assets/{kind}` | `?v=<hash>` | `200` image; `immutable` when `v` matches, else `no-cache`; `ETag`, `304` | `404` |
+| PUT | `/api/admin/branding` | `Partial<BrandingWrite>` | `200 Branding` | `422 invalid`, `428`, `409 stale` |
+| DELETE | `/api/admin/branding` | | `200 Branding` (defaults; images removed) | `428`, `409 stale` |
+| PUT | `/api/admin/branding/assets/{kind}` | `{data: string /* base64 */}` | `200 Branding` | `404` (kind), `413 too_large` (> 512 KB), `422 invalid` (`must_be_base64`, `unsupported_image`, `svg_active_content`), `428`, `409 stale` |
+| DELETE | `/api/admin/branding/assets/{kind}` | | `200 Branding` | `404`, `428`, `409 stale` |
+
+`{kind}` is `logo-light`, `logo-dark` or `icon`. The image type comes from the file's magic bytes
+(PNG, JPEG, WebP, ICO, SVG); the client's type and name are ignored. SVG is refused when it holds
+script, event handlers, `foreignObject`, entities, `javascript:` or non-local references, and is
+served with `Content-Security-Policy: sandbox; default-src 'none'; style-src 'unsafe-inline'`.
+Every asset response sets `X-Content-Type-Options: nosniff` and `Cross-Origin-Resource-Policy: same-origin`.
+
+```ts
+type AccentPalette = { accent: string; hover: string; on_accent: string; soft: string; pale: string };
+type Branding = {
+  product_name: string;             // "" = default product name
+  accent: string;                   // "#rrggbb" as entered, "" = default blue
+  accent_adjusted: boolean;         // the light accent was darkened to reach WCAG AA
+  palette: { light: AccentPalette; dark: AccentPalette } | null;
+  logo_light_url: string | null;    // same-origin, cache-busted
+  logo_dark_url: string | null;     // null = use the light logo
+  icon_url: string | null;          // favicon and square mark
+  login_headline: string;
+  login_subtitle: string;
+  support_url: string;
+  support_email: string;
+  hide_powered_by: boolean;
+  radius: "sharp" | "default" | "round";
+  tint: "neutral" | "warm" | "cool";
+  etag: string;
+};
+type BrandingWrite = Omit<Branding, "accent_adjusted" | "palette" | "logo_light_url" | "logo_dark_url" | "icon_url" | "etag">;
+// limits: product_name 40, login_headline 80, login_subtitle 160, support_url 300 (http/https),
+// support_email 254; field codes too_long, must_be_hex, must_be_http_url, must_be_email,
+// invalid_choice, invalid_characters, unknown_field.
+```
+
 ## 7. Orgs, members, tokens, projects
 
 | Method | Path | Auth | Request | Response | Errors |
