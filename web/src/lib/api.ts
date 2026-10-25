@@ -51,6 +51,7 @@ export function setOnSignedOut(fn: () => void) {
 // setNavigator wires redirects (401, gates) to the router. Tests and main.tsx call it.
 export function setNavigator(fn: Navigator) {
   navigator_ = fn;
+  signedOutAt = 0;
 }
 
 export function setCsrfToken(token: string | null) {
@@ -70,10 +71,19 @@ function currentPath(): string {
   return window.location.pathname + window.location.search;
 }
 
+// signedOutAt debounces the sign-out redirect. Clearing the cache makes every mounted query refetch,
+// and each of those 401s would start the login navigation again, cancelling the pending one, so the
+// login page would never mount. Every 401 still clears the cache; one redirect per burst navigates.
+let signedOutAt = 0;
+const SIGN_OUT_DEBOUNCE_MS = 1000;
+
 function onGate(code: string) {
   const here = window.location.pathname;
   if (code === "unauthenticated" && !PUBLIC_PREFIXES.some((p) => here.startsWith(p))) {
     onSignedOut_();
+    const now = Date.now();
+    if (now - signedOutAt < SIGN_OUT_DEBOUNCE_MS) return;
+    signedOutAt = now;
     navigator_(`/login?next=${encodeURIComponent(currentPath())}`);
   } else if (code === "password_change_required" && here !== "/change-password") {
     navigator_("/change-password");
