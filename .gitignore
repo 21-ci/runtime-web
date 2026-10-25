@@ -20,3 +20,4 @@ server/src/gen/
 server/.gen-blobs.json
 # test coverage reports
 coverage/
+.venv/
