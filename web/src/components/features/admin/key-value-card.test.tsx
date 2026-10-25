@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { eventFields } from "@/components/features/overview/events-panel";
 
-import { KeyValueCard } from "./key-value-card";
+import { KeyValueCard, KeyValueTables } from "./key-value-card";
 
 const query = (data: Record<string, unknown>) => ({ data, isPending: false, isError: false, error: null, refetch: () => {} });
 
@@ -25,7 +25,7 @@ describe("KeyValueCard", () => {
     const card = screen.getByRole("region", { name: "Status" });
     expect(within(card).getByText("V8 sandbox")).toBeInTheDocument();
     expect(within(card).getByText("no")).toBeInTheDocument();
-    expect(within(card).getByText("Budget bytes")).toBeInTheDocument();
+    expect(within(card).getByText("Budget")).toBeInTheDocument();
     expect(within(card).getByText("1.00 GiB")).toBeInTheDocument();
     expect(within(card).getByText("2 min")).toBeInTheDocument();
     expect(within(card).getByText("a")).toBeInTheDocument();
@@ -45,11 +45,38 @@ describe("KeyValueCard", () => {
     expect(within(table).getByText("running")).toBeInTheDocument();
   });
 
+  it("leaves list fields to KeyValueTables when asked", () => {
+    const data = query({ mode: "normal", machines: [{ id: 0, bound_count: 2 }] });
+    render(
+      <>
+        <KeyValueCard title="Scheduler" query={data} tables="omit" />
+        <KeyValueTables query={data} source="Scheduler" />
+      </>,
+    );
+    expect(within(screen.getByRole("region", { name: "Scheduler" })).queryByRole("table")).toBeNull();
+    const machines = screen.getByRole("region", { name: "Machines" });
+    expect(within(machines).getByText("1 row · Scheduler")).toBeInTheDocument();
+    expect(within(machines).getByRole("columnheader", { name: "Bound count" })).toBeInTheDocument();
+  });
+
+  it("drops unit suffixes from labels unless two keys would collide", () => {
+    render(<KeyValueCard title="Admission" query={query({ uptime_ms: 1000, queued: 1, queued_bytes: 2048 })} />);
+    const card = screen.getByRole("region", { name: "Admission" });
+    expect(within(card).getByText("Uptime")).toBeInTheDocument();
+    expect(within(card).getByText("Queued")).toBeInTheDocument();
+    expect(within(card).getByText("Queued bytes")).toBeInTheDocument();
+    expect(within(card).getByText("2.00 KiB")).toBeInTheDocument();
+  });
+
   it("shows the loading and error states", () => {
     const { rerender } = render(<KeyValueCard title="Status" query={{ isPending: true, isError: false, error: null, refetch: () => {} }} />);
     expect(document.querySelector("[aria-busy='true']")).not.toBeNull();
     rerender(<KeyValueCard title="Status" query={{ isPending: false, isError: true, error: new Error("x"), refetch: () => {} }} />);
     expect(screen.getByRole("button", { name: "Retry" })).toBeInTheDocument();
+    const tables = render(<KeyValueTables source="Status" query={{ isPending: true, isError: false, error: null, refetch: () => {} }} />);
+    expect(tables.container.querySelector("[aria-busy='true']")).not.toBeNull();
+    tables.rerender(<KeyValueTables source="Status" query={{ isPending: false, isError: true, error: null, refetch: () => {} }} />);
+    expect(tables.container.innerHTML).toBe("");
   });
 });
 

@@ -145,14 +145,14 @@ function NewAppPage() {
                   aria-checked={checked}
                   onClick={() => setTemplate(id)}
                   className={cn(
-                    "flex items-center gap-3 rounded-lg border bg-surface p-3 text-left shadow-card outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus",
+                    "flex h-full min-w-0 items-center gap-3 rounded-lg border bg-surface p-3 text-left shadow-card outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus",
                     checked ? "border-accent ring-1 ring-accent" : "border-line hover:border-line-strong",
                   )}
                 >
                   <IconTile icon={Icon} hue={TEMPLATE_HUE[id]} size="md" solid />
-                  <span>
-                    <span className="block text-sm font-medium">{title}</span>
-                    <span className="block text-sm text-muted">{blurb}</span>
+                  <span className="min-w-0">
+                    <span className="block break-words text-sm font-medium">{title}</span>
+                    <span className="block break-words text-sm text-muted">{blurb}</span>
                   </span>
                 </button>
               );

@@ -23,9 +23,9 @@ export function PageHeader({
   return (
     <header className={cn("flex flex-wrap items-center gap-3", className)}>
       {icon ? <IconTile icon={icon} entity={entity} size="md" /> : null}
-      <div className="min-w-0 flex-1">
+      <div className="min-w-0 flex-1 basis-60">
         <h1 className="truncate text-xl font-semibold tracking-[-0.01em] text-text">{title}</h1>
-        {description ? <p className="text-sm text-muted">{description}</p> : null}
+        {description ? <p className="break-words text-sm text-muted">{description}</p> : null}
       </div>
       {actions ? <div className="flex shrink-0 flex-wrap items-center gap-2">{actions}</div> : null}
     </header>
@@ -60,7 +60,7 @@ export function StatTile({
     <div className={cn("flex min-w-0 flex-col gap-0.5 rounded-lg border border-line bg-surface p-3.5 shadow-card", className)}>
       <dt className="truncate text-[12px] font-medium text-muted">{label}</dt>
       <dd className="truncate text-xl font-semibold tabular-nums tracking-[-0.01em] text-text">{value}</dd>
-      {hint ? <span className="text-[12px] text-muted">{hint}</span> : null}
+      {hint ? <span className="truncate text-[12px] text-muted">{hint}</span> : null}
     </div>
   );
 }

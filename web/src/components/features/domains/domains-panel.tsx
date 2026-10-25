@@ -99,7 +99,7 @@ function DnsRecord({ host, domain }: { host: string; domain: Domain }) {
   return (
     <div className="flex flex-col gap-3 rounded-lg border border-line bg-panel p-3 text-sm">
       <p>
-        Add these DNS records for <span className="font-mono">{host}</span>.
+        Add these DNS records for <span className="break-all font-mono">{host}</span>.
       </p>
       <dl className="grid gap-2">
         <div className="flex items-center justify-between gap-2">
@@ -198,8 +198,8 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
         <ul className="flex flex-col gap-3">
           {domains.data.map((d) => (
             <li key={d.id} className="group flex flex-col gap-3 rounded-lg border border-line bg-surface p-4">
-              <div className="flex flex-wrap items-center justify-between gap-2">
-                <span className="font-mono text-sm font-medium">{d.host}</span>
+              <div className="flex min-w-0 flex-wrap items-center justify-between gap-2">
+                <span className="min-w-0 break-all font-mono text-sm font-medium">{d.host}</span>
                 <div className="flex flex-wrap items-center gap-2">
                   <Badge dot variant={d.status === "failed" ? "danger" : d.status === "active" ? "success" : "warning"}>
                     {STATUS_LABEL[d.status]}

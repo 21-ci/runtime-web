@@ -178,7 +178,7 @@ export function EnrollTotp({ onDone }: { onDone?: () => void }) {
         <p className="text-sm text-muted">Preparing the QR code</p>
       )}
       <p className="text-sm">
-        Cannot scan? Enter this key: <code className="font-mono">{secret}</code>
+        Cannot scan? Enter this key: <code className="break-all font-mono">{secret}</code>
       </p>
       <AuthForm errors={error ? { code: error } : {}} onSubmit={onSubmit}>
         <FormField

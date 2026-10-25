@@ -53,12 +53,14 @@ function QuotaLine({ row, quota }: { row: Row; quota: Quota }) {
   const fmt = row.bytes ? formatBytes : formatCount;
   const pct = quota.limit ? Math.min(100, Math.round((quota.used / quota.limit) * 100)) : 0;
   const high = pct >= 90;
+  const amount =
+    quota.limit === null ? `${fmt(quota.used)} used` : `${fmt(quota.used)} / ${fmt(quota.limit)} ${PERIOD[quota.period] ?? quota.period}`;
   return (
     <>
-      <div className="flex items-baseline justify-between gap-2 text-sm">
-        <span>{row.label}</span>
-        <span className="tabular-nums text-[12px] text-muted">
-          {quota.limit === null ? `${fmt(quota.used)} used` : `${fmt(quota.used)} / ${fmt(quota.limit)} ${PERIOD[quota.period] ?? quota.period}`}
+      <div className="flex min-w-0 items-baseline justify-between gap-2 text-sm">
+        <span className="shrink-0">{row.label}</span>
+        <span className="min-w-0 truncate text-right tabular-nums text-[12px] text-muted" title={amount}>
+          {amount}
         </span>
       </div>
       {quota.limit !== null ? (

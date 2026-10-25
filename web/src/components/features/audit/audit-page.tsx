@@ -94,13 +94,13 @@ export function AuditPage({ org }: { org: string }) {
             <TableBody>
               {entries.map((e) => (
                 <TableRow key={e.id}>
-                  <TableCell>{new Date(e.at).toLocaleString()}</TableCell>
-                  <TableCell>
-                    {e.actor.name ?? e.actor.email ?? e.actor.user_id ?? "Unknown"}
-                    {e.actor.user_id ? <span className="block text-xs text-muted">{e.actor.user_id}</span> : null}
+                  <TableCell className="whitespace-nowrap">{new Date(e.at).toLocaleString()}</TableCell>
+                  <TableCell className="min-w-40 max-w-64">
+                    <span className="block break-words">{e.actor.name ?? e.actor.email ?? e.actor.user_id ?? "Unknown"}</span>
+                    {e.actor.user_id ? <span className="block break-all text-xs text-muted">{e.actor.user_id}</span> : null}
                   </TableCell>
-                  <TableCell className="font-mono">{e.action}</TableCell>
-                  <TableCell>{e.target}</TableCell>
+                  <TableCell className="whitespace-nowrap font-mono">{e.action}</TableCell>
+                  <TableCell className="min-w-40 max-w-72 break-all">{e.target}</TableCell>
                 </TableRow>
               ))}
             </TableBody>

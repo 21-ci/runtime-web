@@ -328,3 +328,14 @@ pre {
     animation-duration: 0.01ms !important;
   }
 }
+
+/* Horizontal scroll hint: a soft edge shadow appears on the side that has more content. The
+   surface-coloured covers scroll with the content and hide the shadow at either end. */
+.scroll-shadow-x {
+  background:
+    linear-gradient(to right, var(--surface) 40%, transparent) left / 32px 100% no-repeat local,
+    linear-gradient(to left, var(--surface) 40%, transparent) right / 32px 100% no-repeat local,
+    radial-gradient(farthest-side at 0 50%, var(--line-strong), transparent) left / 12px 100% no-repeat scroll,
+    radial-gradient(farthest-side at 100% 50%, var(--line-strong), transparent) right / 12px 100% no-repeat scroll,
+    var(--surface);
+}

@@ -3,13 +3,15 @@ import * as React from "react";
 import { cn } from "@/lib/utils";
 
 // Table wraps real table markup in a bordered 10px frame. `bare` skips the frame so a table can sit
-// inside a SectionCard with flush body.
+// inside a SectionCard with flush body. The frame is the horizontal scroll container (never the
+// page): a table wider than its card scrolls inside it, with an edge shadow on the side that has
+// more columns.
 const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement> & { bare?: boolean }>(
   ({ className, bare = false, ...props }, ref) => (
     <div
       className={cn(
-        "relative w-full overflow-x-auto",
-        !bare && "rounded-lg border border-line bg-surface shadow-card",
+        "scroll-shadow-x relative w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain",
+        !bare && "rounded-lg border border-line shadow-card",
       )}
     >
       <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />

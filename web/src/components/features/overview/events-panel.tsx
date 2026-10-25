@@ -42,18 +42,20 @@ function EventRow({ ev, last }: { ev: AppEvent; last: boolean }) {
         <Icon className="size-3.5" />
       </span>
       <div className="min-w-0 flex-1">
-        <div className="flex flex-wrap items-baseline gap-x-2">
-          <span className="font-mono text-[13px] font-medium">{ev.kind}</span>
+        <div className="flex min-w-0 flex-wrap items-baseline gap-x-2">
+          <span className="min-w-0 break-all font-mono text-[13px] font-medium">{ev.kind}</span>
           <time dateTime={new Date(ev.ts).toISOString()} title={formatDateTime(ev.ts)} className="text-[12px] text-muted">
             {formatRelative(ev.ts)}
           </time>
         </div>
         {fields.length > 0 ? (
-          <dl className="mt-1 flex flex-wrap gap-x-4 gap-y-0.5 text-[12px]">
+          <dl className="mt-1 flex min-w-0 flex-wrap gap-x-4 gap-y-0.5 text-[12px]">
             {fields.map((f) => (
-              <div key={f.label} className="flex min-w-0 gap-1">
-                <dt className="text-muted">{f.label}</dt>
-                <dd className="truncate font-mono text-text">{f.value}</dd>
+              <div key={f.label} className="flex min-w-0 max-w-full gap-1">
+                <dt className="shrink-0 text-muted">{f.label}</dt>
+                <dd className="min-w-0 truncate font-mono text-text" title={f.value}>
+                  {f.value}
+                </dd>
               </div>
             ))}
           </dl>

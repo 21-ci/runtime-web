@@ -100,13 +100,13 @@ function LimitList({ values, empty }: { values: Record<string, unknown>; empty: 
   const rows = flattenLimits(values);
   if (rows.length === 0) return <p className="text-sm text-muted">{empty}</p>;
   return (
-    <dl className="grid grid-cols-[auto_1fr] gap-x-4 gap-y-1.5 text-sm">
+    <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-4 gap-y-1.5 text-sm">
       {rows.map(([key, value]) => {
         const { label, value: text } = formatLimit(key, value);
         return (
           <div key={key} className="contents">
-            <dt className="text-muted">{label}</dt>
-            <dd className="text-right font-mono text-xs text-text tabular-nums">{text}</dd>
+            <dt className="min-w-0 break-words text-muted">{label}</dt>
+            <dd className="min-w-0 break-all text-right font-mono text-xs text-text tabular-nums">{text}</dd>
           </div>
         );
       })}

@@ -66,19 +66,25 @@ function QuickAction({
   params?: Record<string, string>;
   onClick?: () => void;
 }) {
+  // Every card is a column (tile, title, two-line description) that fills its grid cell, so a row of
+  // cards shares one height and text wraps or clamps inside the card instead of spilling out.
   const cls =
-    "flex h-full w-full min-w-0 cursor-pointer flex-col gap-2.5 rounded-lg border border-line bg-surface p-3.5 text-left shadow-card outline-none transition-[background-color,border-color,box-shadow] duration-[140ms] hover:border-line-strong hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus sm:flex-row sm:items-center sm:gap-3 lg:flex-col lg:items-start";
+    "flex h-full w-full min-w-0 cursor-pointer flex-col items-start gap-2.5 rounded-lg border border-line bg-surface p-3.5 text-left shadow-card outline-none transition-[background-color,border-color,box-shadow] duration-[140ms] hover:border-line-strong hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus";
   const body = (
     <>
       <IconTile icon={icon} entity={entity} size="md" solid />
-      <span className="min-w-0">
-        <span className="block truncate text-sm font-medium text-text">{title}</span>
-        <span className="block truncate text-[12px] text-muted">{subtitle}</span>
+      <span className="flex w-full min-w-0 flex-col gap-0.5">
+        <span className="truncate text-sm font-medium text-text" title={title}>
+          {title}
+        </span>
+        <span className="line-clamp-2 break-words text-[12px] leading-snug text-muted" title={subtitle}>
+          {subtitle}
+        </span>
       </span>
     </>
   );
   return (
-    <li className="min-w-0">
+    <li className="flex min-w-0">
       {to ? (
         <Link to={to} params={params} className={cls}>
           {body}
@@ -133,16 +139,18 @@ function ProjectsCard({ org }: { org: string }) {
           {list.map((p, i) => {
             const count = (apps.data ?? []).filter((a) => a.project === p.slug).length;
             return (
-              <li key={p.slug} className="min-w-0">
+              <li key={p.slug} className="flex min-w-0">
                 <Link
                   to="/$org/projects/$p"
                   params={{ org, p: p.slug }}
-                  className="flex h-full items-center gap-3 rounded-lg border border-line bg-surface p-3.5 shadow-card outline-none transition-[border-color,background-color] duration-[140ms] hover:border-line-strong hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus"
+                  className="flex h-full w-full min-w-0 items-center gap-3 rounded-lg border border-line bg-surface p-3.5 shadow-card outline-none transition-[border-color,background-color] duration-[140ms] hover:border-line-strong hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus"
                 >
                   <IconTile icon={FolderOpen} hue={PROJECT_HUES[i % PROJECT_HUES.length]} size="md" solid />
                   <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-text">{p.name}</span>
-                    <span className="block truncate text-[12px] text-muted">
+                    <span className="block truncate text-sm font-medium text-text" title={p.name}>
+                      {p.name}
+                    </span>
+                    <span className="block truncate text-[12px] text-muted" title={p.environments.join(", ")}>
                       {apps.data ? `${count} ${count === 1 ? "app" : "apps"} · ` : ""}
                       {p.environments.join(", ")}
                     </span>
@@ -211,12 +219,14 @@ function AppsCard({ org }: { org: string }) {
               >
                 <LetterTile label={a.name ?? a.slug} hue={hueFor(a.slug)} size="md" solid />
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-medium text-text">{a.name ?? a.slug}</span>
-                  <span className="mt-0.5 flex items-center gap-1.5 text-[12px] text-muted">
-                    <Badge variant={BUILD_VARIANT[a.status.build_state] ?? "default"} dot className="h-4 px-1 text-[11px]">
+                  <span className="block truncate text-sm font-medium text-text" title={a.name ?? a.slug}>
+                    {a.name ?? a.slug}
+                  </span>
+                  <span className="mt-0.5 flex min-w-0 items-center gap-1.5 text-[12px] text-muted">
+                    <Badge variant={BUILD_VARIANT[a.status.build_state] ?? "default"} dot className="h-4 shrink-0 px-1 text-[11px]">
                       {a.status.build_state}
                     </Badge>
-                    <span className="truncate">
+                    <span className="min-w-0 truncate" title={`${projectName(a.project)} / ${a.environment}`}>
                       {projectName(a.project)} / {a.environment}
                     </span>
                   </span>
@@ -265,11 +275,15 @@ function ActivityCard({ org, canSee }: { org: string; canSee: boolean }) {
                 {i < items.length - 1 ? <span aria-hidden="true" className="absolute bottom-0 left-3 top-7 w-px bg-line" /> : null}
                 <OrgAvatar name={who} className="size-6 rounded-full text-[11px]" />
                 <div className="min-w-0 flex-1">
-                  <p className="text-sm text-text">
-                    <span className="font-medium">{who}</span>{" "}
-                    <code className="rounded-md bg-panel-2 px-1.5 py-0.5 text-[12px]">{e.action}</code>
+                  <p className="flex min-w-0 flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-text">
+                    <span className="min-w-0 truncate font-medium" title={who}>
+                      {who}
+                    </span>
+                    <code className="min-w-0 max-w-full truncate rounded-md bg-panel-2 px-1.5 py-0.5 text-[12px]" title={e.action}>
+                      {e.action}
+                    </code>
                   </p>
-                  <p className="mt-0.5 truncate text-[12px] text-muted">
+                  <p className="mt-0.5 truncate text-[12px] text-muted" title={e.target}>
                     {e.target} ·{" "}
                     <time dateTime={new Date(e.at).toISOString()} title={new Date(e.at).toLocaleString()}>
                       {formatRelative(e.at)}
@@ -316,11 +330,15 @@ function MembersCard({ org }: { org: string }) {
           {list.map((m) => {
             const name = m.user.name ?? m.user.email;
             return (
-              <li key={m.user.id} className="flex min-w-0 flex-col items-center gap-2 rounded-lg border border-line p-4 text-center">
+              <li key={m.user.id} className="flex h-full min-w-0 flex-col items-center gap-2 rounded-lg border border-line p-4 text-center">
                 <OrgAvatar name={name} solid className="size-10 rounded-full text-[15px]" />
-                <span className="min-w-0 max-w-full">
-                  <span className="block truncate text-sm font-medium text-text">{name}</span>
-                  <span className="block truncate text-[12px] text-muted">{m.user.email}</span>
+                <span className="w-full min-w-0">
+                  <span className="block truncate text-sm font-medium text-text" title={name}>
+                    {name}
+                  </span>
+                  <span className="block truncate text-[12px] text-muted" title={m.user.email}>
+                    {m.user.email}
+                  </span>
                 </span>
                 <Badge className="capitalize">{m.role}</Badge>
               </li>
@@ -342,7 +360,7 @@ export function Dashboard({ org, role }: { org: string; role: OrgRole | null | u
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <section aria-label="Quick actions">
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-2 lg:grid-cols-5">
+        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
           <QuickAction icon={Plus} entity="apps" title="New app" subtitle="Deploy code in seconds" to="/$org/apps/new" params={{ org }} />
           {isAdmin ? (
             <QuickAction icon={FolderPlus} entity="projects" title="New project" subtitle="Group apps together" onClick={() => setCreateOpen(true)} />

@@ -25,11 +25,11 @@ function GeneralRoute() {
     <div className="flex flex-col gap-6">
       <PageHeader icon={SettingsTile} entity="settings" title="Organization settings" />
       <SectionCard title="Organization" description="Identity of this workspace. Renaming is not available yet.">
-        <dl className="grid max-w-md grid-cols-[auto_1fr] gap-x-6 gap-y-2 text-sm">
+        <dl className="grid max-w-md grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-sm">
           <dt className="text-muted">Name</dt>
-          <dd className="font-medium">{current?.name ?? org}</dd>
+          <dd className="min-w-0 break-words font-medium">{current?.name ?? org}</dd>
           <dt className="text-muted">Slug</dt>
-          <dd className="font-mono text-[13px]">{org}</dd>
+          <dd className="min-w-0 break-all font-mono text-[13px]">{org}</dd>
           <dt className="text-muted">Your role</dt>
           <dd className="capitalize">{current?.role ?? "-"}</dd>
         </dl>

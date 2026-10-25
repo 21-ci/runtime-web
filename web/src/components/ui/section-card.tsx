@@ -4,7 +4,9 @@ import { cn } from "@/lib/utils";
 
 // SectionCard is a dashboard panel: surface, hairline, 10px radius, a header row with a bold title
 // on the left and small controls (filter, "View all", ⋮) on the right. `flush` drops the body
-// padding so lists and tables can run edge to edge under the header.
+// padding so lists and tables can run edge to edge under the header. Text never widens the card:
+// the title and description wrap, and the body grows to fill the card when a grid row stretches
+// sibling cards to one height.
 function SectionCard({
   title,
   description,
@@ -28,14 +30,14 @@ function SectionCard({
     >
       <header className="flex min-h-8 flex-wrap items-center gap-x-4 gap-y-2 px-5 pb-3 pt-4">
         <div className="min-w-0 flex-1 basis-40">
-          <h2 id={id} className="text-[15px] font-semibold text-text">
+          <h2 id={id} className="break-words text-[15px] font-semibold text-text">
             {title}
           </h2>
-          {description ? <p className="text-[13px] text-muted">{description}</p> : null}
+          {description ? <p className="break-words text-[13px] text-muted">{description}</p> : null}
         </div>
         {actions ? <div className="flex flex-wrap items-center gap-1.5">{actions}</div> : null}
       </header>
-      <div className={cn("min-w-0", flush ? "border-t border-line" : "px-5 pb-5")}>{children}</div>
+      <div className={cn("min-w-0 flex-1", flush ? "border-t border-line" : "px-5 pb-5")}>{children}</div>
     </section>
   );
 }

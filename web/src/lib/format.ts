@@ -68,3 +68,10 @@ export function labelFor(key: string): string {
   const words = key.replace(/[_-]+/g, " ").trim();
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
+
+// metricLabel is labelFor without the unit suffix that formatQuantity already shows in the value
+// (budget_bytes → "Budget", uptime_ms → "Uptime"). A key that is only a unit keeps its name.
+export function metricLabel(key: string): string {
+  const bare = key.replace(/[_-](bytes?|ms|millis|secs?|seconds?)$/i, "");
+  return labelFor(bare || key);
+}

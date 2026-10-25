@@ -111,9 +111,14 @@ export function SecretsPanel({ org, app, canWrite = true }: { org: string; app: 
         <ul aria-label="Secret names" className="divide-y divide-line rounded-lg border border-line">
           {secrets.data.map((s) => (
             <li key={s.name} className="group flex h-10 items-center justify-between gap-3 px-4 text-sm">
-              <span className="flex items-center gap-2 font-mono text-[13px] font-medium"><KeyRound className="size-3.5 text-tag-brown-text" aria-hidden="true" />{s.name}</span>
-              <span className="flex items-center gap-3">
-                <span className="text-[12px] text-muted">Updated {new Date(s.updated_at).toLocaleDateString()}</span>
+              <span className="flex min-w-0 items-center gap-2 font-mono text-[13px] font-medium">
+                <KeyRound className="size-3.5 shrink-0 text-tag-brown-text" aria-hidden="true" />
+                <span className="truncate" title={s.name}>
+                  {s.name}
+                </span>
+              </span>
+              <span className="flex shrink-0 items-center gap-3">
+                <span className="hidden text-[12px] text-muted sm:inline">Updated {new Date(s.updated_at).toLocaleDateString()}</span>
                 {canWrite ? (
                   <Button
                     variant="ghost"

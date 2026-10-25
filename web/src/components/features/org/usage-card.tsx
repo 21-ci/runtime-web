@@ -26,24 +26,24 @@ function UsageCardBody({ org }: { org: string }) {
       ) : (
         <>
           <dl className="mb-3 grid grid-cols-3 gap-2 text-[12px] text-muted">
-            <div>
-              <dt>Invocations</dt>
-              <dd className="text-[15px] font-semibold tabular-nums text-text">{formatCount(total)}</dd>
+            <div className="min-w-0">
+              <dt className="truncate">Invocations</dt>
+              <dd className="truncate text-[15px] font-semibold tabular-nums text-text">{formatCount(total)}</dd>
             </div>
-            <div>
-              <dt>CPU</dt>
-              <dd className="text-[15px] font-semibold tabular-nums text-text">{formatDuration(cpu)}</dd>
+            <div className="min-w-0">
+              <dt className="truncate">CPU</dt>
+              <dd className="truncate text-[15px] font-semibold tabular-nums text-text">{formatDuration(cpu)}</dd>
             </div>
-            <div>
-              <dt>Egress</dt>
-              <dd className="text-[15px] font-semibold tabular-nums text-text">{formatBytes(egress)}</dd>
+            <div className="min-w-0">
+              <dt className="truncate">Egress</dt>
+              <dd className="truncate text-[15px] font-semibold tabular-nums text-text">{formatBytes(egress)}</dd>
             </div>
           </dl>
           <ul className="flex flex-col divide-y divide-line text-sm">
             {rows.map((r) => (
-              <li key={`${r.day}/${r.app ?? "deleted"}`} className="flex justify-between py-1.5">
+              <li key={`${r.day}/${r.app ?? "deleted"}`} className="flex min-w-0 justify-between gap-3 py-1.5">
                 <span className="truncate">{r.app ?? "Deleted app"}</span>
-                <span className="tabular-nums text-muted">{formatCount(r.invocations)}</span>
+                <span className="shrink-0 tabular-nums text-muted">{formatCount(r.invocations)}</span>
               </li>
             ))}
           </ul>

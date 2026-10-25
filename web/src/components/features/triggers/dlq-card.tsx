@@ -58,8 +58,8 @@ export function DlqCard({ org, app }: { org: string; app: string }) {
       ) : (
         <ul className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
           {items.map((m) => (
-            <li key={m.id} className="flex flex-col gap-1 px-3 py-2 text-sm">
-              <span className="font-mono text-xs">{m.id}</span>
+            <li key={m.id} className="flex min-w-0 flex-col gap-1 px-3 py-2 text-sm">
+              <span className="break-all font-mono text-xs">{m.id}</span>
               <span className="text-xs text-muted">
                 {m.attempts} attempts, failed {new Date(m.failed_at).toLocaleString()}
               </span>

@@ -252,9 +252,11 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
               const shown = revealed[k] === true;
               return (
                 <TableRow key={k}>
-                  <TableCell className="font-mono text-[13px] font-medium">
-                    <span className="inline-flex items-center gap-1">
-                      {k}
+                  <TableCell className="max-w-[280px] font-mono text-[13px] font-medium">
+                    <span className="inline-flex max-w-full items-center gap-1">
+                      <span className="truncate" title={k}>
+                        {k}
+                      </span>
                       <CopyButton text={k} label={`Copy ${k}`} />
                     </span>
                   </TableCell>
