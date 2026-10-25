@@ -32,9 +32,9 @@ What you can set:
 
 Every open console picks up the new brand on its next page load.
 
-![Branding settings with a light and dark preview](../screenshots/ui-v2/branding-admin-settings-light.png)
+![Branding settings with a light and dark preview](../assets/branding/branding-admin-settings-light.png)
 
-![A branded sign-in page](../screenshots/ui-v2/branding-login-light.png)
+![A branded sign-in page](../assets/branding/branding-login-light.png)
 
 ## Reset to the defaults
 
