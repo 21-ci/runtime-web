@@ -76,7 +76,8 @@ run_codeql() {
   git archive HEAD | tar -x -C "$src" &&
     codeql database create "$db" --language=javascript-typescript --source-root="$src" \
       --build-mode=none --codescanning-config=.github/codeql/codeql-config.yml --overwrite &&
-    codeql database analyze "$db" --download --format=sarif-latest --output="$LOGS/codeql.sarif" &&
+    codeql database analyze "$db" codeql/javascript-queries:codeql-suites/javascript-security-extended.qls \
+      --download --format=sarif-latest --output="$LOGS/codeql.sarif" &&
     node -e '
       const fs = require("fs");
       const r = JSON.parse(fs.readFileSync(process.argv[1], "utf8")).runs[0];
