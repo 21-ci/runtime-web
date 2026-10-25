@@ -73,7 +73,7 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
     <div className="flex flex-col gap-8">
       <section aria-labelledby="members-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
         <header>
-          <h2 id="members-heading" className="text-sm font-semibold">
+          <h2 id="members-heading" className="text-[15px] font-semibold">
             Members
           </h2>
           <p className="text-sm text-muted">Roles set what a member can do across the org.</p>

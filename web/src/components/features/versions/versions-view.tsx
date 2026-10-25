@@ -1,4 +1,7 @@
+import { History } from "lucide-react";
 import { useState } from "react";
+
+import { PageHeader } from "@/components/ui/page-header";
 
 import { QueryError } from "@/components/features/empty/query-error";
 import { Badge } from "@/components/ui/badge";
@@ -26,6 +29,13 @@ import {
   useRebuild,
   useVersions,
 } from "./use-versions";
+
+const STATE_VARIANT: Record<BuildState, "success" | "danger" | "warning"> = {
+  pending: "warning",
+  building: "warning",
+  ready: "success",
+  failed: "danger",
+};
 
 const STATE_LABEL: Record<BuildState, string> = {
   pending: "Pending",
@@ -71,10 +81,13 @@ export function VersionsView({ org, app }: { org: string; app: string }) {
   const isRollback = target !== null && liveVersion !== null && target.version < liveVersion;
 
   return (
-    <section className="flex flex-col gap-3" aria-labelledby="versions-heading">
-      <h2 id="versions-heading" className="text-[15px] font-semibold">
-        Versions
-      </h2>
+    <section className="flex flex-col gap-6" aria-labelledby="versions-heading">
+      <PageHeader
+        icon={History}
+        entity="versions"
+        title={<span id="versions-heading">Versions</span>}
+        description="Every build of this app, newest first. Promote a ready version or roll back to an earlier one."
+      />
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
@@ -95,10 +108,12 @@ export function VersionsView({ org, app }: { org: string; app: string }) {
               return (
                 <TableRow key={v.version}>
                   <TableCell className="font-medium">
-                    v{v.version} {v.live ? <Badge>Live</Badge> : null}
+                    v{v.version} {v.live ? <Badge variant="info">Live</Badge> : null}
                   </TableCell>
                   <TableCell>
-                    <Badge variant="outline">{STATE_LABEL[v.build_state]}</Badge>
+                    <Badge variant={STATE_VARIANT[v.build_state]} dot>
+                      {STATE_LABEL[v.build_state]}
+                    </Badge>
                   </TableCell>
                   <TableCell>{v.author ? v.author.name : "Outside the web"}</TableCell>
                   <TableCell className="text-muted">{new Date(v.created_at).toLocaleString()}</TableCell>

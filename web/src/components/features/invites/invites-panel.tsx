@@ -52,7 +52,7 @@ export function InvitesPanel({ org, role }: { org: string; role: OrgRole }) {
   return (
     <section aria-labelledby="invites-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
       <header>
-        <h2 id="invites-heading" className="text-sm font-semibold">
+        <h2 id="invites-heading" className="text-[15px] font-semibold">
           Pending invites
         </h2>
         <p className="text-sm text-muted">Invites expire after 7 days. Revoke one to stop its link from working.</p>

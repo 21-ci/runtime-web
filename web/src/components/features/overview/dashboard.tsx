@@ -4,6 +4,7 @@ import {
   ChevronDown,
   Eye,
   FolderOpen,
+  ChevronRight,
   FolderPlus,
   Globe,
   KeyRound,
@@ -69,7 +70,7 @@ function QuickAction({
   // Every card is a column (tile, title, two-line description) that fills its grid cell, so a row of
   // cards shares one height and text wraps or clamps inside the card instead of spilling out.
   const cls =
-    "flex h-full w-full min-w-0 cursor-pointer flex-col items-start gap-2.5 rounded-lg border border-line bg-surface p-3.5 text-left shadow-card outline-none transition-[background-color,border-color,box-shadow] duration-[140ms] hover:border-line-strong hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus";
+    "flex h-full w-full min-w-0 cursor-pointer items-center gap-3 rounded-lg border border-line bg-surface p-3 text-left shadow-card outline-none transition-[background-color,border-color,box-shadow] duration-[140ms] hover:border-line-strong hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus lg:flex-col lg:items-start lg:gap-2.5 lg:p-3.5";
   const body = (
     <>
       <IconTile icon={icon} entity={entity} size="md" solid />
@@ -124,42 +125,67 @@ function ProjectsCard({ org }: { org: string }) {
   const apps = useApps(org);
   const list = projects.data ?? [];
   return (
-    <section aria-labelledby="projects-heading" className="flex flex-col gap-3">
-      <h2 id="projects-heading" className="text-[15px] font-semibold">
-        Projects
-      </h2>
+    <section aria-labelledby="projects-heading" className="flex min-w-0 flex-col">
       {projects.isError ? (
-        <QueryError error={projects.error} onRetry={() => void projects.refetch()} notFoundTitle="Organization not found" />
+        <>
+          <h2 id="projects-heading" className="mb-3 text-[15px] font-semibold">
+            Projects
+          </h2>
+          <QueryError error={projects.error} onRetry={() => void projects.refetch()} notFoundTitle="Organization not found" />
+        </>
       ) : projects.isPending ? (
-        <SkeletonGrid n={2} h="h-20" />
+        <>
+          <h2 id="projects-heading" className="mb-3 text-[15px] font-semibold">
+            Projects
+          </h2>
+          <SkeletonGrid n={2} h="h-12" />
+        </>
       ) : list.length === 0 ? (
-        <NoProjects org={org} />
+        <>
+          <h2 id="projects-heading" className="mb-3 text-[15px] font-semibold">
+            Projects
+          </h2>
+          <NoProjects org={org} />
+        </>
       ) : (
-        <ul className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
-          {list.map((p, i) => {
-            const count = (apps.data ?? []).filter((a) => a.project === p.slug).length;
-            return (
-              <li key={p.slug} className="flex min-w-0">
-                <Link
-                  to="/$org/projects/$p"
-                  params={{ org, p: p.slug }}
-                  className="flex h-full w-full min-w-0 items-center gap-3 rounded-lg border border-line bg-surface p-3.5 shadow-card outline-none transition-[border-color,background-color] duration-[140ms] hover:border-line-strong hover:bg-hover focus-visible:ring-2 focus-visible:ring-focus"
-                >
-                  <IconTile icon={FolderOpen} hue={PROJECT_HUES[i % PROJECT_HUES.length]} size="md" solid />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-medium text-text" title={p.name}>
+        <div className="flex min-w-0 flex-col rounded-lg border border-line bg-surface shadow-card">
+          <header className="flex items-center gap-2 px-5 pb-3 pt-4">
+            <h2 id="projects-heading" className="text-[15px] font-semibold">
+              Projects
+            </h2>
+            <span className="text-[12px] text-muted">{list.length}</span>
+          </header>
+          <ul className="divide-y divide-line border-t border-line">
+            {list.map((p, i) => {
+              const count = (apps.data ?? []).filter((a) => a.project === p.slug).length;
+              return (
+                <li key={p.slug} className="min-w-0">
+                  <Link
+                    to="/$org/projects/$p"
+                    params={{ org, p: p.slug }}
+                    className="flex h-12 min-w-0 items-center gap-3 px-5 outline-none transition-colors hover:bg-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
+                  >
+                    <IconTile icon={FolderOpen} hue={PROJECT_HUES[i % PROJECT_HUES.length]} size="sm" solid />
+                    <span className="min-w-0 flex-1 truncate text-sm font-medium text-text" title={p.name}>
                       {p.name}
                     </span>
-                    <span className="block truncate text-[12px] text-muted" title={p.environments.join(", ")}>
-                      {apps.data ? `${count} ${count === 1 ? "app" : "apps"} · ` : ""}
-                      {p.environments.join(", ")}
+                    <span className="hidden min-w-0 items-center gap-1 sm:flex">
+                      {p.environments.map((e) => (
+                        <Badge key={e} variant="outline">
+                          {e}
+                        </Badge>
+                      ))}
                     </span>
-                  </span>
-                </Link>
-              </li>
-            );
-          })}
-        </ul>
+                    <span className="w-14 shrink-0 text-right text-[12px] tabular-nums text-muted">
+                      {apps.data ? `${count} ${count === 1 ? "app" : "apps"}` : ""}
+                    </span>
+                    <ChevronRight className="size-4 shrink-0 text-muted/60" aria-hidden="true" />
+                  </Link>
+                </li>
+              );
+            })}
+          </ul>
+        </div>
       )}
     </section>
   );
@@ -326,13 +352,13 @@ function MembersCard({ org }: { org: string }) {
       ) : members.isError || list.length === 0 ? (
         <EmptyState bare entity="members" title="No members to show" />
       ) : (
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5">
+        <ul className="flex flex-col divide-y divide-line">
           {list.map((m) => {
             const name = m.user.name ?? m.user.email;
             return (
-              <li key={m.user.id} className="flex h-full min-w-0 flex-col items-center gap-2 rounded-lg border border-line p-4 text-center">
-                <OrgAvatar name={name} solid className="size-10 rounded-full text-[15px]" />
-                <span className="w-full min-w-0">
+              <li key={m.user.id} className="flex min-w-0 items-center gap-3 py-2 first:pt-0 last:pb-0">
+                <OrgAvatar name={name} solid className="size-8 rounded-full text-[13px]" />
+                <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-text" title={name}>
                     {name}
                   </span>
@@ -360,7 +386,7 @@ export function Dashboard({ org, role }: { org: string; role: OrgRole | null | u
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <section aria-label="Quick actions">
-        <ul className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+        <ul className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-5">
           <QuickAction icon={Plus} entity="apps" title="New app" subtitle="Deploy code in seconds" to="/$org/apps/new" params={{ org }} />
           {isAdmin ? (
             <QuickAction icon={FolderPlus} entity="projects" title="New project" subtitle="Group apps together" onClick={() => setCreateOpen(true)} />
@@ -380,11 +406,9 @@ export function Dashboard({ org, role }: { org: string; role: OrgRole | null | u
       <ProjectsCard org={org} />
       <div className="grid gap-6 lg:grid-cols-2">
         <AppsCard org={org} />
-        <ActivityCard org={org} canSee={isAdmin} />
-        <div className="lg:col-span-2">
-          <MembersCard org={org} />
-        </div>
+        <MembersCard org={org} />
       </div>
+      <ActivityCard org={org} canSee={isAdmin} />
       {isAdmin ? <CreateProjectDialog org={org} open={createOpen} onOpenChange={setCreateOpen} /> : null}
     </div>
   );

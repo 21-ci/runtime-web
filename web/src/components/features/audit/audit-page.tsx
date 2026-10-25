@@ -56,7 +56,7 @@ export function AuditPage({ org }: { org: string }) {
   return (
     <section aria-labelledby="audit-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
       <header>
-        <h2 id="audit-heading" className="text-sm font-semibold">
+        <h2 id="audit-heading" className="text-[15px] font-semibold">
           Audit log
         </h2>
         <p className="text-sm text-muted">Who changed what in this org, newest first.</p>
