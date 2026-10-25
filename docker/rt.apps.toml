@@ -1,0 +1,13 @@
+# Plan for org tenants in the container image (rtweb-entry sets RTWEB_DEFAULT_PLAN=apps unless you set your own).
+# The runtime's built-in `free` plan has no cron trigger, so cron Apps and their schedules would answer 403
+# plan_limit. Override it with RTWEB_RT_CONFIG_EXTRA (another [plans.<name>] table) and RTWEB_DEFAULT_PLAN.
+[plans.apps]
+rps = 50
+max_concurrency = 10
+invocations_per_day = 100000
+max_services = 20
+max_schedules = 10
+min_schedule_seconds = 60
+storage_mb = 256
+allowed_triggers = ["http", "interval", "cron", "queue", "call", "websocket"]
+limits_max = { wall_ms = 30000, cpu_ms = 2000, memory_mb = 128 }
