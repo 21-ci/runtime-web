@@ -242,7 +242,17 @@ export async function changePassword(deps: AuthDeps, userId: string, currentSess
   const row = await getUserById(db, userId);
   if (!row) throw notFound();
   const problem = passwordProblem(next);
-  if (typeof current !== "string" || !(await hasherOf(deps).verify(row.pw_hash, current))) throw invalidCredentials();
+  // A stolen session must not become an unthrottled oracle for the password (or an argon2 DoS).
+  const kv = deps.storage.kv;
+  const failKey = `rl:pwchange:${userId}`;
+  if (await isBlocked(kv, failKey, MAX_LOGIN_FAILURES)) throw rateLimited();
+  const ok =
+    typeof current === "string" && current.length <= 1024 && (await withHashSlot(kv, () => hasherOf(deps).verify(row.pw_hash, current)));
+  if (!ok) {
+    await recordFailure(kv, failKey);
+    throw invalidCredentials();
+  }
+  await resetFailures(kv, failKey);
   if (problem) throw invalid({ new_password: problem });
   await setPassword(deps, db, userId, next as string, false);
   await revokeAllForUser(db, userId, currentSessionId);

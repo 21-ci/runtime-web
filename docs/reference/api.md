@@ -239,7 +239,7 @@ type AuditEntry = {
 | POST | `/api/auth/mfa` | MFA-pending session cookie; no CSRF (there is no token yet); Origin enforced | `{code: string}` | `200 SessionResp` + full session cookie | `401 unauthenticated` (no/expired pending), `401 invalid_code`, `429 rate_limited` |
 | POST | `/api/auth/logout` | session | | `204` + cookie cleared | |
 | GET | `/api/me` | session (gate-exempt) | | `200 Me` | |
-| PUT | `/api/me/password` | session (gate-exempt) | `{current_password: string; new_password: string}` | `204` (other sessions revoked) | `401 invalid_credentials` (wrong current), `422 invalid` (length < 12) |
+| PUT | `/api/me/password` | session (gate-exempt) | `{current_password: string; new_password: string}` | `204` (other sessions revoked) | `401 invalid_credentials` (wrong current), `422 invalid` (length < 12), `429 rate_limited` (10 wrong current passwords in 15 min) |
 
 ```ts
 type SetupReq = { setup_token?: string; /* see note */ email: string; name: string; password: string };

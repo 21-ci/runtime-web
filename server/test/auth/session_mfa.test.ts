@@ -140,6 +140,17 @@ describe("sessions", () => {
     expect((await loginAs(app, "u@example.com", "a brand new password")).status).toBe(200);
   });
 
+  it("password change: repeated wrong current passwords are throttled (429)", async () => {
+    const app = testApp();
+    await addUser(app, "u@example.com");
+    const a = await signIn(app, "u@example.com");
+    const body = { current_password: "nope nope nope", new_password: "a brand new password" };
+    for (let i = 0; i < 10; i++) expect((await a.call("PUT", "/api/me/password", body)).status).toBe(401);
+    const blocked = await a.call("PUT", "/api/me/password", { current_password: PW, new_password: "a brand new password" });
+    expect(blocked.status).toBe(429);
+    expect(blocked.headers.get("retry-after")).toBeTruthy();
+  });
+
   it("disabling a user ends their sessions", async () => {
     const app = testApp();
     await addUser(app, "u@example.com");
