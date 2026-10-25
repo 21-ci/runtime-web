@@ -1,0 +1,35 @@
+# PR title: squash merges use the PR title as the commit subject, and release-please builds CHANGELOG.md from those
+# subjects, so every title must be a Conventional Commit: type(scope)!: summary.
+#
+# Uses pull_request (not pull_request_target): no secrets, read-only token, the title is passed through env.
+name: PR title
+
+on:
+  pull_request:
+    types: [opened, edited, synchronize, reopened]
+
+permissions: {}
+
+concurrency:
+  group: pr-title-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  pr-title:
+    name: pr title
+    runs-on: ubuntu-24.04
+    timeout-minutes: 5
+    permissions: {}
+    steps:
+      - name: Conventional Commit title
+        env:
+          TITLE: ${{ github.event.pull_request.title }}
+        run: |
+          types='feat|fix|perf|revert|docs|build|deps|refactor|test|ci|chore|style'
+          if printf '%s' "$TITLE" | grep -Eq "^(${types})(\([a-z0-9._/-]+\))?!?: [^ ].*[^.]$"; then
+            echo "ok: $TITLE"
+          else
+            echo "::error::PR title is not a Conventional Commit: '$TITLE'"
+            echo "Expected 'type(scope)!: summary' with type one of ${types//|/, } and no trailing period."
+            exit 1
+          fi

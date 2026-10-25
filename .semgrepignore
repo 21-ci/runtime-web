@@ -1,0 +1,9 @@
+# Tests: fixtures and fake credentials are not shipped code (CI and the local run both skip them).
+**/*.test.ts
+**/*.test.tsx
+server/test/
+web/src/test/
+e2e/
+.ci-local/
+node_modules/
+web/dist/

@@ -90,7 +90,7 @@ export function registerSettings(r: Router, deps: Deps): void {
         }
         if (body.password_login_disabled !== undefined) {
           if (typeof body.password_login_disabled === "boolean") passwordLoginDisabled = body.password_login_disabled;
-          else fields.password_login_disabled = "must_be_boolean";
+          else fields.password_login_disabled = "must_be_boolean"; // nosemgrep: ajinabraham.njsscan.generic.hardcoded_secrets.node_password -- a settings key name, not a password
         }
         const providers = body.providers !== undefined ? parseProviders(body.providers, fields) : undefined;
         if (Object.keys(fields).length > 0) throw invalid(fields);

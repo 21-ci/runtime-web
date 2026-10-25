@@ -64,7 +64,7 @@ async function api(method, path, { body, tenant, ok = [] } = {}) {
   const res = await fetch(API + path, { method, headers, body: body === undefined ? undefined : JSON.stringify(body) });
   const text = await res.text();
   if (!res.ok && !ok.includes(res.status)) throw new Error(`${method} ${path} -> ${res.status} ${text.slice(0, 500)}`);
-  let data = null;
+  let data;
   try {
     data = text ? JSON.parse(text) : null;
   } catch {

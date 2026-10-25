@@ -7,8 +7,8 @@ help: ## Show this help
 
 ci: web web-lint web-test budget server-ci ## Run the CI chain (web build/lint/test/budgets, server typecheck/lint/tests; e2e is separate)
 
-ci-local: ## Everything CI and the security workflow check, locally, with a pass/fail summary (scripts/ci-local.sh)
-	scripts/ci-local.sh
+ci-local: ## Everything CI and the security workflow check, locally (ARGS=--fast skips coverage, docs, CodeQL)
+	scripts/ci-local.sh $(ARGS)
 
 ci-security: ## Only npm audit, Trivy and CodeQL (scripts/ci-local.sh --security)
 	scripts/ci-local.sh --security

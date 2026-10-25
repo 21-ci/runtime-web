@@ -94,7 +94,9 @@ export default function CodeEditor(props: CodeEditorProps) {
   const labels = useRef(new Compartment());
   const label = t("editor.label", { path });
   const latestLabel = useRef(label);
-  latestLabel.current = label;
+  useEffect(() => {
+    latestLabel.current = label;
+  }, [label]);
   useEffect(() => {
     if (!host.current) return;
     const v = new EditorView({

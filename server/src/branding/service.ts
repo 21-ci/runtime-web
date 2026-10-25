@@ -87,7 +87,7 @@ export function parseFields(body: Record<string, unknown>, cur: BrandingFields):
     else out[k] = v.trim();
   }
   if (out.support_url && body.support_url !== undefined) {
-    let ok = false;
+    let ok: boolean;
     try {
       const u = new URL(out.support_url);
       ok = (u.protocol === "https:" || u.protocol === "http:") && !u.username && !u.password;

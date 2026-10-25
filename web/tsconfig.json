@@ -13,7 +13,6 @@
     "allowImportingTsExtensions": true,
     "isolatedModules": true,
     "skipLibCheck": true,
-    "baseUrl": ".",
     "paths": { "@/*": ["./src/*"], "@shared-branding/*": ["../server/src/branding/shared/*"] },
     "types": ["vite/client", "node", "vitest/globals", "@testing-library/jest-dom"]
   },

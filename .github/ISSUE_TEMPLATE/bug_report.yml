@@ -1,0 +1,64 @@
+name: Bug report
+description: Something in the console, the API, the installer or the docs does not work as documented.
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for the report. **Security bugs do not belong here**: follow [SECURITY.md](https://github.com/21-ci/runtime-web/security/policy).
+        Remove tokens, session cookies, API keys and tenant data from anything you paste.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Runtime Web version (the `VERSION` file of the install, or the release tag) and `rt --version`.
+      placeholder: runtime-web 0.1.0, rt 0.1.1
+    validations:
+      required: true
+  - type: dropdown
+    id: install
+    attributes:
+      label: How do you run it?
+      options:
+        - install.sh / release tarball
+        - make server-install onto a runtime node
+        - Local dev (make dev / vite)
+        - Other
+    validations:
+      required: true
+  - type: dropdown
+    id: area
+    attributes:
+      label: Area
+      multiple: true
+      options:
+        - Console (web UI)
+        - Sign-in, sessions, users
+        - Orgs, members, invites
+        - API keys
+        - Apps, deploys, logs
+        - Domains
+        - Audit log
+        - Instance admin, branding
+        - HTTP API
+        - Installer / Caddy relay
+        - Docs
+        - Other
+  - type: input
+    id: browser
+    attributes:
+      label: Browser and OS
+      placeholder: Firefox 140 on macOS 15, Chrome 141 on Ubuntu 24.04, ...
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened
+      description: Steps to reproduce, what you expected, and what happened instead.
+    validations:
+      required: true
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs and screenshots
+      description: Browser console, network response (error envelope), `rt` service logs. Redact secrets.
+      render: text
