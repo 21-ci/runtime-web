@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { Download, Settings } from "lucide-react";
+import { useTranslation } from "react-i18next";
 
 import { AccessSection } from "@/components/features/app-settings/access";
 import { CallersSection } from "@/components/features/app-settings/callers";
@@ -35,6 +36,7 @@ type SectionId = "general" | "access" | "limits" | "advanced" | "danger";
 function AppSettingsPage() {
   const { org, app } = Route.useParams();
   const navigate = useNavigate();
+  const { t } = useTranslation(["app-settings", "common"]);
   const detail = useAppDetail(org, app);
   const can = useCan(org, detail.data?.project);
   const [section, setSection] = useState<SectionId>("general");
@@ -45,8 +47,8 @@ function AppSettingsPage() {
         <QueryError
           error={detail.error}
           onRetry={() => void detail.refetch()}
-          notFoundTitle="App not found"
-          notFoundDescription="It may have been deleted or you lack access."
+          notFoundTitle={t("page.notFound")}
+          notFoundDescription={t("page.notFoundDescription")}
         />
       </PageBody>
     );
@@ -62,18 +64,18 @@ function AppSettingsPage() {
   if (!a) {
     return (
       <PageBody>
-        <EmptyState title="App not found" />
+        <EmptyState title={t("page.notFound")} />
       </PageBody>
     );
   }
 
   const canDelete = can("app.delete") === true;
-  const sections: { id: SectionId; label: string }[] = [
-    { id: "general", label: "General" },
-    { id: "access", label: "Access" },
-    { id: "limits", label: "Limits" },
-    { id: "advanced", label: "Advanced" },
-    ...(canDelete ? [{ id: "danger" as const, label: "Danger zone" }] : []),
+  const sections: { id: SectionId; labelKey: "nav.general" | "nav.access" | "nav.limits" | "nav.advanced" | "nav.danger" }[] = [
+    { id: "general", labelKey: "nav.general" },
+    { id: "access", labelKey: "nav.access" },
+    { id: "limits", labelKey: "nav.limits" },
+    { id: "advanced", labelKey: "nav.advanced" },
+    ...(canDelete ? [{ id: "danger" as const, labelKey: "nav.danger" as const }] : []),
   ];
 
   return (
@@ -81,12 +83,12 @@ function AppSettingsPage() {
       <PageHeader
         icon={Settings}
         entity="settings"
-        title="Settings"
-        description={`${a.name ?? a.slug} · ${a.environment}`}
+        title={t("page.title")}
+        description={t("page.description", { name: a.name ?? a.slug, environment: a.environment })}
         actions={<StatusPill status={a.status} />}
       />
       <div className="flex flex-col gap-6 md:flex-row md:gap-10">
-        <nav aria-label="Settings sections" className="md:sticky md:top-16 md:w-44 md:shrink-0 md:self-start">
+        <nav aria-label={t("nav.label")} className="md:sticky md:top-16 md:w-44 md:shrink-0 md:self-start">
           <ul className="flex gap-1 overflow-x-auto md:flex-col [scrollbar-width:none]">
             {sections.map((s) => {
               const current = s.id === section;
@@ -105,7 +107,7 @@ function AppSettingsPage() {
                           : "text-muted hover:bg-hover hover:text-text",
                     )}
                   >
-                    {s.label}
+                    {t(s.labelKey)}
                   </button>
                 </li>
               );
@@ -117,7 +119,7 @@ function AppSettingsPage() {
           <WriteAccess.Provider value={can("app.update") === true}>
             {section === "general" ? (
               <>
-                <SectionLabel>General</SectionLabel>
+                <SectionLabel>{t("nav.general")}</SectionLabel>
                 <ScalingSection org={org} app={a} />
                 <IngressSection org={org} app={a} />
                 <EgressSection org={org} app={a} />
@@ -125,52 +127,54 @@ function AppSettingsPage() {
             ) : null}
             {section === "access" ? (
               <>
-                <SectionLabel>Access</SectionLabel>
+                <SectionLabel>{t("nav.access")}</SectionLabel>
                 <AccessSection org={org} app={a} />
                 <CallersSection org={org} app={a} />
               </>
             ) : null}
             {section === "limits" ? (
               <>
-                <SectionLabel>Limits</SectionLabel>
+                <SectionLabel>{t("nav.limits")}</SectionLabel>
                 <LimitsSection org={org} app={a} />
               </>
             ) : null}
           </WriteAccess.Provider>
           {section === "advanced" ? (
             <>
-              <SectionLabel>Advanced</SectionLabel>
+              <SectionLabel>{t("nav.advanced")}</SectionLabel>
               <dl className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
-                <AdvancedRow label="Slug" hint="Identifies the app on the runtime and in the API.">
+                <AdvancedRow label={t("advanced.slug")} hint={t("advanced.slugHint")}>
                   <code className="rounded-md bg-panel-2 px-1.5 py-0.5 text-[13px]">{a.slug}</code>
-                  <CopyButton text={a.slug} label="Copy slug" />
+                  <CopyButton text={a.slug} label={t("advanced.copySlug")} />
                 </AdvancedRow>
-                <AdvancedRow label="Live URL">
+                <AdvancedRow label={t("advanced.liveUrl")}>
                   <code className="truncate rounded-md bg-panel-2 px-1.5 py-0.5 text-[13px]">{a.url}</code>
-                  <CopyButton text={a.url} label="Copy URL" />
+                  <CopyButton text={a.url} label={t("common:copyUrl")} />
                 </AdvancedRow>
-                <AdvancedRow label="Runtime">
-                  <span className="text-sm">{a.runtime}{a.profile ? ` · profile ${a.profile}` : ""}</span>
+                <AdvancedRow label={t("advanced.runtime")}>
+                  <span className="text-sm">
+                    {a.profile ? t("advanced.runtimeProfile", { runtime: a.runtime, profile: a.profile }) : a.runtime}
+                  </span>
                 </AdvancedRow>
-                <AdvancedRow label="Env & Secrets" hint="Variables and secrets moved to their own page.">
+                <AdvancedRow label={t("advanced.envSecrets")} hint={t("advanced.envSecretsHint")}>
                   <Button asChild variant="secondary" size="sm">
                     <Link to="/$org/apps/$app/env" params={{ org, app }}>
-                      Open Env & Secrets
+                      {t("advanced.openEnvSecrets")}
                     </Link>
                   </Button>
                 </AdvancedRow>
-                <AdvancedRow label="Domains" hint="Custom host names for this app.">
+                <AdvancedRow label={t("advanced.domains")} hint={t("advanced.domainsHint")}>
                   <Button asChild variant="secondary" size="sm">
                     <Link to="/$org/apps/$app/domains" params={{ org, app }}>
-                      Open Domains
+                      {t("advanced.openDomains")}
                     </Link>
                   </Button>
                 </AdvancedRow>
                 {can("app.data.export") === true ? (
-                  <AdvancedRow label="Export data" hint="Download the app's SQLite database.">
+                  <AdvancedRow label={t("advanced.exportData")} hint={t("advanced.exportHint")}>
                     <Button asChild variant="secondary" size="sm">
                       <a href={`/api/orgs/${encodeURIComponent(org)}/apps/${encodeURIComponent(app)}/export`} download>
-                        <Download aria-hidden="true" /> Download
+                        <Download aria-hidden="true" /> {t("advanced.download")}
                       </a>
                     </Button>
                   </AdvancedRow>
@@ -180,7 +184,7 @@ function AppSettingsPage() {
           ) : null}
           {section === "danger" && canDelete ? (
             <>
-              <SectionLabel className="text-danger-text">Danger zone</SectionLabel>
+              <SectionLabel className="text-danger-text">{t("nav.danger")}</SectionLabel>
               <DangerZone org={org} app={a} onDeleted={() => void navigate({ to: "/$org", params: { org } })} />
             </>
           ) : null}

@@ -1,1 +1,36 @@
-{}
+{
+  "title": "Jonli loglar",
+  "compactLabel": "Loglar",
+  "filterLabel": "Satrlarni filtrlash",
+  "filterPlaceholder": "Satrlarni filtrlash…",
+  "levelLabel": "Minimal daraja",
+  "levels": {
+    "all": "Barcha darajalar",
+    "debug": "Debug va undan yuqori",
+    "info": "Info va undan yuqori",
+    "warn": "Warn va undan yuqori",
+    "error": "Faqat xatolar"
+  },
+  "conn": {
+    "connecting": "Ulanmoqda",
+    "connected": "Ulangan",
+    "reconnecting": "Qayta ulanmoqda",
+    "closed": "Uzilgan"
+  },
+  "buffered_one": "{{count}} ta satr buferda",
+  "buffered_other": "{{count}} ta satr buferda",
+  "pause": "Pauza",
+  "resume": "Davom ettirish",
+  "clear": "Tozalash",
+  "gap": "Ayrim satrlar oʻtkazib yuborildi",
+  "linesLabel": "Log satrlari",
+  "empty": {
+    "title": "Hali log satrlari yoʻq",
+    "description": "Ilova soʻrovlarni qayta ishlaganda satrlar shu yerda paydo boʻladi.",
+    "noMatchTitle": "Filtrga mos satrlar yoʻq",
+    "noMatchDescription": "Barcha satrlarni koʻrish uchun filtrni tozalang.",
+    "compact": "Ilova soʻrovlarni qayta ishlaganda satrlar shu yerda paydo boʻladi.",
+    "compactNoMatch": "Filtrga mos satrlar yoʻq."
+  },
+  "streamEnded": "Log oqimi tugadi."
+}

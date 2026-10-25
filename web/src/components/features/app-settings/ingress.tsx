@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -6,13 +7,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type AppDetail, type Ingress, usePatchApp } from "./api";
 import { isCidr } from "./cidr";
-import { FieldError, FormAlert, REPLACE_NOTE, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
+import { FieldError, FormAlert, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
 
 const METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"] as const;
 
 // IngressSection edits methods, path prefixes, ip_allow CIDRs and rate_limit. Each list entry is its
 // own input, so a server error like "ingress.ip_allow[2]" lands on the third IP row.
 export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
+  const { t } = useTranslation(["app-settings", "common"]);
   const initial: Ingress = app.ingress ?? {};
   const [methods, setMethods] = useState<string[]>(initial.methods ?? []);
   const [prefixes, setPrefixes] = useState<string[]>(initial.path_prefixes?.length ? initial.path_prefixes : [""]);
@@ -33,8 +35,8 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
     const local: Record<string, string> = {};
     // Rows are not dropped when blank so that list indexes match the server's ip_allow[i] paths.
     const cidrs = ipAllow.map((v) => v.trim());
-    cidrs.forEach((t, i) => {
-      if (!isCidr(t)) local[`ingress.ip_allow[${i}]`] = "not a CIDR prefix (for example 10.0.0.0/8)";
+    cidrs.forEach((cidr, i) => {
+      if (!isCidr(cidr)) local[`ingress.ip_allow[${i}]`] = t("ingress.ipInvalid");
     });
     let rate: Record<string, unknown> | undefined;
     if (rateLimit.trim() !== "") {
@@ -43,7 +45,7 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
         if (typeof parsed !== "object" || parsed === null || Array.isArray(parsed)) throw new Error("not object");
         rate = parsed as Record<string, unknown>;
       } catch {
-        local["ingress.rate_limit"] = "Rate limit must be a JSON object.";
+        local["ingress.rate_limit"] = t("ingress.rateLimitInvalid");
       }
     }
     setFields(local);
@@ -59,7 +61,7 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
     try {
       await patch.mutateAsync({ etag: app.etag, body: { ingress: body } });
       setFields({});
-      toast.success("Ingress saved");
+      toast.success(t("ingress.saved"));
     } catch (err) {
       const server = fieldErrorsOf(err);
       setFields(server);
@@ -72,10 +74,10 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
   const ipError = (i: number) => fields[`ingress.ip_allow[${i}]`];
 
   return (
-    <Section id="ingress" title="Ingress" description="Which requests reach the app and from where.">
-      <form onSubmit={onSubmit} className="flex flex-col gap-4" aria-label="Ingress settings">
+    <Section id="ingress" title={t("ingress.title")} description={t("ingress.description")}>
+      <form onSubmit={onSubmit} className="flex flex-col gap-4" aria-label={t("ingress.formLabel")}>
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-[13px] font-medium text-text">Methods</legend>
+          <legend className="mb-1 text-[13px] font-medium text-text">{t("ingress.methods")}</legend>
           <div className="flex flex-wrap gap-3">
             {METHODS.map((m) => (
               <label key={m} className="flex items-center gap-2 text-sm">
@@ -93,11 +95,11 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
         </fieldset>
 
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-text">Path prefixes</p>
+          <p className="text-sm font-medium text-text">{t("ingress.pathPrefixes")}</p>
           {prefixes.map((v, i) => (
             <div key={i} className="flex items-center gap-2">
               <Label htmlFor={`prefix-${i}`} className="sr-only">
-                Path prefix {i + 1}
+                {t("ingress.pathPrefix", { index: i + 1 })}
               </Label>
               <Input
                 id={`prefix-${i}`}
@@ -108,27 +110,27 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
               <Button
                 type="button"
                 variant="ghost"
-                aria-label={`Remove path prefix ${i + 1}`}
+                aria-label={t("ingress.removePathPrefix", { index: i + 1 })}
                 onClick={() => setPrefixes(prefixes.filter((_, j) => j !== i))}
               >
-                Remove
+                {t("common:remove")}
               </Button>
             </div>
           ))}
           <div>
             <Button type="button" variant="secondary" onClick={() => setPrefixes([...prefixes, ""])}>
-              Add path prefix
+              {t("ingress.addPathPrefix")}
             </Button>
           </div>
         </div>
 
         <div className="flex flex-col gap-2">
-          <p className="text-sm font-medium text-text">Allowed IP ranges (CIDR)</p>
+          <p className="text-sm font-medium text-text">{t("ingress.ipRanges")}</p>
           {ipAllow.map((v, i) => (
             <div key={i} className="flex flex-col gap-1">
               <div className="flex items-center gap-2">
                 <Label htmlFor={`ip-${i}`} className="sr-only">
-                  IP allow {i + 1}
+                  {t("ingress.ipAllow", { index: i + 1 })}
                 </Label>
                 <Input
                   id={`ip-${i}`}
@@ -141,10 +143,10 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
                 <Button
                   type="button"
                   variant="ghost"
-                  aria-label={`Remove IP allow ${i + 1}`}
+                  aria-label={t("ingress.removeIpAllow", { index: i + 1 })}
                   onClick={() => setIpAllow(ipAllow.filter((_, j) => j !== i))}
                 >
-                  Remove
+                  {t("common:remove")}
                 </Button>
               </div>
               <FieldError id={`ip-${i}-error`} message={ipError(i)} />
@@ -152,13 +154,13 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
           ))}
           <div>
             <Button type="button" variant="secondary" onClick={() => setIpAllow([...ipAllow, ""])}>
-              Add IP range
+              {t("ingress.addIpRange")}
             </Button>
           </div>
         </div>
 
         <div className="flex flex-col gap-1">
-          <Label htmlFor="rate-limit">Rate limit (JSON)</Label>
+          <Label htmlFor="rate-limit">{t("ingress.rateLimit")}</Label>
           <textarea
             id="rate-limit"
             value={rateLimit}
@@ -173,10 +175,10 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
         </div>
 
         <FormAlert messages={errors} />
-        <p className="text-sm text-muted">{REPLACE_NOTE}</p>
+        <p className="text-sm text-muted">{t("replaceNote")}</p>
         <div>
           <SaveButton disabled={patch.isPending}>
-            Save ingress
+            {t("ingress.save")}
           </SaveButton>
         </div>
       </form>

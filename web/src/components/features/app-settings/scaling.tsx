@@ -1,15 +1,17 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type AppDetail, usePatchApp } from "./api";
-import { FieldError, FormAlert, REPLACE_NOTE, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
+import { FieldError, FormAlert, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
 
 const SHOWN = ["scaling.min_instances", "scaling.max_instances"];
 
 // ScalingSection edits the instance range. Server 422 paths map onto the min and max inputs.
 export function ScalingSection({ org, app }: { org: string; app: AppDetail }) {
+  const { t } = useTranslation(["app-settings", "common"]);
   const [min, setMin] = useState(String(app.scaling?.min_instances ?? 0));
   const [max, setMax] = useState(String(app.scaling?.max_instances ?? 1));
   const [fields, setFields] = useState<Record<string, string>>({});
@@ -21,10 +23,10 @@ export function ScalingSection({ org, app }: { org: string; app: AppDetail }) {
     const local: Record<string, string> = {};
     const minN = Number(min);
     const maxN = Number(max);
-    if (!Number.isInteger(minN) || minN < 0) local["scaling.min_instances"] = "Use a whole number, 0 or more.";
-    if (!Number.isInteger(maxN) || maxN < 1) local["scaling.max_instances"] = "Use a whole number, 1 or more.";
+    if (!Number.isInteger(minN) || minN < 0) local["scaling.min_instances"] = t("scaling.minInvalid");
+    if (!Number.isInteger(maxN) || maxN < 1) local["scaling.max_instances"] = t("scaling.maxInvalid");
     if (!local["scaling.min_instances"] && !local["scaling.max_instances"] && minN > maxN) {
-      local["scaling.max_instances"] = "Max must be at least min.";
+      local["scaling.max_instances"] = t("scaling.maxBelowMin");
     }
     setFields(local);
     setErrors([]);
@@ -36,7 +38,7 @@ export function ScalingSection({ org, app }: { org: string; app: AppDetail }) {
         body: { scaling: { min_instances: minN, max_instances: maxN } },
       });
       setFields({});
-      toast.success("Scaling saved");
+      toast.success(t("scaling.saved"));
     } catch (err) {
       const server = fieldErrorsOf(err);
       setFields(server);
@@ -45,11 +47,11 @@ export function ScalingSection({ org, app }: { org: string; app: AppDetail }) {
   }
 
   return (
-    <Section id="scaling" title="Scaling" description="How many instances run, from idle to peak.">
-      <form onSubmit={onSubmit} className="flex flex-col gap-3" aria-label="Scaling settings">
+    <Section id="scaling" title={t("scaling.title")} description={t("scaling.description")}>
+      <form onSubmit={onSubmit} className="flex flex-col gap-3" aria-label={t("scaling.formLabel")}>
         <div className="grid grid-cols-2 gap-3">
           <div className="flex flex-col gap-1">
-            <Label htmlFor="scaling-min">Min instances</Label>
+            <Label htmlFor="scaling-min">{t("scaling.min")}</Label>
             <Input
               id="scaling-min"
               inputMode="numeric"
@@ -61,7 +63,7 @@ export function ScalingSection({ org, app }: { org: string; app: AppDetail }) {
             <FieldError id="scaling-min-error" message={fields["scaling.min_instances"]} />
           </div>
           <div className="flex flex-col gap-1">
-            <Label htmlFor="scaling-max">Max instances</Label>
+            <Label htmlFor="scaling-max">{t("scaling.max")}</Label>
             <Input
               id="scaling-max"
               inputMode="numeric"
@@ -74,10 +76,10 @@ export function ScalingSection({ org, app }: { org: string; app: AppDetail }) {
           </div>
         </div>
         <FormAlert messages={errors} />
-        <p className="text-sm text-muted">{REPLACE_NOTE}</p>
+        <p className="text-sm text-muted">{t("replaceNote")}</p>
         <div>
           <SaveButton disabled={patch.isPending}>
-            Save scaling
+            {t("scaling.save")}
           </SaveButton>
         </div>
       </form>

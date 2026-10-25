@@ -1,21 +1,23 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type AppDetail, usePatchApp } from "./api";
 import { flattenLimits, formatLimit } from "./limit-format";
-import { FieldError, FormAlert, REPLACE_NOTE, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
+import { FieldError, FormAlert, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
 
-const SOURCE_LABEL: Record<AppDetail["limits"]["source"], string> = {
-  plan: "the org plan",
-  profile: "the runtime profile",
-  service: "this app's own requested limits",
-};
+const SOURCE_KEY = {
+  plan: "limits.sources.plan",
+  profile: "limits.sources.profile",
+  service: "limits.sources.service",
+} as const satisfies Record<AppDetail["limits"]["source"], string>;
 
 // LimitsSection shows what the app asked for next to what it actually gets, and where that comes
 // from. The requested block is editable JSON; the effective block is read-only.
 export function LimitsSection({ org, app }: { org: string; app: AppDetail }) {
+  const { t } = useTranslation(["app-settings", "common"]);
   const [profile, setProfile] = useState(app.profile ?? "");
   const [text, setText] = useState(JSON.stringify(app.limits.requested ?? {}, null, 2));
   const [fieldError, setFieldError] = useState<string | undefined>(undefined);
@@ -30,7 +32,7 @@ export function LimitsSection({ org, app }: { org: string; app: AppDetail }) {
       if (typeof v !== "object" || v === null || Array.isArray(v)) throw new Error("not object");
       parsed = v as Record<string, unknown>;
     } catch {
-      setFieldError("Requested limits must be valid JSON (an object).");
+      setFieldError(t("limits.invalid"));
       return;
     }
     setFieldError(undefined);
@@ -40,7 +42,7 @@ export function LimitsSection({ org, app }: { org: string; app: AppDetail }) {
         etag: app.etag,
         body: { profile: profile.trim() === "" ? null : profile.trim(), limits: parsed },
       });
-      toast.success("Limits saved");
+      toast.success(t("limits.saved"));
     } catch (err) {
       const server = fieldErrorsOf(err);
       setFieldError(server.limits);
@@ -49,28 +51,28 @@ export function LimitsSection({ org, app }: { org: string; app: AppDetail }) {
   }
 
   return (
-    <Section id="limits" title="Limits" description="What this app asked for and what it gets.">
+    <Section id="limits" title={t("limits.title")} description={t("limits.description")}>
       <div className="grid gap-3 sm:grid-cols-2">
         <div className="flex flex-col gap-2 rounded-sm border border-line p-3">
-          <p className="text-[13px] font-medium text-text">Requested</p>
-          <LimitList values={app.limits.requested ?? {}} empty="Nothing requested." />
+          <p className="text-[13px] font-medium text-text">{t("limits.requested")}</p>
+          <LimitList values={app.limits.requested ?? {}} empty={t("limits.nothingRequested")} />
         </div>
         <div className="flex flex-col gap-2 rounded-sm border border-line p-3">
-          <p className="text-[13px] font-medium text-text">Effective</p>
-          <LimitList values={app.limits.effective} empty="No limits apply." />
+          <p className="text-[13px] font-medium text-text">{t("limits.effective")}</p>
+          <LimitList values={app.limits.effective} empty={t("limits.noLimits")} />
           <p className="text-sm text-muted">
-            Source: <span className="text-text">{SOURCE_LABEL[app.limits.source]}</span>
+            {t("limits.sourceLabel")} <span className="text-text">{t(SOURCE_KEY[app.limits.source])}</span>
           </p>
         </div>
       </div>
 
-      <form onSubmit={onSubmit} className="flex flex-col gap-3" aria-label="Limits settings">
+      <form onSubmit={onSubmit} className="flex flex-col gap-3" aria-label={t("limits.formLabel")}>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="limits-profile">Profile</Label>
-          <Input id="limits-profile" value={profile} onChange={(e) => setProfile(e.target.value)} placeholder="e.g. small…" />
+          <Label htmlFor="limits-profile">{t("limits.profile")}</Label>
+          <Input id="limits-profile" value={profile} onChange={(e) => setProfile(e.target.value)} placeholder={t("limits.profilePlaceholder")} />
         </div>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="limits-json">Requested limits (JSON)</Label>
+          <Label htmlFor="limits-json">{t("limits.json")}</Label>
           <textarea
             id="limits-json"
             value={text}
@@ -84,10 +86,10 @@ export function LimitsSection({ org, app }: { org: string; app: AppDetail }) {
           <FieldError id="limits-error" message={fieldError} />
         </div>
         <FormAlert messages={errors} />
-        <p className="text-sm text-muted">{REPLACE_NOTE}</p>
+        <p className="text-sm text-muted">{t("replaceNote")}</p>
         <div>
           <SaveButton disabled={patch.isPending}>
-            Save limits
+            {t("limits.save")}
           </SaveButton>
         </div>
       </form>

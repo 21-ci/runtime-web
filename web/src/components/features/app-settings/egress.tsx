@@ -1,13 +1,15 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { Label } from "@/components/ui/label";
 import { type AppDetail, usePatchApp } from "./api";
-import { FieldError, FormAlert, REPLACE_NOTE, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
+import { FieldError, FormAlert, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
 
 // EgressSection edits the outbound policy block as JSON. The runtime owns its shape, so the form
 // checks only that the text is a JSON object and shows server field errors next to the box.
 export function EgressSection({ org, app }: { org: string; app: AppDetail }) {
+  const { t } = useTranslation(["app-settings", "common"]);
   const [text, setText] = useState(JSON.stringify(app.egress ?? {}, null, 2));
   const [fieldError, setFieldError] = useState<string | undefined>(undefined);
   const [errors, setErrors] = useState<string[]>([]);
@@ -21,14 +23,14 @@ export function EgressSection({ org, app }: { org: string; app: AppDetail }) {
       if (typeof v !== "object" || v === null || Array.isArray(v)) throw new Error("not object");
       parsed = v as Record<string, unknown>;
     } catch {
-      setFieldError("Egress must be valid JSON (an object).");
+      setFieldError(t("egress.invalid"));
       return;
     }
     setFieldError(undefined);
     setErrors([]);
     try {
       await patch.mutateAsync({ etag: app.etag, body: { egress: parsed } });
-      toast.success("Egress saved");
+      toast.success(t("egress.saved"));
     } catch (err) {
       const server = fieldErrorsOf(err);
       setFieldError(server.egress);
@@ -37,10 +39,10 @@ export function EgressSection({ org, app }: { org: string; app: AppDetail }) {
   }
 
   return (
-    <Section id="egress" title="Egress" description="Outbound traffic policy for this app.">
-      <form onSubmit={onSubmit} className="flex flex-col gap-3" aria-label="Egress settings">
+    <Section id="egress" title={t("egress.title")} description={t("egress.description")}>
+      <form onSubmit={onSubmit} className="flex flex-col gap-3" aria-label={t("egress.formLabel")}>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="egress-json">Egress JSON</Label>
+          <Label htmlFor="egress-json">{t("egress.json")}</Label>
           <textarea
             id="egress-json"
             value={text}
@@ -54,10 +56,10 @@ export function EgressSection({ org, app }: { org: string; app: AppDetail }) {
           <FieldError id="egress-error" message={fieldError} />
         </div>
         <FormAlert messages={errors} />
-        <p className="text-sm text-muted">{REPLACE_NOTE}</p>
+        <p className="text-sm text-muted">{t("replaceNote")}</p>
         <div>
           <SaveButton disabled={patch.isPending}>
-            Save egress
+            {t("egress.save")}
           </SaveButton>
         </div>
       </form>

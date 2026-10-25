@@ -1,4 +1,5 @@
 import { useState, type FormEvent } from "react";
+import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -13,14 +14,15 @@ import {
 import { type AppAccess, type AppDetail, useCreateInvokeToken, usePatchApp } from "./api";
 import { FormAlert, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
 
-const MODES: { value: AppAccess; label: string; help: string }[] = [
-  { value: "public", label: "Public", help: "Anyone with the URL can call this app." },
-  { value: "key", label: "Key", help: "Callers must send an invoke token." },
-  { value: "internal", label: "Internal", help: "Only other apps in this org can call it." },
-];
+const MODES = [
+  { value: "public", labelKey: "access.modes.public", helpKey: "access.help.public" },
+  { value: "key", labelKey: "access.modes.key", helpKey: "access.help.key" },
+  { value: "internal", labelKey: "access.modes.internal", helpKey: "access.help.internal" },
+] as const satisfies readonly { value: AppAccess; labelKey: string; helpKey: string }[];
 
 // AccessSection sets who may call the app. Key mode needs an invoke token, so it offers to mint one.
 export function AccessSection({ org, app }: { org: string; app: AppDetail }) {
+  const { t } = useTranslation(["app-settings", "common"]);
   const [access, setAccess] = useState<AppAccess>(app.access);
   const [errors, setErrors] = useState<string[]>([]);
   const [secret, setSecret] = useState<string | null>(null);
@@ -32,7 +34,7 @@ export function AccessSection({ org, app }: { org: string; app: AppDetail }) {
     setErrors([]);
     try {
       await patch.mutateAsync({ etag: app.etag, body: { access } });
-      toast.success("Access saved");
+      toast.success(t("access.saved"));
     } catch (err) {
       setErrors(unmappedErrors(fieldErrorsOf(err), []));
     }
@@ -43,17 +45,17 @@ export function AccessSection({ org, app }: { org: string; app: AppDetail }) {
       const created = await mint.mutateAsync();
       setSecret(created.secret);
     } catch {
-      toast.error("Could not create the invoke token. Try again.");
+      toast.error(t("access.tokenFailed"));
     }
   }
 
-  const help = MODES.find((m) => m.value === access)?.help;
+  const help = MODES.find((m) => m.value === access)?.helpKey;
 
   return (
-    <Section id="access" title="Access" description="Who can call this app over HTTP.">
-      <form onSubmit={onSubmit} className="flex flex-col gap-3" aria-label="Access settings">
+    <Section id="access" title={t("access.title")} description={t("access.description")}>
+      <form onSubmit={onSubmit} className="flex flex-col gap-3" aria-label={t("access.formLabel")}>
         <div className="flex flex-col gap-1">
-          <Label htmlFor="access-mode">Access</Label>
+          <Label htmlFor="access-mode">{t("access.label")}</Label>
           <Select value={access} onValueChange={(v) => setAccess(v as AppAccess)}>
             <SelectTrigger id="access-mode">
               <SelectValue />
@@ -61,26 +63,26 @@ export function AccessSection({ org, app }: { org: string; app: AppDetail }) {
             <SelectContent>
               {MODES.map((m) => (
                 <SelectItem key={m.value} value={m.value}>
-                  {m.label}
+                  {t(m.labelKey)}
                 </SelectItem>
               ))}
             </SelectContent>
           </Select>
-          <p className="text-sm text-muted">{help}</p>
+          <p className="text-sm text-muted">{help ? t(help) : null}</p>
         </div>
 
         {access === "key" ? (
           <div className="flex flex-col gap-2 rounded-sm border border-line p-3">
-            <p className="text-sm text-text">Key mode needs an invoke token. Create one and give it to the caller.</p>
+            <p className="text-sm text-text">{t("access.keyHint")}</p>
             {secret ? (
               <div className="flex flex-col gap-1">
                 <code className="break-all rounded bg-panel-2 p-2 text-sm">{secret}</code>
-                <p className="text-sm text-muted">Shown once. Copy it now.</p>
+                <p className="text-sm text-muted">{t("access.shownOnce")}</p>
               </div>
             ) : (
               <div>
                 <Button type="button" variant="secondary" onClick={onMint} disabled={mint.isPending}>
-                  Create invoke token
+                  {t("access.createToken")}
                 </Button>
               </div>
             )}
@@ -90,7 +92,7 @@ export function AccessSection({ org, app }: { org: string; app: AppDetail }) {
         <FormAlert messages={errors} />
         <div>
           <SaveButton disabled={patch.isPending}>
-            Save access
+            {t("access.save")}
           </SaveButton>
         </div>
       </form>

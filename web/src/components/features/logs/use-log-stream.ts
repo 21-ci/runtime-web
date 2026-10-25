@@ -1,5 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
+import { i18n } from "@/lib/i18n";
+
 // Shape from docs/reference/api.md §8.6 (one LogLine per SSE `log` event).
 export type LogLine = {
   seq: number;
@@ -76,7 +78,7 @@ export function useLogStream(org: string, app: string, level: LogLevel) {
       // A server `event: error` carries a body; a dropped connection is a bare error event.
       if (typeof (e as MessageEvent).data === "string") {
         const body = parseData<{ message?: string }>((e as MessageEvent).data);
-        setTerminal(body?.message ?? "The log stream ended.");
+        setTerminal(body?.message ?? i18n.t("logs:streamEnded"));
         es.close();
         setConn("closed");
         return;

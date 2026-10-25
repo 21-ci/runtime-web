@@ -82,6 +82,3 @@ export function FieldError({ id, message }: { id: string; message?: string }) {
     </p>
   );
 }
-
-// replaceNote is shown under every form because the server replaces the whole block on save.
-export const REPLACE_NOTE = "Saving replaces this whole block.";

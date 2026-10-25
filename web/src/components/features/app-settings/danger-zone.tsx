@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { Trans, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
@@ -25,6 +26,7 @@ export function DangerZone({
   app: AppDetail;
   onDeleted: () => void;
 }) {
+  const { t } = useTranslation(["app-settings", "common"]);
   const [open, setOpen] = useState(false);
   const [typed, setTyped] = useState("");
   const del = useDeleteApp(org, app.slug);
@@ -35,10 +37,10 @@ export function DangerZone({
     try {
       await del.mutateAsync();
       setOpen(false);
-      toast.success(`Deleted ${app.name ?? app.slug}`);
+      toast.success(t("danger.deleted", { name: app.name ?? app.slug }));
       onDeleted();
     } catch {
-      toast.error("Could not delete the app. Try again.");
+      toast.error(t("danger.failed"));
     }
   }
 
@@ -49,13 +51,13 @@ export function DangerZone({
     >
       <div>
         <h2 id="danger-title" className="text-[15px] font-semibold text-text">
-          Delete this app
+          {t("danger.title")}
         </h2>
-        <p className="text-sm text-muted">Deleting removes its code, data and domains. This cannot be undone.</p>
+        <p className="text-sm text-muted">{t("danger.description")}</p>
       </div>
       <div className="shrink-0">
         <Button variant="danger" onClick={() => setOpen(true)}>
-          Delete app
+          {t("danger.button")}
         </Button>
       </div>
 
@@ -68,19 +70,26 @@ export function DangerZone({
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Delete {app.slug}?</DialogTitle>
-            <DialogDescription>This is permanent. Type the app slug to confirm.</DialogDescription>
+            <DialogTitle>{t("danger.confirmTitle", { slug: app.slug })}</DialogTitle>
+            <DialogDescription>{t("danger.confirmDescription")}</DialogDescription>
           </DialogHeader>
           <div className="flex flex-col gap-1">
-            <Label htmlFor="confirm-slug">Type {app.slug} to confirm</Label>
+            <Label htmlFor="confirm-slug">
+              <Trans
+                i18nKey="danger.typeToConfirm"
+                ns="app-settings"
+                values={{ value: app.slug }}
+                components={{ mono: <span className="font-mono" /> }}
+              />
+            </Label>
             <Input id="confirm-slug" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
           </div>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setOpen(false)}>
-              Cancel
+              {t("common:cancel")}
             </Button>
             <Button variant="danger-solid" disabled={!matches || del.isPending} onClick={onConfirm}>
-              Delete permanently
+              {t("danger.confirm")}
             </Button>
           </DialogFooter>
         </DialogContent>

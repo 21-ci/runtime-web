@@ -1,1 +1,144 @@
-{}
+{
+  "replaceNote": "Saving replaces this whole block.",
+  "page": {
+    "title": "Settings",
+    "description": "{{name}} · {{environment}}",
+    "notFound": "App not found",
+    "notFoundDescription": "It may have been deleted or you lack access."
+  },
+  "nav": {
+    "label": "Settings sections",
+    "general": "General",
+    "access": "Access",
+    "limits": "Limits",
+    "advanced": "Advanced",
+    "danger": "Danger zone"
+  },
+  "status": {
+    "label": "App status",
+    "tier": "tier {{tier}}",
+    "inflight": "{{count}} in flight"
+  },
+  "access": {
+    "title": "Access",
+    "description": "Who can call this app over HTTP.",
+    "label": "Access",
+    "formLabel": "Access settings",
+    "modes": {
+      "public": "Public",
+      "key": "Key",
+      "internal": "Internal"
+    },
+    "help": {
+      "public": "Anyone with the URL can call this app.",
+      "key": "Callers must send an invoke token.",
+      "internal": "Only other apps in this org can call it."
+    },
+    "keyHint": "Key mode needs an invoke token. Create one and give it to the caller.",
+    "shownOnce": "Shown once. Copy it now.",
+    "createToken": "Create invoke token",
+    "save": "Save access",
+    "saved": "Access saved",
+    "tokenFailed": "Could not create the invoke token. Try again."
+  },
+  "callers": {
+    "title": "Callers",
+    "description": "Apps in this org that may call this one.",
+    "legend": "Allowed callers",
+    "none": "No other apps in this org yet.",
+    "notFound": "Apps not found",
+    "formLabel": "Callers settings",
+    "save": "Save callers",
+    "saved": "Callers saved"
+  },
+  "scaling": {
+    "title": "Scaling",
+    "description": "How many instances run, from idle to peak.",
+    "min": "Min instances",
+    "max": "Max instances",
+    "formLabel": "Scaling settings",
+    "minInvalid": "Use a whole number, 0 or more.",
+    "maxInvalid": "Use a whole number, 1 or more.",
+    "maxBelowMin": "Max must be at least min.",
+    "save": "Save scaling",
+    "saved": "Scaling saved"
+  },
+  "limits": {
+    "title": "Limits",
+    "description": "What this app asked for and what it gets.",
+    "requested": "Requested",
+    "effective": "Effective",
+    "nothingRequested": "Nothing requested.",
+    "noLimits": "No limits apply.",
+    "sourceLabel": "Source:",
+    "sources": {
+      "plan": "the org plan",
+      "profile": "the runtime profile",
+      "service": "this app's own requested limits"
+    },
+    "profile": "Profile",
+    "profilePlaceholder": "e.g. small…",
+    "json": "Requested limits (JSON)",
+    "invalid": "Requested limits must be valid JSON (an object).",
+    "formLabel": "Limits settings",
+    "save": "Save limits",
+    "saved": "Limits saved"
+  },
+  "unlimited": "unlimited",
+  "egress": {
+    "title": "Egress",
+    "description": "Outbound traffic policy for this app.",
+    "json": "Egress JSON",
+    "invalid": "Egress must be valid JSON (an object).",
+    "formLabel": "Egress settings",
+    "save": "Save egress",
+    "saved": "Egress saved"
+  },
+  "ingress": {
+    "title": "Ingress",
+    "description": "Which requests reach the app and from where.",
+    "formLabel": "Ingress settings",
+    "methods": "Methods",
+    "pathPrefixes": "Path prefixes",
+    "pathPrefix": "Path prefix {{index}}",
+    "removePathPrefix": "Remove path prefix {{index}}",
+    "addPathPrefix": "Add path prefix",
+    "ipRanges": "Allowed IP ranges (CIDR)",
+    "ipAllow": "IP allow {{index}}",
+    "removeIpAllow": "Remove IP allow {{index}}",
+    "addIpRange": "Add IP range",
+    "ipInvalid": "not a CIDR prefix (for example 10.0.0.0/8)",
+    "rateLimit": "Rate limit (JSON)",
+    "rateLimitInvalid": "Rate limit must be a JSON object.",
+    "save": "Save ingress",
+    "saved": "Ingress saved"
+  },
+  "advanced": {
+    "slug": "Slug",
+    "slugHint": "Identifies the app on the runtime and in the API.",
+    "copySlug": "Copy slug",
+    "liveUrl": "Live URL",
+    "runtime": "Runtime",
+    "runtimeProfile": "{{runtime}} · profile {{profile}}",
+    "envSecrets": "Env & Secrets",
+    "envSecretsHint": "Variables and secrets moved to their own page.",
+    "openEnvSecrets": "Open Env & Secrets",
+    "domains": "Domains",
+    "domainsHint": "Custom host names for this app.",
+    "openDomains": "Open Domains",
+    "exportData": "Export data",
+    "exportHint": "Download the app's SQLite database.",
+    "download": "Download"
+  },
+  "danger": {
+    "title": "Delete this app",
+    "description": "Deleting removes its code, data and domains. This cannot be undone.",
+    "button": "Delete app",
+    "confirmTitle": "Delete {{slug}}?",
+    "confirmDescription": "This is permanent. Type the app slug to confirm.",
+    "typeToConfirm": "Type <mono>{{value}}</mono> to confirm",
+    "confirm": "Delete permanently",
+    "deleted": "Deleted {{name}}",
+    "failed": "Could not delete the app. Try again."
+  }
+}

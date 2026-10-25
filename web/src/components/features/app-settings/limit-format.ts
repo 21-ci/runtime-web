@@ -1,8 +1,10 @@
+import { i18n, intlLocale } from "@/lib/i18n";
+
 // formatLimit turns one flattened limit (key and value) into a readable label and value. Units come
-// from the key: "_bytes" shows KiB/MiB, "_ms" and "_seconds" show a suffix. A null limit means
-// no cap, shown as "unlimited".
+// from the key: "_bytes" shows B/KiB/MiB, "_ms" and "_seconds" show a suffix. A null limit means
+// no cap, shown as "unlimited". The label is humanized from the runtime key and stays as it is.
 const UNIT_TOKENS = new Set(["bytes", "ms", "seconds"]);
-const BYTE_UNITS = ["B", "KiB", "MiB", "GiB", "TiB"];
+const BYTE_UNITS = ["b", "kib", "mib", "gib", "tib"] as const;
 
 export function formatLimit(key: string, value: unknown): { label: string; value: string } {
   const tokens = key.split("_");
@@ -13,11 +15,11 @@ export function formatLimit(key: string, value: unknown): { label: string; value
 }
 
 function formatValue(value: unknown, unit: string | undefined): string {
-  if (value === null || value === undefined) return "unlimited";
+  if (value === null || value === undefined) return i18n.t("app-settings:unlimited");
   if (typeof value === "number") {
     if (unit === "bytes") return formatBytes(value);
-    if (unit === "ms") return `${value} ms`;
-    if (unit === "seconds") return `${value} s`;
+    if (unit === "ms") return i18n.t("common:units.ms", { value: String(value) });
+    if (unit === "seconds") return i18n.t("common:units.s", { value: String(value) });
     return String(value);
   }
   if (typeof value === "object") return JSON.stringify(value);
@@ -31,8 +33,8 @@ function formatBytes(n: number): string {
     v /= 1024;
     i++;
   }
-  const shown = Number.isInteger(v) ? String(v) : v.toFixed(1).replace(/\.0$/, "");
-  return `${shown} ${BYTE_UNITS[i]}`;
+  const shown = new Intl.NumberFormat(intlLocale(), { maximumFractionDigits: 1 }).format(v);
+  return i18n.t(`common:units.${BYTE_UNITS[i]}`, { value: shown });
 }
 
 // flattenLimits turns a nested limits object into flat key/value pairs (quota objects become

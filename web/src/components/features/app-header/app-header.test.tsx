@@ -31,7 +31,7 @@ describe("app header", () => {
     );
     renderAt("/acme/apps/hello");
 
-    expect(await screen.findByText("failed")).toBeInTheDocument();
+    expect(await screen.findByText("Failed")).toBeInTheDocument();
     expect(screen.getByText(/boom: bad import/)).toBeInTheDocument();
   });
 

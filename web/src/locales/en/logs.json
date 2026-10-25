@@ -1,1 +1,36 @@
-{}
+{
+  "title": "Live logs",
+  "compactLabel": "Logs",
+  "filterLabel": "Filter lines",
+  "filterPlaceholder": "Filter lines…",
+  "levelLabel": "Minimum level",
+  "levels": {
+    "all": "All levels",
+    "debug": "Debug and up",
+    "info": "Info and up",
+    "warn": "Warn and up",
+    "error": "Error only"
+  },
+  "conn": {
+    "connecting": "Connecting",
+    "connected": "Connected",
+    "reconnecting": "Reconnecting",
+    "closed": "Disconnected"
+  },
+  "buffered_one": "{{count}} line buffered",
+  "buffered_other": "{{count}} lines buffered",
+  "pause": "Pause",
+  "resume": "Resume",
+  "clear": "Clear",
+  "gap": "Some lines were skipped",
+  "linesLabel": "Log lines",
+  "empty": {
+    "title": "No log lines yet",
+    "description": "Lines appear here as the app handles requests.",
+    "noMatchTitle": "No lines match this filter",
+    "noMatchDescription": "Clear the filter to see every line.",
+    "compact": "Lines appear here as the app handles requests.",
+    "compactNoMatch": "No lines match this filter."
+  },
+  "streamEnded": "The log stream ended."
+}
