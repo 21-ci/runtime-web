@@ -169,7 +169,7 @@ export async function defaultKey(deps: Pick<Deps, "storage" | "config">, orgId: 
  */
 export async function deleteOrg(deps: OrgDeps, actor: Actor, org: Org): Promise<void> {
   const runtime = runtimeOf(deps);
-  let key = "";
+  let key: string;
   try {
     key = await defaultKey(deps, org.id);
   } catch {
