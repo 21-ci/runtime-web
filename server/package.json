@@ -21,7 +21,7 @@
     "rt-install": "node scripts/install.mjs"
   },
   "devDependencies": {
-    "@eslint/js": "9.37.0",
+    "@eslint/js": "10.0.1",
     "@types/node": "24.5.2",
     "@vitest/coverage-v8": "5.0.3",
     "eslint": "9.37.0",
