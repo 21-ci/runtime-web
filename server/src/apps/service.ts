@@ -91,6 +91,18 @@ function limitSource(requested: unknown, effective: unknown): "plan" | "service"
   return service || req ? "service" : "profile";
 }
 
+/**
+ * Public URL of an App: https://<slug>.<apps host>/ (the node's routing.base_domain). Without an apps origin
+ * (development only) the runtime's relative /s/<slug>/.
+ */
+export function appUrl(runtimeUrl: string, slug: string): string {
+  if (runtimeUrl) {
+    const u = new URL(runtimeUrl);
+    return `${u.protocol}//${slug}.${u.host}/`;
+  }
+  return `/s/${slug}/`;
+}
+
 export function appView(s: T.Service, etag: string, runtimeUrl: string) {
   const requested = s.limits === undefined || s.limits === null ? null : s.limits;
   const e = etag || s.etag;
@@ -98,7 +110,7 @@ export function appView(s: T.Service, etag: string, runtimeUrl: string) {
     ...summary(s),
     etag: e,
     runtime: s.runtime, profile: s.profile, access: s.access,
-    url: `${runtimeUrl.replace(/\/$/, "")}/s/${s.slug}/`,
+    url: appUrl(runtimeUrl, s.slug),
     scaling: s.scaling ?? null, ingress: s.ingress ?? null, egress: s.egress ?? null,
     call: s.call ?? null, triggers: s.triggers ?? null,
     status: { ...summary(s).status, inflight: s.status.inflight, admission: s.status.admission },

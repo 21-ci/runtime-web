@@ -19,7 +19,11 @@ export interface Config {
   readonly insecureCookies: boolean;
   /** First-run setup token (RTWEB_SETUP_TOKEN). Undefined: setup refuses with 403 until one is set. */
   readonly setupToken: string | undefined;
-  /** Public base URL of the runtime that serves apps at /s/{slug}/ (RTWEB_RUNTIME_PUBLIC_URL). "" keeps app URLs relative. */
+  /**
+   * Apps origin (RTWEB_RUNTIME_PUBLIC_URL), e.g. https://apps.example.com: every App is served at
+   * https://<slug>.apps.example.com/ (the node's routing.base_domain is the same host). "" (development only) keeps
+   * app URLs relative, /s/<slug>/.
+   */
   readonly runtimePublicUrl: string;
   /** Runtime plan for new org tenants (RTWEB_DEFAULT_PLAN, default "free"). */
   readonly defaultPlan: string;
@@ -37,6 +41,14 @@ export function loadConfig(getenv: Getenv): Config {
   // App code served on the console origin could call /api with a signed-in admin's cookies.
   if (runtimePublicUrl && new URL(runtimePublicUrl).origin === origin) {
     throw new ConfigError("RTWEB_RUNTIME_PUBLIC_URL: must not share the console origin (RTWEB_ORIGIN); serve Apps on their own host");
+  }
+  if (runtimePublicUrl) {
+    const u = new URL(runtimePublicUrl);
+    if (u.pathname !== "/" && u.pathname !== "") throw new ConfigError("RTWEB_RUNTIME_PUBLIC_URL: must be an origin (no path): Apps live at <slug>.<host>");
+    // An App at <slug>.<apps host> must never be the console: the console host may not sit under the apps host.
+    if (new URL(origin).hostname.endsWith(`.${u.hostname}`)) {
+      throw new ConfigError("RTWEB_RUNTIME_PUBLIC_URL: the console host must not be a subdomain of the apps host");
+    }
   }
   const defaultPlan = getenv("RTWEB_DEFAULT_PLAN") || "free";
   if (!/^[a-z0-9][a-z0-9_-]{0,62}$/.test(defaultPlan)) {
