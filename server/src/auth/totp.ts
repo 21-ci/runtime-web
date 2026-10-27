@@ -7,7 +7,7 @@ import { randomBytes } from "../crypto/random.ts";
 import { base32Encode, hotp, otpauthUri, TOTP_PERIOD_SECONDS, TOTP_SKEW } from "../crypto/totp.ts";
 import { AppError, conflict, notFound } from "../http/errors.ts";
 import type { Db, Stmt } from "../storage/types.ts";
-import { isBlocked, lockoutKey, MAX_TOTP_FAILURES, rateLimited, recordFailure, resetFailures } from "./ratelimit.ts";
+import { mfaBlocked, mfaFailure, mfaReset } from "./ratelimit.ts";
 import { dbOf, getUserById, hasherOf, sealerOf, type AuthDeps } from "./types.ts";
 import { openCompat } from "../crypto/seal.ts";
 
@@ -68,11 +68,11 @@ export async function enroll(deps: AuthDeps, userId: string, password: string): 
 }
 
 async function blocked(deps: AuthDeps, userId: string): Promise<void> {
-  if (await isBlocked(deps.storage.kv, lockoutKey(userId), MAX_TOTP_FAILURES)) throw rateLimited();
+  await mfaBlocked(deps.storage.kv, userId, deps.now());
 }
 
 async function fail(deps: AuthDeps, userId: string): Promise<never> {
-  await recordFailure(deps.storage.kv, lockoutKey(userId));
+  await mfaFailure(deps.storage.kv, userId, deps.now());
   throw new InvalidCodeError();
 }
 
@@ -97,7 +97,7 @@ async function check(deps: AuthDeps, userId: string, code: string, enabled: bool
   // Advancing only to a newer step rejects replays atomically.
   const r = await db.run("UPDATE user_totp SET last_step = ? WHERE user_id = ? AND last_step < ?", [matched, userId, matched]);
   if (r.changes === 0) return fail(deps, userId);
-  await resetFailures(deps.storage.kv, lockoutKey(userId));
+  await mfaReset(deps.storage.kv, userId);
 }
 
 /** Verifies a code for a user with confirmed TOTP. */
@@ -114,7 +114,7 @@ export async function useRecoveryCode(deps: AuthDeps, userId: string, code: stri
     [deps.now(), userId, await sha256Hex(norm)],
   );
   if (r.changes === 0) return fail(deps, userId);
-  await resetFailures(deps.storage.kv, lockoutKey(userId));
+  await mfaReset(deps.storage.kv, userId);
 }
 
 /** An 80-bit code shaped xxxx-xxxx-xxxx-xxxx (lower-case base32), as Go. */
@@ -156,7 +156,7 @@ async function checkPassword(deps: AuthDeps, userId: string, password: string): 
   const u = await getUserById(db, userId);
   if (!u) throw notFound();
   if (typeof password !== "string" || password === "" || !(await hasherOf(deps).verify(u.pw_hash, password))) {
-    await recordFailure(deps.storage.kv, lockoutKey(userId));
+    await mfaFailure(deps.storage.kv, userId, deps.now());
     throw invalidCredentials();
   }
 }

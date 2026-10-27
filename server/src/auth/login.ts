@@ -10,6 +10,8 @@ import { getPolicy } from "./policy.ts";
 import {
   accountDelaySeconds,
   accountKey,
+  accountNetKey,
+  ACCOUNT_WIDE_SOFT_LIMIT,
   globalAttempt,
   IP_FAILURE_LIMIT,
   ipKey,
@@ -121,7 +123,9 @@ export async function login(deps: AuthDeps, emailIn: unknown, password: unknown,
   const key = await loginKey(c.ip, email);
   const ipK = await ipKey(c.ip);
   const acctK = await accountKey(email);
+  const netK = await accountNetKey(c.ip, email);
   const nextK = `${acctK}:next`;
+  const netNextK = `${netK}:next`;
   const row = email ? await getUserByEmail(db, email) : null;
   if (row) ev.userId = row.id;
   const known = row ? (await kv.get(await knownKey(c.ip, row.id))) !== null : false;
@@ -132,8 +136,8 @@ export async function login(deps: AuthDeps, emailIn: unknown, password: unknown,
   };
   if ((await isBlocked(kv, key, MAX_LOGIN_FAILURES)) || (await isBlocked(kv, ipK, IP_FAILURE_LIMIT))) return limited();
   if (!known) {
-    const next = await kv.get<number>(nextK);
-    if (typeof next === "number" && next > now) return limited(Math.ceil((next - now) / 1000));
+    const next = Math.max((await kv.get<number>(nextK)) ?? 0, (await kv.get<number>(netNextK)) ?? 0);
+    if (next > now) return limited(Math.ceil((next - now) / 1000));
     try {
       await globalAttempt(kv, now);
     } catch (err) {
@@ -144,9 +148,10 @@ export async function login(deps: AuthDeps, emailIn: unknown, password: unknown,
   const fail = async (result: LoginEventIn["result"]): Promise<never> => {
     await recordFailure(kv, key);
     await recordFailure(kv, ipK);
-    const n = await recordFailure(kv, acctK);
-    const d = accountDelaySeconds(n);
+    const d = accountDelaySeconds(await recordFailure(kv, acctK), ACCOUNT_WIDE_SOFT_LIMIT);
     if (d > 0) await kv.set(nextK, now + d * 1000, { ttlSeconds: WINDOW_SECONDS });
+    const dn = accountDelaySeconds(await recordFailure(kv, netK));
+    if (dn > 0) await kv.set(netNextK, now + dn * 1000, { ttlSeconds: WINDOW_SECONDS });
     await recordLogin(db, now, { ...ev, result });
     throw invalidCredentials();
   };

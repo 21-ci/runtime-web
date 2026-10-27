@@ -270,7 +270,7 @@ describe("TOTP", () => {
     expect((await post(app, "/api/auth/mfa", { code: codes[0] }, { cookie: p2 })).status).toBe(401);
   });
 
-  it("5 second-factor failures give 429", async () => {
+  it("5 second-factor failures give 429 with a progressive backoff, not a hard block", async () => {
     const app = testApp();
     const c = await setupAdmin(app);
     const { url } = await enableTotp(app, c);
@@ -278,7 +278,14 @@ describe("TOTP", () => {
     for (let i = 0; i < 5; i++) expect((await post(app, "/api/auth/mfa", { code: "000000" }, { cookie: p })).status).toBe(401);
     const res = await post(app, "/api/auth/mfa", { code: await codeFor(app, url) }, { cookie: p });
     expect(res.status).toBe(429);
-    expect(res.headers.get("retry-after")).toBe("900");
+    expect(res.headers.get("retry-after")).toBe("30");
+    // The wait doubles with each further failure, capped at 15 min.
+    app.tick(30_000);
+    expect((await post(app, "/api/auth/mfa", { code: "000000" }, { cookie: p })).status).toBe(401);
+    expect((await post(app, "/api/auth/mfa", { code: "000000" }, { cookie: p })).headers.get("retry-after")).toBe("60");
+    app.tick(60_000);
+    const ok = await post(app, "/api/auth/mfa", { code: await codeFor(app, url) }, { cookie: p });
+    expect(ok.status).toBe(200);
   });
 
   it("disable needs password and code, revokes other sessions", async () => {
