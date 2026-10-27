@@ -127,7 +127,7 @@ describe("apps CRUD + ETag", () => {
     const list = (await (await none.call("GET", APPS)).json()) as { items: unknown[] };
     expect(list.items).toEqual([]);
     const dev = await w.user("dev@example.com", "member", { default: "developer" });
-    expect((await dev.call("PUT", `${APPS}/hello/env`, { env: { A: "1" } })).status).toBe(200);
+    expect((await dev.call("PATCH", `${APPS}/hello/env`, { set: { A: "1" } })).status).toBe(200);
     expect((await dev.call("GET", `${APPS}/hello/env`)).status).toBe(200);
     expect((await dev.call("PUT", `${APPS}/hello/secrets/API_KEY`, { value: "x" })).status).toBe(403);
     expect((await dev.call("GET", `${APPS}/hello/export`)).status).toBe(403);
@@ -277,10 +277,28 @@ describe("config: env, secrets, schedules, queue", () => {
   it("env replace; secrets names only; delete unknown 404", async () => {
     const w = await world();
     await createApp(w.admin);
-    const put = await w.admin.call("PUT", `${APPS}/hello/env`, { env: { A: "1", B: "2" } });
+    const g0 = await w.admin.call("GET", `${APPS}/hello/env`);
+    const e0 = g0.headers.get("etag") ?? "";
+    expect(e0).toMatch(/^"[0-9a-f]{32}"$/);
+    expect((await w.admin.call("PUT", `${APPS}/hello/env`, { env: { A: "1" } })).status).toBe(428);
+    const put = await w.admin.call("PUT", `${APPS}/hello/env`, { env: { A: "1", B: "2" } }, { "if-match": e0 });
     expect(await put.json()).toEqual({ env: { A: "1", B: "2" } });
-    expect(await (await w.admin.call("GET", `${APPS}/hello/env`)).json()).toEqual({ env: { A: "1", B: "2" } });
-    expect((await w.admin.call("PUT", `${APPS}/hello/env`, { env: { "bad key": "1" } })).status).toBe(422);
+    const e1 = put.headers.get("etag") ?? "";
+    expect(e1).not.toBe(e0);
+    const got = await w.admin.call("GET", `${APPS}/hello/env`);
+    expect(await got.json()).toEqual({ env: { A: "1", B: "2" } });
+    expect(got.headers.get("etag")).toBe(e1);
+    // A stale PUT (built on the first read) is refused and changes nothing.
+    const stale = await w.admin.call("PUT", `${APPS}/hello/env`, { env: { C: "3" } }, { "if-match": e0 });
+    expect(stale.status).toBe(412);
+    expect(await errOf(stale)).toMatchObject({ code: "precondition_failed" });
+    expect((await w.admin.call("PUT", `${APPS}/hello/env`, { env: { "bad key": "1" } }, { "if-match": e1 })).status).toBe(422);
+    // PATCH sets and unsets single keys on the current map; a stale If-Match is 412 there too.
+    const patch = await w.admin.call("PATCH", `${APPS}/hello/env`, { set: { C: "3" }, unset: ["A"] }, { "if-match": e1 });
+    expect(patch.status).toBe(200);
+    expect(await patch.json()).toEqual({ env: { B: "2", C: "3" } });
+    expect((await w.admin.call("PATCH", `${APPS}/hello/env`, { set: { D: "4" } }, { "if-match": e1 })).status).toBe(412);
+    expect((await w.admin.call("PATCH", `${APPS}/hello/env`, { set: { D: 4 }, unset: "A" })).status).toBe(422);
     expect((await w.admin.call("PUT", `${APPS}/hello/secrets/API_KEY`, { value: "s3cret" })).status).toBe(204);
     const list = await (await w.admin.call("GET", `${APPS}/hello/secrets`)).text();
     expect(list).toContain("API_KEY");

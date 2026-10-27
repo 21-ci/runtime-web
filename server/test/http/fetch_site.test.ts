@@ -9,15 +9,15 @@ describe("originCheck and Sec-Fetch-Site", () => {
     const w = await world();
     await createApp(w.admin);
     for (const site of ["same-site", "cross-site", "bogus"]) {
-      const r = await w.admin.call("PUT", `${APPS}/hello/env`, { env: { A: "1" } }, { "sec-fetch-site": site });
+      const r = await w.admin.call("PATCH", `${APPS}/hello/env`, { set: { A: "1" } }, { "sec-fetch-site": site });
       expect(r.status, site).toBe(403);
       expect((await errOf(r)).code).toBe("origin_invalid");
     }
     for (const site of ["same-origin", "none", "Same-Origin"]) {
-      expect((await w.admin.call("PUT", `${APPS}/hello/env`, { env: { A: "1" } }, { "sec-fetch-site": site })).status, site).toBe(200);
+      expect((await w.admin.call("PATCH", `${APPS}/hello/env`, { set: { A: "1" } }, { "sec-fetch-site": site })).status, site).toBe(200);
     }
     // Clients that send no Sec-Fetch-Site still pass on Origin alone.
-    expect((await w.admin.call("PUT", `${APPS}/hello/env`, { env: { A: "2" } })).status).toBe(200);
+    expect((await w.admin.call("PATCH", `${APPS}/hello/env`, { set: { A: "2" } })).status).toBe(200);
   });
 
   it("does not affect safe methods or public routes' Origin rule", async () => {

@@ -152,6 +152,7 @@ iframe; it is `'none'` when that variable is unset or names the console's own or
 | 422 | `invalid` | `apperr.ErrInvalid` (+ `details.fields`) |
 | 422 | `<runtime code>` | runtime 422 with its `code` and `details` |
 | 422 | `build_failed` | save produced a failed build (+ `BuildDetails`) |
+| 412 | `precondition_failed` | `If-Match` on `PUT`/`PATCH …/env` does not match the env's current `ETag` |
 | 428 | `precondition_required` | `If-Match` missing (`apperr.ErrPreconditionRequired`) |
 | 429 | `rate_limited` | `apperr.ErrRateLimited` (login, MFA, log-stream cap) |
 | 429 | `rate_limited`, `build_quota`, `queue_full` | runtime 429, same code + `Retry-After` |
@@ -655,8 +656,9 @@ makes it live. `If-Match` on a save is the app's current ETag, so a save after s
 
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
-| GET | `…/{app}/env` | `app.env.read` (project `developer` and up) | | `200 {env: Record<string,string>}` | `403` (viewer), `404` |
-| PUT | `…/{app}/env` | `app.env.write` | `{env: Record<string,string>}` (complete map, replaces) | `200 {env: Record<string,string>}` | `403`, `422` |
+| GET | `…/{app}/env` | `app.env.read` (project `developer` and up) | | `200 {env: Record<string,string>}` + `ETag` | `403` (viewer), `404` |
+| PUT | `…/{app}/env` | `app.env.write` | `{env: Record<string,string>}` (complete map, replaces), `If-Match` | `200 {env: Record<string,string>}` + `ETag` | `403`, `412 precondition_failed` (env changed since the read), `422`, `428` |
+| PATCH | `…/{app}/env` | `app.env.write` | `{set?: Record<string,string>; unset?: string[]}`, optional `If-Match` | `200 {env: Record<string,string>}` + `ETag` | `403`, `412 precondition_failed`, `422` |
 | GET | `…/{app}/secrets` | `app.read` | | `200 {items: {name: string; updated_at: number}[]}` (names only) | `404` |
 | PUT | `…/{app}/secrets/{name}` | `app.secrets.write` | `{value: string}` (write-only) | `204` | `403`, `422` |
 | DELETE | `…/{app}/secrets/{name}` | `app.secrets.write` | | `204` | `403`, `404` |

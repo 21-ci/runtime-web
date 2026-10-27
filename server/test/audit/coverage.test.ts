@@ -40,6 +40,7 @@ const AUDITED: Record<string, string[]> = {
   "PUT /api/orgs/:org/apps/:app/live": ["app.live"],
   "POST /api/orgs/:org/apps/:app/versions/:v/rebuild": ["app.rebuild"],
   "PUT /api/orgs/:org/apps/:app/env": ["app.env"],
+  "PATCH /api/orgs/:org/apps/:app/env": ["app.env"],
   "PUT /api/orgs/:org/apps/:app/secrets/:name": ["app.secret.set"],
   "DELETE /api/orgs/:org/apps/:app/secrets/:name": ["app.secret.delete"],
   "POST /api/orgs/:org/apps/:app/schedules": ["app.schedule.create"],

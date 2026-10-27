@@ -121,9 +121,11 @@ export function registerApps(router: Router, deps: Deps): void {
   router.get(`${one}/env`, route(async (c, ctx) => {
     // Env often holds third-party API keys: developers and up only, like the writes.
     const app = await A.appFor(c, slug(ctx), "app.env.read");
-    return json({ env: (await rt(() => c.cli.getEnv(app.id))) ?? {} });
+    const env = (await rt(() => c.cli.getEnv(app.id))) ?? {};
+    return json({ env }, 200, { etag: await envEtag(env) });
   }));
 
+  // Full replace. If-Match (the ETag of GET …/env) is required, so two editors never silently drop keys.
   router.put(`${one}/env`, route(async (c, ctx) => {
     const b = await readJson(ctx.req);
     const env = b.env;
@@ -132,9 +134,33 @@ export function registerApps(router: Router, deps: Deps): void {
     for (const [k, v] of Object.entries(env)) if (typeof v !== "string") fields[`env.${k}`] = "not_string";
     if (Object.keys(fields).length) throw invalid(fields);
     const app = await A.appFor(c, slug(ctx), "app.env.write");
-    const out = await rt(() => c.cli.putEnv(app.id, env as Record<string, string>));
+    const tag = A.ifMatch(ctx.req);
+    if (!tag) throw new AppError(428, "precondition_required", "If-Match header required");
+    await checkEnvEtag(c, app.id, tag);
+    const out = (await rt(() => c.cli.putEnv(app.id, env as Record<string, string>))) ?? {};
     await audit(c, "app.env", slug(ctx), { keys: Object.keys(env) });
-    return json({ env: out ?? {} });
+    return json({ env: out }, 200, { etag: await envEtag(out) });
+  }));
+
+  // Row edits: set and unset single keys on the current map. If-Match is optional here.
+  router.patch(`${one}/env`, route(async (c, ctx) => {
+    const b = await readJson(ctx.req);
+    const fields: Record<string, string> = {};
+    const set = b.set ?? {};
+    const unset = b.unset ?? [];
+    if (!set || typeof set !== "object" || Array.isArray(set)) fields.set = "invalid_format";
+    else for (const [k, v] of Object.entries(set)) if (typeof v !== "string") fields[`set.${k}`] = "not_string";
+    if (!Array.isArray(unset) || unset.some((k) => typeof k !== "string")) fields.unset = "invalid_format";
+    if (Object.keys(fields).length) throw invalid(fields);
+    const app = await A.appFor(c, slug(ctx), "app.env.write");
+    const tag = A.ifMatch(ctx.req);
+    const cur = (await rt(() => c.cli.getEnv(app.id))) ?? {};
+    if (tag && tag !== (await envEtag(cur))) throw envStale();
+    const next: Record<string, string> = { ...cur, ...(set as Record<string, string>) };
+    for (const k of unset as string[]) delete next[k];
+    const out = (await rt(() => c.cli.putEnv(app.id, next))) ?? {};
+    await audit(c, "app.env", slug(ctx), { set: Object.keys(set as object), unset });
+    return json({ env: out }, 200, { etag: await envEtag(out) });
   }));
 
   router.get(`${one}/secrets`, route(async (c, ctx) => {
@@ -307,6 +333,20 @@ export function registerApps(router: Router, deps: Deps): void {
 }
 
 // ---- helpers ----
+
+/** ETag of an env map: a SHA-256 over its entries sorted by key (the runtime keeps no version for env). */
+export async function envEtag(env: Record<string, string>): Promise<string> {
+  const canon = JSON.stringify(Object.keys(env).sort().map((k) => [k, env[k]]));
+  const d = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canon)));
+  return `"${Array.from(d.subarray(0, 16), (x) => x.toString(16).padStart(2, "0")).join("")}"`;
+}
+
+const envStale = () => new AppError(412, "precondition_failed", "env changed elsewhere, reload");
+
+async function checkEnvEtag(c: A.OrgCtx, id: string, tag: string): Promise<void> {
+  const cur = (await rt(() => c.cli.getEnv(id))) ?? {};
+  if (tag !== (await envEtag(cur))) throw envStale();
+}
 
 function appResponse(c: A.OrgCtx, svc: T.Service, etag: string, status: number): Response {
   const runtimeUrl = c.deps.config.runtimePublicUrl;

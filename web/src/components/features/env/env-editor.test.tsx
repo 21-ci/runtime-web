@@ -7,23 +7,42 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createQueryClient } from "@/lib/query";
 import { server } from "@/test/msw";
 
-import { EnvEditor, parseEnvText, toEnvText } from "./env-editor";
+import { EnvEditor, envEtag, parseEnvText, toEnvText } from "./env-editor";
 
 const BASE = "/api/orgs/acme/apps/hello/env";
 
+// Emulates the server: PUT replaces, PATCH merges; both check If-Match against the env ETag.
+// Returns the env map after each accepted write.
 function useEnvHandlers(initial: Record<string, string>) {
   let env = { ...initial };
   const puts: Record<string, string>[] = [];
+  const stale = async (req: Request) => req.headers.get("If-Match") !== (await envEtag(env));
+  const conflict = () => HttpResponse.json({ error: { code: "precondition_failed", message: "changed" } }, { status: 412 });
   server.use(
     http.get(BASE, () => HttpResponse.json({ env })),
     http.put(BASE, async ({ request }) => {
+      if (await stale(request)) return conflict();
       const body = (await request.json()) as { env: Record<string, string> };
       env = body.env;
-      puts.push(body.env);
+      puts.push(env);
+      return HttpResponse.json({ env });
+    }),
+    http.patch(BASE, async ({ request }) => {
+      if (await stale(request)) return conflict();
+      const body = (await request.json()) as { set: Record<string, string>; unset: string[] };
+      const next = { ...env, ...body.set };
+      for (const k of body.unset) delete next[k];
+      env = next;
+      puts.push(env);
       return HttpResponse.json({ env });
     }),
   );
-  return puts;
+  return {
+    puts,
+    change: (next: Record<string, string>) => {
+      env = next;
+    },
+  };
 }
 
 function renderEditor(canWrite = true) {
@@ -63,7 +82,7 @@ describe("EnvEditor", () => {
   });
 
   it("adds a variable through the dialog and saves the whole map", async () => {
-    const puts = useEnvHandlers({ MODE: "prod" });
+    const { puts } = useEnvHandlers({ MODE: "prod" });
     renderEditor();
     await screen.findByText("MODE");
     await userEvent.click(screen.getByRole("button", { name: "Add" }));
@@ -76,7 +95,7 @@ describe("EnvEditor", () => {
   });
 
   it("rejects an invalid key before saving", async () => {
-    const puts = useEnvHandlers({});
+    const { puts } = useEnvHandlers({});
     renderEditor();
     await userEvent.click(await screen.findByRole("button", { name: "Add variable" }));
     const dialog = await screen.findByRole("dialog");
@@ -87,7 +106,7 @@ describe("EnvEditor", () => {
   });
 
   it("deletes a variable after confirmation", async () => {
-    const puts = useEnvHandlers({ MODE: "prod", REGION: "eu" });
+    const { puts } = useEnvHandlers({ MODE: "prod", REGION: "eu" });
     renderEditor();
     await screen.findByText("REGION");
     await userEvent.click(screen.getByRole("button", { name: "Delete REGION" }));
@@ -97,7 +116,7 @@ describe("EnvEditor", () => {
   });
 
   it("edits the raw .env text and returns to the table", async () => {
-    const puts = useEnvHandlers({ MODE: "prod" });
+    const { puts } = useEnvHandlers({ MODE: "prod" });
     renderEditor();
     await screen.findByText("MODE");
     await userEvent.click(screen.getByRole("button", { name: "Edit as .env" }));
@@ -110,7 +129,7 @@ describe("EnvEditor", () => {
   });
 
   it("imports a .env file and merges it", async () => {
-    const puts = useEnvHandlers({ MODE: "prod" });
+    const { puts } = useEnvHandlers({ MODE: "prod" });
     renderEditor();
     await screen.findByText("MODE");
     const file = new File(["REGION=eu\n# note\n"], "app.env", { type: "text/plain" });
@@ -144,5 +163,16 @@ describe("EnvEditor", () => {
     renderEditor(false);
     expect(await screen.findByText("Requires the developer role")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Export .env" })).toBeNull();
+  });
+
+  it("a write over a stale read gets 412, reloads and keeps the other editor's change", async () => {
+    const h = useEnvHandlers({ MODE: "prod" });
+    renderEditor();
+    await screen.findByText("MODE");
+    h.change({ MODE: "prod", OTHER: "1" }); // someone else saved meanwhile
+    await userEvent.click(screen.getByRole("button", { name: "Delete MODE" }));
+    await userEvent.click(screen.getByRole("button", { name: "Delete variable" }));
+    expect(await screen.findByText("OTHER")).toBeInTheDocument();
+    expect(h.puts).toEqual([]);
   });
 });
