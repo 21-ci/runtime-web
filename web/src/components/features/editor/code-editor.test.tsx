@@ -111,7 +111,7 @@ describe("code editor", () => {
     await waitFor(() => expect(body).toEqual({ entry: "main.ts", files: files.files }));
   });
 
-  it("save shows building then live", async () => {
+  it("save shows building then saved (not live); Deploy makes it live", async () => {
     useShellHandlers();
     useCodeHandlers();
     // The build stays in progress until the test releases it. A fixed server delay would make the
@@ -129,10 +129,23 @@ describe("code editor", () => {
     await userEvent.click(await screen.findByRole("button", { name: /save/i }));
     expect(await screen.findByText(/building/i)).toBeInTheDocument();
     built = true;
-    const live = await screen.findByRole("link", { name: /live v2/i });
-    expect(live.getAttribute("href")).toContain("/acme/apps/hello/versions");
+    const saved = await screen.findByRole("link", { name: /saved v2, not live/i });
+    expect(saved.getAttribute("href")).toContain("/acme/apps/hello/versions");
+    // The preview stays on the live version: the runtime cannot address a saved one.
+    expect(screen.getByText(/preview shows the live version \(v1\)/i)).toBeInTheDocument();
     const frame = screen.getByTitle(/preview/i);
     expect(frame.getAttribute("src")).toContain("https://run.example.test/s/hello/");
+    let promoted: unknown = null;
+    server.use(
+      http.put(`${BASE}/live`, async ({ request }) => {
+        promoted = { body: await request.json(), ifMatch: request.headers.get("if-match") };
+        return HttpResponse.json({ live_version: 2, etag: '"e3"' });
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /deploy v2/i }));
+    expect(await screen.findByRole("link", { name: /live v2/i })).toBeInTheDocument();
+    expect(promoted).toEqual({ body: { version: 2 }, ifMatch: '"e2"' });
+    expect(screen.queryByRole("button", { name: /deploy v2/i })).toBeNull();
   });
 
   it("stale save shows reload dialog", async () => {

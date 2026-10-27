@@ -36,7 +36,7 @@ const AUDITED: Record<string, string[]> = {
   "POST /api/orgs/:org/apps": ["app.create"],
   "PATCH /api/orgs/:org/apps/:app": ["app.update"],
   "DELETE /api/orgs/:org/apps/:app": ["app.delete"],
-  "PUT /api/orgs/:org/apps/:app/files": ["app.deploy"],
+  "PUT /api/orgs/:org/apps/:app/files": ["app.save"],
   "PUT /api/orgs/:org/apps/:app/live": ["app.live"],
   "POST /api/orgs/:org/apps/:app/versions/:v/rebuild": ["app.rebuild"],
   "PUT /api/orgs/:org/apps/:app/env": ["app.env"],

@@ -31,7 +31,8 @@ export function useAppView(org: string, app: string) {
 export function useFiles(org: string, app: string) {
   return useQuery({
     queryKey: ["files", org, app],
-    queryFn: () => api.get<Files>(`${appPath(org, app)}/files`),
+    // The newest saved version, live or not: saving no longer deploys, so the live one may be older.
+    queryFn: () => api.get<Files>(`${appPath(org, app)}/files?version=latest`),
     // A background refetch must never replace the text being edited.
     refetchOnWindowFocus: false,
   });
@@ -62,9 +63,7 @@ export function useSaveFiles(org: string, app: string) {
         { ifMatch: v.etag },
       ),
     onSuccess: (res) => {
-      qc.setQueryData<AppView>(["app", org, app], (old) =>
-        old ? { ...old, etag: res.etag, live_version: res.version.live ? res.version.version : old.live_version } : old,
-      );
+      qc.setQueryData<AppView>(["app", org, app], (old) => (old ? { ...old, etag: res.etag } : old));
       void qc.invalidateQueries({ queryKey: ["versions", org, app] });
       void qc.invalidateQueries({ queryKey: ["apps", org] });
     },

@@ -22,7 +22,8 @@ tenant already uses is refused.
 
 ## Versions
 
-Saving code creates a version. Deploying makes a version live. From the versions page you can roll back to an earlier
+Saving code creates a version but does not change what is live. Deploying (the **Deploy** button in the editor, or
+the versions page) makes a version live. From the versions page you can roll back to an earlier
 version. The earlier version becomes live again, and no code is deleted.
 
 ## Settings

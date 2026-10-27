@@ -244,16 +244,22 @@ export async function deleteApp(c: OrgCtx, slug: string) {
 
 // ---- code and versions ----
 
-export async function getFiles(c: OrgCtx, slug: string, version: number) {
+/** version: n, 0 for the live version, or "latest" for the newest saved one (the editor's draft base). */
+export async function getFiles(c: OrgCtx, slug: string, version: number | "latest") {
   const app = await appFor(c, slug, "app.read");
-  if (version === 0) {
+  if (version === "latest") {
+    const list = await rt(() => c.cli.listVersions(app.id));
+    if (list.length === 0) throw notFound();
+    version = Math.max(...list.map((v) => v.version));
+  } else if (version === 0) {
     const { value } = await rt(() => c.cli.getService(app.id));
     if (value.live_version === null) throw notFound();
     version = value.live_version;
   }
-  const src = await rt(() => c.cli.versionSource(app.id, version));
+  const n = version;
+  const src = await rt(() => c.cli.versionSource(app.id, n));
   const body = typeof src.body === "string" ? src.body : JSON.stringify(src.body ?? "");
-  return { version, ...unpack(body, src.contentType, src.encoding === "base64") };
+  return { version: n, ...unpack(body, src.contentType, src.encoding === "base64") };
 }
 
 interface Author { user_id: string; name: string }
@@ -281,20 +287,24 @@ function buildFailed(v: T.Version): AppError {
   return new AppError(422, "build_failed", f?.message || "build failed", details);
 }
 
-/** Uploads files as a new version (eager build, not activated), then sets it live under etag. */
+/**
+ * Uploads files as a new version and waits for its eager build. Saving never changes the live version:
+ * promote (PUT …/live) does. etag is the app's current etag; a mismatch means the app changed elsewhere.
+ */
 export async function saveFiles(c: OrgCtx, slug: string, entry: unknown, files: unknown, etag: string) {
   const app = await appFor(c, slug, "app.deploy");
   if (!etag) throw new AppError(428, "precondition_required", "If-Match header required");
   if (!files || typeof files !== "object" || Array.isArray(files)) throw invalid({ files: "required" });
   const f = checkBundle(typeof entry === "string" ? entry : "", files as Record<string, unknown>, MAX_FILE_BYTES);
+  const { value: svc, etag: cur } = await rt(() => c.cli.getService(app.id));
+  if (quoteEtag(cur || svc.etag) !== etag) throw conflict("stale", "changed elsewhere, reload");
   const body = JSON.stringify({ entry: f.entry, files: f.files });
   let up = await rt(() => c.cli.uploadVersion(app.id, body, "application/json", { compile: "eager" }));
   up = await awaitBuild(c, app.id, up);
   if (up.build_state === "failed") throw buildFailed(up);
   await recordAuthor(c, app.id, up.version);
-  const svc = await rt(() => c.cli.setLive(app.id, up.version, etag));
   const name = await userName(c, c.sub.userId);
-  return { version: { ...versionView(up, up.version, { user_id: c.sub.userId, name }) }, etag: svc.etag };
+  return { version: versionView(up, svc.live_version, { user_id: c.sub.userId, name }), etag: cur || svc.etag };
 }
 
 /** Records the caller as author of version v of service id (version_authors.app_slug holds the service id). */

@@ -159,10 +159,10 @@ describe("files and versions", () => {
     const put = await w.admin.call("PUT", `${APPS}/hello/files`, { entry: "main.ts", files }, { "if-match": etag });
     expect(put.status, await put.clone().text()).toBe(200);
     const saved = (await put.json()) as { version: { version: number; live: boolean; author: { name: string } }; etag: string };
-    expect(saved.version).toMatchObject({ version: 2, live: true, author: { name: "Admin" } });
+    expect(saved.version).toMatchObject({ version: 2, live: false, author: { name: "Admin" } });
     expect(put.headers.get("etag")).toBe(saved.etag);
     expect(log.filter((l) => l.startsWith("put")).length).toBeGreaterThan(5);
-    const got = (await (await w.admin.call("GET", `${APPS}/hello/files`)).json()) as { version: number; kind: string; files: Record<string, string> };
+    const got = (await (await w.admin.call("GET", `${APPS}/hello/files?version=latest`)).json()) as { version: number; kind: string; files: Record<string, string> };
     expect(log.some((l) => l.startsWith("chunked-out"))).toBe(true);
     expect(got.version).toBe(2);
     expect(got.kind).toBe("bundle");
@@ -196,13 +196,31 @@ describe("files and versions", () => {
     expect(stale.status).toBe(409);
   });
 
+  it("saving does not change live; promote does; GET files defaults to live, ?version=latest to the newest", async () => {
+    const w = await world();
+    const { etag } = await createApp(w.admin);
+    const liveOf = async () => ((await (await w.admin.call("GET", `${APPS}/hello`)).json()) as { live_version: number }).live_version;
+    const put = await w.admin.call("PUT", `${APPS}/hello/files`, { entry: "main.ts", files: { "main.ts": "next" } }, { "if-match": etag });
+    expect(put.status).toBe(200);
+    const saved = (await put.json()) as { version: { version: number; live: boolean }; etag: string };
+    expect(saved.version).toMatchObject({ version: 2, live: false });
+    expect(await liveOf()).toBe(1);
+    expect(((await (await w.admin.call("GET", `${APPS}/hello/files`)).json()) as { version: number }).version).toBe(1);
+    const latest = (await (await w.admin.call("GET", `${APPS}/hello/files?version=latest`)).json()) as { version: number; files: Record<string, string> };
+    expect(latest.version).toBe(2);
+    expect(latest.files["main.ts"]).toContain("next");
+    const promote = await w.admin.call("PUT", `${APPS}/hello/live`, { version: 2 }, { "if-match": saved.etag });
+    expect(promote.status).toBe(200);
+    expect(await liveOf()).toBe(2);
+  });
+
   it("versions newest first with authors; live promote; version_not_ready; build logs; rebuild 202", async () => {
     const w = await world();
     const { etag } = await createApp(w.admin);
     const put = await w.admin.call("PUT", `${APPS}/hello/files`, { entry: "main.ts", files: { "main.ts": "a" } }, { "if-match": etag });
     const e2 = ((await put.json()) as { etag: string }).etag;
     const vs = (await (await w.admin.call("GET", `${APPS}/hello/versions`)).json()) as { items: { version: number; live: boolean; author: unknown }[] };
-    expect(vs.items.map((v) => [v.version, v.live])).toEqual([[2, true], [1, false]]);
+    expect(vs.items.map((v) => [v.version, v.live])).toEqual([[2, false], [1, true]]);
     expect(vs.items[0]?.author).toMatchObject({ name: "Admin" });
     // The template's first version is authored by the user who created the app.
     expect(vs.items[1]?.author).toMatchObject({ name: "Admin" });

@@ -10,10 +10,14 @@ the editor.
 
 ## Save
 
-- **Save**, or `Ctrl`/`Cmd` + `S`, stores a new version of the code. Saving does not deploy it.
-- The editor sends the version it loaded. If someone saved a newer version in the meantime, the save is refused with a
+- **Save**, or `Ctrl`/`Cmd` + `S`, stores and builds a new version of the code. Saving does not deploy it: the toolbar
+  shows **Saved vN (not live)**.
+- **Deploy vN** makes the saved version live. It appears when the newest saved version built and is not live yet.
+- The editor opens the newest saved version, even when an older one is live.
+- The editor sends the app version it loaded. If someone changed the app in the meantime, the save is refused with a
   conflict. Reload to get their changes, then reapply yours.
-- A save that fails the build is refused, and the console shows the build error.
+- A save that fails the build is refused, and the console shows the build error. The live version is unchanged.
+- The preview pane always shows the live version. Deploy to see saved changes there.
 
 ## Type checking
 

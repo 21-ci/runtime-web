@@ -10,7 +10,8 @@
     "button": "Preview",
     "toggle": "Show or hide the response pane",
     "label": "Preview",
-    "frame": "App preview"
+    "frame": "App preview",
+    "liveOnly": "The preview shows the live version (v{{version}}). Deploy to see your saved changes."
   },
   "files": {
     "title": "Files",
@@ -26,7 +27,9 @@
     "building": "Building",
     "failed": "Build failed v{{version}}",
     "live": "Live v{{version}}",
-    "liveLabel": "Live v{{version}}, open versions"
+    "liveLabel": "Live v{{version}}, open versions",
+    "saved": "Saved v{{version}} (not live)",
+    "savedLabel": "Saved v{{version}}, not live, open versions"
   },
   "stale": {
     "title": "Code changed elsewhere",
@@ -40,5 +43,7 @@
     "label": "Code editor: {{path}}"
   },
   "appNotFound": "App not found",
-  "appNotFoundHint": "It may have been deleted or you lack access."
+  "appNotFoundHint": "It may have been deleted or you lack access.",
+  "savedNotLive": "Saved version {{version}} (not live). Deploy it to make it live.",
+  "deploy": "Deploy v{{version}}"
 }

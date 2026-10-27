@@ -1,11 +1,12 @@
 import { Link } from "@tanstack/react-router";
-import { ChevronDown, ChevronUp, FileCode2, Loader2, PanelRight, Save, ScrollText } from "lucide-react";
+import { ChevronDown, ChevronUp, FileCode2, Loader2, PanelRight, Rocket, Save, ScrollText } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { QueryError } from "@/components/features/empty/query-error";
 import { LogsView } from "@/components/features/logs/logs-view";
+import { usePromote } from "@/components/features/versions/use-versions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import {
@@ -61,6 +62,7 @@ export function CodePage({ org, app }: { org: string; app: string }) {
   const files = useFiles(org, app);
   const canDeploy = useCanDeploy(org, view.data?.project);
   const save = useSaveFiles(org, app);
+  const promote = usePromote(org, app);
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [active, setActive] = useState<string | null>(null);
@@ -70,7 +72,9 @@ export function CodePage({ org, app }: { org: string; app: string }) {
   const [previewKey, setPreviewKey] = useState(0);
   const [previewOpen, setPreviewOpen] = useState(() => readFlag(PREVIEW_KEY, true));
   const [logsOpen, setLogsOpen] = useState(() => readFlag(LOGS_KEY, false));
-  const version = useVersionState(org, app, savedVersion);
+  // The newest saved version: the one Deploy would make live.
+  const latest = savedVersion ?? files.data?.version ?? null;
+  const version = useVersionState(org, app, latest);
   const { t } = useTranslation("editor");
 
   const data = files.data;
@@ -93,7 +97,7 @@ export function CodePage({ org, app }: { org: string; app: string }) {
         setDraft((d) => ({ base: data, files: d && d.base === data ? d.files : current, saved: current }));
         setSavedVersion(res.version.version);
         setPreviewKey((k) => k + 1);
-        toast.success(t("saved", { version: res.version.version }));
+        toast.success(res.version.live ? t("saved", { version: res.version.version }) : t("savedNotLive", { version: res.version.version }));
       } catch (err) {
         if (err instanceof ApiError && err.code === "stale") setStaleOpen(true);
         else if (err instanceof ApiError && err.status === 422) {
@@ -176,6 +180,8 @@ export function CodePage({ org, app }: { org: string; app: string }) {
   }
 
   const wasm = data.kind === "wasm";
+  const live = view.data.live_version;
+  const deployable = canDeploy === true && latest !== null && latest !== live && version.data?.build_state === "ready";
   const diagnostics = failure?.diagnostics ?? [];
   const fileDiags = diagnostics.filter((d) => !d.file || d.file === path);
   const paths = Object.keys(current).sort();
@@ -190,7 +196,7 @@ export function CodePage({ org, app }: { org: string; app: string }) {
           {dirty ? <span className="text-muted" aria-hidden="true">•</span> : null}
         </p>
         <div className="ml-auto flex items-center gap-1.5">
-          <StatusPill org={org} app={app} pending={save.isPending} version={savedVersion} state={version.data?.build_state} />
+          <StatusPill org={org} app={app} pending={save.isPending} version={latest} live={live} state={version.data?.build_state} />
           <Button
             variant="ghost"
             size="sm"
@@ -201,8 +207,19 @@ export function CodePage({ org, app }: { org: string; app: string }) {
           >
             <PanelRight aria-hidden="true" /> {t("preview.button")}
           </Button>
+          {deployable && (
+            <Button
+              variant={dirty ? "secondary" : "default"}
+              size="sm"
+              disabled={promote.isPending || save.isPending}
+              onClick={() => promote.mutate({ version: latest, etag: view.data.etag }, { onSuccess: () => setPreviewKey((k) => k + 1) })}
+            >
+              {promote.isPending ? <Loader2 className="animate-spin" aria-hidden /> : <Rocket aria-hidden />}
+              {t("deploy", { version: latest })}
+            </Button>
+          )}
           {!readOnly && (
-            <Button variant="default" size="sm" onClick={() => void doSave()} disabled={save.isPending} aria-keyshortcuts="Meta+S Control+S">
+            <Button variant={deployable && !dirty ? "secondary" : "default"} size="sm" onClick={() => void doSave()} disabled={save.isPending} aria-keyshortcuts="Meta+S Control+S">
               {save.isPending ? <Loader2 className="animate-spin" aria-hidden /> : <Save aria-hidden />}
               {dirty ? t("saveDirty") : t("save")}
               <Kbd className="hidden bg-transparent text-on-primary/80 md:inline">⌘S</Kbd>
@@ -288,6 +305,9 @@ export function CodePage({ org, app }: { org: string; app: string }) {
             !previewOpen && "lg:hidden",
           )}
         >
+          {latest !== null && latest !== live ? (
+            <p className="px-1 text-[12px] text-muted">{t("preview.liveOnly", { version: live ?? "-" })}</p>
+          ) : null}
           <UrlBar url={view.data.url} badge={<Badge variant="success">HTTP</Badge>} onReload={() => setPreviewKey((k) => k + 1)} className="bg-surface" />
           <PreviewFrame url={view.data.url} title={t("preview.frame")} reloadKey={previewKey} className="min-h-[260px] flex-1 shadow-none" />
         </section>
@@ -345,8 +365,8 @@ export function CodePage({ org, app }: { org: string; app: string }) {
   );
 }
 
-function StatusPill(props: { org: string; app: string; pending: boolean; version: number | null; state?: string }) {
-  const { org, app, pending, version, state } = props;
+function StatusPill(props: { org: string; app: string; pending: boolean; version: number | null; live: number | null; state?: string }) {
+  const { org, app, pending, version, live, state } = props;
   const { t } = useTranslation("editor");
   if (pending || state === "pending" || state === "building") {
     return (
@@ -361,6 +381,15 @@ function StatusPill(props: { org: string; app: string; pending: boolean; version
       <Link to="/$org/apps/$app/versions" params={{ org, app }} role="status">
         <Badge variant="danger" dot>
           {t("status.failed", { version })}
+        </Badge>
+      </Link>
+    );
+  }
+  if (version !== live) {
+    return (
+      <Link to="/$org/apps/$app/versions" params={{ org, app }} aria-label={t("status.savedLabel", { version })}>
+        <Badge variant="info" dot>
+          {t("status.saved", { version })}
         </Badge>
       </Link>
     );

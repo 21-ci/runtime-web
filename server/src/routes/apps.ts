@@ -79,8 +79,9 @@ export function registerApps(router: Router, deps: Deps): void {
 
   router.get(`${one}/files`, route(async (c, ctx) => {
     const raw = ctx.url.searchParams.get("version");
-    let v = 0;
-    if (raw !== null && raw !== "") {
+    let v: number | "latest" = 0;
+    if (raw === "latest") v = "latest";
+    else if (raw !== null && raw !== "") {
       v = Number(raw);
       if (!Number.isInteger(v) || v < 1) throw invalid({ version: "out_of_range" });
     }
@@ -90,7 +91,7 @@ export function registerApps(router: Router, deps: Deps): void {
   router.put(`${one}/files`, route(async (c, ctx) => {
     const b = await readBig(ctx.req, MAX_FILES_BODY);
     const out = await A.saveFiles(c, slug(ctx), b.entry, b.files, A.ifMatch(ctx.req));
-    await audit(c, "app.deploy", slug(ctx), { version: out.version.version });
+    await audit(c, "app.save", slug(ctx), { version: out.version.version });
     return json(out, 200, etagHeader(out.etag));
   }));
 
