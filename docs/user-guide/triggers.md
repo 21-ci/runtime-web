@@ -8,7 +8,7 @@ page lists all three for one app.
 Every app has an address:
 
 ```text
-https://<runtime public host>/s/<app>/
+https://<app>.<apps domain>/
 ```
 
 Requests to that address, and to any path below it, go to the app's handler. If the app has a custom domain, the same

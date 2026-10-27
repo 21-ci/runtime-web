@@ -13,6 +13,11 @@ container serves the console, your Apps and their custom domains. Data lives in 
     The container speaks plain HTTP. Put a TLS proxy in front before you expose it, and read the
     [security model](../security-model.md).
 
+!!! tip
+
+    On a server, the [installer](install.md) sets all of this up in docker mode, with a Caddy container for
+    Let's Encrypt certificates: `curl -fsSL https://raw.githubusercontent.com/21-ci/runtime-web/main/install.sh | sudo sh`.
+
 ## Image flavors
 
 | Tag | Base | Use it for |
@@ -28,7 +33,7 @@ Every image is signed with cosign (keyless) and carries an SBOM and SLSA provena
 1. Start the container:
 
     ```bash
-    docker run -d --name rtweb --read-only --tmpfs /tmp \
+    docker run -d --name rtweb --read-only \
       -p 127.0.0.1:8080:8080 \
       -e RTWEB_CONSOLE_URL=http://console.localhost:8080 \
       -e RTWEB_APPS_URL=http://apps.localhost:8080 \
@@ -47,6 +52,7 @@ Every image is signed with cosign (keyless) and carries an SBOM and SLSA provena
 The setup token works once. After setup the container deletes it on the next start.
 
 `*.localhost` names resolve to your machine in current browsers, so no DNS changes are needed for a local trial.
+Every App is served at `http://<app>.apps.localhost:8080/`.
 
 ## Docker Compose
 
@@ -64,9 +70,9 @@ Set the variables in a `.env` file next to it, for example `RTWEB_CONSOLE_URL`, 
 | Variable | Default | Description |
 |---|---|---|
 | `RTWEB_CONSOLE_URL` | required | Console origin as the browser sees it, for example `https://console.example.com` |
-| `RTWEB_APPS_URL` | required | Apps origin, for example `https://apps.example.com`. Must use a different host name than the console |
+| `RTWEB_APPS_URL` | required | Apps domain as an origin, for example `https://apps.example.com`. Every App is served at `https://<app>.apps.example.com/` (the node's `routing.base_domain`). Must use a different host name than the console, and the console must not be under it |
 | `RTWEB_TRUSTED_PROXIES` | none | CIDRs or addresses of your TLS proxy. Their `X-Forwarded-For` and `X-Forwarded-Proto` are trusted |
-| `RTWEB_DEFAULT_PLAN` | `apps` | Runtime plan for new org tenants. The image defines `apps`, which allows cron |
+| `RTWEB_DEFAULT_PLAN` | `unlimited` | Runtime plan for new org tenants. `unlimited` has no quotas of its own (see [Install: Plans](install.md#plans)); the earlier `apps` plan is still defined |
 | `RTWEB_TLS_ASK_LISTEN` | off | Address such as `:8079` for the on-demand TLS check, see [Custom domains](#custom-domains) |
 | `RTWEB_RT_CONFIG_EXTRA` | none | Path to extra TOML appended to the node's `rt.toml` (plans, limits). Do not add an `[ingress]` table |
 | `RTWEB_LISTEN` | `:8080` | Edge listener inside the container |
@@ -88,23 +94,57 @@ sealed secrets in the runtime database cannot be read.
 
 You can preset the setup token with `RTWEB_SETUP_TOKEN` or `RTWEB_SETUP_TOKEN_FILE`.
 
+Prefer Docker secrets (`*_FILE`) over variables. When the root token and the master key come from files, `rtweb-entry`
+passes `rt` the file paths (`RT_ROOT_TOKEN_FILE`, `RT_MASTER_KEY_FILE`) instead of the values, so the master key is not
+in the node's environment. Everything the container writes is created with `umask 077`. The installer's docker mode
+uses Docker secrets:
+
+```yaml
+services:
+  rtweb:
+    environment:
+      RT_ROOT_TOKEN_FILE: /run/secrets/rt_root_token
+      RT_MASTER_KEY_FILE: /run/secrets/rt_master_key
+      RTWEB_RELAY_SECRET_FILE: /run/secrets/rtweb_relay_secret
+    secrets: [rt_root_token, rt_master_key, rtweb_relay_secret]
+secrets:
+  rt_root_token:
+    file: ./secrets/rt_root_token   # 0400, owned by uid 10001
+```
+
 ## Volumes
 
 | Path | Contents |
 |---|---|
-| `/data` | Runtime database, App versions, blobs, logs, the generated `rt.toml` and `rtweb/secrets/` |
+| `/data` | Runtime database, App versions, blobs, logs, the generated `rt.toml`, `rtweb/secrets/` and `tmp/` (SQLite temporary files) |
+| `/tmp` | Optional. `rt` and `rtweb-entry` write only `/data`: `TMPDIR` and `SQLITE_TMPDIR` point at `/data/tmp`. A small `noexec` tmpfs is a harmless safety net |
 
 A bind mount must be writable by uid `10001`.
 
 ## Reverse proxy and TLS
 
-The container listens on port `8080` and routes by `Host`: the console host, the Apps host and every active custom
-domain. Your proxy terminates TLS and forwards all three to port `8080` with the original `Host` header.
+The container listens on port `8080` and routes by `Host`: the console host, every App at `<app>.<apps domain>` and
+every active custom domain. Your proxy terminates TLS and forwards all of them to port `8080` with the original `Host`
+header. The container answers `404` on the bare apps domain, for the console's slug under the apps domain and for
+`/s/` paths there.
 
-Caddy in front of the container:
+Caddy in front of the container, with one certificate per App issued on demand:
 
 ```caddyfile
+{
+	on_demand_tls {
+		ask http://rtweb:8079/tls-ask
+	}
+}
+
 console.example.com, apps.example.com {
+	reverse_proxy rtweb:8080
+}
+
+*.apps.example.com {
+	tls {
+		on_demand
+	}
 	reverse_proxy rtweb:8080
 }
 ```
@@ -118,8 +158,10 @@ client.
 
 ### Custom domains
 
-Custom domains need certificates on demand. Set `RTWEB_TLS_ASK_LISTEN=:8079` and let the proxy ask before it issues
-one. Do not publish port `8079`.
+App subdomains and custom domains need certificates on demand. Set `RTWEB_TLS_ASK_LISTEN=:8079` and let the proxy
+ask before it issues one: it answers `200` only for an existing App (`<app>.<apps domain>`) or an active custom
+domain. Do not publish port `8079`. For one wildcard certificate instead, see
+[Install: App certificates](install.md#app-certificates).
 
 ```caddyfile
 {
