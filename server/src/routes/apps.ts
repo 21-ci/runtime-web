@@ -156,8 +156,8 @@ export function registerApps(router: Router, deps: Deps): void {
     const tag = A.ifMatch(ctx.req);
     const cur = (await rt(() => c.cli.getEnv(app.id))) ?? {};
     if (tag && tag !== (await envEtag(cur))) throw envStale();
-    const next: Record<string, string> = { ...cur, ...(set as Record<string, string>) };
-    for (const k of unset as string[]) delete next[k];
+    const drop = new Set(unset as string[]);
+    const next = Object.fromEntries(Object.entries({ ...cur, ...(set as Record<string, string>) }).filter(([k]) => !drop.has(k)));
     const out = (await rt(() => c.cli.putEnv(app.id, next))) ?? {};
     await audit(c, "app.env", slug(ctx), { set: Object.keys(set as object), unset });
     return json({ env: out }, 200, { etag: await envEtag(out) });
