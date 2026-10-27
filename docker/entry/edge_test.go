@@ -50,8 +50,15 @@ func TestEdgeRules(t *testing.T) {
 		{"apps.example.com:8443", "/s/rtweb/api/me", 404},
 		{"APPS.example.com", "/s/RTWEB/", 404},
 		{"apps.example.com", "//s/rtweb/", 404},
-		{"apps.example.com", "/s/hello/", 200},
-		{"apps.example.com", "/s/rtwebby/", 200},
+		{"apps.example.com", "/s/hello/", 404},
+		{"apps.example.com", "/", 404},
+		{"hello.apps.example.com", "/", 200},
+		{"hello.apps.example.com", "/api/x", 200},
+		{"hello.apps.example.com", "/s/other/", 404},
+		{"nosuch.apps.example.com", "//s/rtweb/", 404},
+		{"rtweb.apps.example.com", "/", 404},
+		{"RTWEB.apps.example.com:443", "/", 404},
+		{"custom.example.org", "/s/x/", 200},
 		{"console.example.com", "/", 200},
 		{"custom.example.org", "/", 200},
 	}
@@ -73,9 +80,9 @@ func TestEdgeRules(t *testing.T) {
 		t.Error("HSTS missing on the https console host")
 	}
 	w = httptest.NewRecorder()
-	h.ServeHTTP(w, httptest.NewRequest("GET", "http://apps.example.com/s/a/", nil))
+	h.ServeHTTP(w, httptest.NewRequest("GET", "http://a.apps.example.com/", nil))
 	if w.Header().Get("Strict-Transport-Security") != "" {
-		t.Error("HSTS must not be set on the apps host")
+		t.Error("HSTS must not be set on App hosts")
 	}
 }
 
@@ -97,7 +104,7 @@ func TestXFFReplaced(t *testing.T) {
 	t.Cleanup(func() { ready.Store(false) })
 	h := edgeHandler(testConfig(t, "https://console.example.com"))
 	send := func(peer, hdr, p string) {
-		r := httptest.NewRequest("GET", "http://apps.example.com/s/a/", nil)
+		r := httptest.NewRequest("GET", "http://a.apps.example.com/", nil)
 		r.RemoteAddr = net.JoinHostPort(peer, "5555")
 		if hdr != "" {
 			r.Header.Set("X-Forwarded-For", hdr)
@@ -248,7 +255,8 @@ func TestCollectAndNodeConfig(t *testing.T) {
 	oldC, oldR := rtControl, relayAddr
 	rtControl, relayAddr = "127.0.0.1:28081", "127.0.0.1:28082"
 	t.Cleanup(func() { rtControl, relayAddr = oldC, oldR })
-	c := &config{shareDir: share, rtConfig: filepath.Join(t.TempDir(), "x", "rt.toml")}
+	c := testConfig(t, "https://console.example.com")
+	c.shareDir, c.rtConfig = share, filepath.Join(t.TempDir(), "x", "rt.toml")
 	if err := writeNodeConfig(c); err != nil {
 		t.Fatal(err)
 	}
