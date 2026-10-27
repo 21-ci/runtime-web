@@ -47,6 +47,10 @@ export function loadConfig(getenv: Getenv, warn: (msg: string) => void = (m) => 
     warn("RTWEB_RUNTIME_PUBLIC_URL is deprecated: use RTWEB_APPS_URL");
   }
   const runtimePublicUrl = parsePublicUrl(appsRaw);
+  // Fail closed: without an apps origin App URLs fall back to the console origin's /s/ paths.
+  if (!runtimePublicUrl && !insecureCookies) {
+    throw new ConfigError("RTWEB_APPS_URL: required (the apps origin, e.g. https://apps.example.com); empty only with RTWEB_INSECURE_COOKIES=1 for development");
+  }
   // App code served on the console origin could call /api with a signed-in admin's cookies.
   if (runtimePublicUrl && new URL(runtimePublicUrl).origin === origin) {
     throw new ConfigError("RTWEB_APPS_URL: must not share the console origin (RTWEB_ORIGIN); serve Apps on their own host");

@@ -5,6 +5,7 @@ const KEY_B64 = btoa(String.fromCharCode(...Array.from({ length: 32 }, (_, i) =>
 const base = {
   RTWEB_ORIGIN: "https://console.example.com",
   RTWEB_SEAL_KEY: KEY_B64,
+  RTWEB_APPS_URL: "https://apps.example.net",
 };
 const env = (vars: Record<string, string | undefined>) => (name: string) => vars[name];
 
@@ -41,15 +42,19 @@ describe("loadConfig", () => {
 describe("apps URL and default plan", () => {
   it("accepts the deprecated RTWEB_RUNTIME_PUBLIC_URL with a warning", () => {
     const notes: string[] = [];
-    const c = loadConfig(env({ ...base, RTWEB_RUNTIME_PUBLIC_URL: "https://apps.example.org" }), (m) => notes.push(m));
+    const c = loadConfig(env({ ...base, RTWEB_APPS_URL: undefined, RTWEB_RUNTIME_PUBLIC_URL: "https://apps.example.org" }), (m) => notes.push(m));
     expect(c.runtimePublicUrl).toBe("https://apps.example.org");
     expect(notes.join()).toMatch(/deprecated/);
   });
 
-  it("defaults: no public URL, plan free", () => {
-    const c = loadConfig(env(base));
-    expect(c.runtimePublicUrl).toBe("");
-    expect(c.defaultPlan).toBe("free");
+  it("defaults: plan free", () => {
+    expect(loadConfig(env(base)).defaultPlan).toBe("free");
+  });
+
+  it("fails closed without an apps origin, unless insecure (development)", () => {
+    expect(() => loadConfig(env({ ...base, RTWEB_APPS_URL: undefined }))).toThrow(/RTWEB_APPS_URL: required/);
+    const dev = loadConfig(env({ ...base, RTWEB_ORIGIN: "http://localhost:8080", RTWEB_INSECURE_COOKIES: "1", RTWEB_APPS_URL: undefined }));
+    expect(dev.runtimePublicUrl).toBe("");
   });
 
   it("reads and normalises RTWEB_APPS_URL and RTWEB_DEFAULT_PLAN", () => {
