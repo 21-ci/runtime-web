@@ -26,9 +26,10 @@
 #   --dry-run              print every step instead of changing the host (needs no root, no network)
 #   --uninstall            remove Runtime Web (mode from --mode or detected); data volumes stay unless --purge
 #   --purge                with --uninstall --mode docker: also delete the data volumes and the secrets
-#   --wildcard-cert        one wildcard certificate for *.<apps-domain> (Let's Encrypt DNS-01) instead of one
-#                          certificate per App issued on demand (HTTP-01): for many Apps or Let's Encrypt rate
-#                          limits. Needs a DNS provider API token
+#   --wildcard-cert        one wildcard certificate for *.<apps-domain> (Let's Encrypt DNS-01): the default when a
+#                          Cloudflare token is given (--dns-token-file). Without one, every App gets its own
+#                          certificate on demand (HTTP-01), and Let's Encrypt allows 50 per registered domain a week
+#   --per-app-certs        one certificate per App even with a token
 #   --dns-provider NAME    DNS provider for --wildcard-cert: cloudflare (the only one, and the default)
 #   --dns-token-file PATH  file with the provider's API token (asked for, hidden, when interactive). The token is
 #                          stored as a 0600 secret (systemd credential / Docker secret); never pass it on the command
@@ -189,7 +190,8 @@ while [ "$#" -gt 0 ]; do
     --wildcard-cert) WILDCARD=1; shift ;;
     --dns-provider) need_arg "$@"; DNS_PROVIDER=$2; WILDCARD=1; shift 2 ;;
     --base-domain) need_arg "$@"; BASE_DOMAIN=$2; shift 2 ;;
-    --dns-token-file) need_arg "$@"; DNS_TOKEN_FILE=$2; shift 2 ;;
+    --dns-token-file) need_arg "$@"; DNS_TOKEN_FILE=$2; WILDCARD=${WILDCARD:-1}; shift 2 ;;
+    --per-app-certs) WILDCARD=0; shift ;;
     --caddy-sha256) need_arg "$@"; CADDY_SHA256=$2; shift 2 ;;
     --yes | -y) ASSUME_YES=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
@@ -255,9 +257,9 @@ if [ -n "$TTY" ]; then
   fi
   if [ -z "$WILDCARD" ] && { [ "$TLS" = auto ] || [ "$TLS" = staging ]; }; then
     say "Every App is served at https://<app>.$APPS_DOMAIN/ (DNS: a wildcard record *.$APPS_DOMAIN -> this host)."
-    say "  By default each App gets its own certificate on its first visit (no extra setup). One wildcard"
-    say "  certificate instead suits many Apps or Let's Encrypt rate limits; it needs your DNS provider's API token."
-    if confirm "Use one wildcard certificate (DNS-01, Cloudflare DNS only)?" n; then WILDCARD=1; else WILDCARD=0; fi
+    say "  Recommended: one wildcard certificate, which needs Cloudflare DNS for $APPS_DOMAIN and an API token."
+    say "  Otherwise each App gets its own certificate on its first visit; Let's Encrypt allows 50 a week."
+    if confirm "Is $APPS_DOMAIN on Cloudflare, with an API token at hand (wildcard certificate)?" y; then WILDCARD=1; else WILDCARD=0; fi
   fi
   if [ "$WILDCARD" = 1 ] && [ -z "$DNS_TOKEN_FILE" ] && [ "$DRY_RUN" = 0 ]; then
     say "  The zone of $APPS_DOMAIN must be on Cloudflare; the token needs Zone:Read and DNS:Edit for it."
@@ -396,7 +398,12 @@ kv "Mode" "$MODE"
 kv "Console" "$CONSOLE_URL"
 kv "Apps" "$(app_url_pattern)"
 kv "Certificates" "$(tls_label)"
-[ "$WILDCARD" = 0 ] || kv "Apps cert" "one wildcard certificate *.$APPS_DOMAIN (DNS-01 with $DNS_PROVIDER)"
+if [ "$WILDCARD" = 1 ]; then
+  kv "Apps cert" "one wildcard certificate *.$APPS_DOMAIN (DNS-01 with $DNS_PROVIDER)"
+elif [ "$TLS" = auto ]; then
+  kv "Apps cert" "one per App, on demand (HTTP-01)"
+  warn "Let's Encrypt issues at most 50 certificates per registered domain a week: with many Apps, use a Cloudflare token (--dns-token-file) for one wildcard certificate"
+fi
 [ -z "$EMAIL" ] || kv "ACME e-mail" "$EMAIL"
 if [ -n "$IMAGE" ]; then kv "Image" "$IMAGE"; else kv "Version" "${VERSION:-latest}"; fi
 [ "$MODE" = bare ] || kv "Files" "$DOCKER_DIR (compose project $PROJECT)"

@@ -94,8 +94,9 @@ Copy the setup token, then continue with [First run](first-run.md).
 | `--apps-domain HOST` | `apps.<base domain>`, else `apps.<domain>` | Every App is served at `<app>.<apps domain>`. The console host must not be under it |
 | `--email ADDR` | required for Let's Encrypt and in bare mode | ACME account e-mail. Reserved domains such as `example.com` are refused |
 | `--tls MODE` | `auto` | `auto` (Let's Encrypt), `staging` (Let's Encrypt staging, untrusted), `internal` (Caddy's own CA, untrusted), `none` (docker only: no Caddy, your own TLS proxy in front of `127.0.0.1:8080`) |
-| `--wildcard-cert` | off | One wildcard certificate for `*.<apps domain>` over DNS-01 instead of one certificate per App. Needs Cloudflare DNS, see [App certificates](#app-certificates) |
-| `--dns-token-file PATH` | asked, hidden | File with the Cloudflare API token for `--wildcard-cert`. Never pass the token itself on the command line |
+| `--wildcard-cert` | on with a token | One wildcard certificate for `*.<apps domain>` over DNS-01. Needs Cloudflare DNS, see [App certificates](#app-certificates) |
+| `--per-app-certs` | off | One certificate per App, on demand, even with a token |
+| `--dns-token-file PATH` | asked, hidden | File with the Cloudflare API token; turns on the wildcard certificate. Never pass the token itself on the command line |
 | `--yes`, `-y` | off | Never ask: use the flags and the defaults |
 | `--skip-dns-check` | off | Skip the DNS check. The check asks `api.ipify.org` for the host's public address |
 | `--version X.Y.Z` | latest release | Runtime Web release to install (docker: the image tag) |
@@ -136,13 +137,16 @@ cannot set a `Host` header there) and the health checks of `install.mjs`.
 
 ### App certificates
 
-By default every App gets its own certificate on its first HTTPS request (Caddy on-demand TLS with the HTTP-01
-challenge). Before Caddy asks Let's Encrypt, it asks the console's `tls-ask` endpoint, which says yes only for an
-existing App (`<app>.<apps domain>`) or an active custom domain. No DNS token is needed.
+Recommended: one wildcard certificate for `*.<apps domain>`. Give the installer a Cloudflare API token
+(`--dns-token-file /root/cloudflare-token`, or answer yes when it asks) and it uses one by default. Let's Encrypt checks
+wildcard names over DNS (DNS-01), so the apps domain's zone must be on Cloudflare, and the token needs `Zone:Read` and
+`DNS:Edit` for it. Custom domains still get their certificates on demand.
 
-With many Apps, or to stay clear of Let's Encrypt rate limits, use one wildcard certificate instead:
-`--wildcard-cert --dns-token-file /root/cloudflare-token`. Let's Encrypt checks wildcard names over DNS (DNS-01), so
-the apps domain's zone must be on Cloudflare, and the token needs `Zone:Read` and `DNS:Edit` for it. Caddy needs the
+Without a token, every App gets its own certificate on its first HTTPS request (Caddy on-demand TLS with the HTTP-01
+challenge). Before Caddy asks Let's Encrypt, it asks the console's `tls-ask` endpoint, which says yes only for an
+existing App (`<app>.<apps domain>`) or an active custom domain. Let's Encrypt issues at most 50 certificates per
+registered domain a week, so the installer warns about this mode; use it for a handful of Apps, or pass
+`--per-app-certs` to choose it even with a token. Caddy needs the
 Cloudflare DNS module:
 
 - Docker mode builds a local image `runtime-web-caddy:<caddy version>-cloudflare` with `xcaddy` from the pinned official
