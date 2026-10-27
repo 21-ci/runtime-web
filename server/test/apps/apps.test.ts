@@ -97,12 +97,14 @@ describe("apps CRUD + ETag", () => {
     const vc = await viewer.call("POST", APPS, { project: "default", environment: "production", slug: "v1", template: "http" });
     expect(vc.status).toBe(403);
     expect((await viewer.call("PUT", `${APPS}/hello/secrets/API_KEY`, { value: "x" })).status).toBe(403);
+    expect((await viewer.call("GET", `${APPS}/hello/env`)).status).toBe(403);
     const none = await w.user("none@example.com", "member");
     expect((await none.call("GET", `${APPS}/hello`)).status).toBe(404);
     const list = (await (await none.call("GET", APPS)).json()) as { items: unknown[] };
     expect(list.items).toEqual([]);
     const dev = await w.user("dev@example.com", "member", { default: "developer" });
     expect((await dev.call("PUT", `${APPS}/hello/env`, { env: { A: "1" } })).status).toBe(200);
+    expect((await dev.call("GET", `${APPS}/hello/env`)).status).toBe(200);
     expect((await dev.call("PUT", `${APPS}/hello/secrets/API_KEY`, { value: "x" })).status).toBe(403);
     expect((await dev.call("GET", `${APPS}/hello/export`)).status).toBe(403);
   });
@@ -326,6 +328,18 @@ describe("logs SSE", () => {
     expect(ev2).toEqual([]); // "three" is info, filtered by level=warn
     const r3 = await w.admin.call("GET", `${APPS}/hello/logs?last_event_id=1`);
     expect(parse(await r3.text()).filter((e) => e.event === "log").map((e) => e.id)).toEqual(["2", "3"]);
+  });
+
+  it("backs off to a 3 s poll while no new lines arrive", async () => {
+    const w = await world();
+    await createApp(w.admin);
+    const before = w.fake.calls.filter((c) => c.path.endsWith("/logs")).length;
+    const text = await (await w.admin.call("GET", `${APPS}/hello/logs`)).text();
+    expect(text.trimEnd().endsWith("retry: 500")).toBe(true);
+    const polls = w.fake.calls.filter((c) => c.path.endsWith("/logs")).length - before;
+    // 1 s, 2 s, then 3 s steps inside the 24 s window: about 9 polls instead of 24.
+    expect(polls).toBeGreaterThan(5);
+    expect(polls).toBeLessThanOrEqual(10);
   });
 
   it("errors before the stream: 422 bad level, 404 unknown app; app deleted mid-stream → event: error", async () => {

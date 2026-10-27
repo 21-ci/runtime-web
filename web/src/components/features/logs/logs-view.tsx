@@ -1,4 +1,4 @@
-import { Pause, Play, Trash2 } from "lucide-react";
+import { Pause, Play, RotateCw, Trash2 } from "lucide-react";
 import { useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -82,6 +82,12 @@ export function LogsView({ org, app, compact = false }: { org: string; app: stri
           <Badge variant={stream.conn === "connected" ? "success" : "outline"} dot={stream.conn === "connected"} aria-live="polite">
             {t(CONN_KEY[stream.conn])}
           </Badge>
+          {stream.conn === "closed" ? (
+            <Button variant="secondary" size={compact ? "sm" : "default"} onClick={stream.reconnect}>
+              <RotateCw aria-hidden="true" />
+              {t("reconnect")}
+            </Button>
+          ) : null}
           {stream.paused && stream.buffered > 0 ? (
             <span className="text-[12px] text-muted">{t("buffered", { count: stream.buffered })}</span>
           ) : null}

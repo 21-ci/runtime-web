@@ -6,6 +6,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createQueryClient } from "@/lib/query";
 import { FakeEventSource } from "./fake-event-source";
 import { LogsView } from "./logs-view";
+import { MAX_AUTO_RETRIES, retryDelay } from "./use-log-stream";
 import { pickOption } from "@/test/select";
 
 function line(seq: number, msg: string, level = "info") {
@@ -138,5 +139,51 @@ describe("LogsView", () => {
     expect(first.closed).toBe(true);
     expect(FakeEventSource.instances).toHaveLength(2);
     expect(latest().url).toBe("/api/orgs/acme/apps/hello/logs?level=warn");
+  });
+
+  it("auto-retries a closed stream with backoff, then offers Reconnect", () => {
+    vi.useFakeTimers();
+    try {
+      renderLogs();
+      act(() => {
+        latest().open();
+        latest().emit("log", line(1, "one"), "1");
+      });
+      for (let i = 0; i < MAX_AUTO_RETRIES; i++) {
+        act(() => latest().fail(false));
+        expect(screen.getByText("Reconnecting")).toBeInTheDocument();
+        expect(screen.queryByRole("button", { name: "Reconnect" })).not.toBeInTheDocument();
+        act(() => vi.advanceTimersByTime(retryDelay(i) - 1));
+        expect(FakeEventSource.instances).toHaveLength(i + 1);
+        act(() => vi.advanceTimersByTime(1));
+        expect(FakeEventSource.instances).toHaveLength(i + 2);
+        expect(FakeEventSource.instances[i]?.closed).toBe(true);
+      }
+      act(() => latest().fail(false));
+      expect(screen.getByText("Disconnected")).toBeInTheDocument();
+      act(() => vi.advanceTimersByTime(60_000));
+      expect(FakeEventSource.instances).toHaveLength(MAX_AUTO_RETRIES + 1);
+      expect(screen.getByText("one")).toBeInTheDocument();
+
+      fireEvent.click(screen.getByRole("button", { name: "Reconnect" }));
+      expect(FakeEventSource.instances).toHaveLength(MAX_AUTO_RETRIES + 2);
+      act(() => {
+        latest().open();
+        latest().emit("log", line(1, "one"), "1");
+      });
+      expect(screen.getByText("Connected")).toBeInTheDocument();
+      expect(screen.getAllByText("one")).toHaveLength(1);
+      expect(screen.queryByRole("button", { name: "Reconnect" })).not.toBeInTheDocument();
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("Reconnect after a server error event clears the message and reopens", () => {
+    renderLogs();
+    act(() => latest().emit("error", { code: "not_found", message: "App was deleted" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reconnect" }));
+    expect(screen.queryByText("App was deleted")).not.toBeInTheDocument();
+    expect(FakeEventSource.instances).toHaveLength(2);
   });
 });

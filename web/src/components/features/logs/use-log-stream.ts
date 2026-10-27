@@ -22,6 +22,16 @@ export type ConnState = "connecting" | "connected" | "reconnecting" | "closed";
 
 const MAX_LINES = 1000;
 
+// Auto-retry after the browser gives up on the stream: 1 s, 2 s, 4 s ... capped at 30 s, then the
+// Reconnect button is the only way back.
+export const RETRY_BASE_MS = 1000;
+export const RETRY_MAX_MS = 30_000;
+export const MAX_AUTO_RETRIES = 6;
+
+export function retryDelay(attempt: number): number {
+  return Math.min(RETRY_BASE_MS * 2 ** attempt, RETRY_MAX_MS);
+}
+
 function append(prev: LogLine[], add: LogLine[]): LogLine[] {
   return [...prev, ...add].slice(-MAX_LINES);
 }
@@ -48,6 +58,9 @@ export function useLogStream(org: string, app: string, level: LogLevel) {
   const pausedRef = useRef(false);
   const bufferRef = useRef<LogLine[]>([]);
   const seenRef = useRef(new Set<number>());
+  // Bumping `generation` reopens the EventSource; `attemptRef` counts auto-retries since the last open.
+  const [generation, setGeneration] = useState(0);
+  const attemptRef = useRef(0);
 
   // A new stream (org, app or level changed) starts from empty state; reset during render rather
   // than synchronously inside the effect.
@@ -62,14 +75,25 @@ export function useLogStream(org: string, app: string, level: LogLevel) {
     setConn("connecting");
   }
 
+  // A new stream key resets the retry budget; a reconnect of the same stream keeps seen lines so
+  // replayed seqs are not shown twice.
+  const keyRef = useRef(streamKey);
   useEffect(() => {
-    bufferRef.current = [];
-    seenRef.current = new Set();
+    if (keyRef.current !== streamKey) {
+      keyRef.current = streamKey;
+      attemptRef.current = 0;
+      bufferRef.current = [];
+      seenRef.current = new Set();
+    }
+    let timer: ReturnType<typeof setTimeout> | undefined;
 
     const qs = level ? `?level=${level}` : "";
     const es = new EventSource(`/api/orgs/${encodeURIComponent(org)}/apps/${encodeURIComponent(app)}/logs${qs}`);
 
-    es.addEventListener("open", () => setConn("connected"));
+    es.addEventListener("open", () => {
+      attemptRef.current = 0;
+      setConn("connected");
+    });
     es.addEventListener("log", (e) => {
       const line = parseData<LogLine>((e as MessageEvent).data);
       if (!line || seenRef.current.has(line.seq)) return;
@@ -91,11 +115,33 @@ export function useLogStream(org: string, app: string, level: LogLevel) {
         setConn("closed");
         return;
       }
-      setConn(es.readyState === 2 ? "closed" : "reconnecting");
+      if (es.readyState !== 2) {
+        setConn("reconnecting");
+        return;
+      }
+      // The browser stopped retrying (for example after a non-2xx reply): retry ourselves with backoff.
+      if (attemptRef.current < MAX_AUTO_RETRIES) {
+        const wait = retryDelay(attemptRef.current);
+        attemptRef.current += 1;
+        setConn("reconnecting");
+        timer = setTimeout(() => setGeneration((g) => g + 1), wait);
+        return;
+      }
+      setConn("closed");
     });
 
-    return () => es.close();
-  }, [org, app, level]);
+    return () => {
+      if (timer) clearTimeout(timer);
+      es.close();
+    };
+  }, [org, app, level, streamKey, generation]);
+
+  const reconnect = useCallback(() => {
+    attemptRef.current = 0;
+    setTerminal(null);
+    setConn("connecting");
+    setGeneration((g) => g + 1);
+  }, []);
 
   const setPaused = useCallback((next: boolean) => {
     pausedRef.current = next;
@@ -115,5 +161,5 @@ export function useLogStream(org: string, app: string, level: LogLevel) {
     setBuffered(0);
   }, []);
 
-  return { lines, conn, gap, terminal, paused, buffered, setPaused, clear };
+  return { lines, conn, gap, terminal, paused, buffered, setPaused, clear, reconnect };
 }
