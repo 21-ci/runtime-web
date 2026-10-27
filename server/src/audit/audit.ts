@@ -11,7 +11,7 @@ export const DEFAULT_LIMIT = 50;
 export const MAX_LIMIT = 200;
 
 export interface AuditActor {
-  /** usr_… for users, "cli" for host CLI actions, null/absent for system jobs. */
+  /** usr_… for users, tok_… for bearer tokens, "cli" for host CLI actions, null/absent for system jobs. */
   userId?: string | null;
   /** The actor used instance-admin rights on an org they are not a member of. */
   asInstanceAdmin?: boolean;
@@ -126,9 +126,10 @@ export async function listAudit(db: Db, f: AuditFilter = {}): Promise<AuditPage>
     args.push(c.at, c.at, c.id);
   }
   const sql = `SELECT a.id, a.ts, a.org_id, a.actor_id, a.action, a.target, a.data, a.as_instance_admin,
-      u.name AS actor_name, u.email AS actor_email, o.slug AS org_slug
+      COALESCE(u.name, t.name) AS actor_name, u.email AS actor_email, o.slug AS org_slug
     FROM audit a
     LEFT JOIN users u ON u.id = a.actor_id
+    LEFT JOIN tokens t ON t.id = a.actor_id
     LEFT JOIN orgs o ON o.id = a.org_id
     ${where.length ? `WHERE ${where.join(" AND ")}` : ""}
     ORDER BY a.ts DESC, a.id DESC

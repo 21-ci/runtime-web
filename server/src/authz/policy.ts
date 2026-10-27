@@ -48,6 +48,40 @@ export interface Subject {
   orgRole?: string;
   /** project slug → project role. */
   projectRoles?: Record<string, string>;
+  /** Set for a bearer token: only its scopes and projects count, never org or project roles. */
+  token?: TokenGrant;
+}
+
+/** What a bearer token may touch: runtime scopes plus project slugs ([] = every project). */
+export interface TokenGrant {
+  scopes: readonly string[];
+  projects: readonly string[];
+}
+
+/**
+ * The token scope each action needs. Actions not listed (org, members, tokens, projects
+ * management, domains, instance admin) are never allowed to a token.
+ */
+export const TOKEN_SCOPE_FOR: Readonly<Partial<Record<Action, string>>> = {
+  "project.read": "services:read",
+  "app.read": "services:read",
+  "app.create": "services:write",
+  "app.update": "services:write",
+  "app.delete": "services:write",
+  "app.schedules.write": "services:write",
+  "app.deploy": "deploy",
+  "app.env.read": "env:write",
+  "app.env.write": "env:write",
+  "app.secrets.write": "secrets:write",
+  "app.queue.write": "queue:write",
+  "app.logs.read": "logs:read",
+  "app.data.export": "data:admin",
+};
+
+function tokenCan(t: TokenGrant, a: string, projectSlug: string): boolean {
+  const scope = Object.hasOwn(TOKEN_SCOPE_FOR, a) ? TOKEN_SCOPE_FOR[a as Action] : undefined;
+  if (!scope || !t.scopes.includes(scope)) return false;
+  return t.projects.length === 0 || (projectSlug !== "" && t.projects.includes(projectSlug));
 }
 
 type Level = "instance" | "owner" | "orgAdmin" | "orgMember" | "projAdmin" | "projDeveloper" | "projViewer";
@@ -94,6 +128,7 @@ const levelRank: Partial<Record<Level, number>> = { projViewer: 1, projDeveloper
 export function can(s: Subject, a: string, projectSlug = ""): boolean {
   if (!Object.hasOwn(rules, a)) return false;
   const lvl = rules[a as Action];
+  if (s.token) return tokenCan(s.token, a, projectSlug);
   if (s.instanceAdmin) return true;
   switch (s.orgRole) {
     case "owner":

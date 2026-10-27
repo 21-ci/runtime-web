@@ -200,6 +200,16 @@ export const migrations: readonly Migration[] = [
       )`,
     ],
   },
+  {
+    // Bearer tokens on the console API: sha256 hex of each custom token's secret, set at mint.
+    // Tokens minted before this version have none and cannot call the console API.
+    version: 4,
+    name: "token-secret-hash",
+    statements: [
+      `ALTER TABLE tokens ADD COLUMN secret_hash TEXT`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS tokens_secret_hash ON tokens (secret_hash)`,
+    ],
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = migrations.reduce((max, m) => Math.max(max, m.version), 0);

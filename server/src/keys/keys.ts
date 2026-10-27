@@ -9,6 +9,7 @@ import { AppError, conflict, invalid, notFound } from "../http/errors.ts";
 import { isNotFound, isRuntimeError } from "../runtime/client.ts";
 import type { Scope } from "../runtime/types.ts";
 import { newId } from "../crypto/random.ts";
+import { sha256Hex } from "../crypto/hash.ts";
 import { auditIn } from "../audit/audit.ts";
 import { defaultKey, defaultKeyContext, type Org as OrgRow } from "../orgs/orgs.ts";
 import { runtimeOf } from "../orgs/common.ts";
@@ -158,11 +159,12 @@ export async function createToken(
       throw e;
     });
   const id = newId("tok_", now);
+  const secretHash = await sha256Hex(key.secret);
   const db = await dbOf(deps);
   try {
     await db.tx(async (tx) => {
       await tx.run(
-        "INSERT INTO tokens (id, org_id, runtime_key_id, name, scopes, projects, envs, created_by, created_at, expires_at, revoked_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL)",
+        "INSERT INTO tokens (id, org_id, runtime_key_id, name, scopes, projects, envs, created_by, created_at, expires_at, revoked_at, secret_hash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, NULL, ?)",
         [
           id,
           org.id,
@@ -174,6 +176,7 @@ export async function createToken(
           actor.id,
           now,
           req.expiresAt,
+          secretHash,
         ],
       );
       await auditIn(tx, now, {
