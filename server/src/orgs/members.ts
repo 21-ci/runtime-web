@@ -11,6 +11,7 @@ import { runtimeOf, type Actor } from "./common.ts";
 import { auditStmt } from "../audit/audit.ts";
 import { rt } from "../runtime/errors.ts";
 import { defaultKey, getOrgBySlug, type Org, type OrgDeps } from "./orgs.ts";
+import { bearerOf } from "../keys/bearer.ts";
 
 export interface MemberJson {
   user: { id: string; email: string; name: string };
@@ -47,9 +48,14 @@ export async function orgAccess(deps: Pick<Deps, "storage">, user: SessionUser, 
   const db = await dbOf(deps);
   const org = await getOrgBySlug(db, slug);
   if (!org) throw notFound();
-  const subject = await subjectFor(db, user, org.id);
-  if (!subject.orgRole && !subject.instanceAdmin) throw notFound();
-  const actor: Actor = { userId: user.id, asInstanceAdmin: !subject.orgRole };
+  // A bearer token acts only in its own org, with its scopes and projects; its id is the audit actor.
+  const token = bearerOf(user);
+  if (token && token.orgId !== org.id) throw notFound();
+  const subject: Subject = token
+    ? { userId: token.id, token: { scopes: token.scopes, projects: token.projects } }
+    : await subjectFor(db, user, org.id);
+  if (!token && !subject.orgRole && !subject.instanceAdmin) throw notFound();
+  const actor: Actor = token ? { userId: token.id } : { userId: user.id, asInstanceAdmin: !subject.orgRole };
   const access: OrgAccess = {
     org,
     subject,

@@ -10,7 +10,8 @@
     "button": "Koʻrinish",
     "toggle": "Javob panelini koʻrsatish yoki yashirish",
     "label": "Koʻrinish",
-    "frame": "Ilova koʻrinishi"
+    "frame": "Ilova koʻrinishi",
+    "liveOnly": "Oldindan koʻrish ishlayotgan versiyani (v{{version}}) koʻrsatadi. Saqlangan oʻzgarishlarni koʻrish uchun joylashtiring."
   },
   "files": {
     "title": "Fayllar",
@@ -26,7 +27,9 @@
     "building": "Yigʻilmoqda",
     "failed": "Yigʻish xato, v{{version}}",
     "live": "Ishlayotgan v{{version}}",
-    "liveLabel": "Ishlayotgan v{{version}}, versiyalarni ochish"
+    "liveLabel": "Ishlayotgan v{{version}}, versiyalarni ochish",
+    "saved": "v{{version}} saqlandi (ishlamayapti)",
+    "savedLabel": "v{{version}} saqlandi, ishlamayapti, versiyalarni ochish"
   },
   "stale": {
     "title": "Kod boshqa joyda oʻzgartirilgan",
@@ -40,5 +43,12 @@
     "label": "Kod muharriri: {{path}}"
   },
   "appNotFound": "Ilova topilmadi",
-  "appNotFoundHint": "Ehtimol, u oʻchirilgan yoki sizda ruxsat yoʻq."
+  "appNotFoundHint": "Ehtimol, u oʻchirilgan yoki sizda ruxsat yoʻq.",
+  "savedNotLive": "{{version}}-versiya saqlandi (hali ishlamayapti). Uni ishga tushirish uchun joylashtiring.",
+  "deploy": "v{{version}} ni joylashtirish",
+  "leave": {
+    "title": "Saqlamasdan chiqasizmi?",
+    "description": "Bu ilova kodidagi saqlanmagan oʻzgarishlar yoʻqoladi.",
+    "confirm": "Oʻzgarishlarni bekor qilish"
+  }
 }

@@ -12,7 +12,7 @@ Open the org and choose **New project**. Give it a name and a slug. The creator 
 |---|---|
 | `admin` | Full access to the project, including its members' project roles |
 | `developer` | Work on the project's apps: code, deploys, config and triggers |
-| `viewer` | Read the project's apps, logs and config |
+| `viewer` | Read the project's apps, logs and config, except env values |
 
 Org owners and admins act as project admins in every project. Instance admins can act in any org, and their actions
 are marked in the audit log.

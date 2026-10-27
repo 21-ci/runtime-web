@@ -17,6 +17,7 @@ import (
 	"os"
 	"os/exec"
 	"os/signal"
+	"path/filepath"
 	"strconv"
 	"strings"
 	"sync/atomic"
@@ -86,6 +87,8 @@ func healthcheck() int {
 }
 
 func run() error {
+	// Everything rtweb-entry and rt create (secrets, rt.toml, databases, temp files) is private to uid 10001.
+	syscall.Umask(0o077)
 	cfg, err := loadConfig()
 	if err != nil {
 		return err
@@ -101,18 +104,22 @@ func run() error {
 	ctx, stop := signal.NotifyContext(context.Background(), syscall.SIGTERM, syscall.SIGINT)
 	defer stop()
 
+	tmpDir, err := ensureTmpDir(cfg.dataDir)
+	if err != nil {
+		return err
+	}
+
 	rt := exec.Command(cfg.rtBin, "serve")
 	rt.Stdout, rt.Stderr = os.Stdout, os.Stderr
 	rt.Dir = cfg.dataDir
-	rt.Env = append(filterEnv(os.Environ()),
+	rt.Env = append(rtEnv(filterEnv(os.Environ()), sec, tmpDir),
 		"RT_CONFIG="+cfg.rtConfig,
 		"RT__NODE__DATA_DIR="+cfg.dataDir,
 		"RT__LISTENERS__PUBLIC="+rtInvoke,
 		"RT__LISTENERS__CONTROL="+cfg.controlListen,
 		"RT__LISTENERS__METRICS="+rtMetrics,
 		"RT__LISTENERS__INTERNAL=unix:"+env("RTWEB_RT_SOCKET", cfg.dataDir+"/rt.sock"),
-		"RT_ROOT_TOKEN="+sec.rootToken,
-		"RT_MASTER_KEY="+sec.masterKey,
+		// The bindings read these two from rt's environment (inject_headers = "env:..."): no file form exists.
 		"RTWEB_OP_TOKEN=Bearer "+sec.rootToken,
 		"RTWEB_RELAY_SECRET="+sec.relaySecret,
 	)
@@ -161,6 +168,47 @@ func run() error {
 		}
 		return nil
 	}
+}
+
+// rtEnv adds the node secrets as RT_*_FILE when they came from a file (Docker secrets, or the generated files in
+// /data/rtweb/secrets), so the master key is not in rt's environment (/proc/<pid>/environ), and points TMPDIR and
+// SQLITE_TMPDIR at tmpDir unless the operator set them: SQLite spills sorts of guest data.db files (temp_store=FILE)
+// there, onto the data volume instead of /tmp.
+func rtEnv(base []string, sec *secrets, tmpDir string) []string {
+	out := base
+	if sec.rootTokenFile != "" {
+		out = append(out, "RT_ROOT_TOKEN_FILE="+sec.rootTokenFile)
+	} else {
+		out = append(out, "RT_ROOT_TOKEN="+sec.rootToken)
+	}
+	if sec.masterKeyFile != "" {
+		out = append(out, "RT_MASTER_KEY_FILE="+sec.masterKeyFile)
+	} else {
+		out = append(out, "RT_MASTER_KEY="+sec.masterKey)
+	}
+	for _, k := range []string{"TMPDIR", "SQLITE_TMPDIR"} {
+		if os.Getenv(k) == "" {
+			out = append(out, k+"="+tmpDir)
+		}
+	}
+	return out
+}
+
+// ensureTmpDir creates <data>/tmp (0700) and empties it: SQLite unlinks its temp files on open, so anything left
+// is from a crash.
+func ensureTmpDir(dataDir string) (string, error) {
+	d := filepath.Join(dataDir, "tmp")
+	if err := os.MkdirAll(d, 0o700); err != nil {
+		return "", err
+	}
+	ents, err := os.ReadDir(d)
+	if err != nil {
+		return "", err
+	}
+	for _, e := range ents {
+		_ = os.RemoveAll(filepath.Join(d, e.Name()))
+	}
+	return d, nil
 }
 
 // filterEnv keeps the secret inputs (and their _FILE forms) out of rt's environment: rt gets the resolved values.

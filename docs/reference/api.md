@@ -33,8 +33,24 @@ name.
   Public routes without a session (`/api/setup`, `/api/auth/login`, `/api/auth/mfa`,
   `/api/invites/accept/{token}`) skip CSRF.
 - **Origin:** every unsafe method (POST, PUT, PATCH, DELETE), including the public ones, must carry an
-  `Origin` header equal to `RTWEB_ORIGIN`. Missing or foreign → `403 origin_invalid`. The internal
-  routes (§9) are not browser routes and are exempt.
+  `Origin` header equal to `RTWEB_ORIGIN`. Missing or foreign → `403 origin_invalid`. A `Sec-Fetch-Site`
+  header other than `same-origin` or `none` is also `403 origin_invalid`, even with a matching `Origin` (apps
+  run on a sibling host, so they are same-site). The internal routes (§9) are not browser routes and are exempt.
+- **Bearer tokens:** the app routes, `/api/orgs/{org}/apps` and everything below it (§8, including domains, env,
+  secrets, versions, schedules, queue and logs), also accept `Authorization: Bearer <token>` with a custom token
+  (§7). A bearer request:
+  - is verified against the stored SHA-256 of the token secret. An unknown, revoked or expired token, or one
+    minted before bearer support, gets `401 unauthenticated`.
+  - acts only in the token's org (another org is `404 not_found`) with the actions its scopes allow (§1.3).
+    An app or `project` outside the token's `projects`, or an `environment` outside its `environments`, is
+    `403 forbidden`. A token restricted to environments must pass `?environment=` when listing apps.
+  - skips CSRF, Origin and the user gates, because it carries no cookie. A request with both a bearer token and
+    a session cookie gets `400 ambiguous_credentials`.
+  - is limited to 600 requests per minute per token (`429 rate_limited` with `Retry-After`).
+  - is audited with the token id (`tok_…`) as `actor.user_id` and the token name as `actor.name`.
+
+  Every other route that needs a session answers a bearer token with `403 bearer_not_allowed`: auth, `/api/me`,
+  users, orgs, members, invites, tokens, projects, admin, branding and settings.
 - **Gates** (applied in this order after the session is loaded):
   1. `must_change_password` → `403 password_change_required` on every route except `GET /api/me`,
      `PUT /api/me/password` and `POST /api/auth/logout`.
@@ -55,6 +71,23 @@ Each route lists one of:
 - `loopback`: reached only from the node itself; the Caddy console site answers `404` for `/api/internal/*`.
 
 Instance admins act as owner of every org. Each such use is audited with `as_instance_admin=1`.
+
+A bearer token has no org or project role. Each action needs one token scope, and the project must be in the
+token's `projects` (empty = every project):
+
+| Action | Token scope |
+|---|---|
+| `app.read`, `project.read` | `services:read` |
+| `app.create`, `app.update`, `app.delete`, `app.schedules.write` | `services:write` |
+| `app.deploy` | `deploy` |
+| `app.env.read`, `app.env.write` | `env:write` |
+| `app.secrets.write` | `secrets:write` |
+| `app.queue.write` | `queue:write` |
+| `app.logs.read` | `logs:read` |
+| `app.data.export` | `data:admin` |
+
+Every other action, `domains.manage` included, is never allowed to a token. `invoke` and `sockets:write` only
+apply to calls to the runtime.
 
 **Visibility rule:** if the caller is not a member of `{org}`, or the app or project is outside their grants,
 the answer is `404 not_found` (this also applies to an app of another org). If they can see the resource but
@@ -98,7 +131,7 @@ object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; 
 `Cross-Origin-Opener-Policy: same-origin` and a deny-all `Permissions-Policy`; plus
 `Strict-Transport-Security: max-age=31536000; includeSubDomains` when `RTWEB_ORIGIN` is https.
 `'unsafe-inline'` applies to styles only (CodeMirror and sonner insert `<style>` at runtime); inline script is blocked.
-`frame-src` is the origin of `RTWEB_RUNTIME_PUBLIC_URL`, so the App page can preview the app in an
+`frame-src` is the origin of `RTWEB_APPS_URL`, so the App page can preview the app in an
 iframe; it is `'none'` when that variable is unset or names the console's own origin.
 
 ### 1.5 Error codes (global mapping, `server/src/http/errors.ts`)
@@ -119,15 +152,17 @@ iframe; it is `'none'` when that variable is unset or names the console's own or
 | 422 | `invalid` | `apperr.ErrInvalid` (+ `details.fields`) |
 | 422 | `<runtime code>` | runtime 422 with its `code` and `details` |
 | 422 | `build_failed` | save produced a failed build (+ `BuildDetails`) |
+| 412 | `precondition_failed` | `If-Match` on `PUT`/`PATCH …/env` does not match the env's current `ETag` |
 | 428 | `precondition_required` | `If-Match` missing (`apperr.ErrPreconditionRequired`) |
 | 429 | `rate_limited` | `apperr.ErrRateLimited` (login, MFA, log-stream cap) |
 | 429 | `rate_limited`, `build_quota`, `queue_full` | runtime 429, same code + `Retry-After` |
 | 502 | `runtime_unavailable` | runtime unreachable, or runtime `503 control_disabled` or any other runtime 5xx |
 | 503 | `busy` | runtime `503 queue_timeout` or `overloaded` (+ `Retry-After`) |
+| 504 | `runtime_timeout` | a control-API call did not answer within the deadline (10 s by default) |
 | 500 | `default_plan_missing` | org create: the runtime has no plan named by `RTWEB_DEFAULT_PLAN` (`details: {plan, available}`) |
 | 500 | `internal` | anything else (logged; message is generic) |
 
-The UI shows `busy`, 429 and `runtime_unavailable` as a toast plus `<RuntimeStatusBanner/>`, never as a code
+The UI shows `busy`, 429, `runtime_unavailable` and `runtime_timeout` as a toast plus `<RuntimeStatusBanner/>`, never as a code
 error of the user's app. It shows `409 stale` as a "changed elsewhere, reload" prompt.
 
 Every route below may also return the cross-cutting errors: `401`, the `403` middleware codes, `429`, `502`
@@ -141,6 +176,8 @@ other codes.
 | 401 | `invalid_credentials` | login; wrong current password on password change, 2FA disable, recovery codes |
 | 401 | `invalid_code` | `/api/auth/mfa` wrong TOTP/recovery code |
 | 422 | `invalid_code` | `/api/me/totp/confirm`, `/api/me/totp/disable` wrong code |
+| 400 | `ambiguous_credentials` | a request with both `Authorization: Bearer` and a session cookie |
+| 403 | `bearer_not_allowed` | a bearer token on a route outside `/api/orgs/{org}/apps` |
 
 Why 401 vs 422 for `invalid_code`: at `/api/auth/mfa` the code is the second factor, so a wrong one is a failed authentication (401). On `/api/me/totp/*` the caller is already signed in, so a wrong code is an invalid input field (422), not a lost session.
 | 409 | `email_taken` | `POST /api/admin/users` |
@@ -271,12 +308,16 @@ Notes:
 - `password_login_disabled` applies to everyone except instance admins (break-glass).
 - Login throttling. The client address is the runtime's `ctx.client.ip` (= `x-rt-client-ip`, which the
   runtime resolves behind `ingress.trusted_proxies` and clients cannot set); `X-Forwarded-For` is never read.
-  Limits: 10 failures per (IP, email) and 30 failures per IP per 15 min give `429 rate_limited`. Account-wide
-  failures past 10 give an IP that never signed into that account a growing delay (1 s doubling up to 60 s,
-  `429` with `Retry-After`), never a lock; IPs with a correct password for the account in the last 30 days
+  Limits: 10 failures per (IP, email) and 30 failures per IP per 15 min give `429 rate_limited`. Failures on
+  an account from one network (IPv4 /24, IPv6 /64) past 10, or from all networks past 50, give an IP that
+  never signed into that account a growing delay (1 s doubling up to 60 s, `429` with `Retry-After`), never
+  a lock; IPs with a correct password for the account in the last 30 days
   skip that delay and the instance-wide cap of 60 unauthenticated attempts per minute. At most 2 argon2
   runs happen at once for unauthenticated requests; beyond that `503 busy` with `Retry-After: 1`. New
   hashes use argon2id m=19 MiB, t=2, p=1; older hashes are replaced at the next successful login.
+- Second-factor throttling. Wrong TOTP or recovery codes and wrong password re-checks count per user over
+  24 h: after 5 the next attempt waits 30 s, doubling with each further failure up to 15 min (`429
+  rate_limited` with `Retry-After`). A correct code resets the count.
 - After a login with `must_change_password`, the UI goes to `/change-password`. With
   `mfa_enrollment_required`, it goes to `/me/security`.
 
@@ -537,7 +578,7 @@ on the app's project.
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
 | GET | `/api/orgs/{org}/apps` | `org.read` (filtered by `app.read`) | `?project&environment&cursor&limit` | `200 Page<AppSummary>` | `404` |
-| POST | `/api/orgs/{org}/apps` | `app.create` on `project` | `AppCreate` | `201 AppView` + `ETag` | `403`, `404` (project), `409 slug_taken` ("This app name is taken on this runtime"), `422 invalid` (unknown environment or template), `403 plan_limit` |
+| POST | `/api/orgs/{org}/apps` | `app.create` on `project` | `AppCreate` | `201 AppView` + `ETag` | `403`, `404` (project), `409 slug_taken` ("This app name is taken on this runtime"), `422 invalid` (unknown environment or template; `slug: "pattern"` when the slug is not a DNS label: `[a-z0-9-]`, 1-63 characters, no leading or trailing `-`, no `--`), `403 plan_limit` |
 | GET | `…/{app}` | `app.read` | | `200 AppView` + `ETag` | `404` |
 | PATCH | `…/{app}` | `app.update` | `AppPatch`, header `If-Match` | `200 AppView` + `ETag` | `403`, `409 stale`, `422 invalid` (+ `details.fields`), `428` |
 | DELETE | `…/{app}` | `app.delete` | | `204` (its domains are removed) | `403`, `404` |
@@ -557,7 +598,7 @@ type AppView = AppSummary & {
   runtime: string;                     // "deno" | "wasm"
   profile: string | null;
   access: "public" | "key" | "internal";
-  url: string;                         // `${RTWEB_RUNTIME_PUBLIC_URL}/s/{slug}/`
+  url: string;                         // `https://{slug}.{apps host}/` (RTWEB_APPS_URL)
   scaling: object | null; ingress: object | null; egress: object | null;
   call: object | null; triggers: object | null;           // runtime blocks, passed through
   status: AppSummary["status"] & { inflight: number; admission: object | null };
@@ -581,8 +622,8 @@ type AppPatch = {
 
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
-| GET | `…/{app}/files` | `app.read` | `?version=<n>` (default: live) | `200 Files` | `404` |
-| PUT | `…/{app}/files` | `app.deploy` | `{entry: string; files: Record<string,string>}`, `If-Match` | `200 {version: Version; etag: string}` + `ETag` (built eagerly, then set live) | `403`, `409 stale`, `422 build_failed` / runtime `422 validation_failed` (+ `BuildDetails`), `428`, `429 build_quota` |
+| GET | `…/{app}/files` | `app.read` | `?version=<n>` or `?version=latest` (default: live) | `200 Files` | `404`, `422` |
+| PUT | `…/{app}/files` | `app.deploy` | `{entry: string; files: Record<string,string>}`, `If-Match` | `200 {version: Version; etag: string}` + `ETag` (built eagerly; the live version is unchanged, promote with `PUT …/live`) | `403`, `409 stale`, `422 build_failed` / runtime `422 validation_failed` (+ `BuildDetails`), `428`, `429 build_quota` |
 | GET | `…/{app}/versions` | `app.read` | | `200 {items: Version[]}` (newest first) | `404` |
 | PUT | `…/{app}/live` | `app.deploy` | `{version: number}`, `If-Match` | `200 {live_version: number; etag: string}` + `ETag` | `403`, `409 stale`, `409 version_not_ready`, `428` |
 | GET | `…/{app}/versions/{v}/build-logs` | `app.read` | | `200 {items: LogLine[]}` | `404` |
@@ -607,15 +648,17 @@ type Version = {
 };
 ```
 
-A save never activates a failed build. On `422 build_failed` the live version is unchanged and
-`details.version` names the failed version.
+A save never changes the live version: `PUT …/files` stores and builds a new version, and `PUT …/live` (Deploy)
+makes it live. `If-Match` on a save is the app's current ETag, so a save after someone changed the app elsewhere gets
+`409 stale`. On `422 build_failed` `details.version` names the failed version.
 
 ### 8.3 Config: env, secrets, schedules, queue
 
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
-| GET | `…/{app}/env` | `app.read` | | `200 {env: Record<string,string>}` | `404` |
-| PUT | `…/{app}/env` | `app.env.write` | `{env: Record<string,string>}` (complete map, replaces) | `200 {env: Record<string,string>}` | `403`, `422` |
+| GET | `…/{app}/env` | `app.env.read` (project `developer` and up) | | `200 {env: Record<string,string>}` + `ETag` | `403` (viewer), `404` |
+| PUT | `…/{app}/env` | `app.env.write` | `{env: Record<string,string>}` (complete map, replaces), `If-Match` | `200 {env: Record<string,string>}` + `ETag` | `403`, `412 precondition_failed` (env changed since the read), `422`, `428` |
+| PATCH | `…/{app}/env` | `app.env.write` | `{set?: Record<string,string>; unset?: string[]}`, optional `If-Match` | `200 {env: Record<string,string>}` + `ETag` | `403`, `412 precondition_failed`, `422` |
 | GET | `…/{app}/secrets` | `app.read` | | `200 {items: {name: string; updated_at: number}[]}` (names only) | `404` |
 | PUT | `…/{app}/secrets/{name}` | `app.secrets.write` | `{value: string}` (write-only) | `204` | `403`, `422` |
 | DELETE | `…/{app}/secrets/{name}` | `app.secrets.write` | | `204` | `403`, `404` |
@@ -746,5 +789,5 @@ Every non-`/api` path that is not a file in `web/dist` returns `index.html` (`Ca
 "Runtime Console"), and the favicon link is the uploaded icon's `icon_url` when set, else the bundled
 `/favicon.svg`. Its `ETag` includes the branding etag, so a brand change never revalidates as `304`.
 `/assets/*` is served with `Cache-Control: public, max-age=31536000, immutable`. Every response has
-`Content-Security-Policy: default-src 'self'; frame-src <RTWEB_RUNTIME_PUBLIC_URL>`. Unknown `/api/*` paths return
+`Content-Security-Policy: default-src 'self'; frame-src <RTWEB_APPS_URL>`. Unknown `/api/*` paths return
 `404 not_found` as JSON.

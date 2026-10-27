@@ -6,6 +6,8 @@ import { MAX_PENDING_PER_ORG, normalizeHost } from "../../src/domains/domains.ts
 import { checkOnce, ACTIVE_EVERY_MS, PENDING_TTL_MS } from "../../src/domains/checker.ts";
 import { APP, DOMAINS, ORG, seed, type Seeded } from "./fakes.ts";
 import { errCode } from "../auth/helpers.ts";
+import { testConfig } from "../harness.ts";
+import { appIndexPut } from "../../src/apps/index-table.ts";
 
 const CONSOLE = "console.test";
 
@@ -281,6 +283,22 @@ describe("reads", () => {
     expect((await s.app.call("GET", "/api/internal/tls-ask?domain=shop.example.com", { headers: { "x-rt-client-ip": "198.51.100.7" } })).status).toBe(404);
     expect((await s.app.call("GET", "/api/internal/tls-ask?domain=shop.example.com")).status).toBe(404);
     expect((await s.app.fetch(new Request("http://localhost/api/internal/tls-ask?domain=shop.example.com"), { clientIp: "::1" })).status).toBe(200);
+  });
+
+  it("serves tls-ask 200 for <slug>.<apps host> only when the App exists", async () => {
+    const s = await seed({ config: testConfig({ runtimePublicUrl: "https://apps.example.com" }) });
+    await appIndexPut(s.db, { orgId: ORG.id, slug: APP.slug, serviceId: APP.serviceId });
+    const ask = (d: string, ip = "127.0.0.1") => s.app.call("GET", `/api/internal/tls-ask?domain=${d}`, { headers: { "x-rt-client-ip": ip } });
+    expect((await ask("shop.apps.example.com")).status).toBe(200);
+    expect((await ask("SHOP.apps.example.com")).status).toBe(200);
+    expect((await ask("nosuch.apps.example.com")).status).toBe(404);
+    expect((await ask("a.shop.apps.example.com")).status).toBe(404);
+    expect((await ask("apps.example.com")).status).toBe(404);
+    expect((await ask("shop.example.com")).status).toBe(404);
+    expect((await ask("shop.apps.example.com", "198.51.100.7")).status).toBe(404);
+    // a deleted org's Apps no longer get certificates
+    await s.db.run("UPDATE orgs SET deleted_at = 1 WHERE slug = 'acme'");
+    expect((await ask("shop.apps.example.com")).status).toBe(404);
   });
 
   it("instance admins list every domain with its org", async () => {

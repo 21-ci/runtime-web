@@ -74,7 +74,6 @@ func edgeHandler(c *config) http.Handler {
 	target := &url.URL{Scheme: "http", Host: rtInvoke}
 	consoleHost := hostOnly(c.consoleURL.Host)
 	appsHost := hostOnly(c.appsURL.Host)
-	consolePrefix := "/s/" + c.slug
 	rp := &httputil.ReverseProxy{
 		Rewrite: func(pr *httputil.ProxyRequest) {
 			pr.SetURL(target)
@@ -105,14 +104,22 @@ func edgeHandler(c *config) http.Handler {
 			return
 		}
 		host := hostOnly(r.Host)
+		onApps := strings.HasSuffix(host, "."+appsHost)
+		// Apps live only at <slug>.<apps host>: the bare apps host serves nothing, and the console (a service
+		// too) is never served as <console slug>.<apps host>.
+		if host == appsHost || (onApps && host == c.slug+"."+appsHost) {
+			http.NotFound(w, r)
+			return
+		}
 		for _, p := range pathVariants(r.URL) {
 			// Internal routes (tls-ask, asset upload) are for the container itself.
 			if internalRe.MatchString(p) {
 				http.NotFound(w, r)
 				return
 			}
-			// The console is a service too: keep it off the Apps origin.
-			if host == appsHost && (p == consolePrefix || strings.HasPrefix(p, consolePrefix+"/")) {
+			// rt still path-routes /s/<slug>/ when no host rule matched (an unknown <x>.<apps host>): that would
+			// serve one App, or the console, on another App's origin. Until rt can turn it off, block /s/ there.
+			if onApps && (p == "/s" || strings.HasPrefix(p, "/s/")) {
 				http.NotFound(w, r)
 				return
 			}
@@ -173,9 +180,10 @@ func serveTLSAsk(c *config) error {
 	target := &url.URL{Scheme: "http", Host: rtInvoke}
 	rp := &httputil.ReverseProxy{Rewrite: func(pr *httputil.ProxyRequest) {
 		pr.SetURL(target)
-		pr.Out.URL.Path = "/s/" + c.slug + "/api/internal/tls-ask"
+		// The console host is mapped to the console service: no /s/ path routing needed.
+		pr.Out.URL.Path = "/api/internal/tls-ask"
 		pr.Out.URL.RawPath = ""
-		pr.Out.Host = rtInvoke
+		pr.Out.Host = c.consoleURL.Host
 		pr.Out.Header.Del("X-Forwarded-For")
 	}}
 	mux := http.NewServeMux()

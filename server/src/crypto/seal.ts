@@ -8,6 +8,8 @@
 // associated data (e.g. "org.default_key:<orgId>"), so a sealed blob copied to another
 // row or field fails to open. Values sealed before contexts existed carry no AAD;
 // openCompat still accepts them and hands back a context-bound reseal to store.
+// Deprecated: crypto/reseal.ts reseals every legacy value once from scheduled(); remove the
+// no-AAD fallback below in the next release.
 
 const NONCE_BYTES = 12;
 const TAG_BYTES = 16;

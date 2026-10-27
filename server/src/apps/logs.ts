@@ -1,5 +1,6 @@
 // Log stream (api-web §8.6, design §3 "logs SSE"). No hub: each SSE request is
-// its own task. It polls GET …/logs by cursor every second through rtctl, emits
+// its own task. It polls GET …/logs by cursor through rtctl (every second, backing
+// off to 3 s while idle), emits
 // `id: <seq>` + `event: log`, and ends before 25 s with `retry: 500` so
 // EventSource reconnects with Last-Event-ID. The runtime pages by opaque cursor,
 // so the cursor after each seq we sent is kept in KV (`sse:<svc>:<seq>`, 10 min);
@@ -14,6 +15,8 @@ import { logLine, type OrgCtx, type Resolved } from "./service.ts";
 export const sseTiming = {
   sleep: (ms: number) => new Promise<void>((r) => setTimeout(r, ms)),
   pollMs: 1000,
+  /** Poll interval once no new lines arrive: N viewers of a quiet app cost a third of the runtime calls. */
+  idlePollMs: 3000,
   /** End the stream once this much wall time has passed (task wall limit is 30 s). */
   maxMs: 24_000,
   /** Fetch budget: 50 per task, keep headroom for resolve/auth. */
@@ -35,6 +38,7 @@ export function sseResponse(c: OrgCtx, app: Resolved, kv: Kv, now: () => number,
       const start = now();
       let lastWrite = start;
       let after = lastId ?? 0;
+      let delay = sseTiming.pollMs;
       let cursor: string | undefined = lastId !== null ? (await kv.get<string>(cursorKey(app.id, lastId))) ?? undefined : undefined;
       try {
         for (let polls = 0; polls < sseTiming.maxPolls; polls++) {
@@ -64,13 +68,15 @@ export function sseResponse(c: OrgCtx, app: Resolved, kv: Kv, now: () => number,
           if (page.next_cursor) cursor = page.next_cursor;
           if (after > 0 && cursor) await kv.set(cursorKey(app.id, after), cursor, { ttlSeconds: 600 });
           if (sent) lastWrite = now();
+          // Back off 1 s at a time while idle; any new line snaps back to the fast interval.
+          delay = sent ? sseTiming.pollMs : Math.min(delay + sseTiming.pollMs, sseTiming.idlePollMs);
           const more = page.items.length > 0 && page.next_cursor !== null && page.next_cursor !== q.cursor;
-          if (now() - start + (more ? 0 : sseTiming.pollMs) >= sseTiming.maxMs) break;
+          if (now() - start + (more ? 0 : delay) >= sseTiming.maxMs) break;
           if (now() - lastWrite >= sseTiming.pingMs) {
             write(": ping\n\n");
             lastWrite = now();
           }
-          if (!more || page.items.length < 200) await sseTiming.sleep(sseTiming.pollMs);
+          if (!more || page.items.length < 200) await sseTiming.sleep(delay);
         }
         write(`retry: ${sseTiming.retryMs}\n\n`);
         ctl.close();

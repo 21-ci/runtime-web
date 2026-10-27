@@ -16,6 +16,7 @@ import { removeAppDomains } from "../domains/domains.ts";
 import type { Actor } from "../orgs/common.ts";
 import { rt } from "../runtime/errors.ts";
 import { checkBundle, MAX_FILE_BYTES, unpack } from "./source.ts";
+import { appIndexDelete, appIndexPut } from "./index-table.ts";
 import { renderTemplate } from "./templates.ts";
 
 /** Clock seams (tests replace sleep with a fake-clock tick). */
@@ -91,6 +92,18 @@ function limitSource(requested: unknown, effective: unknown): "plan" | "service"
   return service || req ? "service" : "profile";
 }
 
+/**
+ * Public URL of an App: https://<slug>.<apps host>/ (the node's routing.base_domain). Without an apps origin
+ * (development only) the runtime's relative /s/<slug>/.
+ */
+export function appUrl(runtimeUrl: string, slug: string): string {
+  if (runtimeUrl) {
+    const u = new URL(runtimeUrl);
+    return `${u.protocol}//${slug}.${u.host}/`;
+  }
+  return `/s/${slug}/`;
+}
+
 export function appView(s: T.Service, etag: string, runtimeUrl: string) {
   const requested = s.limits === undefined || s.limits === null ? null : s.limits;
   const e = etag || s.etag;
@@ -98,7 +111,7 @@ export function appView(s: T.Service, etag: string, runtimeUrl: string) {
     ...summary(s),
     etag: e,
     runtime: s.runtime, profile: s.profile, access: s.access,
-    url: `${runtimeUrl.replace(/\/$/, "")}/s/${s.slug}/`,
+    url: appUrl(runtimeUrl, s.slug),
     scaling: s.scaling ?? null, ingress: s.ingress ?? null, egress: s.egress ?? null,
     call: s.call ?? null, triggers: s.triggers ?? null,
     status: { ...summary(s).status, inflight: s.status.inflight, admission: s.status.admission },
@@ -147,10 +160,17 @@ export async function createApp(c: OrgCtx, b: { project: string; environment: st
     const v = await rt(() => c.cli.uploadVersion(svc.id, src, "application/typescript", { activate: true, compile: "eager" }));
     await recordAuthor(c, svc.id, v.version);
   } catch (e) {
-    // Best effort: do not leave an empty app holding the slug.
-    await c.cli.deleteService(svc.id).catch((d: unknown) => console.error("apps: cleanup after failed upload", String(d)));
+    // Do not leave an empty app holding the slug: delete it now, or queue the delete for scheduled().
+    await c.cli.deleteService(svc.id).catch(async (d: unknown) => {
+      console.error("apps: cleanup after failed upload", String(d));
+      await c.deps.storage.db.run(
+        "INSERT OR IGNORE INTO pending_service_deletes (service_id, tenant_id, attempts, next_at) VALUES (?, ?, 0, ?)",
+        [svc.id, c.org.tenantId, c.deps.now()],
+      );
+    });
     throw e;
   }
+  await appIndexPut(c.deps.storage.db, { orgId: c.org.id, slug: svc.slug, serviceId: svc.id });
   return rt(() => c.cli.getService(svc.id));
 }
 
@@ -225,23 +245,76 @@ export async function updateApp(c: OrgCtx, slug: string, patch: T.ServicePatch, 
 
 export async function deleteApp(c: OrgCtx, slug: string) {
   const app = await appFor(c, slug, "app.delete");
-  await rt(() => c.cli.deleteService(app.id));
+  // Domains first: removing them deletes the rows and queues runtime unmaps (retried by the domain
+  // checker), so nothing is left pointing at a deleted service if a later step fails.
   await removeAppDomains(c.deps, app.id, c.actor);
+  await rt(() => c.cli.deleteService(app.id));
+  await appIndexDelete(c.deps.storage.db, app.slug);
   return app;
+}
+
+const DELETE_RETRY_BATCH = 20;
+const DELETE_BASE_MS = 60_000;
+const DELETE_MAX_MS = 6 * 3600_000;
+
+export function serviceDeleteBackoff(attempts: number): number {
+  return Math.min(DELETE_BASE_MS * 2 ** attempts, DELETE_MAX_MS);
+}
+
+/**
+ * Retries queued deletes of services orphaned by a failed create (pending_service_deletes), with the
+ * owning org's default key. A missing service or org counts as done. Called from scheduled().
+ */
+export async function retryPendingServiceDeletes(deps: Deps): Promise<number> {
+  const db = deps.storage.db;
+  const rows = await db.all<{ service_id: string; tenant_id: string; attempts: number }>(
+    "SELECT service_id, tenant_id, attempts FROM pending_service_deletes WHERE next_at <= ? ORDER BY next_at LIMIT ?",
+    [deps.now(), DELETE_RETRY_BATCH],
+  );
+  for (const r of rows) {
+    const done = () => db.run("DELETE FROM pending_service_deletes WHERE service_id = ?", [r.service_id]);
+    const o = await db.first<{ id: string }>("SELECT id FROM orgs WHERE tenant_id = ?", [r.tenant_id]);
+    const org = o ? await getOrg(await dbOf(deps), o.id) : null;
+    if (!org) {
+      await done();
+      continue;
+    }
+    try {
+      const cli = await orgClient(deps, org);
+      await rt(() => cli.deleteService(r.service_id));
+      await done();
+    } catch (e) {
+      if (e instanceof AppError && e.status === 404) {
+        await done();
+        continue;
+      }
+      const attempts = r.attempts + 1;
+      await db.run("UPDATE pending_service_deletes SET attempts = ?, next_at = ? WHERE service_id = ?", [
+        attempts, deps.now() + serviceDeleteBackoff(attempts), r.service_id,
+      ]);
+    }
+  }
+  return rows.length;
 }
 
 // ---- code and versions ----
 
-export async function getFiles(c: OrgCtx, slug: string, version: number) {
+/** version: n, 0 for the live version, or "latest" for the newest saved one (the editor's draft base). */
+export async function getFiles(c: OrgCtx, slug: string, version: number | "latest") {
   const app = await appFor(c, slug, "app.read");
-  if (version === 0) {
+  if (version === "latest") {
+    const list = await rt(() => c.cli.listVersions(app.id));
+    if (list.length === 0) throw notFound();
+    version = Math.max(...list.map((v) => v.version));
+  } else if (version === 0) {
     const { value } = await rt(() => c.cli.getService(app.id));
     if (value.live_version === null) throw notFound();
     version = value.live_version;
   }
-  const src = await rt(() => c.cli.versionSource(app.id, version));
+  const n = version;
+  const src = await rt(() => c.cli.versionSource(app.id, n));
   const body = typeof src.body === "string" ? src.body : JSON.stringify(src.body ?? "");
-  return { version, ...unpack(body, src.contentType, src.encoding === "base64") };
+  return { version: n, ...unpack(body, src.contentType, src.encoding === "base64") };
 }
 
 interface Author { user_id: string; name: string }
@@ -269,20 +342,24 @@ function buildFailed(v: T.Version): AppError {
   return new AppError(422, "build_failed", f?.message || "build failed", details);
 }
 
-/** Uploads files as a new version (eager build, not activated), then sets it live under etag. */
+/**
+ * Uploads files as a new version and waits for its eager build. Saving never changes the live version:
+ * promote (PUT …/live) does. etag is the app's current etag; a mismatch means the app changed elsewhere.
+ */
 export async function saveFiles(c: OrgCtx, slug: string, entry: unknown, files: unknown, etag: string) {
   const app = await appFor(c, slug, "app.deploy");
   if (!etag) throw new AppError(428, "precondition_required", "If-Match header required");
   if (!files || typeof files !== "object" || Array.isArray(files)) throw invalid({ files: "required" });
   const f = checkBundle(typeof entry === "string" ? entry : "", files as Record<string, unknown>, MAX_FILE_BYTES);
+  const { value: svc, etag: cur } = await rt(() => c.cli.getService(app.id));
+  if (quoteEtag(cur || svc.etag) !== etag) throw conflict("stale", "changed elsewhere, reload");
   const body = JSON.stringify({ entry: f.entry, files: f.files });
   let up = await rt(() => c.cli.uploadVersion(app.id, body, "application/json", { compile: "eager" }));
   up = await awaitBuild(c, app.id, up);
   if (up.build_state === "failed") throw buildFailed(up);
   await recordAuthor(c, app.id, up.version);
-  const svc = await rt(() => c.cli.setLive(app.id, up.version, etag));
   const name = await userName(c, c.sub.userId);
-  return { version: { ...versionView(up, up.version, { user_id: c.sub.userId, name }) }, etag: svc.etag };
+  return { version: versionView(up, svc.live_version, { user_id: c.sub.userId, name }), etag: cur || svc.etag };
 }
 
 /** Records the caller as author of version v of service id (version_authors.app_slug holds the service id). */

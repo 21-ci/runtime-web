@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Eye, EyeOff, FileText, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { Download, Eye, EyeOff, FileText, Lock, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -22,8 +22,9 @@ import { SectionCard, SMALL_CONTROL } from "@/components/ui/section-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CopyButton } from "@/components/ui/url-bar";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { i18n } from "@/lib/i18n";
+import { handleMutationError } from "@/lib/query";
 
 const KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
 
@@ -55,23 +56,61 @@ export function parseEnvText(text: string): { env: Record<string, string> } | { 
   return { env };
 }
 
+// envEtag mirrors the server's env ETag (SHA-256 over the entries sorted by key, first 16 bytes),
+// so writes can send If-Match without reading response headers.
+export async function envEtag(env: Record<string, string>): Promise<string> {
+  const canon = JSON.stringify(Object.keys(env).sort().map((k) => [k, env[k]]));
+  const d = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canon)));
+  return `"${Array.from(d.subarray(0, 16), (x) => x.toString(16).padStart(2, "0")).join("")}"`;
+}
+
+type EnvState = { env: Record<string, string>; etag: string };
+
 export function useEnv(org: string, app: string) {
   return useQuery({
     queryKey: ["env", org, app],
-    queryFn: () => api.get<{ env: Record<string, string> }>(`${appPath(org, app)}/env`).then((r) => r.env),
+    queryFn: async (): Promise<EnvState> => {
+      const { env } = await api.get<{ env: Record<string, string> }>(`${appPath(org, app)}/env`);
+      return { env, etag: await envEtag(env) };
+    },
   });
 }
 
-export function useSaveEnv(org: string, app: string) {
+// A 412 means someone changed the env since it was read: reload it and say so instead of overwriting.
+function useEnvWrite<V>(org: string, app: string, send: (v: V) => Promise<{ env: Record<string, string> }>) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (body: Record<string, string>) =>
-      api.put<{ env: Record<string, string> }>(`${appPath(org, app)}/env`, { env: body }),
-    onSuccess: () => {
+    meta: { skipGlobalError: true },
+    mutationFn: send,
+    onSuccess: async (res) => {
       toast.success(i18n.t("env:toast.saved"));
-      void qc.invalidateQueries({ queryKey: ["env", org, app] });
+      qc.setQueryData<EnvState>(["env", org, app], { env: res.env, etag: await envEtag(res.env) });
+    },
+    onError: (err) => {
+      if (err instanceof ApiError && err.status === 412) {
+        toast.error(i18n.t("env:toast.conflict"));
+        void qc.invalidateQueries({ queryKey: ["env", org, app] });
+      } else handleMutationError(err);
     },
   });
+}
+
+// useSaveEnv replaces the whole map (text mode, import) under the etag it was read with.
+export function useSaveEnv(org: string, app: string) {
+  return useEnvWrite(org, app, (v: { env: Record<string, string>; etag: string }) =>
+    api.put<{ env: Record<string, string> }>(`${appPath(org, app)}/env`, { env: v.env }, { ifMatch: v.etag }),
+  );
+}
+
+// usePatchEnv sets or unsets single keys (row edits), so other keys changed meanwhile are kept.
+export function usePatchEnv(org: string, app: string) {
+  return useEnvWrite(org, app, (v: { set?: Record<string, string>; unset?: string[]; etag: string }) =>
+    api.patch<{ env: Record<string, string> }>(
+      `${appPath(org, app)}/env`,
+      { set: v.set ?? {}, unset: v.unset ?? [] },
+      { ifMatch: v.etag },
+    ),
+  );
 }
 
 function downloadText(name: string, text: string) {
@@ -83,12 +122,15 @@ function downloadText(name: string, text: string) {
   URL.revokeObjectURL(url);
 }
 
-// EnvEditor edits the app's plain environment variables as one complete map (PUT replaces it):
+// EnvEditor edits the app's plain environment variables: row edits PATCH single keys, the text mode
+// replaces the complete map (PUT); both send the read's etag and reload on a 412 conflict:
 // a Key / Value table with Add, per-row edit and delete, plus Export .env, Import .env and a raw
 // ".env" text mode. canWrite false (role lacks app.env.write) shows the variables read-only.
 export function EnvEditor({ org, app, canWrite = true }: { org: string; app: string; canWrite?: boolean }) {
   const env = useEnv(org, app);
   const save = useSaveEnv(org, app);
+  const patch = usePatchEnv(org, app);
+  const busy = save.isPending || patch.isPending;
   const { t } = useTranslation(["env", "common"]);
   const [mode, setMode] = useState<"table" | "text">("table");
   const [text, setText] = useState("");
@@ -102,15 +144,29 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
   const [syncedData, setSyncedData] = useState<typeof env.data>(undefined);
   if (env.data && env.data !== syncedData) {
     setSyncedData(env.data);
-    setText(toEnvText(env.data));
+    setText(toEnvText(env.data.env));
   }
 
+  if (env.isError && env.error instanceof ApiError && env.error.status === 403) {
+    // Env values are readable from the developer role up; viewers get a notice, not the values.
+    return (
+      <SectionCard title={t("editor.title")} description={t("editor.description")}>
+        <div role="note" className="flex items-start gap-3 text-sm">
+          <Lock className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
+          <div>
+            <p className="font-medium">{t("denied.title")}</p>
+            <p className="text-muted">{t("denied.description")}</p>
+          </div>
+        </div>
+      </SectionCard>
+    );
+  }
   if (env.isError) {
     return <QueryError error={env.error} onRetry={() => void env.refetch()} notFoundTitle={t("appNotFound")} />;
   }
   if (env.isPending) return <Skeleton className="h-40 w-full" />;
 
-  const data = env.data;
+  const { env: data, etag } = env.data;
   const keys = Object.keys(data).sort();
 
   function onSubmitText(e: FormEvent<HTMLFormElement>) {
@@ -121,7 +177,7 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
       return;
     }
     setError(null);
-    save.mutate(parsed.env, { onSuccess: () => setMode("table") });
+    save.mutate({ env: parsed.env, etag }, { onSuccess: () => setMode("table") });
   }
 
   function onSubmitRow(e: FormEvent<HTMLFormElement>) {
@@ -133,7 +189,7 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
       return;
     }
     setError(null);
-    save.mutate({ ...data, [key]: editing.value }, { onSuccess: () => setEditing(null) });
+    patch.mutate({ set: { [key]: editing.value }, etag }, { onSuccess: () => setEditing(null) });
   }
 
   function onImport(file: File | undefined) {
@@ -145,7 +201,7 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
         toast.error(t("toast.importFailed", { error: parsed.error }));
         return;
       }
-      save.mutate({ ...data, ...parsed.env });
+      patch.mutate({ set: parsed.env, etag });
     };
     reader.readAsText(file);
   }
@@ -339,7 +395,7 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
               <Button type="button" variant="secondary" onClick={() => setEditing(null)}>
                 {t("common:cancel")}
               </Button>
-              <Button type="submit" variant="default" disabled={save.isPending}>
+              <Button type="submit" variant="default" disabled={busy}>
                 {t("dialog.save")}
               </Button>
             </DialogFooter>
@@ -353,12 +409,10 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
         title={t("confirm.title", { name: deleting ?? "" })}
         description={<p>{t("confirm.description")}</p>}
         confirmLabel={t("confirm.button")}
-        pending={save.isPending}
+        pending={busy}
         onConfirm={() => {
           if (!deleting) return;
-          const next = { ...data };
-          delete next[deleting];
-          save.mutate(next, { onSuccess: () => setDeleting(null) });
+          patch.mutate({ unset: [deleting], etag }, { onSuccess: () => setDeleting(null) });
         }}
       />
     </SectionCard>

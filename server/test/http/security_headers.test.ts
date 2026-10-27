@@ -31,10 +31,10 @@ describe("security headers (M4)", () => {
     expect(cspFor("https://console.example.com", "https://console.example.com")).toContain("frame-src 'none'");
   });
 
-  it("sends the runtime app origin as frame-src", async () => {
-    const app = testApp({ config: testConfig({ runtimePublicUrl: "https://apps.example.com/base" }) });
+  it("sends the App subdomains of the apps origin as frame-src", async () => {
+    const app = testApp({ config: testConfig({ runtimePublicUrl: "https://apps.example.com" }) });
     const res = await app.call("GET", "/api/health");
-    expect(res.headers.get("content-security-policy")).toMatch(/frame-src https:\/\/apps\.example\.com(;|$)/);
+    expect(res.headers.get("content-security-policy")).toMatch(/frame-src https:\/\/\*\.apps\.example\.com(;|$)/);
   });
 
   it("are set on SPA pages, assets, JSON, errors and 304s, with HSTS on https", async () => {

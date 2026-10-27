@@ -22,6 +22,7 @@
   "pause": "Pause",
   "resume": "Resume",
   "clear": "Clear",
+  "reconnect": "Reconnect",
   "gap": "Some lines were skipped",
   "linesLabel": "Log lines",
   "empty": {

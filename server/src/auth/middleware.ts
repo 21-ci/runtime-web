@@ -6,9 +6,15 @@
 // requireSession order (api-web §1.2): session (401) → must-change-password gate →
 // 2FA-enrollment gate → CSRF on unsafe methods (403 csrf_invalid) → instance admin.
 // The Origin check is global middleware (originCheck), installed by registerAuth.
+//
+// Bearer tokens (keys/bearer.ts): on /api/orgs/{org}/apps and below, `Authorization: Bearer`
+// replaces the session. Such requests skip Origin, CSRF and the user gates; one that also
+// carries a session cookie is 400 ambiguous_credentials; every other route answers 403
+// bearer_not_allowed to a bearer.
 
 import { constantTimeEqual } from "../crypto/hash.ts";
-import { AppError, forbidden } from "../http/errors.ts";
+import { AppError, badRequest, forbidden } from "../http/errors.ts";
+import { authenticateBearer, bearerPathAllowed, bearerSecret } from "../keys/bearer.ts";
 import type { Handler, Middleware, RequestContext } from "../http/router.ts";
 import { getPolicy } from "./policy.ts";
 import { lookupSession, sessionCookie } from "./session.ts";
@@ -51,15 +57,26 @@ export function normalizeOrigin(raw: string | null | undefined): string {
   }
 }
 
+/** A token-only request to a bearer route: no session cookie, so no ambient browser credential. */
+function isBearerRequest(cfg: AuthDeps["config"], ctx: RequestContext): boolean {
+  return bearerSecret(ctx.req) !== null && !sessionCookie(cfg, ctx.req) && bearerPathAllowed(ctx.url.pathname);
+}
+
+const SAME_SITE_FETCH = new Set(["same-origin", "none"]);
+
 /**
  * Global middleware: every unsafe method must carry Origin == config.origin
- * (403 origin_invalid), public routes included. `exempt` paths (bearer-authed
- * internal routes) skip it.
+ * (403 origin_invalid), public routes included, and a `Sec-Fetch-Site` other than
+ * same-origin/none is refused even when Origin matches (apps share the console's site).
+ * `exempt` paths (bearer-authed internal routes) and token-only bearer requests skip it.
  */
 export function originCheck(deps: Pick<AuthDeps, "config">, exempt: readonly string[] = ["/api/internal/*"]): Middleware {
   const want = normalizeOrigin(deps.config.origin);
   return async (ctx, next) => {
     if (isSafeMethod(ctx.req.method) || pathAllowed(ctx.url.pathname, exempt)) return next();
+    if (isBearerRequest(deps.config, ctx)) return next();
+    const site = ctx.req.headers.get("sec-fetch-site");
+    if (site !== null && !SAME_SITE_FETCH.has(site.trim().toLowerCase())) throw forbidden("origin_invalid", "request origin not allowed");
     const got = normalizeOrigin(ctx.req.headers.get("origin"));
     if (!want || got !== want) throw forbidden("origin_invalid", "request origin not allowed");
     return next();
@@ -95,9 +112,18 @@ export async function loadSession(deps: AuthDeps, ctx: RequestContext): Promise<
   return found;
 }
 
-/** Wraps h with the full session chain. */
+/** Wraps h with the full session chain, or the bearer-token chain on the app routes. */
 export function requireSession(deps: AuthDeps, h: Handler, opts: SessionOpts = {}): Handler {
   return async (ctx) => {
+    const secret = bearerSecret(ctx.req);
+    if (secret !== null) {
+      if (sessionCookie(deps.config, ctx.req)) {
+        throw badRequest("ambiguous_credentials", "send a bearer token or a session cookie, not both");
+      }
+      if (opts.admin || !bearerPathAllowed(ctx.url.pathname)) throw forbidden("bearer_not_allowed", "API tokens cannot call this route");
+      await authenticateBearer(deps, ctx, secret);
+      return h(ctx);
+    }
     const { user, session } = await loadSession(deps, ctx);
     const path = ctx.url.pathname;
     if (user.mustChangePassword && !pathAllowed(path, PASSWORD_GATE_EXEMPT)) {

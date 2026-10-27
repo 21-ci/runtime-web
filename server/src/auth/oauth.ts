@@ -21,6 +21,7 @@ import { loginUser, type Client, type LoginOutcome } from "./login.ts";
 import { lookupSession, sessionCookie } from "./session.ts";
 import { dbOf, getUserByEmail, normalizeEmail, sealerOf, type AuthDeps } from "./types.ts";
 import { openCompat } from "../crypto/seal.ts";
+import { dohAddrs } from "../domains/doh.ts";
 
 export const PROVIDERS = ["github", "google", "oidc"] as const;
 export type ProviderId = (typeof PROVIDERS)[number];
@@ -44,9 +45,9 @@ export type OAuthErrorCode =
 
 const isProvider = (id: string): id is ProviderId => (PROVIDERS as readonly string[]).includes(id);
 const settingKey = (id: string) => `oauth.${id}`;
-const secretKey = (id: string) => `oauth.${id}.client_secret`;
+export const secretKey = (id: string) => `oauth.${id}.client_secret`;
 /** Seal context (AAD) of a provider's client secret. */
-const secretContext = (id: string) => `oauth.client_secret:${id}`;
+export const secretContext = (id: string) => `oauth.client_secret:${id}`;
 
 interface StoredProvider {
   enabled: boolean;
@@ -236,12 +237,38 @@ export function isPrivateHost(host: string): boolean {
   }
   if (h.includes(":")) {
     if (h === "::" || h === "::1") return true;
-    const mapped = /^::ffff:(\d+\.\d+\.\d+\.\d+)$/.exec(h);
+    // IPv4-mapped (::ffff:a.b.c.d, or the hex form URL parsing produces) and NAT64 (64:ff9b::/96).
+    const mapped = /^(?:::ffff:|64:ff9b::)(\d+\.\d+\.\d+\.\d+)$/.exec(h);
     if (mapped) return isPrivateHost(mapped[1] as string);
+    const hex = /^(?:::ffff:|64:ff9b::)([0-9a-f]{1,4}):([0-9a-f]{1,4})$/.exec(h);
+    if (hex) {
+      const hi = parseInt(hex[1] as string, 16);
+      const lo = parseInt(hex[2] as string, 16);
+      return isPrivateHost(`${hi >> 8}.${hi & 255}.${lo >> 8}.${lo & 255}`);
+    }
     const first = parseInt(h.split(":")[0] || "0", 16);
     return (first & 0xfe00) === 0xfc00 || (first & 0xffc0) === 0xfe80 || (first & 0xff00) === 0xff00;
   }
   return false;
+}
+
+/**
+ * Rejects a host that is private as written or resolves (over DoH) to any private, loopback,
+ * link-local, ULA or metadata address. A failed lookup fails closed. The runtime's own fetch resolves
+ * again, so this narrows rather than closes DNS rebinding; only an admin can set the issuer.
+ */
+export async function assertPublicHost(deps: AuthDeps, host: string): Promise<void> {
+  const h = host.toLowerCase().replace(/^\[|\]$/g, "");
+  if (isPrivateHost(h)) throw new Error("oauth: host is not public");
+  if (/^[\d.]+$/.test(h) || h.includes(":")) return; // an address literal: nothing to resolve
+  let addrs: string[];
+  try {
+    addrs = await dohAddrs(fetchOf(deps))(h);
+  } catch (e) {
+    throw new Error(`oauth: cannot resolve ${h}: ${e instanceof Error ? e.message : String(e)}`, { cause: e });
+  }
+  if (addrs.length === 0) throw new Error(`oauth: ${h} does not resolve`);
+  if (addrs.some((a) => isPrivateHost(a))) throw new Error(`oauth: ${h} resolves to a non-public address`);
 }
 
 interface Endpoints {
@@ -272,7 +299,7 @@ async function discover(deps: AuthDeps, issuerIn: string): Promise<Endpoints> {
   const now = deps.now();
   const c = discoveryCache.get(issuer);
   if (c && now - c.at < DISCOVERY_TTL_MS) return c.ep;
-  if (!dev && isPrivateHost(new URL(issuer).hostname)) throw new Error("oauth: issuer host is not public");
+  if (!dev) await assertPublicHost(deps, new URL(issuer).hostname);
   const doc = await getJson<{ issuer?: string; authorization_endpoint?: string; token_endpoint?: string; userinfo_endpoint?: string }>(
     deps,
     `${issuer}/.well-known/openid-configuration`,
@@ -281,8 +308,9 @@ async function discover(deps: AuthDeps, issuerIn: string): Promise<Endpoints> {
   const ep = { auth: doc.authorization_endpoint ?? "", token: doc.token_endpoint ?? "", userinfo: doc.userinfo_endpoint ?? "" };
   for (const u of [ep.auth, ep.token, ep.userinfo]) {
     if (!validUrl(u, dev)) throw new Error("oauth: discovery endpoint must be https");
-    if (!dev && isPrivateHost(new URL(u).hostname)) throw new Error("oauth: discovery endpoint host is not public");
   }
+  // The server fetches the token and userinfo endpoints; the result is cached with the discovery doc.
+  if (!dev) for (const h of new Set([ep.token, ep.userinfo].map((u) => new URL(u).hostname))) await assertPublicHost(deps, h);
   if (!discoveryCache.has(issuer) && discoveryCache.size >= DISCOVERY_MAX) {
     const oldest = [...discoveryCache.entries()].sort((a, b) => a[1].at - b[1].at)[0];
     if (oldest) discoveryCache.delete(oldest[0]);

@@ -11,6 +11,8 @@ interface Idp {
   ghEmails: unknown[];
   discovery: Record<string, unknown>;
   calls: string[];
+  /** DoH answers by host name; a missing name is NXDOMAIN. */
+  dns: Record<string, string[]>;
   tokenForm?: URLSearchParams;
 }
 
@@ -26,9 +28,17 @@ function fakeIdp(): Idp & { fetch: typeof fetch } {
       userinfo_endpoint: `${ISSUER}/userinfo`,
     },
     calls: [],
+    dns: { "idp.example.com": ["93.184.216.34", "2606:2800:220:1::1"], "accounts.google.com": ["142.250.1.84"] },
   };
   const f = (async (input: string | URL | Request, init?: RequestInit) => {
     const url = String(input);
+    if (url.startsWith("https://cloudflare-dns.com/dns-query?")) {
+      const q = new URL(url).searchParams;
+      const want = q.get("type") === "AAAA" ? 28 : 1;
+      const addrs = (idp.dns[q.get("name") ?? ""] ?? []).filter((a) => (want === 28) === a.includes(":"));
+      const known = (q.get("name") ?? "") in idp.dns;
+      return new Response(JSON.stringify({ Status: known ? 0 : 3, Answer: addrs.map((data) => ({ type: want, data })) }));
+    }
     idp.calls.push(url);
     const ok = (b: unknown) => new Response(JSON.stringify(b), { headers: { "content-type": "application/json" } });
     if (url.endsWith("/.well-known/openid-configuration")) return ok(idp.discovery);
@@ -218,10 +228,28 @@ describe("oauth", () => {
     await withProvider(app, { issuer: "https://10.0.0.5" });
     expect((await app.call("GET", "/api/auth/oauth/oidc/start")).status).toBe(500);
     expect(idp.calls).toHaveLength(0);
-    for (const h of ["127.0.0.1", "10.1.2.3", "172.16.0.1", "192.168.1.1", "169.254.169.254", "0.0.0.0", "[::1]", "fd00::1", "fe80::1", "::ffff:10.0.0.1", "localhost", "100.64.0.1"]) {
+    for (const h of ["127.0.0.1", "10.1.2.3", "172.16.0.1", "192.168.1.1", "169.254.169.254", "0.0.0.0", "[::1]", "fd00::1", "fe80::1", "::ffff:10.0.0.1", "::ffff:7f00:1", "64:ff9b::a9fe:a9fe", "fd00:ec2::254", "localhost", "100.64.0.1"]) {
       expect(isPrivateHost(h), h).toBe(true);
     }
     for (const h of ["8.8.8.8", "idp.example.com", "2606:4700::1"]) expect(isPrivateHost(h), h).toBe(false);
+  });
+
+  it("rejects issuer and endpoint hosts that resolve to private addresses", async () => {
+    idp.dns["idp.example.com"] = ["93.184.216.34", "169.254.169.254"];
+    await withProvider(app);
+    expect((await app.call("GET", "/api/auth/oauth/oidc/start")).status).toBe(500);
+    expect(idp.calls).toHaveLength(0);
+
+    idp.dns["idp.example.com"] = ["93.184.216.34"];
+    idp.dns["tok.example.com"] = ["fd12::1"];
+    idp.discovery = { ...idp.discovery, token_endpoint: "https://tok.example.com/token" };
+    expect((await app.call("GET", "/api/auth/oauth/oidc/start")).status).toBe(500);
+
+    idp.discovery = { ...idp.discovery, token_endpoint: "https://gone.example.com/token" };
+    expect((await app.call("GET", "/api/auth/oauth/oidc/start")).status).toBe(500);
+
+    idp.discovery = { ...idp.discovery, token_endpoint: `${ISSUER}/token` };
+    expect((await app.call("GET", "/api/auth/oauth/oidc/start")).status).toBe(302);
   });
 
   it("client secret is sealed at rest", async () => {

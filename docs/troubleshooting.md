@@ -13,8 +13,9 @@ otherwise. Never paste a root token, a secret or a setup token into an issue or 
 | Check | Command | Healthy |
 |---|---|---|
 | Console through Caddy | `curl -fsS https://console.example.com/healthz` | `{"ok":true,"db":true,"version":"..."}` |
-| Console on the node | `curl -fsS http://127.0.0.1:8080/s/rtweb/api/healthz` | the same JSON, without TLS |
-| Apps host through Caddy | `curl -sSI https://apps.console.example.com/s/<app>/` | an HTTP status from the App (DNS and TLS for the Apps host work) |
+| Console on the node | `curl -fsS -H 'Host: console.example.com' http://127.0.0.1:8080/api/healthz` | the same JSON, without TLS |
+| An App through Caddy | `curl -sSI https://<app>.apps.example.com/` | an HTTP status from the App (wildcard DNS and the App's certificate work) |
+| Docker mode | `docker compose -p runtime-web ps` | `rtweb` is `healthy`, `caddy` is `running` |
 | Node ready | `curl -fsS http://127.0.0.1:9090/readyz` | HTTP `200` |
 | Caddy configuration | `caddy validate --config /etc/caddy/Caddyfile --adapter caddyfile` | `Valid configuration` |
 
@@ -26,6 +27,7 @@ both fail, read the node log.
 | What | Command |
 |---|---|
 | Node (`rt`) | `journalctl -u rt -n 200 --no-pager`, or `journalctl -u rt -f` to follow |
+| Docker mode | `docker compose -p runtime-web logs -f rtweb caddy` |
 | Caddy | `journalctl -u caddy -n 200 --no-pager`, or `journalctl -u caddy -f` |
 | Services and units | `systemctl status rt caddy` |
 | An app's own output | the **Logs** page of the app in the console, which streams live |
@@ -112,27 +114,37 @@ refused when their `Origin` header does not match `RTWEB_ORIGIN`.
 ### App preview shows an "open in a new tab" message
 
 The console embeds an app's preview in a frame. Its Content-Security-Policy allows framing only the runtime's public
-origin, set by `RTWEB_RUNTIME_PUBLIC_URL`, and only when that origin differs from the console's origin. The console
+origin, set by `RTWEB_APPS_URL`, and only when that origin differs from the console's origin. The console
 does not frame its own origin on purpose: a framed app on the same origin would run with the console's rights.
 
 The browser console shows a message such as `Refused to frame ... because it violates ... frame-src 'none'`. The
 causes are:
 
-- `RTWEB_RUNTIME_PUBLIC_URL` is empty, so the policy is `frame-src 'none'`.
-- `RTWEB_RUNTIME_PUBLIC_URL` points at a host that is not served. The installer uses `https://apps.<domain>` by
-  default: check that its DNS record exists and that Caddy got a certificate for it
-  (`curl -I https://apps.console.example.com/s/<app>/`).
+- `RTWEB_APPS_URL` is empty, so the policy is `frame-src 'none'`.
+- The App's subdomain is not served: check the wildcard record `*.apps.example.com` and that Caddy got a
+  certificate for the App (`curl -I https://<app>.apps.example.com/`).
 
-The server refuses to start when `RTWEB_RUNTIME_PUBLIC_URL` has the same origin as `RTWEB_ORIGIN`, so a same-origin
+The server refuses to start when `RTWEB_APPS_URL` has the same origin as `RTWEB_ORIGIN`, so a same-origin
 setup shows up as a startup `ConfigError`, not as a blocked preview.
 
-### App link opens the console instead of the App
+### An App's URL answers 404, or its certificate is not issued
 
-App URLs on the console host (`https://console.example.com/s/<app>/`) reach the console, because the runtime routes a
-host mapped to a service before it routes by path. Use the Apps host (`--apps-domain`, default `apps.<domain>`) and
-re-run the installer.
+Every App is served at `https://<app>.<apps domain>/`. Check, in this order:
 
-The link in the fallback message still opens the app.
+1. DNS: `dig +short A rtw-check-123.apps.example.com` must return the host's address (the wildcard record
+   `*.apps.example.com`).
+2. Routing on the node: `curl -sI -H 'Host: <app>.apps.example.com' http://127.0.0.1:8080/` reaches the App. A `404`
+   from the runtime means `routing.base_domain` in `/etc/rt/rt.toml` (bare) or `/data/rtweb/rt.toml` (docker) is not the
+   apps domain: run the installer again.
+3. The certificate: Caddy asks the console first, and the console says yes only for an existing App:
+   `curl -i 'http://127.0.0.1:8080/s/rtweb/api/internal/tls-ask?domain=<app>.apps.example.com'` (bare, on the host)
+   must answer `200`. Then read `journalctl -u caddy` for ACME errors. Let's Encrypt limits new certificates per
+   registered domain per week; with many Apps use `--wildcard-cert`.
+4. `/s/<app>/` paths answer `404` on the apps domain on purpose: Apps are served only on their own subdomain.
+
+With `--wildcard-cert`, a Cloudflare error in the Caddy log usually means the token lacks `DNS:Edit` for the zone.
+Replace `/etc/rtweb/dns-token` (bare) or `/opt/runtime-web/docker/secrets/dns_token` (docker) and run the installer
+again with `--dns-token-file`.
 
 ### Domain stays pending
 
@@ -172,19 +184,24 @@ DNS record first, as above. The endpoint answers only on loopback, so run the co
 | `--tarball is not signature-checked` | Pass `--sha256 HEX` with the tarball's digest, or `--insecure-skip-signature` |
 | `rt did not become ready` | Read `journalctl -u rt -n 200 --no-pager`. A typo in `/etc/rt/rt.toml` stops the node at start |
 | `caddy not found` | Install Caddy, then run the installer again |
+| `... has no A/AAAA record yet` or `... points at ... but this host is ...` | Add the records for the console host, the apps domain and `*.<apps domain>`. Without a terminal the installer continues; certificates follow once DNS is right |
+| `port 80 is in use` | Another web server holds the port. Stop it, or in docker mode pick other ports with `--http-port` / `--https-port` (Let's Encrypt still needs 80 and 443 from the internet) |
+| `docker mode needs Docker Engine with the compose plugin` | Install Docker, or re-run with `--install-docker` (or answer yes when asked) |
+| `cosign could not verify ghcr.io/21-ci/runtime-web...` | The image is not the one the release workflow signed. Do not run it; check `--version` |
+| `rtweb did not become healthy` | `docker compose -p runtime-web logs rtweb`. A volume made by an earlier container keeps its own secrets in `/data/rtweb/secrets` |
+| `no answer (the terminal closed)` | The installer ran without a usable terminal. Pass the answers as flags with `--yes` |
 
 ### Test an install without public DNS
 
-With made-up names such as `console.test`, Caddy cannot get public certificates, and `journalctl -u caddy` shows
-ACME errors for them. Everything else works. To check routing on such a host, add `local_certs` to the global block at
-the top of `/etc/caddy/Caddyfile.d/rtweb.caddy`, restart Caddy, and call it with `--resolve`:
+With made-up names such as `console.test`, Caddy cannot get public certificates. Install with `--tls internal`
+(Caddy's own CA) and `--skip-dns-check`, then call it with `--resolve`:
 
 ```bash
 curl -k --resolve console.test:443:127.0.0.1 https://console.test/api/setup        # {"needed":true}
-curl -k --resolve apps.test:443:127.0.0.1 -o /dev/null -w '%{http_code}\n' https://apps.test/s/rtweb/   # 404
+curl -k --resolve apps.test:443:127.0.0.1 -o /dev/null -w '%{http_code}\n' https://apps.test/   # 404
 ```
 
-The next run of the installer writes the site file again, without `local_certs`.
+Run the installer again with `--tls auto` once real DNS is in place.
 
 ## Run the console and the tests locally
 

@@ -4,7 +4,7 @@
 #   docker compose logs -f rtweb
 #   docker compose down                  # keeps the rtweb-data volume; add -v to delete all data
 #
-# Local trial as-is: open http://console.localhost:8080 (Apps answer on http://apps.localhost:8080).
+# Local trial as-is: open http://console.localhost:8080 (every App answers on http://<app>.apps.localhost:8080).
 # In production put a TLS proxy in front and set both URLs to https (see the docs page).
 name: runtime-web
 
@@ -32,8 +32,9 @@ services:
       # RTWEB_RELAY_SECRET_FILE: /run/secrets/rtweb_relay_secret
     volumes:
       - rtweb-data:/data
+    # rt and rtweb-entry write only /data (SQLite temp files go to /data/tmp); this small tmpfs is a safety net.
     tmpfs:
-      - /tmp:size=64m
+      - /tmp:size=16m,mode=1777,noexec,nosuid,nodev
     cap_drop:
       - ALL
     security_opt:

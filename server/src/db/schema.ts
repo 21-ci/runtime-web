@@ -200,6 +200,30 @@ export const migrations: readonly Migration[] = [
       )`,
     ],
   },
+  {
+    // Bearer tokens on the console API: sha256 hex of each custom token's secret, set at mint.
+    // Tokens minted before this version have none and cannot call the console API.
+    version: 4,
+    name: "token-secret-hash",
+    statements: [
+      `ALTER TABLE tokens ADD COLUMN secret_hash TEXT`,
+      `CREATE UNIQUE INDEX IF NOT EXISTS tokens_secret_hash ON tokens (secret_hash)`,
+    ],
+  },
+  {
+    // Runtime services left behind by a failed app create (the template upload failed and so did the
+    // cleanup delete). scheduled() retries the delete with backoff so the slug is freed.
+    version: 5,
+    name: "pending-service-deletes",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS pending_service_deletes (
+        service_id TEXT PRIMARY KEY,
+        tenant_id TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        next_at INTEGER NOT NULL
+      )`,
+    ],
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = migrations.reduce((max, m) => Math.max(max, m.version), 0);

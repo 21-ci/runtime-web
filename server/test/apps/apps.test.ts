@@ -29,6 +29,30 @@ describe("apps CRUD + ETag", () => {
     expect(w.fake.calls.every((c) => c.scope === "tenant" || c.path.startsWith("/v1/tenants"))).toBe(true);
   });
 
+  it.each([
+    ["hello-world", true], ["app1", true], ["a".repeat(63), true],
+    ["", false], ["-a", false], ["a-", false], ["a--b", false], ["Hello", false], ["a_b", false], ["a.b", false], ["a".repeat(64), false], ["é", false],
+  ])("create validates slug %j as a DNS label (valid: %s)", async (slug, ok) => {
+    const w = await world();
+    const r = await w.admin.call("POST", APPS, { project: "default", environment: "production", slug, template: "http" });
+    if (ok) {
+      expect(r.status).toBe(201);
+      return;
+    }
+    expect(r.status).toBe(422);
+    expect((await errOf(r)).details).toEqual({ fields: { slug: slug === "" ? "required" : "pattern" } });
+    expect(w.fake.calls.some((c) => c.method === "POST" && c.path === "/v1/services")).toBe(false);
+  });
+
+  it("create and delete keep the app index in step", async () => {
+    const w = await world();
+    await createApp(w.admin);
+    const row = () => w.app.deps.storage.db.first<{ org_id: string; service_id: string }>("SELECT org_id, service_id FROM app_index WHERE slug = ?", ["hello"]);
+    expect(await row()).toMatchObject({ org_id: w.org.id, service_id: svcOf(w, "hello") });
+    expect((await w.admin.call("DELETE", `${APPS}/hello`)).status).toBe(204);
+    expect(await row()).toBeNull();
+  });
+
   it("create errors: slug_taken, unknown template/env 422, missing fields 422, plan_limit", async () => {
     const w = await world();
     await createApp(w.admin);
@@ -97,12 +121,14 @@ describe("apps CRUD + ETag", () => {
     const vc = await viewer.call("POST", APPS, { project: "default", environment: "production", slug: "v1", template: "http" });
     expect(vc.status).toBe(403);
     expect((await viewer.call("PUT", `${APPS}/hello/secrets/API_KEY`, { value: "x" })).status).toBe(403);
+    expect((await viewer.call("GET", `${APPS}/hello/env`)).status).toBe(403);
     const none = await w.user("none@example.com", "member");
     expect((await none.call("GET", `${APPS}/hello`)).status).toBe(404);
     const list = (await (await none.call("GET", APPS)).json()) as { items: unknown[] };
     expect(list.items).toEqual([]);
     const dev = await w.user("dev@example.com", "member", { default: "developer" });
-    expect((await dev.call("PUT", `${APPS}/hello/env`, { env: { A: "1" } })).status).toBe(200);
+    expect((await dev.call("PATCH", `${APPS}/hello/env`, { set: { A: "1" } })).status).toBe(200);
+    expect((await dev.call("GET", `${APPS}/hello/env`)).status).toBe(200);
     expect((await dev.call("PUT", `${APPS}/hello/secrets/API_KEY`, { value: "x" })).status).toBe(403);
     expect((await dev.call("GET", `${APPS}/hello/export`)).status).toBe(403);
   });
@@ -118,6 +144,17 @@ describe("apps CRUD + ETag", () => {
     expect(await errOf(r)).toMatchObject({ code: "build_quota", details: { retry_after: 7 } });
     w.fake.failNext({ status: 502, reason: "binding_upstream" });
     expect((await w.admin.call("GET", `${APPS}/hello`)).status).toBe(502);
+  });
+
+  it("a hung runtime call fails with 504 runtime_timeout", async () => {
+    const w = await world();
+    await createApp(w.admin);
+    const orig = w.fake.tenant.bind(w.fake);
+    w.fake.timeoutMs = 20;
+    w.fake.tenant = (k, r) => (r.method === "GET" && r.path.startsWith("/v1/services/") ? new Promise<never>(() => {}) : orig(k, r));
+    const r = await w.admin.call("GET", `${APPS}/hello`);
+    expect(r.status).toBe(504);
+    expect(await errOf(r)).toMatchObject({ code: "runtime_timeout" });
   });
 });
 
@@ -146,10 +183,10 @@ describe("files and versions", () => {
     const put = await w.admin.call("PUT", `${APPS}/hello/files`, { entry: "main.ts", files }, { "if-match": etag });
     expect(put.status, await put.clone().text()).toBe(200);
     const saved = (await put.json()) as { version: { version: number; live: boolean; author: { name: string } }; etag: string };
-    expect(saved.version).toMatchObject({ version: 2, live: true, author: { name: "Admin" } });
+    expect(saved.version).toMatchObject({ version: 2, live: false, author: { name: "Admin" } });
     expect(put.headers.get("etag")).toBe(saved.etag);
     expect(log.filter((l) => l.startsWith("put")).length).toBeGreaterThan(5);
-    const got = (await (await w.admin.call("GET", `${APPS}/hello/files`)).json()) as { version: number; kind: string; files: Record<string, string> };
+    const got = (await (await w.admin.call("GET", `${APPS}/hello/files?version=latest`)).json()) as { version: number; kind: string; files: Record<string, string> };
     expect(log.some((l) => l.startsWith("chunked-out"))).toBe(true);
     expect(got.version).toBe(2);
     expect(got.kind).toBe("bundle");
@@ -183,13 +220,31 @@ describe("files and versions", () => {
     expect(stale.status).toBe(409);
   });
 
+  it("saving does not change live; promote does; GET files defaults to live, ?version=latest to the newest", async () => {
+    const w = await world();
+    const { etag } = await createApp(w.admin);
+    const liveOf = async () => ((await (await w.admin.call("GET", `${APPS}/hello`)).json()) as { live_version: number }).live_version;
+    const put = await w.admin.call("PUT", `${APPS}/hello/files`, { entry: "main.ts", files: { "main.ts": "next" } }, { "if-match": etag });
+    expect(put.status).toBe(200);
+    const saved = (await put.json()) as { version: { version: number; live: boolean }; etag: string };
+    expect(saved.version).toMatchObject({ version: 2, live: false });
+    expect(await liveOf()).toBe(1);
+    expect(((await (await w.admin.call("GET", `${APPS}/hello/files`)).json()) as { version: number }).version).toBe(1);
+    const latest = (await (await w.admin.call("GET", `${APPS}/hello/files?version=latest`)).json()) as { version: number; files: Record<string, string> };
+    expect(latest.version).toBe(2);
+    expect(latest.files["main.ts"]).toContain("next");
+    const promote = await w.admin.call("PUT", `${APPS}/hello/live`, { version: 2 }, { "if-match": saved.etag });
+    expect(promote.status).toBe(200);
+    expect(await liveOf()).toBe(2);
+  });
+
   it("versions newest first with authors; live promote; version_not_ready; build logs; rebuild 202", async () => {
     const w = await world();
     const { etag } = await createApp(w.admin);
     const put = await w.admin.call("PUT", `${APPS}/hello/files`, { entry: "main.ts", files: { "main.ts": "a" } }, { "if-match": etag });
     const e2 = ((await put.json()) as { etag: string }).etag;
     const vs = (await (await w.admin.call("GET", `${APPS}/hello/versions`)).json()) as { items: { version: number; live: boolean; author: unknown }[] };
-    expect(vs.items.map((v) => [v.version, v.live])).toEqual([[2, true], [1, false]]);
+    expect(vs.items.map((v) => [v.version, v.live])).toEqual([[2, false], [1, true]]);
     expect(vs.items[0]?.author).toMatchObject({ name: "Admin" });
     // The template's first version is authored by the user who created the app.
     expect(vs.items[1]?.author).toMatchObject({ name: "Admin" });
@@ -222,10 +277,28 @@ describe("config: env, secrets, schedules, queue", () => {
   it("env replace; secrets names only; delete unknown 404", async () => {
     const w = await world();
     await createApp(w.admin);
-    const put = await w.admin.call("PUT", `${APPS}/hello/env`, { env: { A: "1", B: "2" } });
+    const g0 = await w.admin.call("GET", `${APPS}/hello/env`);
+    const e0 = g0.headers.get("etag") ?? "";
+    expect(e0).toMatch(/^"[0-9a-f]{32}"$/);
+    expect((await w.admin.call("PUT", `${APPS}/hello/env`, { env: { A: "1" } })).status).toBe(428);
+    const put = await w.admin.call("PUT", `${APPS}/hello/env`, { env: { A: "1", B: "2" } }, { "if-match": e0 });
     expect(await put.json()).toEqual({ env: { A: "1", B: "2" } });
-    expect(await (await w.admin.call("GET", `${APPS}/hello/env`)).json()).toEqual({ env: { A: "1", B: "2" } });
-    expect((await w.admin.call("PUT", `${APPS}/hello/env`, { env: { "bad key": "1" } })).status).toBe(422);
+    const e1 = put.headers.get("etag") ?? "";
+    expect(e1).not.toBe(e0);
+    const got = await w.admin.call("GET", `${APPS}/hello/env`);
+    expect(await got.json()).toEqual({ env: { A: "1", B: "2" } });
+    expect(got.headers.get("etag")).toBe(e1);
+    // A stale PUT (built on the first read) is refused and changes nothing.
+    const stale = await w.admin.call("PUT", `${APPS}/hello/env`, { env: { C: "3" } }, { "if-match": e0 });
+    expect(stale.status).toBe(412);
+    expect(await errOf(stale)).toMatchObject({ code: "precondition_failed" });
+    expect((await w.admin.call("PUT", `${APPS}/hello/env`, { env: { "bad key": "1" } }, { "if-match": e1 })).status).toBe(422);
+    // PATCH sets and unsets single keys on the current map; a stale If-Match is 412 there too.
+    const patch = await w.admin.call("PATCH", `${APPS}/hello/env`, { set: { C: "3" }, unset: ["A"] }, { "if-match": e1 });
+    expect(patch.status).toBe(200);
+    expect(await patch.json()).toEqual({ env: { B: "2", C: "3" } });
+    expect((await w.admin.call("PATCH", `${APPS}/hello/env`, { set: { D: "4" } }, { "if-match": e1 })).status).toBe(412);
+    expect((await w.admin.call("PATCH", `${APPS}/hello/env`, { set: { D: 4 }, unset: "A" })).status).toBe(422);
     expect((await w.admin.call("PUT", `${APPS}/hello/secrets/API_KEY`, { value: "s3cret" })).status).toBe(204);
     const list = await (await w.admin.call("GET", `${APPS}/hello/secrets`)).text();
     expect(list).toContain("API_KEY");
@@ -326,6 +399,18 @@ describe("logs SSE", () => {
     expect(ev2).toEqual([]); // "three" is info, filtered by level=warn
     const r3 = await w.admin.call("GET", `${APPS}/hello/logs?last_event_id=1`);
     expect(parse(await r3.text()).filter((e) => e.event === "log").map((e) => e.id)).toEqual(["2", "3"]);
+  });
+
+  it("backs off to a 3 s poll while no new lines arrive", async () => {
+    const w = await world();
+    await createApp(w.admin);
+    const before = w.fake.calls.filter((c) => c.path.endsWith("/logs")).length;
+    const text = await (await w.admin.call("GET", `${APPS}/hello/logs`)).text();
+    expect(text.trimEnd().endsWith("retry: 500")).toBe(true);
+    const polls = w.fake.calls.filter((c) => c.path.endsWith("/logs")).length - before;
+    // 1 s, 2 s, then 3 s steps inside the 24 s window: about 9 polls instead of 24.
+    expect(polls).toBeGreaterThan(5);
+    expect(polls).toBeLessThanOrEqual(10);
   });
 
   it("errors before the stream: 422 bad level, 404 unknown app; app deleted mid-stream → event: error", async () => {

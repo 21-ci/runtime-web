@@ -10,7 +10,7 @@
 // Env: RT_API (http://127.0.0.1:8081), RT_INVOKE (http://127.0.0.1:8080), RTWEB_TENANT ("runtime-web"),
 // RTWEB_SLUG ("rtweb"), RTWEB_PLAN ("rtweb"; falls back to "free" with a warning when the node lacks it),
 // RTWEB_ORIGIN (browser origin of the console, default `${RT_INVOKE}`), RTWEB_HOST (console host to map),
-// RTWEB_RUNTIME_PUBLIC_URL (public base of app URLs, default `${RT_INVOKE}`,
+// RTWEB_APPS_URL (apps origin: Apps at <slug>.<host>; RTWEB_RUNTIME_PUBLIC_URL is the deprecated name; default `${RT_INVOKE}`,
 // with 127.0.0.1 swapped for localhost when that equals RTWEB_ORIGIN; never the console origin), RTWEB_DEFAULT_PLAN (plan for new org
 // tenants; the server defaults to "free"), RTWEB_VERSION (build label for /healthz; install.sh passes the release),
 // RTCTL_SDK_VERSION ("0.1.0").
@@ -33,10 +33,13 @@ const WANT_PLAN = process.env.RTWEB_PLAN ?? "rtweb";
 const ORIGIN = process.env.RTWEB_ORIGIN ?? INVOKE;
 const HOST = process.env.RTWEB_HOST ?? "";
 // Apps must never share the console origin: with both on the invoke listener, use the other loopback name.
+if (!process.env.RTWEB_APPS_URL && process.env.RTWEB_RUNTIME_PUBLIC_URL) {
+  console.error("warning: RTWEB_RUNTIME_PUBLIC_URL is deprecated: use RTWEB_APPS_URL");
+}
 const PUBLIC_URL =
-  process.env.RTWEB_RUNTIME_PUBLIC_URL ?? (new URL(INVOKE).origin === new URL(ORIGIN).origin ? INVOKE.replace("//127.0.0.1", "//localhost") : INVOKE);
+  process.env.RTWEB_APPS_URL ?? process.env.RTWEB_RUNTIME_PUBLIC_URL ?? (new URL(INVOKE).origin === new URL(ORIGIN).origin ? INVOKE.replace("//127.0.0.1", "//localhost") : INVOKE);
 if (PUBLIC_URL && new URL(PUBLIC_URL).origin === new URL(ORIGIN).origin) {
-  console.error(`RTWEB_RUNTIME_PUBLIC_URL (${PUBLIC_URL}) must not share the console origin RTWEB_ORIGIN (${ORIGIN})`);
+  console.error(`RTWEB_APPS_URL (${PUBLIC_URL}) must not share the console origin RTWEB_ORIGIN (${ORIGIN})`);
   process.exit(1);
 }
 const DEFAULT_PLAN = process.env.RTWEB_DEFAULT_PLAN ?? "";
@@ -180,10 +183,12 @@ async function ensureService(tenant, cron) {
 
 async function setEnv(tenant, svc, extra) {
   const env = (await get(`/v1/services/${svc.id}/env`, { tenant })) ?? {};
+  // RTWEB_RUNTIME_PUBLIC_URL is the deprecated name of RTWEB_APPS_URL: drop it from the service env.
+  const { RTWEB_RUNTIME_PUBLIC_URL: _legacyAppsUrl, ...kept } = env; // eslint-disable-line @typescript-eslint/no-unused-vars
   const next = {
-    ...env,
+    ...kept,
     RTWEB_ORIGIN: ORIGIN,
-    RTWEB_RUNTIME_PUBLIC_URL: PUBLIC_URL,
+    RTWEB_APPS_URL: PUBLIC_URL,
     ...(DEFAULT_PLAN ? { RTWEB_DEFAULT_PLAN: DEFAULT_PLAN } : {}),
     ...(VERSION ? { RTWEB_VERSION: VERSION } : {}),
     ...extra,

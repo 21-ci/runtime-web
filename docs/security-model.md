@@ -32,6 +32,17 @@ its edge (Caddy, the `rtctl` SDK and bindings). For the runtime node's own contr
 - **CSRF.** Every unsafe request with a session must send the `X-CSRF-Token` value that the server issued with the
   session. A missing or wrong token gets `403`.
 - **Origin.** Every unsafe request, including public ones, must send an `Origin` header equal to `RTWEB_ORIGIN`.
+  A browser's `Sec-Fetch-Site` must also be `same-origin` or `none`. Apps run on a sibling host of the console, so
+  their pages are same-site and the cookie's `SameSite=Lax` alone does not stop them. No `GET` route changes state,
+  and a test enforces that.
+- **Bearer tokens.** Custom tokens can call the app routes (`/api/orgs/{org}/apps` and below) with
+  `Authorization: Bearer`. The console stores only the SHA-256 of each token secret and checks it on every request.
+  A token acts only in its own org, with the actions its scopes map to, inside its projects and environments. It
+  is limited to 600 requests per minute. Bearer requests skip CSRF and Origin because no ambient browser credential
+  is involved. A browser cannot add the header cross-site without a CORS preflight, which the console never
+  grants. A request that carries a session cookie and a bearer token is refused. Auth, profile, users, orgs,
+  members, tokens, admin, branding and settings routes never accept a token, so a leaked token cannot mint
+  tokens or change accounts.
 - **Gates.** A user who must change a password, or who must enrol in two-factor auth under policy, can reach only the
   routes needed to finish that step.
 - **Authorization.** Each route states the action it requires. Org-scoped routes resolve the org and the caller's role,
@@ -41,7 +52,11 @@ its edge (Caddy, the `rtctl` SDK and bindings). For the runtime node's own contr
 
 Org roles are `owner`, `admin` and `member`. Project roles are `admin`, `developer` and `viewer`. Token scopes are a separate
 mechanism: a token carries explicit scopes such as `deploy`, `env:write`, `invoke` and `secrets:write`. A token can
-never carry the scope that mints keys. Only owners and admins can create tokens.
+never carry the scope that mints keys. Only owners and admins can create tokens. On the console API a token has no
+role: each action needs one scope (see the API reference, §1.3), so a token never gets more than its scopes allow.
+
+App env values often hold third-party API keys, so reading them (`app.env.read`) needs the project `developer` role,
+the same as writing them. A `viewer` sees an app's code, logs and secret names, but gets `403` on its env.
 
 ## Secrets at rest
 
@@ -73,7 +88,8 @@ issues certificates only for hosts the console's `tls-ask` endpoint confirms as 
 ## Audit
 
 Changes to orgs, members, tokens, apps, domains and admin settings are recorded in the audit log with the actor and the
-action. Instance admins acting in an org are marked as such.
+action. Instance admins acting in an org are marked as such. Changes made with a bearer token record the token id
+(`tok_…`) as the actor.
 
 ## What is not protected
 

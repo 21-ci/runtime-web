@@ -49,7 +49,10 @@
     "label": "{{host}} ni tekshirish",
     "button": "Tekshirish",
     "active": "{{host}} faol.",
-    "mismatch": "TXT yozuvi hali mos kelmadi. DNS yangilangandan soʻng qayta urining."
+    "mismatch": "TXT yozuvi hali mos kelmadi. DNS yangilangandan soʻng qayta urining.",
+    "notFound": "Kutilgan qiymatli TXT yozuvi topilmadi.",
+    "expected": "Kutilgan yozuv:",
+    "checkHint": "{{name}} ni DNS provayderingizda yoki dig TXT bilan tekshiring: qiymat ortiqcha qoʻshtirnoq va boʻshliqlarsiz aynan mos boʻlishi kerak. DNS oʻzgarishlari bir necha daqiqa olishi mumkin."
   },
   "remove": {
     "label": "{{host}} ni oʻchirish",

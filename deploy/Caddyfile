@@ -1,19 +1,26 @@
 # Runtime Web edge for a 21 Cloud Runtime node (docs/contributing/architecture.md D5, D10, D11).
 # Env (install.sh writes them to /etc/rtweb/caddy.env, mode 0600):
 #      RTWEB_RELAY_SECRET (same value the node exports for binding rtctl-tenant; 64 hex chars, never empty),
-#      RTWEB_DOMAIN (console host, e.g. console.example.com), RTWEB_APPS_DOMAIN (Apps host, e.g.
-#      apps.console.example.com), RTWEB_ACME_EMAIL, RTWEB_SLUG (the console service slug, install.mjs's
-#      RTWEB_SLUG; default rtweb).
+#      RTWEB_DOMAIN (console host, e.g. console.example.com), RTWEB_APPS_DOMAIN (apps domain, e.g.
+#      apps.example.com: every App is served at <slug>.apps.example.com, the node's routing.base_domain),
+#      RTWEB_ACME_EMAIL, RTWEB_SLUG (the console service slug, install.mjs's RTWEB_SLUG; default rtweb).
 # The runtime never terminates TLS: Caddy does, and forwards plain HTTP to the invoke listener 127.0.0.1:8080,
 # which routes by Host (custom hosts mapped to services). The node trusts X-Forwarded-For from loopback only
 # (ingress.trusted_proxies = 127.0.0.1/32, ::1/128), so Caddy must overwrite the header with the real peer:
 # a client-sent X-Forwarded-For is never passed on.
 
+#      RTWEB_CADDY_TLS (optional, one global option: empty for Let's Encrypt, `acme_ca <staging directory>` for
+#      Let's Encrypt staging, `local_certs` for Caddy's internal CA; install.sh --tls sets it).
+#      RTWEB_APPS_TLS (one line inside the App sites' tls block: `on_demand`, one certificate per App approved by
+#      the ask endpoint, or `dns cloudflare {file.<token file>}` for one wildcard certificate; install.sh sets it).
+
 {
 	email {$RTWEB_ACME_EMAIL}
+	{$RTWEB_CADDY_TLS}
 	on_demand_tls {
-		# 200 only for an `active` custom domain (T8). Caddy calls it over loopback; the public sites below
-		# answer 404 for every /api/internal/* path, so it is not reachable from outside.
+		# 200 only for an `active` custom domain (T8) or <slug>.<apps domain> of an existing App. Caddy calls it
+		# over loopback; the public sites answer 404 for every /api/internal/* path. Caddy cannot set a Host
+		# header here, so this one call still uses rt's /s/<slug>/ path routing, on loopback only.
 		ask http://127.0.0.1:8080/s/{$RTWEB_SLUG}/api/internal/tls-ask
 	}
 }
@@ -61,14 +68,24 @@ http://127.0.0.1:8082 {
 	import rtweb_upstream
 }
 
-# Apps host: NOT mapped to any service, so the runtime path-routes /s/{slug}/ to the App (rt-triggers
-# routes.rs: a mapped Host wins over /s/). It is a separate origin from the console on purpose: App code
-# must never run where the console's session cookie and same-origin /api checks would trust it.
-# No HSTS here: Apps set their own headers, and includeSubDomains is not assumed for this host.
+# Apps domain itself: serves nothing (Apps live at <slug>.<apps domain>).
 {$RTWEB_APPS_DOMAIN} {
-	# The console itself is a service too: keep it off the Apps origin (it only answers on its own host).
-	@console path /s/{$RTWEB_SLUG} /s/{$RTWEB_SLUG}/*
+	respond 404
+}
+
+# Every App at https://<slug>.<apps domain>/: rt routes the Host to the App (routing.base_domain). A separate
+# origin per App, never the console's. No HSTS: Apps set their own headers.
+*.{$RTWEB_APPS_DOMAIN} {
+	tls {
+		{$RTWEB_APPS_TLS}
+	}
+	# The console is a service too: never serve it as <console slug>.<apps domain>.
+	@console host {$RTWEB_SLUG}.{$RTWEB_APPS_DOMAIN}
 	respond @console 404
+	# rt still path-routes /s/<slug>/ when no Host rule matches (an unknown <x>.<apps domain>): that would serve
+	# one App, or the console, on another origin. Blocked until rt can switch it off (rt follow-up).
+	@paths path /s /s/*
+	respond @paths 404
 	import rtweb_upstream
 }
 

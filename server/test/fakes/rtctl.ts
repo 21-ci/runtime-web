@@ -63,6 +63,8 @@ const subset = (child: string[] | null, parent: string[] | null) =>
   parent === null || (child !== null && child.every((c) => parent.includes(c)));
 
 export class FakeRtCtl implements RtCtl {
+  /** Call deadline read by Runtime; tests shorten it to exercise runtime_timeout. */
+  timeoutMs?: number;
   now: () => number = () => Date.now();
   readonly calls: Recorded[] = [];
   readonly plans = new Map<string, FakePlan>([["free", {}], ["pro", {}], ["rtweb", {}]]);

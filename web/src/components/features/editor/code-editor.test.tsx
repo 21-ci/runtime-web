@@ -94,6 +94,27 @@ describe("code editor", () => {
     expect(screen.getByText(/read-only/i)).toBeInTheDocument();
   });
 
+  it("a route change with unsaved edits asks first; Cancel stays, Discard leaves", async () => {
+    useShellHandlers();
+    useCodeHandlers();
+    const router = renderAt("/acme/apps/hello/code");
+    const editor = await screen.findByRole("textbox", { name: /code editor/i });
+    await screen.findByRole("button", { name: /save/i });
+    const cm = EditorView.findFromDOM(editor);
+    if (!cm) throw new Error("no EditorView");
+    act(() => cm.dispatch({ changes: { from: 0, insert: "// edit\n" } }));
+    await screen.findByRole("button", { name: /save \*/i });
+    act(() => void router.navigate({ to: "/$org/apps/$app/versions", params: { org: "acme", app: "hello" } }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("Leave without saving?")).toBeInTheDocument();
+    await userEvent.click(within(dialog).getByRole("button", { name: /cancel/i }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+    expect(router.state.location.pathname).toBe("/acme/apps/hello/code");
+    act(() => void router.navigate({ to: "/$org/apps/$app/versions", params: { org: "acme", app: "hello" } }));
+    await userEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Discard changes" }));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/acme/apps/hello/versions"));
+  });
+
   it("cmd+s triggers save mutation", async () => {
     useShellHandlers();
     let ifMatch: string | null = null;
@@ -111,7 +132,7 @@ describe("code editor", () => {
     await waitFor(() => expect(body).toEqual({ entry: "main.ts", files: files.files }));
   });
 
-  it("save shows building then live", async () => {
+  it("save shows building then saved (not live); Deploy makes it live", async () => {
     useShellHandlers();
     useCodeHandlers();
     // The build stays in progress until the test releases it. A fixed server delay would make the
@@ -129,10 +150,23 @@ describe("code editor", () => {
     await userEvent.click(await screen.findByRole("button", { name: /save/i }));
     expect(await screen.findByText(/building/i)).toBeInTheDocument();
     built = true;
-    const live = await screen.findByRole("link", { name: /live v2/i });
-    expect(live.getAttribute("href")).toContain("/acme/apps/hello/versions");
+    const saved = await screen.findByRole("link", { name: /saved v2, not live/i });
+    expect(saved.getAttribute("href")).toContain("/acme/apps/hello/versions");
+    // The preview stays on the live version: the runtime cannot address a saved one.
+    expect(screen.getByText(/preview shows the live version \(v1\)/i)).toBeInTheDocument();
     const frame = screen.getByTitle(/preview/i);
     expect(frame.getAttribute("src")).toContain("https://run.example.test/s/hello/");
+    let promoted: unknown = null;
+    server.use(
+      http.put(`${BASE}/live`, async ({ request }) => {
+        promoted = { body: await request.json(), ifMatch: request.headers.get("if-match") };
+        return HttpResponse.json({ live_version: 2, etag: '"e3"' });
+      }),
+    );
+    await userEvent.click(screen.getByRole("button", { name: /deploy v2/i }));
+    expect(await screen.findByRole("link", { name: /live v2/i })).toBeInTheDocument();
+    expect(promoted).toEqual({ body: { version: 2 }, ifMatch: '"e2"' });
+    expect(screen.queryByRole("button", { name: /deploy v2/i })).toBeNull();
   });
 
   it("stale save shows reload dialog", async () => {

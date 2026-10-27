@@ -141,7 +141,7 @@ jobs:
       - uses: aquasecurity/setup-trivy@81e514348e19b6112ce2a7e3ecbafe19c1e1f567 # v0.3.1
         with:
           version: v0.76.1 # keep in step with security.yml
-      - name: Trivy (SARIF, all severities, and gate on fixable HIGH/CRITICAL)
+      - name: Trivy (SARIF of fixable findings, and gate on fixable HIGH/CRITICAL)
         env:
           DIGEST: ${{ steps.build.outputs.digest }}
         run: |
@@ -149,13 +149,13 @@ jobs:
           fail=0
           if [ "$PUSH" = true ]; then
             for p in amd64 arm64; do
-              trivy image --quiet --platform "linux/$p" --scanners vuln,secret --ignorefile .trivyignore \
+              trivy image --quiet --platform "linux/$p" --scanners vuln,secret --ignore-unfixed --ignorefile .trivyignore \
                 --format sarif --output "trivy-$p.sarif" "$IMAGE@$DIGEST"
               trivy image --quiet --platform "linux/$p" --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed \
                 --ignorefile .trivyignore --exit-code 1 "$IMAGE@$DIGEST" || fail=1
             done
           else
-            trivy image --quiet --scanners vuln,secret --ignorefile .trivyignore \
+            trivy image --quiet --scanners vuln,secret --ignore-unfixed --ignorefile .trivyignore \
               --format sarif --output trivy-amd64.sarif "runtime-web:pr-$FLAVOR"
             trivy image --quiet --scanners vuln,secret --severity HIGH,CRITICAL --ignore-unfixed \
               --ignorefile .trivyignore --exit-code 1 "runtime-web:pr-$FLAVOR" || fail=1

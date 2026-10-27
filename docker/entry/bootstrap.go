@@ -364,7 +364,8 @@ func setEnv(a *api, c *config, tenant, svcID string, extra map[string]string) (m
 		next[k] = v
 	}
 	next["RTWEB_ORIGIN"] = c.consoleURL.String()
-	next["RTWEB_RUNTIME_PUBLIC_URL"] = c.appsURL.String()
+	next["RTWEB_APPS_URL"] = c.appsURL.String()
+	delete(next, "RTWEB_RUNTIME_PUBLIC_URL") // the deprecated name of RTWEB_APPS_URL
 	if c.consoleURL.Scheme == "http" {
 		// Plain-http origin (local trial only): cookies cannot carry __Host- / Secure.
 		next["RTWEB_INSECURE_COOKIES"] = "1"

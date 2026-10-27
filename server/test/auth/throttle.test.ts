@@ -2,7 +2,9 @@ import { describe, expect, it } from "vitest";
 import { addUser, errCode, loginAs, PW, testApp } from "./helpers.ts";
 import { fastHasher } from "../harness.ts";
 import type { Hasher } from "../../src/auth/password.ts";
-import { ACCOUNT_SOFT_LIMIT, GLOBAL_LOGINS_PER_MINUTE, IP_FAILURE_LIMIT, MAX_INFLIGHT_HASHES } from "../../src/auth/ratelimit.ts";
+import {
+  ACCOUNT_SOFT_LIMIT, ACCOUNT_WIDE_SOFT_LIMIT, GLOBAL_LOGINS_PER_MINUTE, IP_FAILURE_LIMIT, MAX_INFLIGHT_HASHES, mfaDelaySeconds, netPrefix,
+} from "../../src/auth/ratelimit.ts";
 
 const until = async (f: () => boolean) => {
   for (let i = 0; i < 500 && !f(); i++) await new Promise((r) => setTimeout(r, 5));
@@ -66,6 +68,28 @@ describe("login throttling (H2)", () => {
     expect(retry).toBeLessThanOrEqual(60);
     app.tick(retry * 1000);
     expect((await loginAs(app, "admin@example.com", PW, ip(7))).status).toBe(200);
+  });
+
+  it("spraying from one network delays only that network until the account-wide limit", async () => {
+    const app = testApp();
+    await addUser(app, "admin@example.com", { admin: true });
+    for (let i = 0; i < ACCOUNT_SOFT_LIMIT + 3; i++) await loginAs(app, "admin@example.com", "wrong password!!", ip(100 + i));
+    expect((await loginAs(app, "admin@example.com", PW, ip(7))).status).toBe(429);
+    expect((await loginAs(app, "admin@example.com", PW, ip("203.0.113.7"))).status).toBe(200);
+
+    const other = testApp();
+    await addUser(other, "admin@example.com", { admin: true });
+    for (let i = 0; i < ACCOUNT_WIDE_SOFT_LIMIT + 1; i++) await loginAs(other, "admin@example.com", "wrong password!!", ip(`192.0.${i}.1`));
+    expect((await loginAs(other, "admin@example.com", PW, ip("203.0.113.7"))).status).toBe(429);
+  });
+
+  it("netPrefix groups IPv4 by /24 and IPv6 by /64; MFA delay doubles to 15 min", () => {
+    expect(netPrefix("198.51.100.23")).toBe("198.51.100.0/24");
+    expect(netPrefix("::ffff:198.51.100.23")).toBe("198.51.100.0/24");
+    expect(netPrefix("2001:db8:1:2:3:4:5:6")).toBe("2001:db8:1:2::/64");
+    expect(netPrefix("2001:db8::1")).toBe("2001:db8:0:0::/64");
+    expect(netPrefix("[2001:DB8:0:0::9]")).toBe("2001:db8:0:0::/64");
+    expect([4, 5, 6, 10, 20].map(mfaDelaySeconds)).toEqual([0, 30, 60, 900, 900]);
   });
 
   it("caps unauthenticated login attempts globally per minute", async () => {

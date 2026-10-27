@@ -27,6 +27,17 @@ export class RuntimeUnavailable extends Error {
   }
 }
 
+/** The control API did not answer within the call deadline. */
+export class RuntimeTimeout extends RuntimeUnavailable {
+  constructor(message: string) {
+    super(`timeout: ${message}`);
+    this.name = "RuntimeTimeout";
+  }
+}
+
+/** A hung binding would otherwise hold the request until the task wall limit. */
+export const DEFAULT_RUNTIME_TIMEOUT_MS = 10_000;
+
 const STATUS_TEXT: Record<number, string> = {
   400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found", 409: "Conflict",
   412: "Precondition Failed", 413: "Payload Too Large", 422: "Unprocessable Entity",
@@ -66,13 +77,25 @@ export interface WithEtag<V> {
 }
 
 export class Scoped {
-  constructor(private readonly send: (req: CtlReq) => Promise<CtlRes>) {}
+  constructor(
+    private readonly send: (req: CtlReq) => Promise<CtlRes>,
+    private readonly timeoutMs = DEFAULT_RUNTIME_TIMEOUT_MS,
+  ) {}
+
+  private deadline(req: CtlReq): Promise<CtlRes> {
+    if (!(this.timeoutMs > 0)) return this.send(req);
+    let timer: ReturnType<typeof setTimeout> | undefined;
+    const expired = new Promise<never>((_, reject) => {
+      timer = setTimeout(() => reject(new RuntimeTimeout(`${req.method} ${req.path} after ${this.timeoutMs} ms`)), this.timeoutMs);
+    });
+    return Promise.race([this.send(req), expired]).finally(() => clearTimeout(timer));
+  }
 
   /** Raw call: returns the response on 2xx, throws RuntimeError otherwise. */
   async raw(req: CtlReq): Promise<CtlRes> {
     let res: CtlRes;
     try {
-      res = await this.send(req);
+      res = await this.deadline(req);
     } catch (e) {
       if (e instanceof RuntimeError || e instanceof RuntimeUnavailable) throw e;
       throw new RuntimeUnavailable(`${req.method} ${req.path}: ${(e as Error)?.message ?? String(e)}`);
@@ -230,12 +253,18 @@ function keyBody(b: T.KeyCreate): T.KeyCreate {
 }
 
 export class Runtime {
-  constructor(private readonly ctl: RtCtl) {}
+  private readonly timeoutMs: number;
+  constructor(
+    private readonly ctl: RtCtl,
+    opts: { timeoutMs?: number } = {},
+  ) {
+    this.timeoutMs = opts.timeoutMs ?? ctl.timeoutMs ?? DEFAULT_RUNTIME_TIMEOUT_MS;
+  }
   op(): Scoped {
-    return new Scoped((r) => this.ctl.op(r));
+    return new Scoped((r) => this.ctl.op(r), this.timeoutMs);
   }
   as(key: string): Scoped {
-    return new Scoped((r) => this.ctl.tenant(key, r));
+    return new Scoped((r) => this.ctl.tenant(key, r), this.timeoutMs);
   }
 }
 

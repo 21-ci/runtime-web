@@ -17,8 +17,8 @@ value there is a placeholder for local use only.
 | Variable | Default | Meaning |
 |---|---|---|
 | `RTWEB_ORIGIN` | `RT_INVOKE` in `install.mjs`; `https://<domain>` from `install.sh` | Browser origin of the console. Origin checks on unsafe methods compare against it. `https` unless `RTWEB_INSECURE_COOKIES=1`. |
-| `RTWEB_RUNTIME_PUBLIC_URL` | `RT_INVOKE`; `https://<apps-domain>` from `install.sh` (`--apps-domain`, `--public-url`) | Public base of app URLs, `<this>/s/{slug}/`. Empty keeps app URLs relative. Must not have the same origin as `RTWEB_ORIGIN` (startup fails): Apps need their own origin. |
-| `RTWEB_DEFAULT_PLAN` | `free` (`--default-plan`) | Runtime plan for new org tenants. It must exist on the node: an org create with an unknown plan fails with `500 default_plan_missing`. |
+| `RTWEB_APPS_URL` (deprecated: `RTWEB_RUNTIME_PUBLIC_URL`) | `RT_INVOKE`; `https://<apps-domain>` from `install.sh` (`--apps-domain`, `--public-url`) | Apps origin: every App is served at `<scheme>://<slug>.<host>/` (the node's `routing.base_domain` must be this host); an origin without a path. Empty (development only): relative `/s/{slug}/`. Must not have the same origin as `RTWEB_ORIGIN` (startup fails): Apps need their own origin. |
+| `RTWEB_DEFAULT_PLAN` | `free`; `unlimited` from `install.sh` and the container (`--default-plan`) | Runtime plan for new org tenants. It must exist on the node: an org create with an unknown plan fails with `500 default_plan_missing`. |
 | `RTWEB_VERSION` | `dev` | Build label reported by `/healthz`. `install.sh` sets the release version. |
 | `RTWEB_BUNDLE` | set by install | Digest of the deployed bundle; lets a re-run skip an unchanged upload. |
 | `RTWEB_INSECURE_COOKIES` | unset | Local development only: `1` drops `__Host-` and `Secure` from cookies and allows an `http` origin. |

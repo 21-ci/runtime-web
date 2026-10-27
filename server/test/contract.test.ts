@@ -4,6 +4,8 @@
 import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 import { testApp } from "./harness.ts";
+import { TOKEN_SCOPE_FOR } from "../src/authz/policy.ts";
+import { TOKEN_REQUESTS_PER_MINUTE } from "../src/keys/bearer.ts";
 
 const DOC = readFileSync(new URL("../../docs/reference/api.md", import.meta.url), "utf8");
 
@@ -62,4 +64,21 @@ describe("docs/reference/api.md contract", () => {
       });
     }
   }
+});
+
+describe("docs/reference/api.md bearer tokens", () => {
+  it("documents the bearer error codes and rate limit", () => {
+    for (const code of ["ambiguous_credentials", "bearer_not_allowed"]) expect(DOC).toContain(`\`${code}\``);
+    expect(DOC).toContain(`${TOKEN_REQUESTS_PER_MINUTE} requests per minute per token`);
+  });
+
+  it("documents the action → token scope table exactly", () => {
+    const documented = new Map<string, string>();
+    for (const line of DOC.split("\n")) {
+      const m = /^\|\s*(`app\.[^|]+|`project\.[^|]+)\|\s*`([a-z:]+)`\s*\|$/.exec(line.trim());
+      if (!m) continue;
+      for (const a of (m[1] ?? "").matchAll(/`([a-z.]+)`/g)) documented.set(a[1] ?? "", m[2] ?? "");
+    }
+    expect(Object.fromEntries(documented)).toEqual({ ...TOKEN_SCOPE_FOR });
+  });
 });

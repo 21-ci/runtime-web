@@ -35,7 +35,12 @@
     "chooseEnvironment": "Muhitni tanlang.",
     "enterName": "Ilova nomini kiriting.",
     "slugTaken": "Bu ilova nomi ish muhitida allaqachon band.",
-    "failed": "Ilovani yaratib boʻlmadi. Qaytadan urining."
+    "failed": "Ilovani yaratib boʻlmadi. Qaytadan urining.",
+    "slugPattern": "Kichik lotin harflari, raqamlar va yakka chiziqchalardan foydalaning (63 tagacha); boshi va oxiri harf yoki raqam boʻlsin.",
+    "loadingProjects": "Loyihalar yuklanmoqda…",
+    "noProjects": "Ilova yaratish uchun loyihangiz yoʻq. Tashkilot administratoridan ruxsat soʻrang.",
+    "loadingEnvironments": "Muhitlar yuklanmoqda…",
+    "noEnvironments": "Bu loyihada hali muhitlar yoʻq."
   },
   "templates": {
     "http": {

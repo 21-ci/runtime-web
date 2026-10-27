@@ -71,7 +71,7 @@ export function createApp(deps: Deps): App {
   registerBranding(router, deps);
   registerInternal(router, deps);
   registerSpa(router, deps); // keep last: installs the SPA fallback
-  const appOrigin = deps.config.runtimePublicUrl ? new URL(deps.config.runtimePublicUrl).origin : undefined;
+  const appOrigin = appFrameSources(deps.config.runtimePublicUrl);
   return {
     fetch: async (req, info) =>
       withSecurityHeaders(
@@ -86,4 +86,11 @@ export function createApp(deps: Deps): App {
       ),
     routes: () => router.describe(),
   };
+}
+
+/** CSP frame-src for the App preview: every App subdomain of the apps origin. */
+export function appFrameSources(runtimePublicUrl: string): string | undefined {
+  if (!runtimePublicUrl) return undefined;
+  const u = new URL(runtimePublicUrl);
+  return `${u.protocol}//*.${u.host}`;
 }

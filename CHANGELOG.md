@@ -8,6 +8,20 @@ All notable changes to this project are documented here. The format follows
 
 ### Added
 
+- Interactive installer: `install.sh` asks for the mode (bare systemd service or Docker Compose), the domain, the
+  console host, the apps domain, certificates and the ACME e-mail, checks DNS (including the `*.<apps domain>`
+  wildcard) and ports 80/443, waits for the console and prints the URLs, the one-time setup token, the next steps and
+  where data and secrets live. Everything stays scriptable with flags and `--yes`; colors only on a terminal and never
+  with `NO_COLOR`.
+- Docker mode in `install.sh`: the signed `ghcr.io/21-ci/runtime-web` image (pinned by digest, verified with cosign)
+  with a Caddy container for Let's Encrypt, secrets as Docker secrets, `--uninstall [--purge]`. Docker is installed
+  only with consent (`--install-docker`).
+- `--tls auto|staging|internal|none` and `--wildcard-cert` (one `*.<apps domain>` certificate over DNS-01 with a
+  Cloudflare API token, stored as a systemd credential or Docker secret, never printed; Caddy with the pinned
+  Cloudflare module).
+- An `unlimited` runtime plan in `deploy/rt.rtweb.toml`, the default for new orgs in both install modes.
+- `docs/design/data-protection.md`: what is stored at rest, the threat model and a phased encryption plan.
+
 - Public documentation: README, security policy, contributing guide, governance, release process, the MkDocs site
   (user, admin, security and API reference) and agent guidance in `AGENTS.md`.
 - Instance branding: the console name, logos, favicon, sign-in copy, sidebar brand and help links are set from a
@@ -20,6 +34,17 @@ All notable changes to this project are documented here. The format follows
   (⌘K).
 
 ### Changed
+
+- **Breaking:** every App is served on its own subdomain, `https://<app>.<apps domain>/` (the node's
+  `routing.base_domain`), and never at `/s/<app>/`: the edge (Caddy and `rtweb-entry`) answers `404` for `/s/` on the
+  apps domain, for the bare apps domain and for the console's slug under it. Add a wildcard DNS record
+  `*.<apps domain>`. `RTWEB_RUNTIME_PUBLIC_URL` must be an origin without a path, and the console host must not be
+  under it. The App preview's `frame-src` allows `https://*.<apps domain>`.
+- `tls-ask` also approves `<app>.<apps domain>` for an existing App, so each App gets its certificate on demand.
+- The container passes `rt` the root token and master key as `*_FILE` paths when they come from files (the master key
+  is no longer in the node's environment), creates everything with `umask 077`, and points `TMPDIR` and
+  `SQLITE_TMPDIR` at `/data/tmp`: a `/tmp` tmpfs is optional now. Its default plan for new orgs is `unlimited`.
+- A new bare-mode node gets its master key as a systemd credential (`LoadCredential`), not an environment variable.
 
 - Neutral design tokens and a quieter UI kit: white canvas, off-white chrome, a single blue accent, a new dark theme
   of three neutral grey steps, and 6px or 10px radii on buttons, inputs, cards and dialogs.
@@ -35,6 +60,12 @@ All notable changes to this project are documented here. The format follows
 - Project creation, update and deletion, and queue sends, are written to the org audit log.
 - Documentation restructured around install, operate and contribute tasks, with the README, `SUPPORT`, `NOTICE` and
   `llms.txt` rewritten.
+
+### Deprecated
+
+- The fallback that opens sealed values stored without a seal context (no AAD) will be removed in the next release.
+  A one-time `scheduled()` job now reseals every such value (org default keys, TOTP secrets, OAuth client secrets)
+  and records `crypto.legacy_resealed` in settings; upgrade through this release before the next one.
 
 ### Fixed
 

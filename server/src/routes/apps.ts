@@ -11,6 +11,7 @@ import { audit as writeAudit } from "../audit/audit.ts";
 import { rt } from "../runtime/errors.ts";
 import * as A from "../apps/service.ts";
 import { LOG_RANK, sseResponse } from "../apps/logs.ts";
+import { SLUG_RE } from "../apps/slug.ts";
 import type * as T from "../runtime/types.ts";
 
 type AppHandler = (c: A.OrgCtx, ctx: RequestContext) => Promise<Response>;
@@ -49,6 +50,7 @@ export function registerApps(router: Router, deps: Deps): void {
       return typeof v === "string" ? v : "";
     };
     const input = { project: s("project"), environment: s("environment"), slug: s("slug"), template: s("template") };
+    if (input.slug && !SLUG_RE.test(input.slug)) fields.slug = "pattern";
     if (b.name !== undefined && b.name !== null && typeof b.name !== "string") fields.name = "not_string";
     if (Object.keys(fields).length) throw invalid(fields);
     const { value, etag } = await A.createApp(c, { ...input, ...(typeof b.name === "string" && b.name ? { name: b.name } : {}) });
@@ -79,8 +81,9 @@ export function registerApps(router: Router, deps: Deps): void {
 
   router.get(`${one}/files`, route(async (c, ctx) => {
     const raw = ctx.url.searchParams.get("version");
-    let v = 0;
-    if (raw !== null && raw !== "") {
+    let v: number | "latest" = 0;
+    if (raw === "latest") v = "latest";
+    else if (raw !== null && raw !== "") {
       v = Number(raw);
       if (!Number.isInteger(v) || v < 1) throw invalid({ version: "out_of_range" });
     }
@@ -90,7 +93,7 @@ export function registerApps(router: Router, deps: Deps): void {
   router.put(`${one}/files`, route(async (c, ctx) => {
     const b = await readBig(ctx.req, MAX_FILES_BODY);
     const out = await A.saveFiles(c, slug(ctx), b.entry, b.files, A.ifMatch(ctx.req));
-    await audit(c, "app.deploy", slug(ctx), { version: out.version.version });
+    await audit(c, "app.save", slug(ctx), { version: out.version.version });
     return json(out, 200, etagHeader(out.etag));
   }));
 
@@ -116,10 +119,13 @@ export function registerApps(router: Router, deps: Deps): void {
   // ---- env, secrets ----
 
   router.get(`${one}/env`, route(async (c, ctx) => {
-    const app = await A.appFor(c, slug(ctx), "app.read");
-    return json({ env: (await rt(() => c.cli.getEnv(app.id))) ?? {} });
+    // Env often holds third-party API keys: developers and up only, like the writes.
+    const app = await A.appFor(c, slug(ctx), "app.env.read");
+    const env = (await rt(() => c.cli.getEnv(app.id))) ?? {};
+    return json({ env }, 200, { etag: await envEtag(env) });
   }));
 
+  // Full replace. If-Match (the ETag of GET …/env) is required, so two editors never silently drop keys.
   router.put(`${one}/env`, route(async (c, ctx) => {
     const b = await readJson(ctx.req);
     const env = b.env;
@@ -128,9 +134,33 @@ export function registerApps(router: Router, deps: Deps): void {
     for (const [k, v] of Object.entries(env)) if (typeof v !== "string") fields[`env.${k}`] = "not_string";
     if (Object.keys(fields).length) throw invalid(fields);
     const app = await A.appFor(c, slug(ctx), "app.env.write");
-    const out = await rt(() => c.cli.putEnv(app.id, env as Record<string, string>));
+    const tag = A.ifMatch(ctx.req);
+    if (!tag) throw new AppError(428, "precondition_required", "If-Match header required");
+    await checkEnvEtag(c, app.id, tag);
+    const out = (await rt(() => c.cli.putEnv(app.id, env as Record<string, string>))) ?? {};
     await audit(c, "app.env", slug(ctx), { keys: Object.keys(env) });
-    return json({ env: out ?? {} });
+    return json({ env: out }, 200, { etag: await envEtag(out) });
+  }));
+
+  // Row edits: set and unset single keys on the current map. If-Match is optional here.
+  router.patch(`${one}/env`, route(async (c, ctx) => {
+    const b = await readJson(ctx.req);
+    const fields: Record<string, string> = {};
+    const set = b.set ?? {};
+    const unset = b.unset ?? [];
+    if (!set || typeof set !== "object" || Array.isArray(set)) fields.set = "invalid_format";
+    else for (const [k, v] of Object.entries(set)) if (typeof v !== "string") fields[`set.${k}`] = "not_string";
+    if (!Array.isArray(unset) || unset.some((k) => typeof k !== "string")) fields.unset = "invalid_format";
+    if (Object.keys(fields).length) throw invalid(fields);
+    const app = await A.appFor(c, slug(ctx), "app.env.write");
+    const tag = A.ifMatch(ctx.req);
+    const cur = (await rt(() => c.cli.getEnv(app.id))) ?? {};
+    if (tag && tag !== (await envEtag(cur))) throw envStale();
+    const drop = new Set(unset as string[]);
+    const next = Object.fromEntries(Object.entries({ ...cur, ...(set as Record<string, string>) }).filter(([k]) => !drop.has(k)));
+    const out = (await rt(() => c.cli.putEnv(app.id, next))) ?? {};
+    await audit(c, "app.env", slug(ctx), { set: Object.keys(set as object), unset });
+    return json({ env: out }, 200, { etag: await envEtag(out) });
   }));
 
   router.get(`${one}/secrets`, route(async (c, ctx) => {
@@ -303,6 +333,20 @@ export function registerApps(router: Router, deps: Deps): void {
 }
 
 // ---- helpers ----
+
+/** ETag of an env map: a SHA-256 over its entries sorted by key (the runtime keeps no version for env). */
+export async function envEtag(env: Record<string, string>): Promise<string> {
+  const canon = JSON.stringify(Object.keys(env).sort().map((k) => [k, env[k]]));
+  const d = new Uint8Array(await crypto.subtle.digest("SHA-256", new TextEncoder().encode(canon)));
+  return `"${Array.from(d.subarray(0, 16), (x) => x.toString(16).padStart(2, "0")).join("")}"`;
+}
+
+const envStale = () => new AppError(412, "precondition_failed", "env changed elsewhere, reload");
+
+async function checkEnvEtag(c: A.OrgCtx, id: string, tag: string): Promise<void> {
+  const cur = (await rt(() => c.cli.getEnv(id))) ?? {};
+  if (tag !== (await envEtag(cur))) throw envStale();
+}
 
 function appResponse(c: A.OrgCtx, svc: T.Service, etag: string, status: number): Response {
   const runtimeUrl = c.deps.config.runtimePublicUrl;
