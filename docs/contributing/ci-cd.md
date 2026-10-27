@@ -9,6 +9,7 @@
 | `pr-title.yml` | PR opened or edited | the PR title is a Conventional Commit (it becomes the squash commit subject and the changelog line) |
 | `release-please.yml` | push to `main` | keeps the `chore: release X.Y.Z` PR open; merging it creates the tag and the GitHub Release |
 | `release.yml` | tag `vX.Y.Z[-pre]` | tarball, SBOM, Trivy scan of the artifact, SHA256SUMS, cosign keyless signature, SLSA provenance, GitHub Release, post-publish verification |
+| `docs.yml` | push to `main` touching `docs/`, `mkdocs.yml` or `install.sh`; manual | builds the MkDocs site (strict, hash-pinned toolchain) and deploys it with `install.sh` to GitHub Pages at https://21-ci.github.io/runtime-web/ |
 | `docker.yml` | PR, push to `main`, tag `vX.Y.Z[-pre]` | hadolint; the container image (`Dockerfile`, flavors `distroless` and `slim`) for `linux/amd64` + `linux/arm64`, including the `rtweb-entry` Go tests. PRs build without pushing and gate the amd64 image on Trivy. `main` and tags push `ghcr.io/21-ci/runtime-web` by digest, gate both platforms on Trivy (fixable HIGH/CRITICAL fail; SARIF to code scanning), then tag (`edge` on `main`, `X.Y.Z` and `X.Y` on tags, `-slim` for slim), cosign-sign (keyless) and attest provenance and SBOM |
 
 Every action is pinned by full commit SHA with a version comment; Dependabot (`.github/dependabot.yml`) bumps them

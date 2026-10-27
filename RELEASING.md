@@ -106,6 +106,10 @@ Settings → General:
   branches**.
 - Features: enable **Discussions** (the issue template links to it).
 
+Settings → Pages: set **Source** to **GitHub Actions**. `docs.yml` then publishes the docs site and `install.sh` to
+https://21-ci.github.io/runtime-web/ on every push to `main` that touches them (run it once by hand with **Run
+workflow** to publish the first time).
+
 Settings → Code security: enable **Private vulnerability reporting**, Dependabot alerts and security updates.
 
 Create the teams `@21-ci/maintainers` and `@21-ci/security` in the org and give them write access, or edit
