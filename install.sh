@@ -696,7 +696,7 @@ ensure_docker() {
         sed 's/^/    /' "$tmp/get-docker.log" >&2
         die "the Docker install script failed"
       }
-      have systemctl && systemctl enable --now docker >/dev/null 2>&1 || true
+      if have systemctl; then systemctl enable --now docker >/dev/null 2>&1 || true; fi
       ok "installed Docker $(docker_version)"
     else
       die "docker mode needs Docker Engine with the compose plugin: install it (https://docs.docker.com/engine/install/) or re-run with --install-docker"
