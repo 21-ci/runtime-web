@@ -1,11 +1,12 @@
 /* eslint-disable @typescript-eslint/no-non-null-assertion */
 import { describe, expect, it } from "vitest";
 import {
-  Runtime, RuntimeError, RuntimeUnavailable, decodeError, isBusy, isDisabled, isNotFound, isThrottled, isUnavailable,
+  DEFAULT_RUNTIME_TIMEOUT_MS, Runtime, RuntimeError, RuntimeTimeout, RuntimeUnavailable, decodeError, isBusy, isDisabled, isNotFound, isThrottled, isUnavailable,
   sdkRtCtl, type SdkHandle,
 } from "../../src/runtime/client.ts";
 import { CHUNK, type WireReq, type WireRes } from "../../src/runtime/types.ts";
 import { FakeRtCtl } from "../fakes/rtctl.ts";
+import { runtimeAppError } from "../../src/runtime/errors.ts";
 
 function setup() {
   const fake = new FakeRtCtl();
@@ -275,5 +276,25 @@ describe("sdkRtCtl wire + chunking", () => {
     const rt = new Runtime(sdkRtCtl({ op: async () => { throw Object.assign(new Error("sdk_unavailable"), { code: "sdk_unavailable" }); } }));
     const e = await rt.op().nodeStatus().catch((x) => x);
     expect(isUnavailable(e)).toBe(true);
+  });
+});
+
+describe("call deadline", () => {
+  const hanging = { op: () => new Promise<never>(() => {}), tenant: () => new Promise<never>(() => {}) };
+
+  it("defaults to 10 s and rejects a hung call with RuntimeTimeout", async () => {
+    expect(DEFAULT_RUNTIME_TIMEOUT_MS).toBe(10_000);
+    const e = await new Runtime(hanging, { timeoutMs: 15 }).as("k").getProject("p").catch((x) => x);
+    expect(e).toBeInstanceOf(RuntimeTimeout);
+    expect(isUnavailable(e)).toBe(true);
+    expect(runtimeAppError(e)).toMatchObject({ status: 504, code: "runtime_timeout" });
+  });
+
+  it("takes the deadline from the transport when no option is given; 0 disables it", async () => {
+    const e = await new Runtime({ ...hanging, timeoutMs: 15 }).op().nodeStatus().catch((x) => x);
+    expect(e).toBeInstanceOf(RuntimeTimeout);
+    const fake = new FakeRtCtl();
+    const ok = await new Runtime(fake, { timeoutMs: 0 }).op().nodeStatus();
+    expect(ok).toBeTruthy();
   });
 });

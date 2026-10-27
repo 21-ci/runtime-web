@@ -37,6 +37,7 @@ const matrix: [string, boolean[]][] = [
   ["app.update", [T, T, T, T, F, F, F, T]],
   ["app.delete", [T, T, T, T, F, F, F, T]],
   ["app.deploy", [T, T, T, T, F, F, F, T]],
+  ["app.env.read", [T, T, T, T, F, F, F, T]],
   ["app.env.write", [T, T, T, T, F, F, F, T]],
   ["app.secrets.write", [T, T, T, F, F, F, F, T]],
   ["app.schedules.write", [T, T, T, T, F, F, F, T]],

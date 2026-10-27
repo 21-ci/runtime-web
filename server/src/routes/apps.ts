@@ -116,7 +116,8 @@ export function registerApps(router: Router, deps: Deps): void {
   // ---- env, secrets ----
 
   router.get(`${one}/env`, route(async (c, ctx) => {
-    const app = await A.appFor(c, slug(ctx), "app.read");
+    // Env often holds third-party API keys: developers and up only, like the writes.
+    const app = await A.appFor(c, slug(ctx), "app.env.read");
     return json({ env: (await rt(() => c.cli.getEnv(app.id))) ?? {} });
   }));
 

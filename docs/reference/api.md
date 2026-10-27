@@ -124,10 +124,11 @@ iframe; it is `'none'` when that variable is unset or names the console's own or
 | 429 | `rate_limited`, `build_quota`, `queue_full` | runtime 429, same code + `Retry-After` |
 | 502 | `runtime_unavailable` | runtime unreachable, or runtime `503 control_disabled` or any other runtime 5xx |
 | 503 | `busy` | runtime `503 queue_timeout` or `overloaded` (+ `Retry-After`) |
+| 504 | `runtime_timeout` | a control-API call did not answer within the deadline (10 s by default) |
 | 500 | `default_plan_missing` | org create: the runtime has no plan named by `RTWEB_DEFAULT_PLAN` (`details: {plan, available}`) |
 | 500 | `internal` | anything else (logged; message is generic) |
 
-The UI shows `busy`, 429 and `runtime_unavailable` as a toast plus `<RuntimeStatusBanner/>`, never as a code
+The UI shows `busy`, 429, `runtime_unavailable` and `runtime_timeout` as a toast plus `<RuntimeStatusBanner/>`, never as a code
 error of the user's app. It shows `409 stale` as a "changed elsewhere, reload" prompt.
 
 Every route below may also return the cross-cutting errors: `401`, the `403` middleware codes, `429`, `502`
@@ -557,7 +558,7 @@ type AppView = AppSummary & {
   runtime: string;                     // "deno" | "wasm"
   profile: string | null;
   access: "public" | "key" | "internal";
-  url: string;                         // `${RTWEB_RUNTIME_PUBLIC_URL}/s/{slug}/`
+  url: string;                         // `https://{slug}.{apps host}/` (RTWEB_RUNTIME_PUBLIC_URL)
   scaling: object | null; ingress: object | null; egress: object | null;
   call: object | null; triggers: object | null;           // runtime blocks, passed through
   status: AppSummary["status"] & { inflight: number; admission: object | null };
@@ -614,7 +615,7 @@ A save never activates a failed build. On `422 build_failed` the live version is
 
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
-| GET | `…/{app}/env` | `app.read` | | `200 {env: Record<string,string>}` | `404` |
+| GET | `…/{app}/env` | `app.env.read` (project `developer` and up) | | `200 {env: Record<string,string>}` | `403` (viewer), `404` |
 | PUT | `…/{app}/env` | `app.env.write` | `{env: Record<string,string>}` (complete map, replaces) | `200 {env: Record<string,string>}` | `403`, `422` |
 | GET | `…/{app}/secrets` | `app.read` | | `200 {items: {name: string; updated_at: number}[]}` (names only) | `404` |
 | PUT | `…/{app}/secrets/{name}` | `app.secrets.write` | `{value: string}` (write-only) | `204` | `403`, `422` |

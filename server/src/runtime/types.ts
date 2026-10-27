@@ -57,6 +57,8 @@ export interface WireRes {
 export interface RtCtl {
   op(req: CtlReq): Promise<CtlRes>;
   tenant(key: string, req: CtlReq): Promise<CtlRes>;
+  /** Per-call deadline in ms for `Runtime`; unset means DEFAULT_RUNTIME_TIMEOUT_MS, 0 disables it. */
+  timeoutMs?: number;
 }
 
 // ---- control API views (runtime v0.1.1 openapi; timestamps are unix ms) ----

@@ -1,6 +1,6 @@
 import { useRef, useState, type FormEvent } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Download, Eye, EyeOff, FileText, Pencil, Plus, Trash2, Upload } from "lucide-react";
+import { Download, Eye, EyeOff, FileText, Lock, Pencil, Plus, Trash2, Upload } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
@@ -22,7 +22,7 @@ import { SectionCard, SMALL_CONTROL } from "@/components/ui/section-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CopyButton } from "@/components/ui/url-bar";
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import { i18n } from "@/lib/i18n";
 
 const KEY_PATTERN = /^[A-Za-z_][A-Za-z0-9_]*$/;
@@ -58,8 +58,7 @@ export function parseEnvText(text: string): { env: Record<string, string> } | { 
 export function useEnv(org: string, app: string) {
   return useQuery({
     queryKey: ["env", org, app],
-    queryFn: () => api.get<{ env: Record<string, string> }>(`${appPath(org, app)}/env`).then((r) => r.env),
-  });
+    queryFn: () => api.get<{ env: Record<string, string> }>(`${appPath(org, app)}/env`).then((r) => r.env),  });
 }
 
 export function useSaveEnv(org: string, app: string) {
@@ -105,6 +104,20 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
     setText(toEnvText(env.data));
   }
 
+  if (env.isError && env.error instanceof ApiError && env.error.status === 403) {
+    // Env values are readable from the developer role up; viewers get a notice, not the values.
+    return (
+      <SectionCard title={t("editor.title")} description={t("editor.description")}>
+        <div role="note" className="flex items-start gap-3 text-sm">
+          <Lock className="mt-0.5 size-4 shrink-0 text-muted" aria-hidden="true" />
+          <div>
+            <p className="font-medium">{t("denied.title")}</p>
+            <p className="text-muted">{t("denied.description")}</p>
+          </div>
+        </div>
+      </SectionCard>
+    );
+  }
   if (env.isError) {
     return <QueryError error={env.error} onRetry={() => void env.refetch()} notFoundTitle={t("appNotFound")} />;
   }

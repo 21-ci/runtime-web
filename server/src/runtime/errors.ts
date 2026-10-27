@@ -4,10 +4,14 @@
 
 import { AppError } from "../http/errors.ts";
 import type { Handler, RequestContext } from "../http/router.ts";
-import { RuntimeError, RuntimeUnavailable } from "./client.ts";
+import { RuntimeError, RuntimeTimeout, RuntimeUnavailable } from "./client.ts";
 
 /** The AppError for a runtime failure, or null when e is not one. */
 export function runtimeAppError(e: unknown): AppError | null {
+  if (e instanceof RuntimeTimeout) {
+    console.error("runtime timeout:", e.message);
+    return new AppError(504, "runtime_timeout", "runtime did not answer in time");
+  }
   if (e instanceof RuntimeUnavailable) return unavailable(e);
   if (!(e instanceof RuntimeError)) return null;
   const retry = { retry_after: e.retryAfter ?? 1 };

@@ -138,4 +138,11 @@ describe("EnvEditor", () => {
     expect(screen.queryByRole("button", { name: "Edit MODE" })).toBeNull();
     expect(screen.getByRole("button", { name: "Export .env" })).toBeInTheDocument();
   });
+
+  it("shows a requires-developer notice when the env read is forbidden", async () => {
+    server.use(http.get(BASE, () => HttpResponse.json({ error: { code: "forbidden", message: "forbidden" } }, { status: 403 })));
+    renderEditor(false);
+    expect(await screen.findByText("Requires the developer role")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Export .env" })).toBeNull();
+  });
 });

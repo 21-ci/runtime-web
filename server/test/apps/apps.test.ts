@@ -121,6 +121,17 @@ describe("apps CRUD + ETag", () => {
     w.fake.failNext({ status: 502, reason: "binding_upstream" });
     expect((await w.admin.call("GET", `${APPS}/hello`)).status).toBe(502);
   });
+
+  it("a hung runtime call fails with 504 runtime_timeout", async () => {
+    const w = await world();
+    await createApp(w.admin);
+    const orig = w.fake.tenant.bind(w.fake);
+    w.fake.timeoutMs = 20;
+    w.fake.tenant = (k, r) => (r.method === "GET" && r.path.startsWith("/v1/services/") ? new Promise<never>(() => {}) : orig(k, r));
+    const r = await w.admin.call("GET", `${APPS}/hello`);
+    expect(r.status).toBe(504);
+    expect(await errOf(r)).toMatchObject({ code: "runtime_timeout" });
+  });
 });
 
 describe("files and versions", () => {

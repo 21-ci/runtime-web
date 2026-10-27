@@ -43,6 +43,9 @@ Org roles are `owner`, `admin` and `member`. Project roles are `admin`, `develop
 mechanism: a token carries explicit scopes such as `deploy`, `env:write`, `invoke` and `secrets:write`. A token can
 never carry the scope that mints keys. Only owners and admins can create tokens.
 
+App env values often hold third-party API keys, so reading them (`app.env.read`) needs the project `developer` role,
+the same as writing them. A `viewer` sees an app's code, logs and secret names, but gets `403` on its env.
+
 ## Secrets at rest
 
 - The console seals values it stores (for example, app secrets and OAuth client secrets) with AES-256-GCM, keyed by the
