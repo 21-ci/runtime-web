@@ -26,6 +26,29 @@ storage_mb = 1024
 allowed_triggers = ["http", "interval", "cron", "call"]
 limits_max = { wall_ms = 30000, cpu_ms = 2000, memory_mb = 128 }
 
+# Default plan for org tenants (install.sh and the container set RTWEB_DEFAULT_PLAN=unlimited): no quota of its
+# own. rt reads 0 as "no limit" only for rps, invocations_per_day, max_concurrency, max_instances,
+# max_warm_floor_total and the socket caps; every other quota counts down from its value (0 would allow nothing),
+# so those are set far above any real use. limits_max is per task and is still clamped by the node's own maxima.
+# To limit tenants, define your own [plans.<name>] and set RTWEB_DEFAULT_PLAN (install.sh --default-plan).
+[plans.unlimited]
+rps = 0
+invocations_per_day = 0
+max_concurrency = 0
+max_instances = 0
+max_warm_floor_total = 0
+max_sockets = 0
+max_sockets_per_object = 0
+max_services = 1000000
+max_schedules = 1000000
+min_schedule_seconds = 1
+storage_mb = 1073741824
+egress_mb_per_day = 1073741824
+builds_per_hour = 1000000
+max_queue_depth = 1000000000
+allowed_triggers = ["http", "interval", "cron", "queue", "call", "websocket"]
+limits_max = { wall_ms = 900000, cpu_ms = 900000, memory_mb = 4096 }
+
 # Operator routes, called with the root/operator token. Reachable only from the rtctl SDK service.
 [[binding]]
 name            = "rtctl-op"
