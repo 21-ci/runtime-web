@@ -18,6 +18,7 @@ the editor.
   conflict. Reload to get their changes, then reapply yours.
 - A save that fails the build is refused, and the console shows the build error. The live version is unchanged.
 - The preview pane always shows the live version. Deploy to see saved changes there.
+- Leaving the page with unsaved changes asks you to confirm first.
 
 ## Type checking
 

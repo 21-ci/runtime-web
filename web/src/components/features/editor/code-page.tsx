@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useBlocker } from "@tanstack/react-router";
 import { ChevronDown, ChevronUp, FileCode2, Loader2, PanelRight, Rocket, Save, ScrollText } from "lucide-react";
 import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
@@ -9,6 +9,7 @@ import { LogsView } from "@/components/features/logs/logs-view";
 import { usePromote } from "@/components/features/versions/use-versions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { ConfirmDialog } from "@/components/ui/confirm-dialog";
 import {
   Dialog,
   DialogContent,
@@ -126,12 +127,8 @@ export function CodePage({ org, app }: { org: string; app: string }) {
     return () => document.removeEventListener("keydown", onKey);
   }, []);
 
-  useEffect(() => {
-    if (!dirty) return;
-    const warn = (e: BeforeUnloadEvent) => e.preventDefault();
-    window.addEventListener("beforeunload", warn);
-    return () => window.removeEventListener("beforeunload", warn);
-  }, [dirty]);
+  // Unsaved edits: confirm before an in-app navigation, and let the browser warn on unload.
+  const blocker = useBlocker({ shouldBlockFn: () => dirty, enableBeforeUnload: () => dirty, withResolver: true });
 
   const getFiles = useCallback(() => current ?? {}, [current]);
   const onChange = useCallback(
@@ -330,6 +327,19 @@ export function CodePage({ org, app }: { org: string; app: string }) {
           </div>
         ) : null}
       </section>
+
+      <ConfirmDialog
+        open={blocker.status === "blocked"}
+        onOpenChange={(open) => {
+          if (!open && blocker.status === "blocked") blocker.reset();
+        }}
+        title={t("leave.title")}
+        description={<p>{t("leave.description")}</p>}
+        confirmLabel={t("leave.confirm")}
+        onConfirm={() => {
+          if (blocker.status === "blocked") blocker.proceed();
+        }}
+      />
 
       <Dialog open={staleOpen} onOpenChange={setStaleOpen}>
         <DialogContent>

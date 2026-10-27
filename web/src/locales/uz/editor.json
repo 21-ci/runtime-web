@@ -45,5 +45,10 @@
   "appNotFound": "Ilova topilmadi",
   "appNotFoundHint": "Ehtimol, u oʻchirilgan yoki sizda ruxsat yoʻq.",
   "savedNotLive": "{{version}}-versiya saqlandi (hali ishlamayapti). Uni ishga tushirish uchun joylashtiring.",
-  "deploy": "v{{version}} ni joylashtirish"
+  "deploy": "v{{version}} ni joylashtirish",
+  "leave": {
+    "title": "Saqlamasdan chiqasizmi?",
+    "description": "Bu ilova kodidagi saqlanmagan oʻzgarishlar yoʻqoladi.",
+    "confirm": "Oʻzgarishlarni bekor qilish"
+  }
 }

@@ -45,5 +45,10 @@
   "appNotFound": "App not found",
   "appNotFoundHint": "It may have been deleted or you lack access.",
   "savedNotLive": "Saved version {{version}} (not live). Deploy it to make it live.",
-  "deploy": "Deploy v{{version}}"
+  "deploy": "Deploy v{{version}}",
+  "leave": {
+    "title": "Leave without saving?",
+    "description": "Your unsaved changes to this app's code will be lost.",
+    "confirm": "Discard changes"
+  }
 }
