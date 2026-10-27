@@ -61,6 +61,12 @@ All notable changes to this project are documented here. The format follows
 - Documentation restructured around install, operate and contribute tasks, with the README, `SUPPORT`, `NOTICE` and
   `llms.txt` rewritten.
 
+### Deprecated
+
+- The fallback that opens sealed values stored without a seal context (no AAD) will be removed in the next release.
+  A one-time `scheduled()` job now reseals every such value (org default keys, TOTP secrets, OAuth client secrets)
+  and records `crypto.legacy_resealed` in settings; upgrade through this release before the next one.
+
 ### Fixed
 
 - A signed-out tab is sent to the login page once per burst of 401 responses instead of looping.

@@ -4,12 +4,14 @@
 //   - retry pending runtime key revokes (pending_key_revokes, exponential backoff)
 //   - domain checker: pending/active TXT checks, queued unmaps, runtime reconcile
 //   - app index backfill: lists the Apps of a few not yet indexed orgs into app_index (tls-ask)
+//   - legacy reseal: one pass that binds every no-AAD sealed value to its context (crypto/reseal.ts)
 
 import type { Deps } from "./app.ts";
 import { checkOnce } from "./domains/checker.ts";
 import type { DomainDeps } from "./domains/domains.ts";
 import { retryPendingRevokes } from "./keys/keys.ts";
 import { appIndexBackfill } from "./apps/index-table.ts";
+import { resealLegacy } from "./crypto/reseal.ts";
 
 export type JobDeps = Pick<Deps, "storage" | "now" | "config" | "rtctl" | "txt" | "fetch">;
 
@@ -29,6 +31,7 @@ export async function scheduled(deps: JobDeps): Promise<void> {
     ["retry key revokes", async () => (deps.rtctl ? retryPendingRevokes(deps) : 0)],
     ["domain checker", () => checkOnce(deps as DomainDeps)],
     ["app index backfill", () => appIndexBackfill(deps)],
+    ["legacy reseal", () => resealLegacy(deps)],
   ];
   for (const [name, f] of steps) {
     try {

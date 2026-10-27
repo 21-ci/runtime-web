@@ -45,9 +45,9 @@ export type OAuthErrorCode =
 
 const isProvider = (id: string): id is ProviderId => (PROVIDERS as readonly string[]).includes(id);
 const settingKey = (id: string) => `oauth.${id}`;
-const secretKey = (id: string) => `oauth.${id}.client_secret`;
+export const secretKey = (id: string) => `oauth.${id}.client_secret`;
 /** Seal context (AAD) of a provider's client secret. */
-const secretContext = (id: string) => `oauth.client_secret:${id}`;
+export const secretContext = (id: string) => `oauth.client_secret:${id}`;
 
 interface StoredProvider {
   enabled: boolean;

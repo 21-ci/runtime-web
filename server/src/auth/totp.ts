@@ -49,7 +49,7 @@ export async function totpEnabled(db: Db, userId: string): Promise<boolean> {
 }
 
 /** Seal context (AAD) of user_totp.secret_sealed. */
-const totpContext = (userId: string) => `user_totp.secret:${userId}`;
+export const totpContext = (userId: string) => `user_totp.secret:${userId}`;
 
 /** Starts (or restarts) an unconfirmed enrollment and returns the otpauth URL. */
 export async function enroll(deps: AuthDeps, userId: string, password: string): Promise<string> {
