@@ -35,7 +35,8 @@
     "chooseEnvironment": "Choose an environment.",
     "enterName": "Enter an app name.",
     "slugTaken": "This app name is taken on this runtime.",
-    "failed": "Could not create the app. Try again."
+    "failed": "Could not create the app. Try again.",
+    "slugPattern": "Use lowercase letters, digits and single hyphens (up to 63), starting and ending with a letter or digit."
   },
   "templates": {
     "http": {

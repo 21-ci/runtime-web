@@ -577,7 +577,7 @@ on the app's project.
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
 | GET | `/api/orgs/{org}/apps` | `org.read` (filtered by `app.read`) | `?project&environment&cursor&limit` | `200 Page<AppSummary>` | `404` |
-| POST | `/api/orgs/{org}/apps` | `app.create` on `project` | `AppCreate` | `201 AppView` + `ETag` | `403`, `404` (project), `409 slug_taken` ("This app name is taken on this runtime"), `422 invalid` (unknown environment or template), `403 plan_limit` |
+| POST | `/api/orgs/{org}/apps` | `app.create` on `project` | `AppCreate` | `201 AppView` + `ETag` | `403`, `404` (project), `409 slug_taken` ("This app name is taken on this runtime"), `422 invalid` (unknown environment or template; `slug: "pattern"` when the slug is not a DNS label: `[a-z0-9-]`, 1-63 characters, no leading or trailing `-`, no `--`), `403 plan_limit` |
 | GET | `…/{app}` | `app.read` | | `200 AppView` + `ETag` | `404` |
 | PATCH | `…/{app}` | `app.update` | `AppPatch`, header `If-Match` | `200 AppView` + `ETag` | `403`, `409 stale`, `422 invalid` (+ `details.fields`), `428` |
 | DELETE | `…/{app}` | `app.delete` | | `204` (its domains are removed) | `403`, `404` |

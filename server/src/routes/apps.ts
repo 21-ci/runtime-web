@@ -11,6 +11,7 @@ import { audit as writeAudit } from "../audit/audit.ts";
 import { rt } from "../runtime/errors.ts";
 import * as A from "../apps/service.ts";
 import { LOG_RANK, sseResponse } from "../apps/logs.ts";
+import { SLUG_RE } from "../apps/slug.ts";
 import type * as T from "../runtime/types.ts";
 
 type AppHandler = (c: A.OrgCtx, ctx: RequestContext) => Promise<Response>;
@@ -49,6 +50,7 @@ export function registerApps(router: Router, deps: Deps): void {
       return typeof v === "string" ? v : "";
     };
     const input = { project: s("project"), environment: s("environment"), slug: s("slug"), template: s("template") };
+    if (input.slug && !SLUG_RE.test(input.slug)) fields.slug = "pattern";
     if (b.name !== undefined && b.name !== null && typeof b.name !== "string") fields.name = "not_string";
     if (Object.keys(fields).length) throw invalid(fields);
     const { value, etag } = await A.createApp(c, { ...input, ...(typeof b.name === "string" && b.name ? { name: b.name } : {}) });

@@ -24,6 +24,9 @@ import { Plus } from "lucide-react";
 const TEMPLATE_HUE: Record<Template, Hue> = { http: "blue", cron: "pink", queue: "orange", "sqlite-crud": "teal" };
 import { toast } from "sonner";
 
+// Mirrors the server's slug rule: the slug becomes a DNS label (<slug>.<apps domain>).
+const SLUG_RE = /^(?!.*--)[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
+
 type NewAppSearch = { project?: string };
 
 export const Route = createFileRoute("/$org/apps/new")({
@@ -61,6 +64,7 @@ function NewAppPage() {
     if (!project) next.project = t("new.chooseProject");
     if (!environment) next.environment = t("new.chooseEnvironment");
     if (!slug) next.slug = t("new.enterName");
+    else if (!SLUG_RE.test(slug)) next.slug = t("new.slugPattern");
     setErrors(next);
     if (Object.keys(next).length > 0) return;
 
@@ -76,6 +80,7 @@ function NewAppPage() {
             return;
           }
           if (err.code === "slug_taken") setErrors({ slug: t("new.slugTaken") });
+          else if (err.fieldErrors().slug === "pattern") setErrors({ slug: t("new.slugPattern") });
           else if (Object.keys(err.fieldErrors()).length > 0) setErrors(err.fieldErrors());
           else handleMutationError(err);
         },

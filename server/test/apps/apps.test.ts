@@ -29,6 +29,30 @@ describe("apps CRUD + ETag", () => {
     expect(w.fake.calls.every((c) => c.scope === "tenant" || c.path.startsWith("/v1/tenants"))).toBe(true);
   });
 
+  it.each([
+    ["hello-world", true], ["app1", true], ["a".repeat(63), true],
+    ["", false], ["-a", false], ["a-", false], ["a--b", false], ["Hello", false], ["a_b", false], ["a.b", false], ["a".repeat(64), false], ["é", false],
+  ])("create validates slug %j as a DNS label (valid: %s)", async (slug, ok) => {
+    const w = await world();
+    const r = await w.admin.call("POST", APPS, { project: "default", environment: "production", slug, template: "http" });
+    if (ok) {
+      expect(r.status).toBe(201);
+      return;
+    }
+    expect(r.status).toBe(422);
+    expect((await errOf(r)).details).toEqual({ fields: { slug: slug === "" ? "required" : "pattern" } });
+    expect(w.fake.calls.some((c) => c.method === "POST" && c.path === "/v1/services")).toBe(false);
+  });
+
+  it("create and delete keep the app index in step", async () => {
+    const w = await world();
+    await createApp(w.admin);
+    const row = () => w.app.deps.storage.db.first<{ org_id: string; service_id: string }>("SELECT org_id, service_id FROM app_index WHERE slug = ?", ["hello"]);
+    expect(await row()).toMatchObject({ org_id: w.org.id, service_id: svcOf(w, "hello") });
+    expect((await w.admin.call("DELETE", `${APPS}/hello`)).status).toBe(204);
+    expect(await row()).toBeNull();
+  });
+
   it("create errors: slug_taken, unknown template/env 422, missing fields 422, plan_limit", async () => {
     const w = await world();
     await createApp(w.admin);

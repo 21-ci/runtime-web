@@ -16,6 +16,7 @@ import { removeAppDomains } from "../domains/domains.ts";
 import type { Actor } from "../orgs/common.ts";
 import { rt } from "../runtime/errors.ts";
 import { checkBundle, MAX_FILE_BYTES, unpack } from "./source.ts";
+import { appIndexDelete, appIndexPut } from "./index-table.ts";
 import { renderTemplate } from "./templates.ts";
 
 /** Clock seams (tests replace sleep with a fake-clock tick). */
@@ -163,6 +164,7 @@ export async function createApp(c: OrgCtx, b: { project: string; environment: st
     await c.cli.deleteService(svc.id).catch((d: unknown) => console.error("apps: cleanup after failed upload", String(d)));
     throw e;
   }
+  await appIndexPut(c.deps.storage.db, { orgId: c.org.id, slug: svc.slug, serviceId: svc.id });
   return rt(() => c.cli.getService(svc.id));
 }
 
@@ -238,6 +240,7 @@ export async function updateApp(c: OrgCtx, slug: string, patch: T.ServicePatch, 
 export async function deleteApp(c: OrgCtx, slug: string) {
   const app = await appFor(c, slug, "app.delete");
   await rt(() => c.cli.deleteService(app.id));
+  await appIndexDelete(c.deps.storage.db, app.slug);
   await removeAppDomains(c.deps, app.id, c.actor);
   return app;
 }
