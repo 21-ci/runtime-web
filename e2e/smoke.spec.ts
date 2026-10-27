@@ -1,11 +1,11 @@
 // Smoke journey (plus the 2FA, invite and custom-domain checks). Runs against a runtime-hosted console:
-// RTWEB_URL (console) and RTWEB_RUNTIME_PUBLIC_URL (the runtime invoke listener that serves apps at
+// RTWEB_URL (console) and RTWEB_APPS_URL (the runtime invoke listener that serves apps at
 // /s/{slug}/ and custom hosts). See Makefile target `e2e`.
 import { createHmac } from "node:crypto";
 import { expect, test, type BrowserContext, type Page } from "@playwright/test";
 
 const CONSOLE = process.env.RTWEB_URL ?? "";
-const RUNTIME = process.env.RTWEB_RUNTIME_PUBLIC_URL ?? new URL(CONSOLE || "http://invalid").origin;
+const RUNTIME = process.env.RTWEB_APPS_URL ?? process.env.RTWEB_RUNTIME_PUBLIC_URL ?? new URL(CONSOLE || "http://invalid").origin;
 const SETUP_TOKEN = process.env.RTWEB_SETUP_TOKEN ?? "dev-insecure-setup";
 
 const ORG = "smoke-org";

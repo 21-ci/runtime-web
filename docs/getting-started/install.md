@@ -99,7 +99,7 @@ Copy the setup token, then continue with [First run](first-run.md).
 | `--yes`, `-y` | off | Never ask: use the flags and the defaults |
 | `--skip-dns-check` | off | Skip the DNS check. The check asks `api.ipify.org` for the host's public address |
 | `--version X.Y.Z` | latest release | Runtime Web release to install (docker: the image tag) |
-| `--public-url URL` | `https://<apps-domain>` | Bare only. Apps origin (`RTWEB_RUNTIME_PUBLIC_URL`); an origin without a path |
+| `--public-url URL` | `https://<apps-domain>` | Bare only. Apps origin (`RTWEB_APPS_URL`); an origin without a path |
 | `--default-plan NAME` | `unlimited` | Runtime plan for new org tenants (`RTWEB_DEFAULT_PLAN`), see [Plans](#plans) |
 | `--runtime-version X.Y.Z` | the version pinned in `install.sh` | Runtime release to install when `rt` is missing. Any other version needs cosign |
 | `--insecure-skip-signature` | off | Install on checksums alone, without the Sigstore check. Not recommended |

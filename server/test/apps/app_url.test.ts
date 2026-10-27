@@ -26,12 +26,12 @@ describe("appFrameSources", () => {
   });
 });
 
-describe("RTWEB_RUNTIME_PUBLIC_URL", () => {
+describe("RTWEB_APPS_URL", () => {
   it("must be an origin", () => {
-    expect(() => loadConfig(env({ ...base, RTWEB_RUNTIME_PUBLIC_URL: "https://apps.example.com/x" }))).toThrow(/origin/);
+    expect(() => loadConfig(env({ ...base, RTWEB_APPS_URL: "https://apps.example.com/x" }))).toThrow(/origin/);
   });
 
   it("refuses a console host under the apps host", () => {
-    expect(() => loadConfig(env({ ...base, RTWEB_RUNTIME_PUBLIC_URL: "https://example.com" }))).toThrow(/subdomain/);
+    expect(() => loadConfig(env({ ...base, RTWEB_APPS_URL: "https://example.com" }))).toThrow(/subdomain/);
   });
 });

@@ -131,7 +131,7 @@ object-src 'none'; frame-ancestors 'none'; base-uri 'self'; form-action 'self'; 
 `Cross-Origin-Opener-Policy: same-origin` and a deny-all `Permissions-Policy`; plus
 `Strict-Transport-Security: max-age=31536000; includeSubDomains` when `RTWEB_ORIGIN` is https.
 `'unsafe-inline'` applies to styles only (CodeMirror and sonner insert `<style>` at runtime); inline script is blocked.
-`frame-src` is the origin of `RTWEB_RUNTIME_PUBLIC_URL`, so the App page can preview the app in an
+`frame-src` is the origin of `RTWEB_APPS_URL`, so the App page can preview the app in an
 iframe; it is `'none'` when that variable is unset or names the console's own origin.
 
 ### 1.5 Error codes (global mapping, `server/src/http/errors.ts`)
@@ -597,7 +597,7 @@ type AppView = AppSummary & {
   runtime: string;                     // "deno" | "wasm"
   profile: string | null;
   access: "public" | "key" | "internal";
-  url: string;                         // `https://{slug}.{apps host}/` (RTWEB_RUNTIME_PUBLIC_URL)
+  url: string;                         // `https://{slug}.{apps host}/` (RTWEB_APPS_URL)
   scaling: object | null; ingress: object | null; egress: object | null;
   call: object | null; triggers: object | null;           // runtime blocks, passed through
   status: AppSummary["status"] & { inflight: number; admission: object | null };
@@ -787,5 +787,5 @@ Every non-`/api` path that is not a file in `web/dist` returns `index.html` (`Ca
 "Runtime Console"), and the favicon link is the uploaded icon's `icon_url` when set, else the bundled
 `/favicon.svg`. Its `ETag` includes the branding etag, so a brand change never revalidates as `304`.
 `/assets/*` is served with `Cache-Control: public, max-age=31536000, immutable`. Every response has
-`Content-Security-Policy: default-src 'self'; frame-src <RTWEB_RUNTIME_PUBLIC_URL>`. Unknown `/api/*` paths return
+`Content-Security-Policy: default-src 'self'; frame-src <RTWEB_APPS_URL>`. Unknown `/api/*` paths return
 `404 not_found` as JSON.

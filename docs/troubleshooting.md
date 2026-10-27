@@ -114,17 +114,17 @@ refused when their `Origin` header does not match `RTWEB_ORIGIN`.
 ### App preview shows an "open in a new tab" message
 
 The console embeds an app's preview in a frame. Its Content-Security-Policy allows framing only the runtime's public
-origin, set by `RTWEB_RUNTIME_PUBLIC_URL`, and only when that origin differs from the console's origin. The console
+origin, set by `RTWEB_APPS_URL`, and only when that origin differs from the console's origin. The console
 does not frame its own origin on purpose: a framed app on the same origin would run with the console's rights.
 
 The browser console shows a message such as `Refused to frame ... because it violates ... frame-src 'none'`. The
 causes are:
 
-- `RTWEB_RUNTIME_PUBLIC_URL` is empty, so the policy is `frame-src 'none'`.
+- `RTWEB_APPS_URL` is empty, so the policy is `frame-src 'none'`.
 - The App's subdomain is not served: check the wildcard record `*.apps.example.com` and that Caddy got a
   certificate for the App (`curl -I https://<app>.apps.example.com/`).
 
-The server refuses to start when `RTWEB_RUNTIME_PUBLIC_URL` has the same origin as `RTWEB_ORIGIN`, so a same-origin
+The server refuses to start when `RTWEB_APPS_URL` has the same origin as `RTWEB_ORIGIN`, so a same-origin
 setup shows up as a startup `ConfigError`, not as a blocked preview.
 
 ### An App's URL answers 404, or its certificate is not issued

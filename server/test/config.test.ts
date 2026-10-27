@@ -38,24 +38,31 @@ describe("loadConfig", () => {
   });
 });
 
-describe("runtime public URL and default plan", () => {
+describe("apps URL and default plan", () => {
+  it("accepts the deprecated RTWEB_RUNTIME_PUBLIC_URL with a warning", () => {
+    const notes: string[] = [];
+    const c = loadConfig(env({ ...base, RTWEB_RUNTIME_PUBLIC_URL: "https://apps.example.org" }), (m) => notes.push(m));
+    expect(c.runtimePublicUrl).toBe("https://apps.example.org");
+    expect(notes.join()).toMatch(/deprecated/);
+  });
+
   it("defaults: no public URL, plan free", () => {
     const c = loadConfig(env(base));
     expect(c.runtimePublicUrl).toBe("");
     expect(c.defaultPlan).toBe("free");
   });
 
-  it("reads and normalises RTWEB_RUNTIME_PUBLIC_URL and RTWEB_DEFAULT_PLAN", () => {
-    const c = loadConfig(env({ ...base, RTWEB_RUNTIME_PUBLIC_URL: "https://rt.example.com/", RTWEB_DEFAULT_PLAN: "pro" }));
+  it("reads and normalises RTWEB_APPS_URL and RTWEB_DEFAULT_PLAN", () => {
+    const c = loadConfig(env({ ...base, RTWEB_APPS_URL: "https://rt.example.com/", RTWEB_DEFAULT_PLAN: "pro" }));
     expect(c.runtimePublicUrl).toBe("https://rt.example.com");
     expect(c.defaultPlan).toBe("pro");
   });
 
   it.each([
-    [{ RTWEB_RUNTIME_PUBLIC_URL: "rt.example.com" }, /RTWEB_RUNTIME_PUBLIC_URL/],
-    [{ RTWEB_RUNTIME_PUBLIC_URL: "ftp://rt.example.com" }, /RTWEB_RUNTIME_PUBLIC_URL/],
-    [{ RTWEB_RUNTIME_PUBLIC_URL: "https://console.example.com" }, /must not share the console origin/],
-    [{ RTWEB_RUNTIME_PUBLIC_URL: "https://CONSOLE.example.com:443/apps/" }, /must not share the console origin/],
+    [{ RTWEB_APPS_URL: "rt.example.com" }, /RTWEB_APPS_URL/],
+    [{ RTWEB_APPS_URL: "ftp://rt.example.com" }, /RTWEB_APPS_URL/],
+    [{ RTWEB_APPS_URL: "https://console.example.com" }, /must not share the console origin/],
+    [{ RTWEB_APPS_URL: "https://CONSOLE.example.com:443/apps/" }, /must not share the console origin/],
     [{ RTWEB_DEFAULT_PLAN: "Bad Plan!" }, /RTWEB_DEFAULT_PLAN/],
   ])("rejects %o", (over, msg) => {
     expect(() => loadConfig(env({ ...base, ...over }))).toThrow(msg);

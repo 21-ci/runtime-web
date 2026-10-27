@@ -20,7 +20,7 @@ export interface Config {
   /** First-run setup token (RTWEB_SETUP_TOKEN). Undefined: setup refuses with 403 until one is set. */
   readonly setupToken: string | undefined;
   /**
-   * Apps origin (RTWEB_RUNTIME_PUBLIC_URL), e.g. https://apps.example.com: every App is served at
+   * Apps origin (RTWEB_APPS_URL; RTWEB_RUNTIME_PUBLIC_URL is the deprecated name), e.g. https://apps.example.com: every App is served at
    * https://<slug>.apps.example.com/ (the node's routing.base_domain is the same host). "" (development only) keeps
    * app URLs relative, /s/<slug>/.
    */
@@ -31,23 +31,32 @@ export interface Config {
 
 export type Getenv = (name: string) => string | undefined;
 
-/** Parses and validates the environment. Throws ConfigError naming the bad variable. */
-export function loadConfig(getenv: Getenv): Config {
+/**
+ * Parses and validates the environment. Throws ConfigError naming the bad variable; `warn` gets non-fatal notes
+ * (deprecated names, risky setups).
+ */
+export function loadConfig(getenv: Getenv, warn: (msg: string) => void = (m) => console.warn(`config: ${m}`)): Config {
   const insecureCookies = getenv("RTWEB_INSECURE_COOKIES") === "1";
   const origin = parseOrigin(getenv("RTWEB_ORIGIN"), insecureCookies);
   const sealKey = parseSealKey(getenv("RTWEB_SEAL_KEY"));
   const setupToken = getenv("RTWEB_SETUP_TOKEN") || undefined;
-  const runtimePublicUrl = parsePublicUrl(getenv("RTWEB_RUNTIME_PUBLIC_URL"));
+  // RTWEB_APPS_URL is the one name; RTWEB_RUNTIME_PUBLIC_URL is the deprecated earlier one.
+  let appsRaw = getenv("RTWEB_APPS_URL");
+  if (!appsRaw && getenv("RTWEB_RUNTIME_PUBLIC_URL")) {
+    appsRaw = getenv("RTWEB_RUNTIME_PUBLIC_URL");
+    warn("RTWEB_RUNTIME_PUBLIC_URL is deprecated: use RTWEB_APPS_URL");
+  }
+  const runtimePublicUrl = parsePublicUrl(appsRaw);
   // App code served on the console origin could call /api with a signed-in admin's cookies.
   if (runtimePublicUrl && new URL(runtimePublicUrl).origin === origin) {
-    throw new ConfigError("RTWEB_RUNTIME_PUBLIC_URL: must not share the console origin (RTWEB_ORIGIN); serve Apps on their own host");
+    throw new ConfigError("RTWEB_APPS_URL: must not share the console origin (RTWEB_ORIGIN); serve Apps on their own host");
   }
   if (runtimePublicUrl) {
     const u = new URL(runtimePublicUrl);
-    if (u.pathname !== "/" && u.pathname !== "") throw new ConfigError("RTWEB_RUNTIME_PUBLIC_URL: must be an origin (no path): Apps live at <slug>.<host>");
+    if (u.pathname !== "/" && u.pathname !== "") throw new ConfigError("RTWEB_APPS_URL: must be an origin (no path): Apps live at <slug>.<host>");
     // An App at <slug>.<apps host> must never be the console: the console host may not sit under the apps host.
     if (new URL(origin).hostname.endsWith(`.${u.hostname}`)) {
-      throw new ConfigError("RTWEB_RUNTIME_PUBLIC_URL: the console host must not be a subdomain of the apps host");
+      throw new ConfigError("RTWEB_APPS_URL: the console host must not be a subdomain of the apps host");
     }
   }
   const defaultPlan = getenv("RTWEB_DEFAULT_PLAN") || "free";
@@ -93,11 +102,11 @@ function parsePublicUrl(raw: string | undefined): string {
   try {
     u = new URL(raw);
   } catch {
-    throw new ConfigError("RTWEB_RUNTIME_PUBLIC_URL: must be an absolute URL");
+    throw new ConfigError("RTWEB_APPS_URL: must be an absolute URL");
   }
-  if (u.protocol !== "https:" && u.protocol !== "http:") throw new ConfigError("RTWEB_RUNTIME_PUBLIC_URL: must use http or https");
+  if (u.protocol !== "https:" && u.protocol !== "http:") throw new ConfigError("RTWEB_APPS_URL: must use http or https");
   if (u.search || u.hash || u.username || u.password) {
-    throw new ConfigError("RTWEB_RUNTIME_PUBLIC_URL: no query, fragment or credentials");
+    throw new ConfigError("RTWEB_APPS_URL: no query, fragment or credentials");
   }
   return `${u.origin}${u.pathname}`.replace(/\/+$/, "");
 }

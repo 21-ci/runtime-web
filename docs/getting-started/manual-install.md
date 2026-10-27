@@ -84,11 +84,11 @@ management tool or a cluster. It does the same steps as the [installer](install.
     RT_INVOKE=http://127.0.0.1:8080
     RTWEB_ORIGIN=https://console.example.com
     RTWEB_HOST=console.example.com
-    RTWEB_RUNTIME_PUBLIC_URL=https://apps.example.com
+    RTWEB_APPS_URL=https://apps.example.com
     RTWEB_DEFAULT_PLAN=unlimited
     ```
 
-    Both host names need DNS records that point at the host. `RTWEB_RUNTIME_PUBLIC_URL` must be a different origin
+    Both host names need DNS records that point at the host. `RTWEB_APPS_URL` must be a different origin
     from `RTWEB_ORIGIN`: the service refuses to start otherwise, so App code never runs on the console origin.
 
     `RTWEB_ORIGIN` has no safe default for a manual install. `install.mjs` falls back to `RT_INVOKE`, which is

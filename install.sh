@@ -37,7 +37,7 @@
 #                          this host's public address)
 #   -h, --help
 # Bare mode only:
-#   --public-url URL       public base of app URLs, RTWEB_RUNTIME_PUBLIC_URL (default: https://<apps-domain>)
+#   --public-url URL       public base of app URLs, RTWEB_APPS_URL (default: https://<apps-domain>)
 #   --default-plan NAME    runtime plan for new org tenants, RTWEB_DEFAULT_PLAN (default: unlimited, the plan in
 #                          deploy/rt.rtweb.toml with no quotas; define your own [plans.NAME] in rt.toml to limit)
 #   --runtime-version X    21 Cloud Runtime release to install when `rt` is missing (default: the pinned
@@ -997,7 +997,7 @@ install_bare() {
   # --- deploy the rtweb service (install.mjs is idempotent) --------------------------------------------------------
   section "Console service"
   if [ "$DRY_RUN" = 1 ]; then
-    step "would run: node $APP/server/scripts/install.mjs (RT_ROOT_TOKEN from $RT_ENV via the environment, RTWEB_ORIGIN=https://$DOMAIN, RTWEB_HOST=$DOMAIN, RTWEB_RUNTIME_PUBLIC_URL=$PUBLIC_URL${DEFAULT_PLAN:+, RTWEB_DEFAULT_PLAN=$DEFAULT_PLAN})"
+    step "would run: node $APP/server/scripts/install.mjs (RT_ROOT_TOKEN from $RT_ENV via the environment, RTWEB_ORIGIN=https://$DOMAIN, RTWEB_HOST=$DOMAIN, RTWEB_APPS_URL=$PUBLIC_URL${DEFAULT_PLAN:+, RTWEB_DEFAULT_PLAN=$DEFAULT_PLAN})"
     return 0
   fi
   # The token goes through the environment of one child process only: never argv, never the terminal. The output
@@ -1005,7 +1005,7 @@ install_bare() {
   if (
     RT_ROOT_TOKEN=$(root_token)
     export RT_ROOT_TOKEN
-    RTWEB_SLUG="$SLUG" RTWEB_ORIGIN="https://$DOMAIN" RTWEB_HOST="$DOMAIN" RTWEB_RUNTIME_PUBLIC_URL="$PUBLIC_URL" \
+    RTWEB_SLUG="$SLUG" RTWEB_ORIGIN="https://$DOMAIN" RTWEB_HOST="$DOMAIN" RTWEB_APPS_URL="$PUBLIC_URL" \
       RTWEB_DEFAULT_PLAN="$DEFAULT_PLAN" RTWEB_VERSION="$VERSION" \
       node "$APP/server/scripts/install.mjs"
   ) >"$tmp/install.log" 2>&1; then
