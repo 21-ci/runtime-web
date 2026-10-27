@@ -32,6 +32,9 @@ its edge (Caddy, the `rtctl` SDK and bindings). For the runtime node's own contr
 - **CSRF.** Every unsafe request with a session must send the `X-CSRF-Token` value that the server issued with the
   session. A missing or wrong token gets `403`.
 - **Origin.** Every unsafe request, including public ones, must send an `Origin` header equal to `RTWEB_ORIGIN`.
+  A browser's `Sec-Fetch-Site` must also be `same-origin` or `none`. Apps run on a sibling host of the console, so
+  their pages are same-site and the cookie's `SameSite=Lax` alone does not stop them. No `GET` route changes state,
+  and a test enforces that.
 - **Bearer tokens.** Custom tokens can call the app routes (`/api/orgs/{org}/apps` and below) with
   `Authorization: Bearer`. The console stores only the SHA-256 of each token secret and checks it on every request.
   A token acts only in its own org, with the actions its scopes map to, inside its projects and environments. It
