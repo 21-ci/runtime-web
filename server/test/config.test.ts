@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { loadConfig } from "../src/config.ts";
+import { loadConfig, registrableDomain } from "../src/config.ts";
 
 const KEY_B64 = btoa(String.fromCharCode(...Array.from({ length: 32 }, (_, i) => i)));
 const base = {
@@ -36,6 +36,23 @@ describe("loadConfig", () => {
     ["seal key not base64", { ...base, RTWEB_SEAL_KEY: "!!!" }, /RTWEB_SEAL_KEY/],
   ])("fails closed on %s", (_name, vars, msg) => {
     expect(() => loadConfig(env(vars))).toThrow(msg);
+  });
+});
+
+describe("same-site warning", () => {
+  it("warns when console and Apps share a registrable domain", () => {
+    const notes: string[] = [];
+    loadConfig(env({ ...base, RTWEB_APPS_URL: "https://apps.example.com" }), (m) => notes.push(m));
+    expect(notes.join()).toMatch(/share the site example\.com/);
+    const none: string[] = [];
+    loadConfig(env(base), (m) => none.push(m));
+    expect(none).toEqual([]);
+  });
+
+  it.each([
+    ["console.example.com", "example.com"], ["a.b.example.co.uk", "example.co.uk"], ["localhost", ""], ["127.0.0.1", ""],
+  ])("registrableDomain(%s) = %s", (h, want) => {
+    expect(registrableDomain(h)).toBe(want);
   });
 });
 

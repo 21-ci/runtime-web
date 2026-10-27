@@ -122,6 +122,13 @@ domain>` to the App. Two Apps never share an origin either. The console host mus
 the edge (Caddy, or `rtweb-entry` in the container) answers `404` for the console's own slug under the apps domain and
 for the bare apps domain.
 
+For the strongest isolation, put the Apps on a separate registrable domain (for example `example-apps.com` next to
+`console.example.com`, as val.town uses `val.run`), or add the apps domain to the
+[Public Suffix List](https://publicsuffix.org/). With `apps.example.com` and `console.example.com`, App pages are
+*same-site* with the console: browsers send `SameSite=Lax` cookies on their requests. The console does not rely on
+that (its session cookie is `__Host-`, and it checks the CSRF token and `Origin`), but it logs a warning at start when
+both hosts share a registrable domain.
+
 The runtime still routes `/s/<app>/` paths when no host rule matches. Runtime Web does not use them for Apps, and the
 edge answers `404` for `/s/` on every host under the apps domain, so an App can never be reached on another App's
 origin. Two internal calls still use `/s/rtweb/` over loopback only: Caddy's `tls-ask` request in bare mode (Caddy

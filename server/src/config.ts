@@ -63,6 +63,15 @@ export function loadConfig(getenv: Getenv, warn: (msg: string) => void = (m) => 
       throw new ConfigError("RTWEB_APPS_URL: the console host must not be a subdomain of the apps host");
     }
   }
+  if (runtimePublicUrl) {
+    const site = registrableDomain(new URL(origin).hostname);
+    if (site && site === registrableDomain(new URL(runtimePublicUrl).hostname)) {
+      warn(
+        `the console and the Apps share the site ${site}: App pages are same-site with the console. ` +
+          "Prefer a separate registrable domain for Apps (e.g. example-apps.com), or list the apps domain on the Public Suffix List",
+      );
+    }
+  }
   const defaultPlan = getenv("RTWEB_DEFAULT_PLAN") || "free";
   if (!/^[a-z0-9][a-z0-9_-]{0,62}$/.test(defaultPlan)) {
     throw new ConfigError("RTWEB_DEFAULT_PLAN: must be a runtime plan name (lowercase letters, digits, - and _)");
@@ -113,4 +122,20 @@ function parsePublicUrl(raw: string | undefined): string {
     throw new ConfigError("RTWEB_APPS_URL: no query, fragment or credentials");
   }
   return `${u.origin}${u.pathname}`.replace(/\/+$/, "");
+}
+
+/**
+ * Approximate eTLD+1 of a host: the last two labels, or three under a two-letter country code with a short second
+ * level (co.uk, com.au). No Public Suffix List in the bundle, so this is a heuristic for a warning only. IP
+ * addresses and single-label hosts give "".
+ */
+export function registrableDomain(host: string): string {
+  const h = host.toLowerCase().replace(/\.$/, "");
+  if (/^[0-9.]+$/.test(h) || h.includes(":")) return "";
+  const l = h.split(".");
+  if (l.length < 2) return "";
+  const tld = l[l.length - 1] ?? "";
+  const sld = l[l.length - 2] ?? "";
+  const n = l.length >= 3 && tld.length === 2 && /^(co|com|net|org|gov|edu|ac|or|ne)$/.test(sld) ? 3 : 2;
+  return l.slice(-n).join(".");
 }
