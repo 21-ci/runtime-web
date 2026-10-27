@@ -149,6 +149,8 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
   const { add, verify, remove } = useDomainMutations(org, app);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [pendingRemove, setPendingRemove] = useState<Domain | null>(null);
+  // The domain whose last verify found no matching TXT record: its row repeats the expected record.
+  const [mismatchId, setMismatchId] = useState<string | null>(null);
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -172,8 +174,13 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
   function onVerify(d: Domain) {
     verify.mutate(d.id, {
       onSuccess: (updated) => {
-        if (updated.status === "active") toast.success(t("verify.active", { host: updated.host }));
-        else toast.message(t("verify.mismatch"));
+        if (updated.status === "active") {
+          setMismatchId(null);
+          toast.success(t("verify.active", { host: updated.host }));
+        } else {
+          setMismatchId(updated.id);
+          toast.message(t("verify.mismatch"));
+        }
       },
     });
   }
@@ -234,6 +241,18 @@ export function DomainsPanel({ org, app, canWrite = true }: { org: string; app: 
                 <p className="text-sm text-danger">{t("failedHint")}</p>
               ) : null}
 
+              {d.status === "pending" && mismatchId === d.id ? (
+                <div role="alert" className="flex flex-col gap-1 rounded-lg border border-danger/30 bg-danger-soft p-3 text-sm text-danger-text">
+                  <p className="font-medium">{t("verify.notFound")}</p>
+                  <p>
+                    {t("verify.expected")}{" "}
+                    <code className="break-all font-mono">
+                      {d.txt_name} TXT &quot;{d.txt_value}&quot;
+                    </code>
+                  </p>
+                  <p>{t("verify.checkHint", { name: d.txt_name })}</p>
+                </div>
+              ) : null}
               {d.status === "pending" ? <DnsRecord host={d.host} domain={d} /> : null}
 
               <p className="text-sm text-muted">{t("keepTxt")}</p>

@@ -54,6 +54,16 @@ function NewAppPage() {
   const environment = envs.data?.includes(envChoice) ? envChoice : (envs.data?.[0] ?? "");
 
   const [template, setTemplate] = useState<Template>("http");
+  // Why Create is unavailable, shown next to it instead of a silently disabled button.
+  const disabledReason = projects.isPending
+    ? t("new.loadingProjects")
+    : !project
+      ? t("new.noProjects")
+      : envs.isPending
+        ? t("new.loadingEnvironments")
+        : envs.data && envs.data.length === 0
+          ? t("new.noEnvironments")
+          : null;
   const [errors, setErrors] = useState<Record<string, string>>({});
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
@@ -120,9 +130,15 @@ function NewAppPage() {
 
           <div className="flex flex-col gap-1.5">
             <Label htmlFor="environment">{t("new.environment")}</Label>
-            <Select name="environment" value={environment} onValueChange={setEnvChoice}>
-              <SelectTrigger id="environment" aria-label={t("new.environment")} aria-invalid={errors.environment ? true : undefined} className="h-9 px-3 text-sm">
-                <SelectValue />
+            <Select name="environment" value={environment} onValueChange={setEnvChoice} disabled={envs.isPending && project !== ""}>
+              <SelectTrigger
+                id="environment"
+                aria-label={t("new.environment")}
+                aria-invalid={errors.environment ? true : undefined}
+                aria-busy={envs.isPending && project !== "" ? true : undefined}
+                className="h-9 px-3 text-sm"
+              >
+                <SelectValue placeholder={envs.isPending && project !== "" ? t("new.loadingEnvironments") : undefined} />
               </SelectTrigger>
               <SelectContent>
                 {(envs.data ?? []).map((e) => (
@@ -167,8 +183,18 @@ function NewAppPage() {
           </div>
         </fieldset>
 
-        <div className="flex justify-end">
-          <Button type="submit" variant="default" disabled={create.isPending || !project}>
+        <div className="flex flex-wrap items-center justify-end gap-3">
+          {disabledReason ? (
+            <p id="create-disabled-reason" className="text-sm text-muted">
+              {disabledReason}
+            </p>
+          ) : null}
+          <Button
+            type="submit"
+            variant="default"
+            disabled={create.isPending || disabledReason !== null}
+            aria-describedby={disabledReason ? "create-disabled-reason" : undefined}
+          >
             {t("new.create")}
           </Button>
         </div>

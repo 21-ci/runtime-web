@@ -78,6 +78,7 @@ function SetupPage() {
               name="setup_token"
               type="password"
               autoComplete="off"
+              hint={t("setup.tokenHint")}
               error={errors.setup_token}
             />
             <FormField label={t("email")} name="email" type="email" autoComplete="username" error={errors.email} />

@@ -49,7 +49,10 @@
     "label": "Verify {{host}}",
     "button": "Verify",
     "active": "{{host}} is active.",
-    "mismatch": "The TXT record does not match yet. Try again after DNS updates."
+    "mismatch": "The TXT record does not match yet. Try again after DNS updates.",
+    "notFound": "No TXT record with the expected value was found.",
+    "expected": "Expected record:",
+    "checkHint": "Look up {{name}} with your DNS provider or dig TXT and check the value matches exactly, without extra quotes or spaces. DNS changes can take a few minutes."
   },
   "remove": {
     "label": "Remove {{host}}",

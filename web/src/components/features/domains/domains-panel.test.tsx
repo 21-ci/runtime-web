@@ -108,6 +108,19 @@ describe("DomainsPanel", () => {
     expect(await screen.findByText("Active")).toBeInTheDocument();
   });
 
+  it("a verify that finds no matching TXT shows the expected record", async () => {
+    const user = userEvent.setup();
+    server.use(
+      http.get("/api/orgs/acme/apps/hello/domains", () => HttpResponse.json({ items: [domain({})] })),
+      http.post("/api/orgs/acme/apps/hello/domains/dom_1/verify", () => HttpResponse.json(domain({ last_checked_at: 2 }))),
+    );
+    renderPanel();
+    await user.click(await screen.findByRole("button", { name: "Verify www.example.com" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("No TXT record with the expected value was found.");
+    expect(alert).toHaveTextContent(`_rtweb.www.example.com TXT "${TOKEN}"`);
+  });
+
   it("renders in the selected language", async () => {
     await setLanguage("ru");
     try {
