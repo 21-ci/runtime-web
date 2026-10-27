@@ -7,6 +7,7 @@ import { checkOnce, ACTIVE_EVERY_MS, PENDING_TTL_MS } from "../../src/domains/ch
 import { APP, DOMAINS, ORG, seed, type Seeded } from "./fakes.ts";
 import { errCode } from "../auth/helpers.ts";
 import { testConfig } from "../harness.ts";
+import { appIndexPut } from "../../src/apps/index-table.ts";
 
 const CONSOLE = "console.test";
 
@@ -286,6 +287,7 @@ describe("reads", () => {
 
   it("serves tls-ask 200 for <slug>.<apps host> only when the App exists", async () => {
     const s = await seed({ config: testConfig({ runtimePublicUrl: "https://apps.example.com" }) });
+    await appIndexPut(s.db, { orgId: ORG.id, slug: APP.slug, serviceId: APP.serviceId });
     const ask = (d: string, ip = "127.0.0.1") => s.app.call("GET", `/api/internal/tls-ask?domain=${d}`, { headers: { "x-rt-client-ip": ip } });
     expect((await ask("shop.apps.example.com")).status).toBe(200);
     expect((await ask("SHOP.apps.example.com")).status).toBe(200);

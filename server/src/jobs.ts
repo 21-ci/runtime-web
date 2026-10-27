@@ -3,11 +3,13 @@
 //   - expire sessions and unaccepted expired invites
 //   - retry pending runtime key revokes (pending_key_revokes, exponential backoff)
 //   - domain checker: pending/active TXT checks, queued unmaps, runtime reconcile
+//   - app index backfill: lists the Apps of a few not yet indexed orgs into app_index (tls-ask)
 
 import type { Deps } from "./app.ts";
 import { checkOnce } from "./domains/checker.ts";
 import type { DomainDeps } from "./domains/domains.ts";
 import { retryPendingRevokes } from "./keys/keys.ts";
+import { appIndexBackfill } from "./apps/index-table.ts";
 
 export type JobDeps = Pick<Deps, "storage" | "now" | "config" | "rtctl" | "txt" | "fetch">;
 
@@ -26,6 +28,7 @@ export async function scheduled(deps: JobDeps): Promise<void> {
     ["expire rows", () => expireRows(deps)],
     ["retry key revokes", async () => (deps.rtctl ? retryPendingRevokes(deps) : 0)],
     ["domain checker", () => checkOnce(deps as DomainDeps)],
+    ["app index backfill", () => appIndexBackfill(deps)],
   ];
   for (const [name, f] of steps) {
     try {

@@ -9,6 +9,8 @@ import { normalizeHost } from "../domains/domains.ts";
 import type { Router } from "../http/router.ts";
 import { notFound } from "../http/errors.ts";
 import { loopbackOnly } from "../http/loopback.ts";
+import { appIndexGet } from "../apps/index-table.ts";
+import type { Db } from "../storage/types.ts";
 
 export function registerInternal(r: Router, deps: Deps): void {
   r.get("/api/internal/tls-ask", loopbackOnly(async (ctx) => {
@@ -29,19 +31,11 @@ export function registerInternal(r: Router, deps: Deps): void {
   }));
 }
 
-const SLUG = /^[a-z0-9][a-z0-9-]{0,62}$/;
-
-/** True when host is <slug>.<apps host> and some org has an App with that slug (slugs are unique on the node). */
-async function isAppHost(deps: Deps, db: Awaited<ReturnType<typeof dbOf>>, host: string): Promise<boolean> {
+/** True when host is <slug>.<apps host> of an App in a live org: one indexed lookup, no runtime call. */
+async function isAppHost(deps: Deps, db: Db, host: string): Promise<boolean> {
   const base = deps.config.runtimePublicUrl;
-  if (!base || !deps.apps) return false;
+  if (!base) return false;
   const suffix = `.${new URL(base).hostname}`;
   if (!host.endsWith(suffix)) return false;
-  const slug = host.slice(0, -suffix.length);
-  if (!SLUG.test(slug)) return false;
-  const orgs = await db.all<{ id: string }>("SELECT id FROM orgs WHERE deleted_at IS NULL ORDER BY created_at", []);
-  for (const o of orgs) {
-    if (await deps.apps.resolve(o.id, slug).catch(() => null)) return true;
-  }
-  return false;
+  return (await appIndexGet(db, host.slice(0, -suffix.length))) !== null;
 }
