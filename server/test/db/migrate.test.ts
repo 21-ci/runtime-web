@@ -81,8 +81,8 @@ describe("migrations (0001 schema)", () => {
 describe("migrations v1 → v2", () => {
   it("a fresh db reaches v2 with the v2 columns", async () => {
     const { db } = memoryStorage();
-    expect(LATEST_VERSION).toBe(4);
-    expect(await migrate(db)).toBe(4);
+    expect(LATEST_VERSION).toBe(5);
+    expect(await migrate(db)).toBe(5);
     const cols = async (t: string) => (await db.all<{ name: string }>(`PRAGMA table_info(${t})`)).map((r) => r.name);
     expect(await cols("domains")).toEqual(expect.arrayContaining(["project_slug", "service_id", "last_checked_at", "txt_misses"]));
     expect(await cols("audit")).toContain("as_instance_admin");
@@ -98,13 +98,13 @@ describe("migrations v1 → v2", () => {
     await db.batch([...v1.statements.map((sql) => ({ sql })), { sql: "INSERT INTO schema_version (v) VALUES (1)" }]);
     const [sql, args] = insertUser("usr_1", "a@x.io");
     await db.run(sql, [...args]);
-    expect(await migrate(db)).toBe(4);
-    expect(await migrate(db)).toBe(4);
+    expect(await migrate(db)).toBe(5);
+    expect(await migrate(db)).toBe(5);
     expect(await db.first("SELECT id FROM users")).toEqual({ id: "usr_1" });
   });
 
   it("concurrent first runs on one db both settle at v2", async () => {
     const { db } = memoryStorage();
-    expect(await Promise.all([migrate(db), migrate(db)])).toEqual([4, 4]);
+    expect(await Promise.all([migrate(db), migrate(db)])).toEqual([LATEST_VERSION, LATEST_VERSION]);
   });
 });

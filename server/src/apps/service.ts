@@ -160,8 +160,14 @@ export async function createApp(c: OrgCtx, b: { project: string; environment: st
     const v = await rt(() => c.cli.uploadVersion(svc.id, src, "application/typescript", { activate: true, compile: "eager" }));
     await recordAuthor(c, svc.id, v.version);
   } catch (e) {
-    // Best effort: do not leave an empty app holding the slug.
-    await c.cli.deleteService(svc.id).catch((d: unknown) => console.error("apps: cleanup after failed upload", String(d)));
+    // Do not leave an empty app holding the slug: delete it now, or queue the delete for scheduled().
+    await c.cli.deleteService(svc.id).catch(async (d: unknown) => {
+      console.error("apps: cleanup after failed upload", String(d));
+      await c.deps.storage.db.run(
+        "INSERT OR IGNORE INTO pending_service_deletes (service_id, tenant_id, attempts, next_at) VALUES (?, ?, 0, ?)",
+        [svc.id, c.org.tenantId, c.deps.now()],
+      );
+    });
     throw e;
   }
   await appIndexPut(c.deps.storage.db, { orgId: c.org.id, slug: svc.slug, serviceId: svc.id });
@@ -239,10 +245,56 @@ export async function updateApp(c: OrgCtx, slug: string, patch: T.ServicePatch, 
 
 export async function deleteApp(c: OrgCtx, slug: string) {
   const app = await appFor(c, slug, "app.delete");
+  // Domains first: removing them deletes the rows and queues runtime unmaps (retried by the domain
+  // checker), so nothing is left pointing at a deleted service if a later step fails.
+  await removeAppDomains(c.deps, app.id, c.actor);
   await rt(() => c.cli.deleteService(app.id));
   await appIndexDelete(c.deps.storage.db, app.slug);
-  await removeAppDomains(c.deps, app.id, c.actor);
   return app;
+}
+
+const DELETE_RETRY_BATCH = 20;
+const DELETE_BASE_MS = 60_000;
+const DELETE_MAX_MS = 6 * 3600_000;
+
+export function serviceDeleteBackoff(attempts: number): number {
+  return Math.min(DELETE_BASE_MS * 2 ** attempts, DELETE_MAX_MS);
+}
+
+/**
+ * Retries queued deletes of services orphaned by a failed create (pending_service_deletes), with the
+ * owning org's default key. A missing service or org counts as done. Called from scheduled().
+ */
+export async function retryPendingServiceDeletes(deps: Deps): Promise<number> {
+  const db = deps.storage.db;
+  const rows = await db.all<{ service_id: string; tenant_id: string; attempts: number }>(
+    "SELECT service_id, tenant_id, attempts FROM pending_service_deletes WHERE next_at <= ? ORDER BY next_at LIMIT ?",
+    [deps.now(), DELETE_RETRY_BATCH],
+  );
+  for (const r of rows) {
+    const done = () => db.run("DELETE FROM pending_service_deletes WHERE service_id = ?", [r.service_id]);
+    const o = await db.first<{ id: string }>("SELECT id FROM orgs WHERE tenant_id = ?", [r.tenant_id]);
+    const org = o ? await getOrg(await dbOf(deps), o.id) : null;
+    if (!org) {
+      await done();
+      continue;
+    }
+    try {
+      const cli = await orgClient(deps, org);
+      await rt(() => cli.deleteService(r.service_id));
+      await done();
+    } catch (e) {
+      if (e instanceof AppError && e.status === 404) {
+        await done();
+        continue;
+      }
+      const attempts = r.attempts + 1;
+      await db.run("UPDATE pending_service_deletes SET attempts = ?, next_at = ? WHERE service_id = ?", [
+        attempts, deps.now() + serviceDeleteBackoff(attempts), r.service_id,
+      ]);
+    }
+  }
+  return rows.length;
 }
 
 // ---- code and versions ----
