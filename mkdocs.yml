@@ -7,9 +7,13 @@
 # Pages live in docs/. The HTTP API reference is docs/reference/api.md. The README.md and CONTRIBUTING.md at the root
 # are read on GitHub and are not site pages.
 site_name: Runtime Web
-# Design notes and hand-off files for contributors; kept in the repo, not on the site.
+# Kept in the repo but not on the site: design notes and hand-off files, the docs toolchain lock files, and local
+# screenshot output (gitignored).
 exclude_docs: |
   design/
+  requirements.in
+  requirements.txt
+  screenshots/
 site_description: >-
   Self-hosted console for writing, deploying and running apps on 21 Cloud Runtime.
 site_author: 21 Cloud
