@@ -20,6 +20,7 @@
     "logs": "Logs",
     "triggers": "Triggers",
     "versions": "Versions",
+    "branches": "Branches",
     "env": "Env & Secrets",
     "domains": "Domains",
     "settings": "Settings"

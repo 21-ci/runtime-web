@@ -7,6 +7,7 @@ import appSettings from "./en/app-settings.json";
 import apps from "./en/apps.json";
 import audit from "./en/audit.json";
 import auth from "./en/auth.json";
+import branches from "./en/branches.json";
 import branding from "./en/branding.json";
 import common from "./en/common.json";
 import domains from "./en/domains.json";
@@ -33,6 +34,7 @@ export const en = {
   apps,
   audit,
   auth,
+  branches,
   branding,
   common,
   domains,

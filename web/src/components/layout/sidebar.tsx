@@ -9,6 +9,7 @@ import {
   Database,
   FolderOpen,
   Globe,
+  GitBranch,
   History,
   KeyRound,
   LayoutDashboard,
@@ -396,12 +397,13 @@ export const APP_SECTIONS: readonly { to: string; labelKey: AppSectionKey; icon:
   { to: "/$org/apps/$app/logs", labelKey: "appNav.logs", icon: ScrollText },
   { to: "/$org/apps/$app/triggers", labelKey: "appNav.triggers", icon: Clock },
   { to: "/$org/apps/$app/versions", labelKey: "appNav.versions", icon: History },
+  { to: "/$org/apps/$app/branches", labelKey: "appNav.branches", icon: GitBranch },
   { to: "/$org/apps/$app/env", labelKey: "appNav.env", icon: Lock },
   { to: "/$org/apps/$app/domains", labelKey: "appNav.domains", icon: Globe },
   { to: "/$org/apps/$app/settings", labelKey: "appNav.settings", icon: Settings },
 ];
 
-type AppSectionKey = `appNav.${"overview" | "code" | "logs" | "triggers" | "versions" | "env" | "domains" | "settings"}`;
+type AppSectionKey = `appNav.${"overview" | "code" | "logs" | "triggers" | "versions" | "branches" | "env" | "domains" | "settings"}`;
 
 function AppNav({ org, slug, onNavigate }: { org: string; slug: string; onNavigate?: () => void }) {
   const apps = useApps(org);

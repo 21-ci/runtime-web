@@ -36,6 +36,7 @@ import { Route as OrgSettingsGeneralRouteImport } from './routes/$org.settings.g
 import { Route as OrgSettingsMembersRouteImport } from './routes/$org.settings.members'
 import { Route as OrgSettingsTokensRouteImport } from './routes/$org.settings.tokens'
 import { Route as OrgAppsAppIndexRouteImport } from './routes/$org.apps.$app.index'
+import { Route as OrgAppsAppBranchesRouteImport } from './routes/$org.apps.$app.branches'
 import { Route as OrgAppsAppCodeRouteImport } from './routes/$org.apps.$app.code'
 import { Route as OrgAppsAppDomainsRouteImport } from './routes/$org.apps.$app.domains'
 import { Route as OrgAppsAppEnvRouteImport } from './routes/$org.apps.$app.env'
@@ -179,6 +180,11 @@ const OrgAppsAppIndexRoute = OrgAppsAppIndexRouteImport.update({
   path: '/',
   getParentRoute: () => OrgAppsAppRoute,
 } as any)
+const OrgAppsAppBranchesRoute = OrgAppsAppBranchesRouteImport.update({
+  id: '/branches',
+  path: '/branches',
+  getParentRoute: () => OrgAppsAppRoute,
+} as any)
 const OrgAppsAppCodeRoute = OrgAppsAppCodeRouteImport.update({
   id: '/code',
   path: '/code',
@@ -242,6 +248,7 @@ export interface FileRoutesByFullPath {
   '/$org/settings/general': typeof OrgSettingsGeneralRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
   '/$org/settings/tokens': typeof OrgSettingsTokensRoute
+  '/$org/apps/$app/branches': typeof OrgAppsAppBranchesRoute
   '/$org/apps/$app/code': typeof OrgAppsAppCodeRoute
   '/$org/apps/$app/domains': typeof OrgAppsAppDomainsRoute
   '/$org/apps/$app/env': typeof OrgAppsAppEnvRoute
@@ -274,6 +281,7 @@ export interface FileRoutesByTo {
   '/$org/settings/general': typeof OrgSettingsGeneralRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
   '/$org/settings/tokens': typeof OrgSettingsTokensRoute
+  '/$org/apps/$app/branches': typeof OrgAppsAppBranchesRoute
   '/$org/apps/$app/code': typeof OrgAppsAppCodeRoute
   '/$org/apps/$app/domains': typeof OrgAppsAppDomainsRoute
   '/$org/apps/$app/env': typeof OrgAppsAppEnvRoute
@@ -311,6 +319,7 @@ export interface FileRoutesById {
   '/$org/settings/general': typeof OrgSettingsGeneralRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
   '/$org/settings/tokens': typeof OrgSettingsTokensRoute
+  '/$org/apps/$app/branches': typeof OrgAppsAppBranchesRoute
   '/$org/apps/$app/code': typeof OrgAppsAppCodeRoute
   '/$org/apps/$app/domains': typeof OrgAppsAppDomainsRoute
   '/$org/apps/$app/env': typeof OrgAppsAppEnvRoute
@@ -349,6 +358,7 @@ export interface FileRouteTypes {
     | '/$org/settings/general'
     | '/$org/settings/members'
     | '/$org/settings/tokens'
+    | '/$org/apps/$app/branches'
     | '/$org/apps/$app/code'
     | '/$org/apps/$app/domains'
     | '/$org/apps/$app/env'
@@ -381,6 +391,7 @@ export interface FileRouteTypes {
     | '/$org/settings/general'
     | '/$org/settings/members'
     | '/$org/settings/tokens'
+    | '/$org/apps/$app/branches'
     | '/$org/apps/$app/code'
     | '/$org/apps/$app/domains'
     | '/$org/apps/$app/env'
@@ -417,6 +428,7 @@ export interface FileRouteTypes {
     | '/$org/settings/general'
     | '/$org/settings/members'
     | '/$org/settings/tokens'
+    | '/$org/apps/$app/branches'
     | '/$org/apps/$app/code'
     | '/$org/apps/$app/domains'
     | '/$org/apps/$app/env'
@@ -629,6 +641,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgAppsAppIndexRouteImport
       parentRoute: typeof OrgAppsAppRoute
     }
+    '/$org/apps/$app/branches': {
+      id: '/$org/apps/$app/branches'
+      path: '/branches'
+      fullPath: '/$org/apps/$app/branches'
+      preLoaderRoute: typeof OrgAppsAppBranchesRouteImport
+      parentRoute: typeof OrgAppsAppRoute
+    }
     '/$org/apps/$app/code': {
       id: '/$org/apps/$app/code'
       path: '/code'
@@ -682,6 +701,7 @@ declare module '@tanstack/react-router' {
 }
 
 interface OrgAppsAppRouteChildren {
+  OrgAppsAppBranchesRoute: typeof OrgAppsAppBranchesRoute
   OrgAppsAppCodeRoute: typeof OrgAppsAppCodeRoute
   OrgAppsAppDomainsRoute: typeof OrgAppsAppDomainsRoute
   OrgAppsAppEnvRoute: typeof OrgAppsAppEnvRoute
@@ -693,6 +713,7 @@ interface OrgAppsAppRouteChildren {
 }
 
 const OrgAppsAppRouteChildren: OrgAppsAppRouteChildren = {
+  OrgAppsAppBranchesRoute: OrgAppsAppBranchesRoute,
   OrgAppsAppCodeRoute: OrgAppsAppCodeRoute,
   OrgAppsAppDomainsRoute: OrgAppsAppDomainsRoute,
   OrgAppsAppEnvRoute: OrgAppsAppEnvRoute,
