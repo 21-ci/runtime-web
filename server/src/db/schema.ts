@@ -239,6 +239,21 @@ export const migrations: readonly Migration[] = [
       )`,
     ],
   },
+  {
+    // Time series as a fixed-slot ring: slot = step index % retention slots, ts in unix ms.
+    version: 7,
+    name: "metric-rollups",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS metric_rollups (
+        scope TEXT NOT NULL,
+        step_s INTEGER NOT NULL,
+        slot INTEGER NOT NULL,
+        ts INTEGER NOT NULL,
+        data TEXT NOT NULL,
+        PRIMARY KEY (scope, step_s, slot)
+      ) WITHOUT ROWID`,
+    ],
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = migrations.reduce((max, m) => Math.max(max, m.version), 0);

@@ -15,6 +15,7 @@ import type { AppLookup } from "../domains/types.ts";
 import { removeAppDomains } from "../domains/domains.ts";
 import type { Actor } from "../orgs/common.ts";
 import { rethrowBudget } from "../jobs/budget.ts";
+import { deleteRollups } from "../metrics/rollups.ts";
 import { rt } from "../runtime/errors.ts";
 import { checkBundle, MAX_FILE_BYTES, unpack } from "./source.ts";
 import { appIndexDelete, appIndexPut } from "./index-table.ts";
@@ -251,6 +252,7 @@ export async function deleteApp(c: OrgCtx, slug: string) {
   await removeAppDomains(c.deps, app.id, c.actor);
   await rt(() => c.cli.deleteService(app.id));
   await appIndexDelete(c.deps.storage.db, app.slug);
+  await deleteRollups(c.deps.storage.db, app.id);
   return app;
 }
 
