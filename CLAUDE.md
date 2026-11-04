@@ -1,6 +1,6 @@
 # Runtime Web
 
-React console plus a TypeScript backend that runs as a 21 Cloud Runtime service
+React console plus a TypeScript backend that runs as a 21 Cloud Functions Runtime service
 (docs/contributing/architecture.md).
 
 ## Module map
@@ -36,3 +36,16 @@ React console plus a TypeScript backend that runs as a 21 Cloud Runtime service
 - `make server-install`: idempotent install onto a runtime node (needs `RT_ROOT_TOKEN`)
 - `make coverage`: web + server tests with v8 coverage thresholds
 - `make e2e`: Playwright smoke (needs `RTWEB_URL`)
+
+## Workflow
+
+### CodeGraph
+
+This repo has a `.codegraph/` index. Before grep or reading files to understand or locate code, use
+`codegraph_explore` (MCP tool) or `codegraph explore "<symbols or question>"` (shell). This holds when delegating to
+subagents too: tell them to use CodeGraph first.
+
+### TDD
+
+Write the unit and integration tests before the code. Run them only when a big module is finished, not after every
+edit. Then run the narrowest suite that covers the module (see Commands above), and `make ci` before the change is done.
