@@ -280,6 +280,38 @@ export interface UploadOpts {
   compile?: "lazy" | "eager";
 }
 
+export interface SwitchWarning {
+  code: string;
+  names?: string[];
+}
+export interface SwitchBody {
+  from: { branch: string };
+  close_sockets: boolean;
+  dry_run: boolean;
+}
+export interface Switch {
+  /** Absent on a dry run. */
+  id?: string;
+  service: string;
+  kind: string;
+  state: string;
+  from_version?: number;
+  to_version?: number;
+  source?: { service: string; version: number; digest?: string };
+  inflight_old: number;
+  drain_deadline?: number;
+  interrupted: boolean;
+  error?: string;
+  warnings?: SwitchWarning[];
+  dry_run?: boolean;
+  /** Not answered by runtimes without schema migrations. */
+  pending_migrations?: string[];
+  created_at: number;
+  updated_at: number;
+}
+/** A branch: its own service, with its branch identity in `scratch`. */
+export type Branch = Service & { scratch?: { name?: string; expires_at?: number | null } };
+
 export interface SecretName {
   name: string;
   updated_at: number;

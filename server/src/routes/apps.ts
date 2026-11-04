@@ -10,6 +10,7 @@ import { orgAccess } from "../orgs/members.ts";
 import { audit as writeAudit } from "../audit/audit.ts";
 import { rt } from "../runtime/errors.ts";
 import * as A from "../apps/service.ts";
+import * as S from "../apps/switches.ts";
 import { LOG_RANK, sseResponse } from "../apps/logs.ts";
 import { SLUG_RE } from "../apps/slug.ts";
 import type * as T from "../runtime/types.ts";
@@ -114,6 +115,29 @@ export function registerApps(router: Router, deps: Deps): void {
     const out = await A.rebuild(c, slug(ctx), v);
     await audit(c, "app.rebuild", slug(ctx), { version: v });
     return json({ ...out, build_state: out.build_state === "ready" ? out.build_state : "building" }, 202);
+  }));
+
+  // ---- branches and switches ----
+
+  router.get(`${one}/branches`, route(async (c, ctx) => json({ items: await S.listBranches(c, slug(ctx)) })));
+
+  router.post(`${one}/switch`, route(async (c, ctx) => {
+    const input = S.parseSwitch(await readJson(ctx.req));
+    const out = await S.switchTo(c, slug(ctx), input, A.ifMatch(ctx.req));
+    if (input.dry_run) return json(out);
+    await audit(c, "app.switch", slug(ctx), { branch: input.branch, switch: out.id, from: out.from_version, to: out.to_version, digest: out.source?.digest ?? null });
+    return json(out, 202);
+  }));
+
+  router.get(`${one}/switches`, route(async (c, ctx) => json(await S.listSwitches(c, slug(ctx), ctx.url.searchParams))));
+
+  router.get(`${one}/switches/:id`, route(async (c, ctx) => json(await S.getSwitch(c, slug(ctx), ctx.params.id ?? ""))));
+
+  router.post(`${one}/switches/:id/rollback`, route(async (c, ctx) => {
+    const id = ctx.params.id ?? "";
+    const out = await S.rollback(c, slug(ctx), id, A.ifMatch(ctx.req));
+    await audit(c, "app.rollback", slug(ctx), { switch: id, rollback: out.id, from: out.from_version, to: out.to_version });
+    return json(out, 202);
   }));
 
   // ---- env, secrets ----

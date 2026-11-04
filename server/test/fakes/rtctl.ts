@@ -53,6 +53,12 @@ interface FService {
   queue: { id: string; body: unknown }[]; dlq: T.DLQItem[]; dedup: Map<string, string>;
   logs: T.LogLine[]; logSeq: number; events: T.Event[];
 }
+export interface FSwitch {
+  id: string; service: string; kind: string; state: string; from_version?: number; to_version: number;
+  inflight_old: number; interrupted: boolean; error?: string; drain_deadline?: number;
+  warnings: { code: string; names?: string[] }[]; created_at: number; updated_at: number;
+}
+const branchOf = (s: FService) => (s.view as unknown as { scratch?: { of: string } }).scratch;
 interface Principal { operator: boolean; tenant: string; key: FKey | null }
 
 export interface FakePlan { maxServices?: number; maxSchedules?: number; allowed_triggers?: string[] }
@@ -75,6 +81,11 @@ export class FakeRtCtl implements RtCtl {
   readonly hosts = new Map<string, T.Host & { service: string }>();
   nodeConfig: Record<string, unknown> = { default_profile: "standard", degradation_mode: "normal" };
   drained = false;
+  /** Switch rows per service id. */
+  readonly switches = new Map<string, FSwitch[]>();
+  inflightOld = 0;
+  /** Extra fields of a dry-run answer, to prove the console forwards only what it names. */
+  dryRunExtra: Record<string, unknown> = {};
   private failures: Injected[] = [];
   private n = 0;
 
@@ -119,6 +130,24 @@ export class FakeRtCtl implements RtCtl {
       v.build_state = "failed";
       v.failure = { reason: "build_failed", message: "build failed", diagnostics };
     }
+  }
+  /** A branch of parent as the runtime stores it: its own service, env label and data, one live version. */
+  seedBranch(parentId: string, name: string, o: { expires_at?: number; live?: boolean; env?: Record<string, string>; project?: string } = {}): FService {
+    const parent = this.services.get(parentId);
+    if (!parent) throw new Error("no parent");
+    const id = this.id("svc_");
+    const view = {
+      ...parent.view, id, slug: `${parent.view.slug}-br-${name}`, environment: `br-${name}`,
+      ...(o.project ? { project: o.project } : {}),
+      scratch: { of: parentId, kind: "branch", name, expires_at: o.expires_at ?? null },
+    };
+    const s: FService = {
+      view, etag: 1, live: o.live === false ? null : 1, env: o.env ?? {}, secrets: new Map(), schedules: [], once: [],
+      versions: [{ version: 1, source: "x", contentType: "application/typescript", build_state: "ready", failure: null, created_at: this.now() }],
+      queue: [], dlq: [], dedup: new Map(), logs: [], logSeq: 0, events: [],
+    };
+    this.services.set(id, s);
+    return s;
   }
   service(svcId: string): FService | undefined {
     return this.services.get(svcId);
@@ -441,6 +470,31 @@ export class FakeRtCtl implements RtCtl {
         return ok(versionView(v));
       }
     }
+    if (at("GET", "branches")) {
+      need("services:read");
+      return ok({ items: [...this.services.values()].filter((x) => branchOf(x)?.of === s.view.id).map(svcView) });
+    }
+    if (at("POST", "switch")) return this.switchRoute(s, p, body, h, need);
+    if (at("GET", "switches")) {
+      need("services:read");
+      const limit = Number(q.limit ?? 50) || 50;
+      const items = [...(this.switches.get(s.view.id) ?? [])].reverse();
+      const start = q.cursor ? Number(q.cursor) : 0;
+      const end = start + limit;
+      return ok({ items: items.slice(start, end), next_cursor: end < items.length ? String(end) : null });
+    }
+    if (sub[0] === "switches" && sub.length >= 2) {
+      // Rows are looked up within this service: an id of another app answers 404.
+      const row = this.switches.get(s.view.id)?.find((x) => x.id === sub[1]);
+      if (at("GET", "switches", "*")) return need("services:read"), row ? ok(row) : notFound();
+      if (at("POST", "switches", "*", "rollback")) {
+        need("deploy");
+        if (h["if-match"] && h["if-match"] !== etagOf(s)) return new ApiErr(412, "precondition_failed", "If-Match does not match the current etag");
+        if (!row) return notFound();
+        if (row.from_version === undefined) return conflict("rollback_target_gone", "the version before this switch is gone");
+        return ok(this.flip(s, "rollback", row.from_version), 202);
+      }
+    }
     if (at("PUT", "live")) {
       need("deploy");
       if (h["if-match"] && h["if-match"] !== etagOf(s)) return new ApiErr(412, "precondition_failed", "If-Match does not match the current etag");
@@ -649,6 +703,43 @@ export class FakeRtCtl implements RtCtl {
     return ok(svcView(s), 201, { etag: etagOf(s) });
   }
 
+  private switchRoute(s: FService, p: Principal, body: unknown, h: Record<string, string>, need: (scope: string) => void): CtlRes | ApiErr {
+    need("deploy");
+    if (h["if-match"] && h["if-match"] !== etagOf(s)) return new ApiErr(412, "precondition_failed", "If-Match does not match the current etag");
+    const b = obj(body);
+    const name = String(obj(b.from).branch ?? "");
+    const source = this.serviceFor(p, `${s.view.slug}-br-${name}`);
+    if (!source) return notFound();
+    if (source.live === null) return conflict("version_not_ready", "the source has no live version");
+    const names = [...Object.keys(source.env), ...source.secrets.keys()].filter((n) => !(n in s.env) && !s.secrets.has(n));
+    const warnings = names.length ? [{ code: "env_missing_on_parent", names }] : [];
+    if (b.dry_run === true) {
+      const now = this.now();
+      return ok({
+        service: s.view.id, kind: "switch", state: "preparing", from_version: s.live ?? undefined,
+        source: { service: source.view.id, version: source.live, digest: `sha256:${source.live}` },
+        inflight_old: this.inflightOld, interrupted: false, warnings, dry_run: true, created_at: now, updated_at: now,
+        ...this.dryRunExtra,
+      });
+    }
+    const from = source.versions[source.live - 1] as FVersion;
+    s.versions.push({ ...from, version: s.versions.length + 1 });
+    return ok({
+      ...this.flip(s, "switch", s.versions.length),
+      source: { service: source.view.id, version: source.live, digest: `sha256:${source.live}` },
+      warnings,
+    }, 202);
+  }
+  private flip(s: FService, kind: string, to: number): FSwitch {
+    const row: FSwitch = {
+      id: this.id("swt_"), service: s.view.id, kind, state: "draining", to_version: to,
+      ...(s.live !== null ? { from_version: s.live } : {}),
+      inflight_old: this.inflightOld, interrupted: false, warnings: [], created_at: this.now(), updated_at: this.now(),
+    };
+    this.makeLive(s, to);
+    this.switches.set(s.view.id, [...(this.switches.get(s.view.id) ?? []), row]);
+    return row;
+  }
   private makeLive(s: FService, n: number) {
     s.live = n;
     s.etag++;

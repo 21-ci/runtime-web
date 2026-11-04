@@ -147,7 +147,7 @@ iframe; it is `'none'` when that variable is unset or names the console's own or
 | 403 | `<code>` | `apperr.Forbidden{Code}`: `setup_token_invalid`, `password_login_disabled`, `plan_limit` |
 | 404 | `not_found` | `apperr.ErrNotFound`, runtime 404, unknown `/api/*` path |
 | 404 | `invite_invalid` | expired, used or revoked invite |
-| 409 | `<code>` | `apperr.Conflict{Code}`: `already_set_up`, `last_owner`, `last_admin`, `slug_taken`, `org_not_empty`, `host_taken`, `pending_limit`, `stale`, `version_not_ready`, `totp_already_enabled`, `totp_not_enabled` |
+| 409 | `<code>` | `apperr.Conflict{Code}`: `already_set_up`, `last_owner`, `last_admin`, `slug_taken`, `org_not_empty`, `host_taken`, `pending_limit`, `stale`, `version_not_ready`, `switch_in_progress`, `not_a_branch`, `rollback_target_gone`, `totp_already_enabled`, `totp_not_enabled` |
 | 409 | `stale` | runtime `412` (ETag mismatch) |
 | 422 | `invalid` | `apperr.ErrInvalid` (+ `details.fields`) |
 | 422 | `<runtime code>` | runtime 422 with its `code` and `details` |
@@ -651,6 +651,50 @@ type Version = {
 A save never changes the live version: `PUT …/files` stores and builds a new version, and `PUT …/live` (Deploy)
 makes it live. `If-Match` on a save is the app's current ETag, so a save after someone changed the app elsewhere gets
 `409 stale`. On `422 build_failed` `details.version` names the failed version.
+
+### 8.2.1 Branches and switches
+
+A branch is a staging copy of an App with its own URL, data and secrets. A switch makes the branch's live build the
+App's live version, and the previous version finishes what it is running. A status read is one short call, so the console
+polls `…/switches/{id}` for progress instead of holding a request open.
+
+| Method | Path | Action | Request | Response | Errors |
+|---|---|---|---|---|---|
+| GET | `…/{app}/branches` | `app.read` | | `200 {items: Branch[]}` | `403`, `404` |
+| POST | `…/{app}/switch` | `app.deploy` | `SwitchRequest`; `If-Match` unless `dry_run` | `202 Switch`; `200 Switch` when `dry_run` (writes nothing, not audited) | `403`, `404`, `409 stale`, `409 switch_in_progress`, `409 version_not_ready`, `409 not_a_branch`, `422 invalid`, `422 runtime_mismatch`, `428` |
+| GET | `…/{app}/switches` | `app.read` | `?limit=1..200&cursor=` | `200 {items: Switch[]; next_cursor: string \| null}` (newest first) | `403`, `404`, `422 invalid` |
+| GET | `…/{app}/switches/{id}` | `app.read` | | `200 Switch` | `403`, `404` |
+| POST | `…/{app}/switches/{id}/rollback` | `app.deploy` | `If-Match` | `202 Switch` (a new switch of kind `rollback`) | `403`, `404`, `409 stale`, `409 rollback_target_gone`, `409 switch_in_progress`, `428` |
+
+```ts
+type Branch = {
+  name: string;
+  slug: string;
+  url: string;
+  build_state: string;
+  live_version: number | null;
+  digest: string | null;        // source digest of the live (else newest) build
+  expires_at: number | null;
+};
+type SwitchRequest = { branch: string; dry_run?: boolean; close_sockets?: boolean };
+type Switch = {
+  id: string | null;            // null on a dry run
+  kind: "promote" | "switch" | "rollback";
+  state: "preparing" | "migrating" | "draining" | "completed" | "drain_timed_out" | "failed";
+  from_version: number | null;
+  to_version: number | null;
+  source: { version: number; digest: string | null } | null;
+  inflight_old: number;         // tasks of the previous version still running
+  drain_deadline: number | null;
+  interrupted: boolean;
+  error: string | null;         // a stable code
+  warnings: { code: string; names: string[] }[];   // names only, never a value
+  pending_migrations: string[] | null;             // null: the runtime does not report them
+  dry_run: boolean;
+  created_at: number;
+  updated_at: number;
+};
+```
 
 ### 8.3 Config: env, secrets, schedules, queue
 

@@ -39,6 +39,9 @@ const AUDITED: Record<string, string[]> = {
   "PUT /api/orgs/:org/apps/:app/files": ["app.save"],
   "PUT /api/orgs/:org/apps/:app/live": ["app.live"],
   "POST /api/orgs/:org/apps/:app/versions/:v/rebuild": ["app.rebuild"],
+  // A dry run writes nothing and is deliberately not audited.
+  "POST /api/orgs/:org/apps/:app/switch": ["app.switch"],
+  "POST /api/orgs/:org/apps/:app/switches/:id/rollback": ["app.rollback"],
   "PUT /api/orgs/:org/apps/:app/env": ["app.env"],
   "PATCH /api/orgs/:org/apps/:app/env": ["app.env"],
   "PUT /api/orgs/:org/apps/:app/secrets/:name": ["app.secret.set"],

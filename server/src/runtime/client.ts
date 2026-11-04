@@ -186,6 +186,19 @@ export class Scoped {
   setLive = (s: string, version: number, ifMatch = "") =>
     this.call<T.Service>({ method: "PUT", path: `${svc(s)}/live`, body: { version }, headers: ifMatchH(ifMatch) });
 
+  // branches and switches
+  listBranches = async (s: string) => {
+    const b = await this.call<T.Branch[] | { items: T.Branch[] }>({ method: "GET", path: `${svc(s)}/branches` });
+    return Array.isArray(b) ? b : b.items;
+  };
+  switchTo = (s: string, b: T.SwitchBody, ifMatch = "") =>
+    this.call<T.Switch>({ method: "POST", path: `${svc(s)}/switch`, body: b, headers: ifMatchH(ifMatch) });
+  listSwitches = (s: string, q: { limit?: number; cursor?: string } = {}) =>
+    this.call<T.Page<T.Switch>>({ method: "GET", path: `${svc(s)}/switches`, query: q });
+  getSwitch = (s: string, id: string) => this.call<T.Switch>({ method: "GET", path: `${svc(s)}/switches/${seg(id)}` });
+  rollbackSwitch = (s: string, id: string, ifMatch: string) =>
+    this.call<T.Switch>({ method: "POST", path: `${svc(s)}/switches/${seg(id)}/rollback`, headers: ifMatchH(ifMatch) });
+
   // logs (polled; SDK results cannot stream)
   logs = (s: string, q: T.LogQuery = {}) =>
     this.call<T.Page<T.LogLine>>({ method: "GET", path: `${svc(s)}/logs`, query: { ...q } });
