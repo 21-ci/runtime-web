@@ -13,7 +13,7 @@
 </p>
 
 <p align="center">
-  <b>A self-hosted console for writing, deploying and running apps on 21 Cloud Runtime.</b>
+  <b>A self-hosted console for writing, deploying and running apps on 21 Cloud Functions Runtime.</b>
 </p>
 
 <p align="center">
@@ -33,7 +33,7 @@
 
 ## Why
 
-[21 Cloud Runtime](https://github.com/21-ci/runtime) runs tenant code safely and densely, but a runtime is an API, not
+[21 Cloud Functions Runtime](https://github.com/21-ci/runtime) runs tenant code safely and densely, but a runtime is an API, not
 a product. Shipping an app means a repository, a deploy command, a token, a log tail and a domain. Runtime Web puts all
 of that in one browser console for your team, on your own host.
 
@@ -57,14 +57,15 @@ click here you can also script.
 
 ## Quick install
 
-On a Linux host (x86_64 or aarch64) with systemd, Node.js 22.5+ and Caddy:
+On a Linux host (x86_64 or aarch64). Bare mode needs systemd, Node.js 22.5+ and Caddy on the host; docker mode needs
+Docker Engine with the Compose plugin and runs Caddy in a container ([requirements](https://21-ci.github.io/runtime-web/getting-started/install/#requirements)):
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/21-ci/runtime-web/main/install.sh -o install.sh
 sudo sh install.sh --domain console.example.com --email you@your-company.com
 ```
 
-The installer sets up a 21 Cloud Runtime node if `rt` is missing, verifies a signed release, adds the console's plan
+The installer sets up a 21 Cloud Functions Runtime node if `rt` is missing, verifies a signed release, adds the console's plan
 and bindings to the node, puts Caddy in front with automatic TLS, and deploys the console as an App on the node. It
 prints a one-time setup token. Open `https://<domain>/setup` to create the instance admin account.
 
@@ -82,7 +83,7 @@ browser ──HTTPS──► Caddy ──► rt invoke listener :8080 ──► 
 ```
 
 - **Console**: a React single-page app in `web/`, embedded into `server/`, a TypeScript backend that runs as the App
-  `rtweb` on 21 Cloud Runtime. Its state lives in the App's SQL database and KV store.
+  `rtweb` on 21 Cloud Functions Runtime. Its state lives in the App's SQL database and KV store.
 - **Runtime**: runs the apps, owns their code, storage, schedules and queues, maps custom hosts and enforces limits.
 - **Caddy**: terminates TLS for the console and for custom domains, and relays tenant-scoped control API calls.
 
@@ -91,7 +92,7 @@ Design: [Architecture](https://21-ci.github.io/runtime-web/contributing/architec
 
 ## Development
 
-You need Node.js 22.5+ and GNU make. A local 21 Cloud Runtime node is optional, for a live deploy.
+You need Node.js 22.5+ and GNU make. A local 21 Cloud Functions Runtime node is optional, for a live deploy.
 
 ```bash
 make help            # list the targets

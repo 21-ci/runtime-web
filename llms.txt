@@ -1,6 +1,6 @@
 # Runtime Web
 
-> Self-hosted console for writing, deploying and running apps on 21 Cloud Runtime (Apache-2.0). The console is a React
+> Self-hosted console for writing, deploying and running apps on 21 Cloud Functions Runtime (Apache-2.0). The console is a React
 > single-page app (`web/`) served by a TypeScript backend (`server/`) that runs as the App `rtweb` on a runtime node.
 > Users make orgs and projects, create apps, edit code in the browser, read logs, set triggers, custom domains and
 > scoped tokens. An installer (`install.sh`) sets up the node, the console and Caddy with automatic TLS on one Linux host.
@@ -10,7 +10,7 @@ Docs site: https://21-ci.github.io/runtime-web/ . Source: https://github.com/21-
 ## Install and operate
 
 - [Install](https://21-ci.github.io/runtime-web/getting-started/install/): requirements, the installer and its options, upgrade, uninstall
-- [Manual install](https://21-ci.github.io/runtime-web/getting-started/manual-install/): deploy onto an existing 21 Cloud Runtime node
+- [Manual install](https://21-ci.github.io/runtime-web/getting-started/manual-install/): deploy onto an existing 21 Cloud Functions Runtime node
 - [First run](https://21-ci.github.io/runtime-web/getting-started/first-run/): setup token, instance admin account
 - [Admin guide](https://21-ci.github.io/runtime-web/admin/): instance admin console, account recovery
 - [Operations](https://21-ci.github.io/runtime-web/admin/operations/): node, custom domains and TLS, backups and keys, upgrades
@@ -43,6 +43,6 @@ Docs site: https://21-ci.github.io/runtime-web/ . Source: https://github.com/21-
 
 ## Terms
 
-- App: a unit of user code deployed to 21 Cloud Runtime. Never called a "val" or a "service" in the console.
+- App: a unit of user code deployed to 21 Cloud Functions Runtime. Never called a "val" or a "service" in the console.
 - Org, project, member, grant: the access model. Org roles are owner, admin and member; project roles are admin, developer and viewer.
 - Token: a scoped credential. Key: the default org key.

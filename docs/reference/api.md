@@ -1,7 +1,7 @@
 # Runtime Web HTTP API (v1 contract)
 
 This is the contract between the `rtweb` service (`server/src/routes/`, a TypeScript backend that runs as an App
-on 21 Cloud Runtime) and the React console (`web/`). Handlers and MSW mocks are both written from this file, and
+on 21 Cloud Functions Runtime) and the React console (`web/`). Handlers and MSW mocks are both written from this file, and
 `server/test/contract.test.ts` fails when a route listed here is not registered. When the code and this
 file disagree, fix one of them in the same PR.
 

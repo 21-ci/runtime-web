@@ -1,4 +1,4 @@
-# Architecture: the backend on 21 Cloud Runtime
+# Architecture: the backend on 21 Cloud Functions Runtime
 
 The design record of the Runtime Web backend (decided 2026-10-24): a TypeScript service `rtweb` on a 21 Cloud
 Runtime node, replacing an earlier standalone Go server and its host router. The HTTP contract is

@@ -1,14 +1,14 @@
 # AGENTS.md
 
 Instructions for coding agents working **on this repository**: the Runtime Web console. If you are writing an App
-that runs **on** 21 Cloud Runtime, this is the wrong guide; see the runtime repository instead.
+that runs **on** 21 Cloud Functions Runtime, this is the wrong guide; see the runtime repository instead.
 
 ## What this is
 
-A self-hosted console for writing, deploying and running small apps on 21 Cloud Runtime. It has an org and project
+A self-hosted console for writing, deploying and running small apps on 21 Cloud Functions Runtime. It has an org and project
 model, an in-browser code editor, logs, triggers, tokens, custom domains and an instance admin console. The console
 is a React single-page app (`web/`) on top of a JSON API. The API backend (`server/`) is TypeScript and runs as an
-**App on 21 Cloud Runtime** (the service `rtweb`); the design is in
+**App on 21 Cloud Functions Runtime** (the service `rtweb`); the design is in
 [docs/contributing/architecture.md](docs/contributing/architecture.md).
 
 Vocabulary, use it exactly:

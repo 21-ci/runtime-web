@@ -2,7 +2,7 @@
 
 This page describes what Runtime Web protects, how, and what it does not protect. It describes the console (the `rtweb` service) and
 its edge (Caddy, the `rtctl` SDK and bindings). For the runtime node's own controls (isolates, limits, egress guard), read the
-[21 Cloud Runtime security page](https://21-ci.github.io/runtime/concepts/security/).
+[21 Cloud Functions Runtime security page](https://21-ci.github.io/runtime/concepts/security/).
 
 ## Actors and trust
 

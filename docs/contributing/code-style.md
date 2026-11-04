@@ -4,7 +4,7 @@ Every implementer must read this. It is binding for `server/` and `web/`.
 
 ## Server (`server/`)
 - TypeScript, **strict** (`noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `verbatimModuleSyntax`), ESM
-  with explicit `.ts` import paths. The service runs on 21 Cloud Runtime (Deno runtime); tests run on Node 22.5+.
+  with explicit `.ts` import paths. The service runs on 21 Cloud Functions Runtime (Deno runtime); tests run on Node 22.5+.
 - `src/main.ts` is the only file that touches runtime globals (`Deno.env`, `std:*` adapters, `sdk("rtctl")`).
   `src/app.ts` is the runtime-agnostic composition root: each feature adds one `registerX(router, deps)` line,
   `registerAuth` first and `registerSpa` last. Everything else receives what it needs through `Deps`.

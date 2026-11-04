@@ -1,11 +1,11 @@
 ---
 title: Docker
-description: Run Runtime Web and 21 Cloud Runtime together in one container, with Docker or Docker Compose.
+description: Run Runtime Web and 21 Cloud Functions Runtime together in one container, with Docker or Docker Compose.
 ---
 
 # Docker
 
-The image `ghcr.io/21-ci/runtime-web` holds a 21 Cloud Runtime node (`rt` 0.1.1) and the Runtime Web console. One
+The image `ghcr.io/21-ci/runtime-web` holds a 21 Cloud Functions Runtime node (`rt` 0.1.1) and the Runtime Web console. One
 container serves the console, your Apps and their custom domains. Data lives in one volume, `/data`.
 
 !!! warning

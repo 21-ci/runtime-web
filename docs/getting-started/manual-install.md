@@ -1,6 +1,6 @@
 ---
 title: Manual install
-description: Deploy Runtime Web onto a 21 Cloud Runtime node you already run, without the host installer.
+description: Deploy Runtime Web onto a 21 Cloud Functions Runtime node you already run, without the host installer.
 ---
 
 # Manual install
