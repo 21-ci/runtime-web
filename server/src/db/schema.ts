@@ -224,6 +224,21 @@ export const migrations: readonly Migration[] = [
       )`,
     ],
   },
+  {
+    // One row per background job: when it is next due, and where it stopped if the tick ran out.
+    version: 6,
+    name: "job-state",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS job_state (
+        name TEXT PRIMARY KEY,
+        next_at INTEGER NOT NULL,
+        cursor TEXT,
+        last_ok_at INTEGER,
+        last_error TEXT,
+        failures INTEGER NOT NULL DEFAULT 0
+      )`,
+    ],
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = migrations.reduce((max, m) => Math.max(max, m.version), 0);

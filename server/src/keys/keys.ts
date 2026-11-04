@@ -6,6 +6,7 @@
 import type { Deps } from "../app.ts";
 import { dbOf, sealerOf } from "../auth/types.ts";
 import { AppError, conflict, invalid, notFound } from "../http/errors.ts";
+import { rethrowBudget } from "../jobs/budget.ts";
 import { isNotFound, isRuntimeError } from "../runtime/client.ts";
 import type { Scope } from "../runtime/types.ts";
 import { newId } from "../crypto/random.ts";
@@ -274,7 +275,8 @@ async function revokePending(deps: Pick<Deps, "storage" | "now" | "rtctl">, row:
   const db = await dbOf(deps);
   try {
     await revokeRuntimeKey(deps, row.tenant_id, row.runtime_key_id);
-  } catch {
+  } catch (e) {
+    rethrowBudget(e);
     const attempts = (row.attempts ?? 0) + 1;
     await db.run("UPDATE pending_key_revokes SET attempts = ?, next_at = ? WHERE runtime_key_id = ?", [
       attempts,

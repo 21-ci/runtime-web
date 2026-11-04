@@ -251,13 +251,14 @@ func ensureService(a *api, c *config, s *secrets, tenant string, cron bool) (str
 		step(5, "created service %s (%s)", c.slug, id)
 	}
 	if !cron {
-		log.Printf("plan lacks the cron trigger: the housekeeping schedule is not created")
+		log.Printf("plan lacks the cron trigger: the job tick schedule is not created")
 	} else {
 		var raw json.RawMessage
 		if err := a.get("/v1/services/"+id+"/schedules", tenant, &raw); err != nil {
 			return "", "", err
 		}
 		type sched struct {
+			ID      string `json:"id"`
 			Kind    string `json:"kind"`
 			Payload struct {
 				Job string `json:"job"`
@@ -269,13 +270,23 @@ func ensureService(a *api, c *config, s *secrets, tenant string, cron bool) (str
 			_ = json.Unmarshal(raw, &wrapped)
 			list = wrapped.Items
 		}
-		if !slices.ContainsFunc(list, func(x sched) bool { return x.Kind == "cron" && x.Payload.Job == "housekeeping" }) {
+		if !slices.ContainsFunc(list, func(x sched) bool { return x.Kind == "cron" && x.Payload.Job == "tick" }) {
 			if _, _, err := a.do("POST", "/v1/services/"+id+"/schedules", map[string]any{
-				"kind": "cron", "cron": "*/5 * * * *", "timezone": "UTC", "payload": map[string]string{"job": "housekeeping"},
+				"kind": "cron", "cron": "* * * * *", "timezone": "UTC", "payload": map[string]string{"job": "tick"},
 			}, tenant); err != nil {
 				return "", "", err
 			}
-			step(5, "created schedule housekeeping (*/5 * * * *)")
+			step(5, "created schedule tick (* * * * *)")
+		}
+		// After the tick exists, so an upgrade never leaves the node without a schedule.
+		for _, x := range list {
+			if x.Kind != "cron" || x.Payload.Job != "housekeeping" {
+				continue
+			}
+			if _, _, err := a.do("DELETE", "/v1/services/"+id+"/schedules/"+x.ID, nil, tenant, 404); err != nil {
+				return "", "", err
+			}
+			step(5, "removed the old housekeeping schedule")
 		}
 	}
 	var have []struct{ Name string }

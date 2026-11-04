@@ -14,6 +14,7 @@ import { dbOf } from "../auth/types.ts";
 import type { AppLookup } from "../domains/types.ts";
 import { removeAppDomains } from "../domains/domains.ts";
 import type { Actor } from "../orgs/common.ts";
+import { rethrowBudget } from "../jobs/budget.ts";
 import { rt } from "../runtime/errors.ts";
 import { checkBundle, MAX_FILE_BYTES, unpack } from "./source.ts";
 import { appIndexDelete, appIndexPut } from "./index-table.ts";
@@ -284,6 +285,7 @@ export async function retryPendingServiceDeletes(deps: Deps): Promise<number> {
       await rt(() => cli.deleteService(r.service_id));
       await done();
     } catch (e) {
+      rethrowBudget(e);
       if (e instanceof AppError && e.status === 404) {
         await done();
         continue;

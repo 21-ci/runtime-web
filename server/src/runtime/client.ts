@@ -1,6 +1,7 @@
 // Typed control-API client over RtCtl. `Runtime`
 // holds no credential; `.op()` is the operator scope (binding rtctl-op),
 // `.as(key)` a tenant key scope (binding rtctl-tenant via the relay).
+import { rethrowBudget } from "../jobs/budget.ts";
 import type * as T from "./types.ts";
 import { CHUNK, type CtlReq, type CtlRes, type RtCtl, type WireReq, type WireRes } from "./types.ts";
 
@@ -97,6 +98,7 @@ export class Scoped {
     try {
       res = await this.deadline(req);
     } catch (e) {
+      rethrowBudget(e);
       if (e instanceof RuntimeError || e instanceof RuntimeUnavailable) throw e;
       throw new RuntimeUnavailable(`${req.method} ${req.path}: ${(e as Error)?.message ?? String(e)}`);
     }

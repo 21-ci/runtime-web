@@ -39,7 +39,8 @@ describe("scheduled()", () => {
     await scheduled(app.deps);
     expect(rt.calls.slice(before).some((c) => c.path.endsWith("/keys/key_1"))).toBe(false);
 
-    app.tick(revokeBackoff(1));
+    // The job itself runs every 5 minutes, past the row's backoff.
+    app.tick(5 * 60_000);
     await scheduled(app.deps);
     expect(await db.all("SELECT runtime_key_id FROM pending_key_revokes")).toHaveLength(0);
   });

@@ -1,5 +1,5 @@
-// Housekeeping run by the runtime cron (`scheduled()` in main.ts). Each step is
-// independent: a failure is logged and the next step still runs.
+// Housekeeping run by the runtime cron (`scheduled()` in main.ts) through the job runner. Each job is
+// independent: a failure is logged and the next job still runs.
 //   - expire sessions and unaccepted expired invites
 //   - retry pending runtime key revokes (pending_key_revokes, exponential backoff)
 //   - domain checker: pending/active TXT checks, queued unmaps, runtime reconcile
@@ -14,8 +14,10 @@ import { retryPendingRevokes } from "./keys/keys.ts";
 import { appIndexBackfill } from "./apps/index-table.ts";
 import { resealLegacy } from "./crypto/reseal.ts";
 import { retryPendingServiceDeletes } from "./apps/service.ts";
+import { ensureMigrated } from "./db/migrate.ts";
+import { runJobs, type Job, type RunnerDeps } from "./jobs/runner.ts";
 
-export type JobDeps = Pick<Deps, "storage" | "now" | "config" | "rtctl" | "txt" | "fetch">;
+export type JobDeps = RunnerDeps;
 
 export { revokeBackoff } from "./keys/keys.ts";
 
@@ -27,20 +29,31 @@ export async function expireRows(deps: Pick<JobDeps, "storage" | "now">): Promis
   await db.run("DELETE FROM invites WHERE accepted_at IS NULL AND expires_at <= ?", [now]);
 }
 
-export async function scheduled(deps: JobDeps): Promise<void> {
-  const steps: [string, () => Promise<unknown>][] = [
-    ["expire rows", () => expireRows(deps)],
-    ["retry key revokes", async () => (deps.rtctl ? retryPendingRevokes(deps) : 0)],
-    ["domain checker", () => checkOnce(deps as DomainDeps)],
-    ["app index backfill", () => appIndexBackfill(deps)],
-    ["retry service deletes", async () => (deps.rtctl ? retryPendingServiceDeletes(deps as Deps) : 0)],
-    ["legacy reseal", () => resealLegacy(deps)],
-  ];
-  for (const [name, f] of steps) {
-    try {
-      await f();
-    } catch (e) {
-      console.error(`jobs: ${name} failed`, e instanceof Error ? e.message : String(e));
-    }
+const EVERY_MS = 5 * 60_000;
+
+/** In fixed order. Anything that sends to a third party goes last. */
+export const HOUSEKEEPING_JOBS: readonly Job[] = [
+  { name: "expire_rows", everyMs: EVERY_MS, run: async ({ deps }) => void (await expireRows(deps)) },
+  { name: "key_revokes", everyMs: EVERY_MS, run: async ({ deps }) => void (deps.rtctl ? await retryPendingRevokes(deps) : 0) },
+  { name: "domain_checker", everyMs: EVERY_MS, run: async ({ deps }) => void (await checkOnce(deps as DomainDeps)) },
+  { name: "app_index_backfill", everyMs: EVERY_MS, run: async ({ deps }) => void (await appIndexBackfill(deps)) },
+  { name: "service_deletes", everyMs: EVERY_MS, run: async ({ deps }) => void (deps.rtctl ? await retryPendingServiceDeletes(deps as Deps) : 0) },
+  { name: "legacy_reseal", everyMs: EVERY_MS, run: async ({ deps }) => void (await resealLegacy(deps)) },
+];
+
+/** No payload counts as a tick; so does the schedule an older install left behind until it is removed. */
+function isTick(payload: unknown): boolean {
+  if (payload === null || payload === undefined) return true;
+  const job = (payload as { job?: unknown }).job;
+  return job === "tick" || job === "housekeeping";
+}
+
+export async function scheduled(deps: JobDeps, payload?: unknown): Promise<void> {
+  if (!isTick(payload)) {
+    console.warn("jobs: ignored a schedule with an unknown job");
+    return;
   }
+  // A cron can fire before the first request after an upgrade.
+  await ensureMigrated(deps.storage.db);
+  await runJobs(deps, HOUSEKEEPING_JOBS);
 }
