@@ -329,7 +329,7 @@ export function registerApps(router: Router, deps: Deps): void {
 
   router.get(`${one}/export`, route(async (c, ctx) => {
     const name = slug(ctx);
-    const { first, rest } = await A.exportData(c, name);
+    const { first, total, rest } = await A.exportData(c, name);
     const it = rest();
     const body = new ReadableStream<Uint8Array>({
       start(ctl) {
@@ -350,6 +350,8 @@ export function registerApps(router: Router, deps: Deps): void {
       headers: {
         "content-type": "application/vnd.sqlite3",
         "content-disposition": `attachment; filename="${name}.sqlite"`,
+        // A download cut midway must look cut, also to a proxy.
+        ...(total === null ? {} : { "content-length": String(total) }),
         "cache-control": "no-store",
       },
     });

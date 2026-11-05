@@ -5,7 +5,7 @@
 
 import type { Deps } from "../app.ts";
 import { AppError, conflict, invalid, notFound } from "../http/errors.ts";
-import { Runtime, type Scoped } from "../runtime/client.ts";
+import { Runtime, RuntimeError, type Scoped } from "../runtime/client.ts";
 import type * as T from "../runtime/types.ts";
 import { can, type Action, type Subject } from "../authz/policy.ts";
 import { authorize } from "../orgs/members.ts";
@@ -16,7 +16,7 @@ import { removeAppDomains } from "../domains/domains.ts";
 import type { Actor } from "../orgs/common.ts";
 import { rethrowBudget } from "../jobs/budget.ts";
 import { deleteRollups } from "../metrics/rollups.ts";
-import { rt } from "../runtime/errors.ts";
+import { mapRuntimeError, rt } from "../runtime/errors.ts";
 import { checkBundle, MAX_FILE_BYTES, unpack } from "./source.ts";
 import { appIndexDelete, appIndexPut } from "./index-table.ts";
 import { renderTemplate } from "./templates.ts";
@@ -245,12 +245,21 @@ export async function updateApp(c: OrgCtx, slug: string, patch: T.ServicePatch, 
   return svc;
 }
 
+const branchExists = () => new AppError(409, "branch_exists", "Delete this app's branches first.");
+
 export async function deleteApp(c: OrgCtx, slug: string) {
   const app = await appFor(c, slug, "app.delete");
   // Domains first: removing them deletes the rows and queues runtime unmaps (retried by the domain
   // checker), so nothing is left pointing at a deleted service if a later step fails.
-  await removeAppDomains(c.deps, app.id, c.actor);
-  await rt(() => c.cli.deleteService(app.id));
+  // So branches are checked before them: the runtime refuses the delete, and the domains would be gone.
+  try {
+    if ((await c.cli.listBranches(app.id)).length > 0) throw branchExists();
+    await removeAppDomains(c.deps, app.id, c.actor);
+    await c.cli.deleteService(app.id);
+  } catch (e) {
+    if (e instanceof RuntimeError && e.code === "branch_exists") throw branchExists();
+    throw mapRuntimeError(e);
+  }
   await appIndexDelete(c.deps.storage.db, app.slug);
   await deleteRollups(c.deps.storage.db, app.id);
   return app;
@@ -443,32 +452,62 @@ function bytesOf(res: T.CtlRes): Uint8Array {
   return new TextEncoder().encode(s);
 }
 
+/** The size hint without a snapshot; null when refused or absent (a binding or SDK not yet updated): it is advisory. */
+async function exportHint(c: OrgCtx, path: string): Promise<number | null> {
+  try {
+    const raw = (await c.cli.raw({ method: "HEAD", path })).headers["x-rt-size-hint"];
+    return raw !== undefined && /^\d+$/.test(raw) ? Number(raw) : null;
+  } catch (e) {
+    rethrowBudget(e);
+    return null;
+  }
+}
+
 /**
- * Reads the data snapshot in Range hops. If the control API ignores Range and
- * the whole snapshot exceeds one hop, answers 413 export_too_large.
+ * Reads one data snapshot in Range hops: the first hop's ETag goes as If-Range on the others, so every
+ * byte comes from that snapshot. A resumed hop answering anything but the next piece of it (a 200 is a
+ * new snapshot, the tag having expired) fails the download rather than stitching two snapshots: bytes
+ * already sent cannot be taken back, so starting over from zero is the browser's next request.
+ * If the control API ignores Range and the whole snapshot exceeds one hop, answers 413 export_too_large.
  */
-export async function exportData(c: OrgCtx, slug: string): Promise<{ first: Uint8Array; rest: () => AsyncGenerator<Uint8Array> }> {
+export async function exportData(c: OrgCtx, slug: string): Promise<{ first: Uint8Array; total: number | null; rest: () => AsyncGenerator<Uint8Array> }> {
   const app = await appFor(c, slug, "app.data.export");
   const path = `/v1/services/${encodeURIComponent(app.id)}/data/export`;
-  const hop = (off: number) =>
-    rt(() => c.cli.raw({ method: "GET", path, headers: { accept: "application/vnd.sqlite3", range: `bytes=${off}-${off + EXPORT_CHUNK - 1}` } }));
+  const hop = (off: number, tag?: string) =>
+    rt(() =>
+      c.cli.raw({
+        method: "GET",
+        path,
+        headers: { accept: "application/vnd.sqlite3", range: `bytes=${off}-${off + EXPORT_CHUNK - 1}`, ...(tag ? { "if-range": tag } : {}) },
+      }),
+    );
   const tooLarge = () => new AppError(413, "export_too_large", "the data snapshot is too large to download here", { cli: "21ci data export" });
+  const maxBytes = EXPORT_CHUNK * EXPORT_HOPS;
+  const hint = await exportHint(c, path);
+  if (hint !== null && hint > maxBytes) throw tooLarge();
   const res = await hop(0);
   const first = bytesOf(res);
   if (res.status !== 206) {
     if (first.length > EXPORT_CHUNK) throw tooLarge();
-    return { first, rest: async function* () {} };
+    return { first, total: first.length, rest: async function* () {} };
   }
   const total = totalOf(res.headers["content-range"]);
-  if (total === null || Math.ceil(total / EXPORT_CHUNK) > EXPORT_HOPS) throw tooLarge();
+  if (total === null || total > maxBytes) throw tooLarge();
+  const tag = res.headers["etag"];
+  if (first.length >= total) return { first, total, rest: async function* () {} };
+  if (!tag || first.length === 0) throw new AppError(502, "runtime_unavailable", "runtime unavailable");
   return {
     first,
+    total,
     rest: async function* () {
       let off = first.length;
-      while (off < total && first.length > 0) {
-        const r = await hop(off);
+      while (off < total) {
+        const r = await hop(off, tag);
         const b = bytesOf(r);
-        if (b.length === 0) return;
+        const range = /^bytes (\d+)-\d+\/(\d+)\s*$/.exec(r.headers["content-range"] ?? "");
+        if (r.status !== 206 || r.headers["etag"] !== tag || Number(range?.[1]) !== off || Number(range?.[2]) !== total || b.length === 0) {
+          throw new AppError(409, "export_restarted", "the data snapshot expired during the download; start it again");
+        }
         yield b;
         off += b.length;
       }

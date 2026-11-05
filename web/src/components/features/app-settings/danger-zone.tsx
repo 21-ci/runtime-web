@@ -2,6 +2,9 @@ import { useState } from "react";
 import { Trans, useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { ApiError } from "@/lib/api";
+import { errorMessage } from "@/lib/error-message";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -39,8 +42,8 @@ export function DangerZone({
       setOpen(false);
       toast.success(t("danger.deleted", { name: app.name ?? app.slug }));
       onDeleted();
-    } catch {
-      toast.error(t("danger.failed"));
+    } catch (err) {
+      toast.error(err instanceof ApiError ? errorMessage(err) : t("danger.failed"));
     }
   }
 

@@ -46,7 +46,7 @@ describe("GET routes do not mutate state", () => {
       await res.arrayBuffer();
     }
     expect(await snapshot()).toBe(before);
-    const writes = w.fake.calls.slice(runtimeCalls).filter((c) => c.method !== "GET");
+    const writes = w.fake.calls.slice(runtimeCalls).filter((c) => c.method !== "GET" && c.method !== "HEAD");
     expect(writes.map((c) => `${c.method} ${c.path}`)).toEqual([]);
     expect((await w.admin.call("GET", `${APPS}/hello`)).status).toBe(200);
   });

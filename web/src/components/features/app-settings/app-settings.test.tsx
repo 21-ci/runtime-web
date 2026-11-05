@@ -2,6 +2,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
+import { toast } from "sonner";
 import { describe, expect, it, vi } from "vitest";
 
 import { createQueryClient } from "@/lib/query";
@@ -10,6 +11,7 @@ import { apiError, server } from "@/test/msw";
 import { AccessSection } from "./access";
 import { CallersSection } from "./callers";
 import { DangerZone } from "./danger-zone";
+import { ExportDataButton } from "./export-data";
 import { EgressSection } from "./egress";
 import { IngressSection } from "./ingress";
 import { LimitsSection } from "./limits";
@@ -207,5 +209,72 @@ describe("app settings", () => {
     await user.click(confirm);
     await waitFor(() => expect(onDeleted).toHaveBeenCalled());
     expect(deleted).toHaveBeenCalled();
+  });
+
+  it("danger zone shows why a delete was refused", async () => {
+    const user = userEvent.setup();
+    const onDeleted = vi.fn();
+    const error = vi.spyOn(toast, "error");
+    server.use(http.delete("/api/orgs/acme/apps/hello", () => apiError(409, "branch_exists", "Delete this app's branches first.")));
+    renderWithClient(<DangerZone org={org} app={appFixture()} onDeleted={onDeleted} />);
+    await user.click(screen.getByRole("button", { name: "Delete app" }));
+    await user.type(screen.getByLabelText(/type hello to confirm/i), "hello");
+    await user.click(screen.getByRole("button", { name: "Delete permanently" }));
+    await waitFor(() => expect(error).toHaveBeenCalledWith("Delete this app's branches first."));
+    expect(onDeleted).not.toHaveBeenCalled();
+    error.mockRestore();
+  });
+
+  describe("data export", () => {
+    const URL_ = "/api/orgs/acme/apps/hello/export";
+    function stubUrls() {
+      const create = vi.fn<(b: Blob) => string>(() => "blob:x");
+      Object.assign(URL, { createObjectURL: create, revokeObjectURL: vi.fn() });
+      return create;
+    }
+
+    it("saves the file under the app's name", async () => {
+      const user = userEvent.setup();
+      const create = stubUrls();
+      const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+      server.use(http.get(URL_, () => new HttpResponse(new Uint8Array([1, 2, 3]), { headers: { "content-type": "application/vnd.sqlite3" } })));
+      renderWithClient(<ExportDataButton org={org} app="hello" />);
+      await user.click(screen.getByRole("button", { name: "Download" }));
+      await waitFor(() => expect(click).toHaveBeenCalled());
+      expect(create.mock.calls[0]![0].size).toBe(3);
+      expect((click.mock.contexts[0] as HTMLAnchorElement).download).toBe("hello.sqlite");
+      click.mockRestore();
+    });
+
+    it("shows a refused export as a message, not a saved error body", async () => {
+      const user = userEvent.setup();
+      const create = stubUrls();
+      const error = vi.spyOn(toast, "error");
+      server.use(http.get(URL_, () => apiError(429, "heavy_job_busy", "Another export is running.")));
+      renderWithClient(<ExportDataButton org={org} app="hello" />);
+      await user.click(screen.getByRole("button", { name: "Download" }));
+      await waitFor(() => expect(error).toHaveBeenCalledWith("Another export is running."));
+      expect(create).not.toHaveBeenCalled();
+      error.mockRestore();
+    });
+
+    it("a download cut midway saves nothing and says to start over", async () => {
+      const user = userEvent.setup();
+      const create = stubUrls();
+      const error = vi.spyOn(toast, "error");
+      const body = new ReadableStream({
+        start(c) {
+          c.enqueue(new Uint8Array([1]));
+          c.error(new Error("cut"));
+        },
+      });
+      const fetched = vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(body));
+      renderWithClient(<ExportDataButton org={org} app="hello" />);
+      await user.click(screen.getByRole("button", { name: "Download" }));
+      await waitFor(() => expect(error).toHaveBeenCalledWith("The download was interrupted. Start it again."));
+      expect(create).not.toHaveBeenCalled();
+      fetched.mockRestore();
+      error.mockRestore();
+    });
   });
 });

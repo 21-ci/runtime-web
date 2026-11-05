@@ -28,6 +28,9 @@ Vocabulary, use it exactly:
 | `server/src/routes/` | HTTP routes per area; `server/src/http/` router, error envelope, validation, cookies |
 | `server/src/auth/`, `server/src/authz/` | sessions, CSRF, Origin, MFA, OAuth; the role and action rules (`can`) |
 | `server/src/{apps,orgs,invites,keys,domains,users,audit}/` | feature services |
+| `server/src/jobs/`, `server/src/jobs.ts` | budgeted job runner; housekeeping run by `scheduled()` |
+| `server/src/metrics/` | the `metric_rollups` ring |
+| `server/src/hooks/` | webhook verification (GitHub, Gitea, GitLab) and outbound signing |
 | `server/src/runtime/` | control-API client over `sdk("rtctl")`; `errors.ts` maps runtime errors |
 | `server/src/db/`, `server/src/storage/` | schema migrations; `std:sql` / `std:kv` adapters |
 | `server/src/crypto/`, `server/src/config.ts` | AES-GCM sealing, argon2id, TOTP; env config |

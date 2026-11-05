@@ -66,7 +66,7 @@ marked (live), on a local node. Installing and releasing it: [Install](../gettin
 |---|---|---|
 | `GET /api/internal/router/routes`, `POST /api/internal/router/cert-status` | dropped (no host router) | `GET /api/internal/tls-ask?domain=` (200 if an `active` domain, else 404), localhost-only by Caddy; `cert_status` in `Domain` becomes `"none"` unless Caddy reports (always `none` in v1) |
 | `GET …/{app}/logs` (SSE) | works, but streams end every ≤25 s | EventSource auto-reconnect with `Last-Event-ID`; `web/` already uses EventSource, no change |
-| `GET …/{app}/export` | works only ≤ 192 KiB per SDK hop | SDK method `exportChunk(offset)` re-reads the snapshot with `Range`; if the control API ignores `Range`, answer `413 export_too_large` with `details.cli: "21ci data export"` (R4) |
+| `GET …/{app}/export` | works only ≤ 192 KiB per SDK hop | `HEAD` size hint first (no snapshot), then `Range` hops with the first ETag as `If-Range`; a `200` or another tag on a resumed hop fails the download, never appends; if the control API ignores `Range`, answer `413 export_too_large` with `details.cli: "21ci data export"` (R4) |
 | `GET/PUT …/{app}/files` | bundles up to 10 MB vs 256 KiB SDK cap | chunk per file through the SDK (`filesList` then `fileGet`); PUT keeps 1 MB body cap per file, total sent in ≤200 KiB SDK chunks staged in KV then one `versionCreate` (R2) |
 | `GET /healthz` | unchanged | also `GET /api/healthz` |
 | everything else | 1:1 | — |
@@ -80,7 +80,7 @@ marked (live), on a local node. Installing and releasing it: [Install](../gettin
 2. Writes `deploy/Caddyfile` snippet (relay :8082 + console host + on-demand TLS `ask`).
 3. `POST /v1/tenants {name:"runtime-web", plan:"rtweb"}` (reuse if present).
 4. `POST /v1/sdks {name:"rtctl", version, source}` from `server/sdk/rtctl/mod.ts`; `PUT /v1/sdk-grants {scope:"tenant:<id>", sdk:"rtctl"}` and a `deny` at `scope:"node"`.
-5. Create service `rtweb` (triggers: http, cron `*/5 * * * *` for housekeeping; `call` off), set env `RTWEB_ORIGIN`,
+5. Create service `rtweb` (triggers: http, cron `* * * * *` with payload `{job:"tick"}` for the job runner; `call` off), set env `RTWEB_ORIGIN`,
    secrets `RTWEB_SEAL_KEY` (random 32 B) and `RTWEB_SETUP_TOKEN` (random, printed once).
 6. Build SPA (`npm --prefix web run build`), generate `src/gen/assets.ts`, upload bundle, wait `ready`, activate.
 7. Operator maps the console host: `PUT /v1/services/rtweb/hosts/console.example.com` (op → `active`).

@@ -1,11 +1,12 @@
 import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Download, Settings } from "lucide-react";
+import { Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { AccessSection } from "@/components/features/app-settings/access";
 import { CallersSection } from "@/components/features/app-settings/callers";
 import { DangerZone } from "@/components/features/app-settings/danger-zone";
+import { ExportDataButton } from "@/components/features/app-settings/export-data";
 import { EgressSection } from "@/components/features/app-settings/egress";
 import { IngressSection } from "@/components/features/app-settings/ingress";
 import { LimitsSection } from "@/components/features/app-settings/limits";
@@ -172,11 +173,7 @@ function AppSettingsPage() {
                 </AdvancedRow>
                 {can("app.data.export") === true ? (
                   <AdvancedRow label={t("advanced.exportData")} hint={t("advanced.exportHint")}>
-                    <Button asChild variant="secondary" size="sm">
-                      <a href={`/api/orgs/${encodeURIComponent(org)}/apps/${encodeURIComponent(app)}/export`} download>
-                        <Download aria-hidden="true" /> {t("advanced.download")}
-                      </a>
-                    </Button>
+                    <ExportDataButton org={org} app={app} />
                   </AdvancedRow>
                 ) : null}
               </dl>

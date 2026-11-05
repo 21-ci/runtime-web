@@ -33,7 +33,7 @@ interface Ctx {
   caller: Caller;
 }
 
-type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+type Method = "GET" | "HEAD" | "POST" | "PUT" | "PATCH" | "DELETE";
 export interface WireReq {
   method: Method;
   path: string;
@@ -91,8 +91,8 @@ export const TENANT_PATHS = [
   "/v1/me",
   "/v1/limits",
 ];
-const METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
-const FWD_HEADERS = new Set(["if-match", "if-none-match", "accept", "last-event-id"]);
+const METHODS = new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]);
+const FWD_HEADERS = new Set(["if-match", "if-none-match", "accept", "last-event-id", "range", "if-range"]);
 
 function glob(p: string): RegExp {
   return new RegExp("^" + p.split("*").map((s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$");
@@ -197,7 +197,7 @@ export function createCore(d: CoreDeps) {
       headers.set("content-type", (w.contentType ?? "").replace(/;\s*base64$/, ""));
     }
     const init: RequestInit = { method: w.method, headers };
-    if (body !== undefined && w.method !== "GET") init.body = bin ? new Blob([bin as Uint8Array<ArrayBuffer>]) : body;
+    if (body !== undefined && w.method !== "GET" && w.method !== "HEAD") init.body = bin ? new Blob([bin as Uint8Array<ArrayBuffer>]) : body;
     const res = await d.fetch(scope === "op" ? "rtctl-op" : "rtctl-tenant", new Request(url, init));
     const out: Record<string, string> = {};
     res.headers.forEach((v, k) => {

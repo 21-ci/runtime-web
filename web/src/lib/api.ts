@@ -156,6 +156,27 @@ async function request<T>(method: string, path: string, body?: unknown, opts?: R
   return (await res.json()) as T;
 }
 
+// getBlob reads a binary GET whole. A refusal is an ApiError as for `api`; a body cut midway rejects
+// with ApiError "download_interrupted", so a partial file is never handed over.
+export async function getBlob(path: string): Promise<Blob> {
+  let res: Response;
+  try {
+    res = await fetch(`${window.location.origin}/api${path}`, { credentials: "include" });
+  } catch {
+    throw new ApiError(0, "network", "Network error. Check your connection.");
+  }
+  if (!res.ok) {
+    const err = await parseError(res);
+    onGate(err.code);
+    throw err;
+  }
+  try {
+    return await res.blob();
+  } catch {
+    throw new ApiError(0, "download_interrupted", "The download was interrupted. Start it again.");
+  }
+}
+
 export const api = {
   get: <T>(path: string, opts?: RequestOptions) => request<T>("GET", path, undefined, opts),
   post: <T>(path: string, body?: unknown, opts?: RequestOptions) => request<T>("POST", path, body ?? {}, opts),

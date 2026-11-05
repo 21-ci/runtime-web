@@ -5,7 +5,7 @@
 // control API's own status/headers/body; refusals by the binding carry
 // `x-rt-reason` (binding_denied, rate_limited, binding_upstream, …).
 
-export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+export type Method = "GET" | "HEAD" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export interface CtlReq {
   method: Method;
@@ -15,7 +15,7 @@ export interface CtlReq {
   /** JSON value, or a string sent verbatim with `contentType`. */
   body?: unknown | undefined;
   contentType?: string | undefined;
-  /** Extra request headers (If-Match, Accept, Last-Event-ID). */
+  /** Extra request headers (If-Match, Accept, Last-Event-ID, Range, If-Range). */
   headers?: Record<string, string> | undefined;
 }
 

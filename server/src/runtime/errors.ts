@@ -19,6 +19,9 @@ export function runtimeAppError(e: unknown): AppError | null {
   if (e.status === 503 && (e.code === "queue_timeout" || e.code === "overloaded")) {
     return new AppError(503, "busy", "runtime busy", retry);
   }
+  if (e.code === "heavy_job_busy") return new AppError(429, e.code, "Another export or data copy is running. Try again shortly.", retry);
+  if (e.code === "insufficient_storage") return new AppError(507, e.code, "The node has no room for the data snapshot.");
+  if (e.code === "range_not_satisfiable") return new AppError(416, e.code, "This range of the data snapshot cannot be served.");
   if (e.status === 429) return new AppError(429, e.code, "runtime rate limited", retry);
   if (e.status === 404) return new AppError(404, "not_found", "not found");
   if (e.status === 412) return new AppError(409, "stale", "changed elsewhere, reload");

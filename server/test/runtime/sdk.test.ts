@@ -83,6 +83,15 @@ describe("rtctl SDK", () => {
     expect(await r.text()).toBe('{"name":"x"}');
   });
 
+  it("forwards Range and If-Range and allows HEAD for the data export", async () => {
+    await m().tenant!({ method: "GET", path: "/v1/services/s/data/export", headers: { range: "bytes=5-9", "if-range": '"snap"' }, key: "rtk_key_abcdef0123" }, ctx());
+    expect([fetched[0]!.req.headers.get("range"), fetched[0]!.req.headers.get("if-range")]).toEqual(["bytes=5-9", '"snap"']);
+    respond = () => new Response(null, { headers: { "x-rt-size-hint": "42", "content-type": "application/vnd.sqlite3" } });
+    const r = (await m().tenant!({ method: "HEAD", path: "/v1/services/s/data/export", key: "rtk_key_abcdef0123" }, ctx())) as { status: number; headers: Record<string, string> };
+    expect(fetched[1]!.req.method).toBe("HEAD");
+    expect([r.status, r.headers["x-rt-size-hint"]]).toEqual([200, "42"]);
+  });
+
   it("validates method and tenant key", async () => {
     await expect(m().op!({ method: "TRACE", path: "/v1/version" }, ctx())).rejects.toMatchObject({ code: "validation_failed" });
     await expect(m().tenant!({ method: "GET", path: "/v1/me" }, ctx())).rejects.toMatchObject({ code: "validation_failed" });
@@ -132,6 +141,10 @@ describe("allow-lists match deploy/rt.rtweb.toml bindings", () => {
 
   it("rtctl-op paths == OP_PATHS", () => {
     expect([...mod.OP_PATHS].sort()).toEqual(binding("rtctl-op", "allowed_paths").sort());
+  });
+
+  it("rtctl-tenant allows HEAD (the export size hint)", () => {
+    expect(binding("rtctl-tenant", "allowed_methods")).toContain("HEAD");
   });
 
   it("rtctl-tenant paths == TENANT_PATHS", () => {
