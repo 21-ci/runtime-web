@@ -3,6 +3,7 @@
 // browser. The body names a branch and nothing else, so a caller can never supply another service or a digest.
 
 import { AppError, invalid, notFound } from "../http/errors.ts";
+import { authorize } from "../orgs/members.ts";
 import { isNotFound } from "../runtime/client.ts";
 import { rt } from "../runtime/errors.ts";
 import type * as T from "../runtime/types.ts";
@@ -86,6 +87,18 @@ export async function switchTo(c: OrgCtx, slug: string, input: SwitchInput, etag
   if (!input.dry_run && !etag) throw new AppError(428, "precondition_required", "If-Match header required");
   const body = { from: { branch: input.branch }, close_sockets: input.close_sockets, dry_run: input.dry_run };
   return switchView(await rt(() => c.cli.switchTo(app.id, body, input.dry_run ? "" : etag)));
+}
+
+/**
+ * Starts a promote and answers with its switch row. Skipping migrations leaves the data behind the code, and the
+ * console's key may do it for anyone, so it takes the same right as exporting the data.
+ */
+export async function promoteAsync(c: OrgCtx, slug: string, b: { version: number; close_sockets?: boolean | undefined; migrate?: boolean | undefined }, etag: string) {
+  const app = await appFor(c, slug, "app.deploy");
+  if (b.migrate === false) authorize(c.sub, "app.data.export", app.project);
+  if (!etag) throw new AppError(428, "precondition_required", "If-Match header required");
+  const body = { version: b.version, ...(b.close_sockets === undefined ? {} : { close_sockets: b.close_sockets }), ...(b.migrate === undefined ? {} : { migrate: b.migrate }) };
+  return switchView(await rt(() => c.cli.setLiveAsync(app.id, body, etag)));
 }
 
 export async function listSwitches(c: OrgCtx, slug: string, q: URLSearchParams) {

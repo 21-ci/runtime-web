@@ -3,6 +3,7 @@
     "overview": "Overview",
     "members": "Members",
     "tokens": "Tokens",
+    "alerts": "Alerts",
     "auditLog": "Audit log",
     "settings": "Settings",
     "projects": "Projects",
@@ -23,7 +24,8 @@
     "branches": "Branches",
     "env": "Env & Secrets",
     "domains": "Domains",
-    "settings": "Settings"
+    "settings": "Settings",
+    "data": "Data"
   },
   "instance": {
     "title": "Instance",
@@ -32,6 +34,8 @@
     "auditLog": "Audit log",
     "node": "Node",
     "cache": "Cache",
+    "backups": "Backups",
+    "alerts": "Alerts",
     "domains": "Domains",
     "settings": "Settings"
   },
@@ -112,6 +116,7 @@
     "org": "Organization settings",
     "members": "Members",
     "tokens": "Tokens",
+    "alerts": "Alerts",
     "auditLog": "Audit log",
     "accountSecurity": "Account security",
     "instanceUsers": "Instance: users",
@@ -119,6 +124,8 @@
     "instanceAudit": "Instance: audit log",
     "instanceNode": "Instance: node",
     "instanceCache": "Instance: cache",
+    "instanceBackups": "Instance: backups",
+    "instanceAlerts": "Instance: alerts",
     "instanceDomains": "Instance: domains",
     "instanceSettings": "Instance: settings"
   },

@@ -5,6 +5,7 @@
   "live": "Ishlayotgan",
   "outside": "Veb-konsoldan tashqarida",
   "state": {
+    "fetching": "Yuklanmoqda",
     "pending": "Kutilmoqda",
     "building": "Yigʻilmoqda",
     "ready": "Tayyor",

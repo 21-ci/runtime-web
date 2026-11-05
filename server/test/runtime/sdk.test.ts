@@ -53,6 +53,13 @@ describe("rtctl SDK", () => {
     expect(() => baked.checkCaller(ctx("ten_other").caller, "ten_baked")).toThrow();
   });
 
+  it("node paths are listed one by one: no archive, no single backup", () => {
+    const node = ["status", "config", "cache", "scheduler", "drain", "series", "stats", "events", "backups", "backups/status"];
+    for (const n of node) expect(mod.pathAllowed("op", `/v1/node/${n}`), n).toBe(true);
+    for (const n of ["backups/bkp_1/archive", "backups/bkp_1", "backups/x/y", "other"]) expect(mod.pathAllowed("op", `/v1/node/${n}`), n).toBe(false);
+    expect(mod.OP_PATHS.filter((p) => p.startsWith("/v1/node/")).sort()).toEqual(node.map((n) => `/v1/node/${n}`).sort());
+  });
+
   it("path allow-list per binding", () => {
     const yes: [string, string][] = [
       ["op", "/v1/tenants"], ["op", "/v1/tenants/ten_1/keys/key_1"], ["op", "/v1/node/status"], ["op", "/v1/version"],
@@ -81,6 +88,11 @@ describe("rtctl SDK", () => {
     expect([fetched[1]!.binding, r.method, new URL(r.url).pathname + new URL(r.url).search]).toEqual(["rtctl-tenant", "PATCH", "/v1/services/svc_1?a=1"]);
     expect([r.headers.get("x-rtweb-key"), r.headers.get("if-match"), r.headers.get("content-type")]).toEqual(["rtk_key_abcdef0123", '"2"', "application/json"]);
     expect(await r.text()).toBe('{"name":"x"}');
+  });
+
+  it("forwards Idempotency-Key, so a retried git deploy is not a second build", async () => {
+    await m().tenant!({ method: "POST", path: "/v1/services/s/versions/from-url", headers: { "idempotency-key": "abc" }, key: "rtk_key_abcdef0123" }, ctx());
+    expect(fetched[0]!.req.headers.get("idempotency-key")).toBe("abc");
   });
 
   it("forwards Range and If-Range and allows HEAD for the data export", async () => {

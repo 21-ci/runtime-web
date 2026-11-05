@@ -74,13 +74,24 @@ export const OP_PATHS = [
   "/v1/tenants/*",
   "/v1/plans",
   "/v1/plans/*",
-  "/v1/node/*",
+  // One by one: `*` spans segments, and a glob would reach /v1/node/backups/{id}/archive and its DELETE.
+  "/v1/node/status",
+  "/v1/node/config",
+  "/v1/node/cache",
+  "/v1/node/scheduler",
+  "/v1/node/drain",
+  "/v1/node/series",
+  "/v1/node/stats",
+  "/v1/node/events",
+  "/v1/node/backups",
+  "/v1/node/backups/status",
   "/v1/version",
   "/v1/hosts",
   "/v1/hosts/*",
   "/v1/services/*/hosts/*",
 ];
 export const TENANT_PATHS = [
+  "/v1/scratch",
   "/v1/services",
   "/v1/services/*",
   "/v1/projects",
@@ -92,7 +103,7 @@ export const TENANT_PATHS = [
   "/v1/limits",
 ];
 const METHODS = new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]);
-const FWD_HEADERS = new Set(["if-match", "if-none-match", "accept", "last-event-id", "range", "if-range"]);
+const FWD_HEADERS = new Set(["if-match", "if-none-match", "accept", "last-event-id", "range", "if-range", "idempotency-key"]);
 
 function glob(p: string): RegExp {
   return new RegExp("^" + p.split("*").map((s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$");

@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { QueryError } from "@/components/features/empty/query-error";
 import { LogsView } from "@/components/features/logs/logs-view";
-import { usePromote } from "@/components/features/versions/use-versions";
+import { usePromoteAndWait } from "@/components/features/versions/use-versions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -63,7 +63,7 @@ export function CodePage({ org, app }: { org: string; app: string }) {
   const files = useFiles(org, app);
   const canDeploy = useCanDeploy(org, view.data?.project);
   const save = useSaveFiles(org, app);
-  const promote = usePromote(org, app);
+  const promote = usePromoteAndWait(org, app);
 
   const [draft, setDraft] = useState<Draft | null>(null);
   const [active, setActive] = useState<string | null>(null);

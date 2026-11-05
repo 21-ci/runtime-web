@@ -30,7 +30,10 @@ Vocabulary, use it exactly:
 | `server/src/{apps,orgs,invites,keys,domains,users,audit}/` | feature services |
 | `server/src/jobs/`, `server/src/jobs.ts` | budgeted job runner; housekeeping run by `scheduled()` |
 | `server/src/metrics/` | the `metric_rollups` ring |
+| `server/src/alerts/` | alert channels, rules, evaluation into state and outbox, the send job |
 | `server/src/hooks/` | webhook verification (GitHub, Gitea, GitLab) and outbound signing |
+| `server/src/git/` | repository links and branch rules; webhook to deploy pipeline with the head check |
+| `deploy-action/` | GitHub Action that calls `POST …/deploys` |
 | `server/src/runtime/` | control-API client over `sdk("rtctl")`; `errors.ts` maps runtime errors |
 | `server/src/db/`, `server/src/storage/` | schema migrations; `std:sql` / `std:kv` adapters |
 | `server/src/crypto/`, `server/src/config.ts` | AES-GCM sealing, argon2id, TOTP; env config |

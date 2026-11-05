@@ -24,6 +24,8 @@
 #   --version X.Y.Z        Runtime Web release (default: the latest)
 #   --yes, -y              never ask; use the flags and the defaults
 #   --dry-run              print every step instead of changing the host (needs no root, no network)
+#   --restore ARCHIVE      bare mode: restore an rt backup into this new node before it first starts; needs
+#                          --master-key FILE (the key that sealed the data), optional --revoke-keys-before TIME
 #   --uninstall            remove Runtime Web (mode from --mode or detected); data volumes stay unless --purge
 #   --purge                with --uninstall --mode docker: also delete the data volumes and the secrets
 #   --wildcard-cert        one wildcard certificate for *.<apps-domain> (Let's Encrypt DNS-01): the default when a
@@ -165,6 +167,10 @@ CADDY_SHA256=""
 DNS_TOKEN=""
 BASE_DOMAIN=""
 
+RESTORE=""
+RESTORE_MASTER_KEY=""
+RESTORE_REVOKE=""
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --mode) need_arg "$@"; MODE=$2; shift 2 ;;
@@ -195,6 +201,9 @@ while [ "$#" -gt 0 ]; do
     --caddy-sha256) need_arg "$@"; CADDY_SHA256=$2; shift 2 ;;
     --yes | -y) ASSUME_YES=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
+    --restore) need_arg "$@"; RESTORE=$2; shift 2 ;;
+    --master-key) need_arg "$@"; RESTORE_MASTER_KEY=$2; shift 2 ;;
+    --revoke-keys-before) need_arg "$@"; RESTORE_REVOKE=$2; shift 2 ;;
     --uninstall) UNINSTALL=1; shift ;;
     --purge) PURGE=1; shift ;;
     -h | --help) usage; exit 0 ;;
@@ -204,6 +213,8 @@ done
 
 init_ui
 init_tty
+
+check_restore_args
 
 # --- uninstall -----------------------------------------------------------------------------------------------------
 if [ "$UNINSTALL" = 1 ]; then
@@ -551,12 +562,49 @@ usage: install.sh [--mode bare|docker] [--domain HOST] [--apps-domain HOST] [--e
          bare:    [--public-url URL] [--default-plan NAME] [--runtime-version X.Y.Z] [--tarball PATH [--sha256 HEX]]
          docker:  [--image REF] [--install-docker] [--http-port N] [--https-port N] [--docker-subnet CIDR]
                   [--insecure-skip-signature]
+       install.sh --restore ARCHIVE --master-key FILE [--revoke-keys-before TIME] --mode bare [other flags]
        install.sh --uninstall [--mode bare|docker] [--purge] [--dry-run]
 
 Installs Runtime Web, the 21 Cloud console, with HTTPS from Let's Encrypt: as a systemd service with Caddy on the
 host (bare) or as containers with docker compose (docker). With a terminal it asks for what is missing; with --yes
 or without a terminal it never asks. Release signatures are verified with cosign (Sigstore).
 EOF
+}
+
+# check_restore_args: refuses a bad --restore before anything is installed.
+check_restore_args() {
+  if [ -z "$RESTORE" ]; then
+    [ -z "$RESTORE_MASTER_KEY$RESTORE_REVOKE" ] || die "--master-key and --revoke-keys-before go with --restore"
+    return 0
+  fi
+  [ "$UNINSTALL" = 0 ] || die "--restore does not go with --uninstall"
+  [ "$MODE" = bare ] || die "--restore needs --mode bare (docker: run 'rt backup restore' in the image, see docs/admin/operations.md)"
+  [ -f "$RESTORE" ] || die "--restore: no such archive: $RESTORE"
+  [ -n "$RESTORE_MASTER_KEY" ] || die "--restore needs --master-key FILE: the archive never holds the master key"
+  [ -f "$RESTORE_MASTER_KEY" ] || die "--master-key: no such file: $RESTORE_MASTER_KEY"
+  if [ -n "$RESTORE_REVOKE" ]; then
+    printf '%s' "$RESTORE_REVOKE" | grep -Eq '^[0-9A-Za-z:.+-]{1,40}$' || die "bad --revoke-keys-before '$RESTORE_REVOKE'"
+  fi
+}
+
+# restore_data: runs once rt is installed and before it first starts. rt checks the archive's MAC and refuses a
+# data directory that is not empty, so a node with data is never overwritten. The key goes in place afterwards.
+restore_data() {
+  [ -n "$RESTORE" ] || return 0
+  if [ "$DRY_RUN" = 0 ]; then
+    /usr/bin/rt backup restore --help >/dev/null 2>&1 ||
+      die "rt $RT_VERSION has no 'backup restore': pass --runtime-version with the version that made the backup"
+    [ -z "$(ls -A /var/lib/rt 2>/dev/null)" ] || die "--restore needs an empty /var/lib/rt: this node already has data"
+  fi
+  step "restoring $RESTORE into /var/lib/rt"
+  if [ -n "$RESTORE_REVOKE" ]; then
+    run env RT_MASTER_KEY_FILE="$RESTORE_MASTER_KEY" /usr/bin/rt backup restore "$RESTORE" --data-dir /var/lib/rt --revoke-keys-before "$RESTORE_REVOKE"
+  else
+    run env RT_MASTER_KEY_FILE="$RESTORE_MASTER_KEY" /usr/bin/rt backup restore "$RESTORE" --data-dir /var/lib/rt
+  fi
+  run install -m 0400 -o rt -g rt "$RESTORE_MASTER_KEY" /var/lib/rt/master.key
+  run chown -R rt:rt /var/lib/rt
+  ok "restored. Bump the console session epoch and rotate tenant keys if the backup predates a revocation"
 }
 
 valid_version() { printf '%s' "$1" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; }
@@ -892,6 +940,7 @@ install_bare() {
     ok "found $(rt --version 2>/dev/null || echo rt)"
   else
     install_rt
+    restore_data
   fi
 
   if [ "$DRY_RUN" = 1 ]; then

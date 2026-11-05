@@ -4,6 +4,7 @@ import { Server } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
+import { NodeMonitor } from "@/components/features/admin/node-monitor";
 import { KeyValueCard, KeyValueTables } from "@/components/features/admin/key-value-card";
 import {
   useDrainNode,
@@ -46,6 +47,8 @@ function AdminNodePage() {
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <PageHeader icon={Server} entity="admin" title={t("node.title")} description={t("node.description")} />
+
+      <NodeMonitor />
 
       <div className="grid min-w-0 gap-4 md:grid-cols-2">
         <KeyValueCard title={t("node.status")} description={t("node.statusDescription")} query={status} tables="omit" />

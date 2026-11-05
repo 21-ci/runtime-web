@@ -38,6 +38,8 @@ export class RuntimeTimeout extends RuntimeUnavailable {
 
 /** A hung binding would otherwise hold the request until the task wall limit. */
 export const DEFAULT_RUNTIME_TIMEOUT_MS = 10_000;
+/** PUT live runs SQL migrations (node budget 60 s); the task's 30 s wall is the real limit. */
+export const LIVE_TIMEOUT_MS = 25_000;
 
 const STATUS_TEXT: Record<number, string> = {
   400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found", 409: "Conflict",
@@ -71,6 +73,17 @@ const svc = (id: string) => `/v1/services/${seg(id)}`;
 const ver = (id: string, v: number) => `${svc(id)}/versions/${v}`;
 const cur = (cursor?: string) => (cursor ? { cursor } : undefined);
 
+export interface FromUrlBody {
+  url: string;
+  /** Credentials for the archive's host. The runtime drops them on a cross-origin redirect and never stores them. */
+  headers?: Record<string, string>;
+  strip_components?: number;
+  subdir?: string;
+  compile?: "eager";
+  activate?: "after_build" | null;
+  meta?: { git?: { sha: string; ref?: string; repo?: string; author?: string; message?: string } };
+}
+
 /** Body of a 2xx result plus its ETag. */
 export interface WithEtag<V> {
   value: V;
@@ -83,20 +96,21 @@ export class Scoped {
     private readonly timeoutMs = DEFAULT_RUNTIME_TIMEOUT_MS,
   ) {}
 
-  private deadline(req: CtlReq): Promise<CtlRes> {
+  private deadline(req: CtlReq, atLeastMs: number): Promise<CtlRes> {
     if (!(this.timeoutMs > 0)) return this.send(req);
+    const ms = Math.max(this.timeoutMs, atLeastMs);
     let timer: ReturnType<typeof setTimeout> | undefined;
     const expired = new Promise<never>((_, reject) => {
-      timer = setTimeout(() => reject(new RuntimeTimeout(`${req.method} ${req.path} after ${this.timeoutMs} ms`)), this.timeoutMs);
+      timer = setTimeout(() => reject(new RuntimeTimeout(`${req.method} ${req.path} after ${ms} ms`)), ms);
     });
     return Promise.race([this.send(req), expired]).finally(() => clearTimeout(timer));
   }
 
   /** Raw call: returns the response on 2xx, throws RuntimeError otherwise. */
-  async raw(req: CtlReq): Promise<CtlRes> {
+  async raw(req: CtlReq, atLeastMs = 0): Promise<CtlRes> {
     let res: CtlRes;
     try {
-      res = await this.deadline(req);
+      res = await this.deadline(req, atLeastMs);
     } catch (e) {
       rethrowBudget(e);
       if (e instanceof RuntimeError || e instanceof RuntimeUnavailable) throw e;
@@ -109,8 +123,8 @@ export class Scoped {
     return res;
   }
 
-  async call<V>(req: CtlReq): Promise<V> {
-    return (await this.raw(req)).body as V;
+  async call<V>(req: CtlReq, atLeastMs = 0): Promise<V> {
+    return (await this.raw(req, atLeastMs)).body as V;
   }
 
   private async tagged<V extends { etag?: string }>(req: CtlReq): Promise<WithEtag<V>> {
@@ -176,6 +190,13 @@ export class Scoped {
       body,
       contentType,
     });
+  /**
+   * The runtime fetches the archive itself: the console cannot relay one over the SDK's RPC cap.
+   * Answers 202 with build_state "fetching" before any download, so it needs no long deadline. Poll getVersion.
+   * A replay returns the first body, except after a node restart, which can make a second version.
+   */
+  fromUrl = (s: string, b: FromUrlBody, idempotencyKey: string) =>
+    this.call<T.Version>({ method: "POST", path: `${svc(s)}/versions/from-url`, body: b, headers: { "idempotency-key": idempotencyKey } });
   getVersion = (s: string, v: number) => this.call<T.Version>({ method: "GET", path: ver(s, v) });
   listVersions = (s: string) => this.call<T.Version[]>({ method: "GET", path: `${svc(s)}/versions` });
   versionSource = async (s: string, v: number) => {
@@ -183,10 +204,41 @@ export class Scoped {
     return { body: res.body, encoding: res.encoding, contentType: res.headers["content-type"] ?? "" };
   };
   rebuild = (s: string, v: number) => this.call<T.Version>({ method: "POST", path: `${ver(s, v)}/rebuild` });
+  /** Pending SQL migrations run inside this call, so it may take longer than a read. */
   setLive = (s: string, version: number, ifMatch = "") =>
-    this.call<T.Service>({ method: "PUT", path: `${svc(s)}/live`, body: { version }, headers: ifMatchH(ifMatch) });
+    this.call<T.Service & { migrations_applied?: string[] }>(
+      { method: "PUT", path: `${svc(s)}/live`, body: { version }, headers: ifMatchH(ifMatch) },
+      LIVE_TIMEOUT_MS,
+    );
+  /** Answers once the switch row exists; poll getSwitch. A concurrent flip is 409 switch_in_progress, never queued. */
+  setLiveAsync = (s: string, b: { version: number; close_sockets?: boolean; migrate?: boolean }, ifMatch: string) =>
+    this.call<T.Switch>({ method: "PUT", path: `${svc(s)}/live`, query: { async: 1 }, body: b, headers: ifMatchH(ifMatch) });
+  /** A preview: a separate, isolated service the node deletes at its expiry. */
+  createScratch = (b: T.ScratchCreate) => this.call<T.Service>({ method: "POST", path: "/v1/scratch", body: b });
+  // read-only data browser: needs a key holding data:read
+  dataTables = (s: string) => this.call<T.DataTables>({ method: "GET", path: `${svc(s)}/data/tables` });
+  dataQuery = (s: string, b: T.DataQuery) => this.call<T.DataResult>({ method: "POST", path: `${svc(s)}/data/query`, body: b });
+  dataKv = (s: string, q: T.DataListQuery) => this.call<T.Page<unknown>>({ method: "GET", path: `${svc(s)}/data/kv`, query: { ...q } });
+  dataKvGet = (s: string, keyB64: string) => this.call<Record<string, unknown>>({ method: "GET", path: `${svc(s)}/data/kv/${seg(keyB64)}` });
+  dataBlobs = (s: string, q: T.DataListQuery) => this.call<T.Page<unknown>>({ method: "GET", path: `${svc(s)}/data/blobs`, query: { ...q } });
+  // app bundles
+  createBundle = (s: string) => this.call<T.BundleState>({ method: "POST", path: `${svc(s)}/bundle` });
+  importBundle = (q: T.ImportQuery, idempotencyKey: string, base64?: string) =>
+    this.call<T.ImportResult>({
+      method: "POST",
+      path: "/v1/services/import",
+      query: { ...q },
+      headers: { "idempotency-key": idempotencyKey },
+      ...(base64 === undefined ? {} : { body: base64, contentType: "application/zstd;base64" }),
+    });
+  /** Runs the pending migrations on a copy of the data; changes nothing. */
+  liveDryRun = (s: string, version: number) =>
+    this.call<{ pending_migrations?: string[] }>({ method: "PUT", path: `${svc(s)}/live`, body: { version, dry_run: true } }, LIVE_TIMEOUT_MS);
+  migrations = (s: string) => this.call<T.Migrations>({ method: "GET", path: `${svc(s)}/migrations` });
 
   // branches and switches
+  createBranch = (s: string, b: { name: string }, idempotencyKey: string) =>
+    this.call<T.Branch>({ method: "POST", path: `${svc(s)}/branches`, body: b, headers: { "idempotency-key": idempotencyKey } });
   listBranches = async (s: string) => {
     const b = await this.call<T.Branch[] | { items: T.Branch[] }>({ method: "GET", path: `${svc(s)}/branches` });
     return Array.isArray(b) ? b : b.items;
@@ -240,8 +292,8 @@ export class Scoped {
   listHosts = (s: string) => this.call<T.Host[]>({ method: "GET", path: `${svc(s)}/hosts` });
   putHost = (s: string, h: string) => this.call<T.Host>({ method: "PUT", path: `${svc(s)}/hosts/${seg(h)}` });
   deleteHost = (s: string, h: string) => this.call<null>({ method: "DELETE", path: `${svc(s)}/hosts/${seg(h)}` });
-  stats = (s: string, window?: string) =>
-    this.call<unknown>({ method: "GET", path: `${svc(s)}/stats`, query: { window } });
+  stats = (s: string, window?: string, step?: string) =>
+    this.call<unknown>({ method: "GET", path: `${svc(s)}/stats`, query: { window, step } });
   events = (s: string, cursor?: string) =>
     this.call<T.Page<T.Event>>({ method: "GET", path: `${svc(s)}/events`, query: cur(cursor) });
 
@@ -253,6 +305,16 @@ export class Scoped {
   nodeCache = () => this.call<unknown>({ method: "GET", path: "/v1/node/cache" });
   nodeScheduler = () => this.call<unknown>({ method: "GET", path: "/v1/node/scheduler" });
   drainNode = () => this.call<null>({ method: "POST", path: "/v1/node/drain" });
+  nodeSeries = (range: string) => this.call<T.NodeSeries>({ method: "GET", path: "/v1/node/series", query: { range } });
+  /** All tenants. The binding strips x-rt-tenant, so a caller filters by each row's `tenant`. */
+  nodeStats = (q: T.NodeStatsQuery) => this.call<T.Page<T.NodeStatsItem>>({ method: "GET", path: "/v1/node/stats", query: { ...q } });
+  nodeEvents = (q: { after?: string | undefined; kinds?: string | undefined; limit?: number | undefined }) =>
+    this.call<T.Page<T.NodeEvent>>({ method: "GET", path: "/v1/node/events", query: { ...q } });
+  // Backups: only these. Download and delete are outside the console's binding.
+  listBackups = (q: { cursor?: string | undefined; limit?: number | undefined }) =>
+    this.call<T.Page<T.Backup>>({ method: "GET", path: "/v1/node/backups", query: { ...q } });
+  backupStatus = () => this.call<T.BackupStatus>({ method: "GET", path: "/v1/node/backups/status" });
+  createBackup = () => this.call<{ id: string; state: string }>({ method: "POST", path: "/v1/node/backups" });
 }
 
 function ifMatchH(v: string): Record<string, string> | undefined {

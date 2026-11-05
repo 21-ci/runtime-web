@@ -44,6 +44,10 @@ const matrix: [string, boolean[]][] = [
   ["app.queue.write", [T, T, T, T, F, F, F, T]],
   ["app.logs.read", [T, T, T, T, T, F, F, T]],
   ["app.data.export", [T, T, T, F, F, F, F, T]],
+  ["app.data.read", [T, T, T, F, F, F, F, T]],
+  ["app.git.manage", [T, T, T, F, F, F, F, T]],
+  ["alert.read", [T, T, F, F, F, F, F, T]],
+  ["alert.write", [T, T, F, F, F, F, F, T]],
   ["instance.admin", [F, F, F, F, F, F, F, T]],
 ];
 

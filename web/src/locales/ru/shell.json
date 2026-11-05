@@ -3,6 +3,7 @@
     "overview": "Обзор",
     "members": "Участники",
     "tokens": "Токены",
+    "alerts": "Оповещения",
     "auditLog": "Журнал аудита",
     "settings": "Настройки",
     "projects": "Проекты",
@@ -23,7 +24,8 @@
     "branches": "Ветки",
     "env": "Окружение и секреты",
     "domains": "Домены",
-    "settings": "Настройки"
+    "settings": "Настройки",
+    "data": "Данные"
   },
   "instance": {
     "title": "Инстанс",
@@ -32,6 +34,8 @@
     "auditLog": "Журнал аудита",
     "node": "Узел",
     "cache": "Кэш",
+    "backups": "Резервные копии",
+    "alerts": "Оповещения",
     "domains": "Домены",
     "settings": "Настройки"
   },
@@ -112,6 +116,7 @@
     "org": "Настройки организации",
     "members": "Участники",
     "tokens": "Токены",
+    "alerts": "Оповещения",
     "auditLog": "Журнал аудита",
     "accountSecurity": "Безопасность аккаунта",
     "instanceUsers": "Инстанс: пользователи",
@@ -119,6 +124,8 @@
     "instanceAudit": "Инстанс: журнал аудита",
     "instanceNode": "Инстанс: узел",
     "instanceCache": "Инстанс: кэш",
+    "instanceBackups": "Инстанс: резервные копии",
+    "instanceAlerts": "Экземпляр: оповещения",
     "instanceDomains": "Инстанс: домены",
     "instanceSettings": "Инстанс: настройки"
   },

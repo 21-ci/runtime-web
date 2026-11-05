@@ -9,6 +9,7 @@ type SettingsLabelKey = `settings.${
   | "org"
   | "members"
   | "tokens"
+  | "alerts"
   | "auditLog"
   | "accountSecurity"
   | "instanceUsers"
@@ -16,6 +17,8 @@ type SettingsLabelKey = `settings.${
   | "instanceAudit"
   | "instanceNode"
   | "instanceCache"
+  | "instanceBackups"
+  | "instanceAlerts"
   | "instanceDomains"
   | "instanceSettings"}`;
 
@@ -23,6 +26,7 @@ export const SETTINGS_REGISTRY: SettingsEntry[] = [
   { labelKey: "settings.org", path: "/$org/settings/general" },
   { labelKey: "settings.members", path: "/$org/settings/members" },
   { labelKey: "settings.tokens", path: "/$org/settings/tokens" },
+  { labelKey: "settings.alerts", path: "/$org/settings/alerts" },
   { labelKey: "settings.auditLog", path: "/$org/settings/audit" },
   { labelKey: "settings.accountSecurity", path: "/me/security" },
   { labelKey: "settings.instanceUsers", path: "/admin/users", admin: true },
@@ -30,6 +34,8 @@ export const SETTINGS_REGISTRY: SettingsEntry[] = [
   { labelKey: "settings.instanceAudit", path: "/admin/audit", admin: true },
   { labelKey: "settings.instanceNode", path: "/admin/node", admin: true },
   { labelKey: "settings.instanceCache", path: "/admin/cache", admin: true },
+  { labelKey: "settings.instanceBackups", path: "/admin/backups", admin: true },
+  { labelKey: "settings.instanceAlerts", path: "/admin/alerts", admin: true },
   { labelKey: "settings.instanceDomains", path: "/admin/domains", admin: true },
   { labelKey: "settings.instanceSettings", path: "/admin/settings", admin: true },
 ];

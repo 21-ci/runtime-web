@@ -26,7 +26,12 @@ function logLine(seq: number, msg: string) {
 }
 
 // setup installs handlers for one app. liveVersion is the app's live version.
-function setup(opts: { liveVersion: number; versions: V[]; files?: Record<string, string> }) {
+const sw = (state: string) => ({
+  id: "swt_1", kind: "promote", state, from_version: 1, to_version: 2, source: null, inflight_old: 0, drain_deadline: null, interrupted: false,
+  error: state === "failed" ? "migration_failed" : null, warnings: [], pending_migrations: null, dry_run: false, created_at: 1, updated_at: 1,
+});
+
+function setup(opts: { liveVersion: number; versions: V[]; files?: Record<string, string>; switchEnds?: string }) {
   const state = { ifMatch: "", body: undefined as unknown, rebuilt: false };
   const app = {
     slug: "hello",
@@ -47,8 +52,9 @@ function setup(opts: { liveVersion: number; versions: V[]; files?: Record<string
     http.put("/api/orgs/:org/apps/:app/live", async ({ request }) => {
       state.ifMatch = request.headers.get("If-Match") ?? "";
       state.body = await request.json();
-      return HttpResponse.json({ live_version: 2, etag: '"etag-2"' }, { headers: { ETag: '"etag-2"' } });
+      return HttpResponse.json(sw("preparing"), { status: 202 });
     }),
+    http.get("/api/orgs/:org/apps/:app/switches/:id", () => HttpResponse.json(sw(opts.switchEnds ?? "draining"))),
     http.post("/api/orgs/:org/apps/:app/versions/:v/rebuild", () => {
       state.rebuilt = true;
       return HttpResponse.json({ ...v(4, "building", false) }, { status: 202 });
@@ -88,6 +94,23 @@ describe("VersionsView", () => {
     renderVersions();
     expect(await screen.findByText("Ada")).toBeInTheDocument();
     expect(screen.getByText("Live")).toBeInTheDocument();
+  });
+
+  it("promote follows the switch until it is committed, and shows a failure with its code", async () => {
+    setup({ liveVersion: 1, versions: [v(1, "ready", true), v(2, "ready", false)], switchEnds: "failed" });
+    renderVersions();
+    const promote = await screen.findByRole("button", { name: "Promote version 2" });
+    await waitFor(() => expect(promote).toBeEnabled());
+    fireEvent.click(promote);
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Promote" }));
+    expect(await within(dialog).findByText(/migration_failed/)).toBeInTheDocument();
+  });
+
+  it("shows a version still fetching its archive", async () => {
+    setup({ liveVersion: 1, versions: [v(1, "ready", true), v(2, "fetching" as V["build_state"], false)] });
+    renderVersions();
+    expect(await screen.findByText("Fetching")).toBeInTheDocument();
   });
 
   it("promote calls PUT live", async () => {

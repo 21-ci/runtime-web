@@ -27,7 +27,7 @@ const app = createApp(deps);
 
 export default {
   fetch(req: Request, ctx: RtCtx): Promise<Response> {
-    return app.fetch(req, ctx.client ? { clientIp: ctx.client.ip } : {});
+    return app.fetch(req, { ...(ctx.client ? { clientIp: ctx.client.ip } : {}), waitUntil: (p) => ctx.waitUntil(p) });
   },
   scheduled(event: { payload?: unknown }): Promise<void> {
     return scheduled(deps, event?.payload);

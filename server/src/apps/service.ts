@@ -3,6 +3,8 @@
 // `Runtime.as(key)`. A slug held by another tenant is invisible to that key and so
 // 404. No resolve cache: each request is its own task.
 
+import { removeLinkOf } from "../git/links.ts";
+import { removePreviewsOf } from "../git/previews.ts";
 import type { Deps } from "../app.ts";
 import { AppError, conflict, invalid, notFound } from "../http/errors.ts";
 import { Runtime, RuntimeError, type Scoped } from "../runtime/client.ts";
@@ -15,11 +17,34 @@ import type { AppLookup } from "../domains/types.ts";
 import { removeAppDomains } from "../domains/domains.ts";
 import type { Actor } from "../orgs/common.ts";
 import { rethrowBudget } from "../jobs/budget.ts";
-import { deleteRollups } from "../metrics/rollups.ts";
+import { deleteRollups, HOUR_STEP_S, readRollups } from "../metrics/rollups.ts";
 import { mapRuntimeError, rt } from "../runtime/errors.ts";
 import { checkBundle, MAX_FILE_BYTES, unpack } from "./source.ts";
 import { appIndexDelete, appIndexPut } from "./index-table.ts";
 import { renderTemplate } from "./templates.ts";
+
+const RATE_RULES_MAX = 32;
+const RATE_RULE_FIELDS = new Set(["path", "methods", "rps", "burst", "by"]);
+const RATE_MAX = 1_000_000;
+
+/** The shape only, mapped to field errors a form can show. The runtime holds the path grammar and has the last word. */
+function parseRateRules(raw: unknown, fields: Record<string, string>): unknown[] {
+  if (!Array.isArray(raw) || raw.length > RATE_RULES_MAX) {
+    fields["ingress.rate_rules"] = "out_of_range";
+    return [];
+  }
+  return raw.map((r: unknown, i) => {
+    const at = `ingress.rate_rules[${i}]`;
+    const o = (r ?? {}) as Record<string, unknown>;
+    for (const k of Object.keys(o)) if (!RATE_RULE_FIELDS.has(k)) fields[`${at}.${k}`] = "unknown";
+    if (typeof o.path !== "string" || !o.path.startsWith("/") || new TextEncoder().encode(o.path).length > 256) fields[`${at}.path`] = "invalid_format";
+    if (!(Number.isInteger(o.rps) && (o.rps as number) >= 1 && (o.rps as number) <= RATE_MAX)) fields[`${at}.rps`] = "out_of_range";
+    if (o.burst !== undefined && !(Number.isInteger(o.burst) && (o.burst as number) >= 0 && (o.burst as number) <= RATE_MAX)) fields[`${at}.burst`] = "out_of_range";
+    if (o.by !== undefined && o.by !== "service" && o.by !== "ip") fields[`${at}.by`] = "not_one_of";
+    if (o.methods !== undefined && !(Array.isArray(o.methods) && o.methods.length <= 16 && o.methods.every((m) => typeof m === "string"))) fields[`${at}.methods`] = "invalid_format";
+    return o;
+  });
+}
 
 /** Clock seams (tests replace sleep with a fake-clock tick). */
 export const timing = {
@@ -202,7 +227,7 @@ export function toServicePatch(b: Record<string, unknown>): T.ServicePatch {
     out.scaling = b.scaling;
   }
   if (b.ingress !== undefined) {
-    const ig = (b.ingress ?? {}) as { methods?: unknown; path_prefixes?: unknown; ip_allow?: unknown; rate_limit?: unknown };
+    const ig = (b.ingress ?? {}) as { methods?: unknown; path_prefixes?: unknown; ip_allow?: unknown; rate_limit?: unknown; rate_rules?: unknown };
     const ip = Array.isArray(ig.ip_allow) ? ig.ip_allow : [];
     ip.forEach((v, i) => {
       if (typeof v !== "string" || !isCidr(v)) fields[`ingress.ip_allow[${i}]`] = "invalid_format";
@@ -212,6 +237,10 @@ export function toServicePatch(b: Record<string, unknown>): T.ServicePatch {
     if (Array.isArray(ig.path_prefixes) && ig.path_prefixes.length) ing.allow_paths = ig.path_prefixes;
     if (ip.length) ing.ip_allow = ip;
     if (ig.rate_limit !== undefined && ig.rate_limit !== null) ing.rate_limit = ig.rate_limit;
+    if (ig.rate_rules !== undefined && ig.rate_rules !== null) {
+      const rules = parseRateRules(ig.rate_rules, fields);
+      if (rules.length) ing.rate_rules = rules;
+    }
     out.ingress = ing;
   }
   if (b.call !== undefined) {
@@ -262,6 +291,8 @@ export async function deleteApp(c: OrgCtx, slug: string) {
   }
   await appIndexDelete(c.deps.storage.db, app.slug);
   await deleteRollups(c.deps.storage.db, app.id);
+  await removeLinkOf(c.deps, c.org.id, app.id);
+  await removePreviewsOf(c.deps, c.org.id, c.org.tenantId, app.id);
   return app;
 }
 
@@ -405,7 +436,29 @@ export async function promote(c: OrgCtx, slug: string, version: number, etag: st
   const app = await appFor(c, slug, "app.deploy");
   if (!etag) throw new AppError(428, "precondition_required", "If-Match header required");
   const svc = await rt(() => c.cli.setLive(app.id, version, etag));
-  return { live_version: version, etag: svc.etag };
+  return { live_version: version, etag: svc.etag, ...(svc.migrations_applied ? { migrations_applied: svc.migrations_applied } : {}) };
+}
+
+export async function migrations(c: OrgCtx, slug: string) {
+  const app = await appFor(c, slug, "app.read");
+  return rt(() => c.cli.migrations(app.id));
+}
+
+/** Runs what a promote of this version would on a copy of the data. A failure answers like a real promote. */
+export async function promoteDryRun(c: OrgCtx, slug: string, version: number) {
+  const app = await appFor(c, slug, "app.deploy");
+  const out = await rt(() => c.cli.liveDryRun(app.id, version));
+  return { pending_migrations: out.pending_migrations ?? [] };
+}
+
+const WEEK_MS = 7 * 86_400_000;
+
+/** The week view reads the ring: the node's own figures end at 24 h. Per-hour counts, no week-wide percentile. */
+export async function weekStats(c: OrgCtx, slug: string) {
+  const app = await appFor(c, slug, "app.logs.read");
+  const now = c.deps.now();
+  const rows = await readRollups(c.deps.storage.db, app.id, HOUR_STEP_S, now - WEEK_MS, now);
+  return { window: "7d", step_s: HOUR_STEP_S, series: rows.map((r) => ({ ts: r.ts, count: r.data.count ?? 0, errors: r.data.errors ?? 0 })), data_from: rows[0]?.ts ?? null };
 }
 
 export async function rebuild(c: OrgCtx, slug: string, v: number) {

@@ -19,7 +19,9 @@ export type Action =
   | "app.secrets.write"
   | "app.schedules.write"
   | "app.queue.write"
-  | "app.data.export";
+  | "app.data.export"
+  | "app.data.read"
+  | "app.git.manage";
 
 export type ProjectRole = "admin" | "developer" | "viewer";
 
@@ -28,6 +30,8 @@ const PROJECT_LEVEL: Partial<Record<Action, ProjectRole>> = {
   "domains.manage": "admin",
   "app.secrets.write": "admin",
   "app.data.export": "admin",
+  "app.data.read": "admin",
+  "app.git.manage": "admin",
   "app.update": "developer",
   "app.delete": "developer",
   "app.deploy": "developer",

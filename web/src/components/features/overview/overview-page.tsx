@@ -18,6 +18,7 @@ import { useProjects } from "@/hooks/orgs";
 import { formatCount } from "@/lib/format";
 
 import { EventsPanel } from "./events-panel";
+import { AppCharts } from "./app-charts";
 import { useAppStats, type AppStats } from "./hooks";
 
 type TileLabel = "stats.requests" | "stats.errors" | "stats.errorRate" | "stats.p50" | "stats.p95" | "stats.p99";
@@ -160,6 +161,8 @@ export function OverviewPage({ org, app }: { org: string; app: string }) {
           </dl>
         )}
       </section>
+
+      <AppCharts org={org} app={app} />
 
       <SectionCard
         title={t("code.title")}

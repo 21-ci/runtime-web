@@ -16,12 +16,15 @@ export function runtimeAppError(e: unknown): AppError | null {
   if (!(e instanceof RuntimeError)) return null;
   const retry = { retry_after: e.retryAfter ?? 1 };
   const msg = bare(e);
+  if (e.code === "sql_busy" || e.code === "sql_timeout") return new AppError(503, e.code, "The query could not run in time. Try again.", retry);
   if (e.status === 503 && (e.code === "queue_timeout" || e.code === "overloaded")) {
     return new AppError(503, "busy", "runtime busy", retry);
   }
   if (e.code === "heavy_job_busy") return new AppError(429, e.code, "Another export or data copy is running. Try again shortly.", retry);
   if (e.code === "insufficient_storage") return new AppError(507, e.code, "The node has no room for the data snapshot.");
   if (e.code === "range_not_satisfiable") return new AppError(416, e.code, "This range of the data snapshot cannot be served.");
+  if (e.code === "backup_disabled") return new AppError(503, e.code, "Backups are not enabled on this node.");
+  if (MIGRATION_CODES.has(e.code)) return new AppError(409, e.code, msg || e.code, asDetails(e.details));
   if (e.status === 429) return new AppError(429, e.code, "runtime rate limited", retry);
   if (e.status === 404) return new AppError(404, "not_found", "not found");
   if (e.status === 412) return new AppError(409, "stale", "changed elsewhere, reload");
@@ -40,6 +43,8 @@ function unavailable(e: Error): AppError {
 }
 
 const PLAN_LIMIT = new Set(["trigger_not_allowed", "quota_exceeded"]);
+/** The file and statement of a failed migration are what its author needs; the runtime sanitizes them. */
+const MIGRATION_CODES = new Set(["migration_failed", "migration_drift", "migration_out_of_order", "migration_timeout", "transaction_control_forbidden"]);
 
 /** The runtime's own message without the "runtime: 409 code: " prefix. */
 const bare = (e: RuntimeError) => e.message.replace(/^runtime: \d+ [a-z_0-9]+: /, "");

@@ -1,0 +1,81 @@
+{
+  "range": {
+    "label": "Davr",
+    "1h": "1 soat",
+    "6h": "6 soat",
+    "24h": "24 soat",
+    "7d": "7 kun"
+  },
+  "chart": {
+    "noData": "Bu davrda ma'lumot yo'q.",
+    "table": "Jadval sifatida ko'rsatish",
+    "time": "Vaqt",
+    "value": "Qiymat",
+    "dataFrom": "Ma'lumotlar {{time}} dan boshlanadi.",
+    "restart": "Tugun buni xotirada saqlaydi, shuning uchun qayta ishga tushgach yangidan boshlanadi."
+  },
+  "node": {
+    "title": "Monitoring",
+    "cpu": "CPU, %",
+    "load": "Yuklama (1 daq)",
+    "memory": "Band xotira",
+    "diskFree": "Bo'sh disk",
+    "rx": "Tarmoq: kiruvchi",
+    "tx": "Tarmoq: chiquvchi",
+    "uptime": "Ish vaqti",
+    "unavailable": "Tugun monitoring ma'lumotini bermayapti. Eski runtime versiyasi bo'lishi mumkin.",
+    "top": "So'nggi soatda eng band ilovalar",
+    "slug": "Ilova",
+    "requests": "So'rovlar",
+    "errors": "Xatolar",
+    "events": "Tugun hodisalari",
+    "eventsEmpty": "Hozircha hodisalar yo'q.",
+    "kind": "Hodisa"
+  },
+  "app": {
+    "title": "Trafik",
+    "requests": "So'rovlar",
+    "errors": "Xatolar",
+    "p95": "p95, ms",
+    "weekNote": "Soatlik hisoblagichlar. Bu davr uchun persentillar saqlanmaydi."
+  },
+  "backups": {
+    "title": "Zaxira nusxalar",
+    "description": "Tugunning zaxira nusxalari. Arxivlarda barcha ijarachilar ma'lumoti bor.",
+    "status": "Holat",
+    "enabled": "Yoqilgan",
+    "disabled": "Yoqilmagan",
+    "schedule": "Jadval",
+    "lastOk": "Oxirgi muvaffaqiyatli nusxa",
+    "next": "Keyingi ishga tushish",
+    "destination": "Saqlash joyi",
+    "never": "Hech qachon",
+    "failure": "Oxirgi nusxa muvaffaqiyatsiz: {{code}}",
+    "now": "Hozir nusxalash",
+    "running": "Nusxalash ketmoqda",
+    "started": "Nusxalash boshlandi",
+    "list": "Tarix",
+    "empty": "Hozircha nusxalar yo'q.",
+    "id": "ID",
+    "state": "Holat",
+    "started_at": "Boshlangan",
+    "size": "Hajm",
+    "plain": "Shifrlanmagan",
+    "download": "Yuklab olish",
+    "downloadHint": "Konsol arxivlarni yuklab olmaydi. Tugunda bajaring:",
+    "config": "Sozlama",
+    "configHint": "Bu yerda faqat o'qish. O'zgartirish uchun buni tugunning rt.toml fayliga yozing va qayta ishga tushiring."
+  },
+  "migrations": {
+    "title": "SQL migratsiyalar",
+    "description": "Ilova bazasiga qo'llangan va oxirgi versiyada kutayotganlar.",
+    "applied": "Qo'llangan",
+    "pending": "Kutmoqda",
+    "none": "Yo'q",
+    "promoteWill": "Ma'lumot nusxasida tekshirildi. Nashr quyidagilarni qo'llaydi:",
+    "checking": "Migratsiyalar ma'lumot nusxasida tekshirilmoqda…",
+    "failed": "Bu migratsiya o'tmaydi: {{file}}, ifoda {{statement}}: {{message}}",
+    "failedPlain": "Migratsiyalarni bajarib bo'lmaydi: {{code}}",
+    "compat": "Eski kod biroz vaqt yangi sxemada ishlaydi, orqaga qaytarishdan keyin ham. Migratsiyalarni orqaga mos qiling."
+  }
+}

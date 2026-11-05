@@ -9,15 +9,15 @@ import type * as T from "../../src/runtime/types.ts";
 import type { CtlReq, CtlRes, RtCtl } from "../../src/runtime/types.ts";
 
 // Keep in sync with sdk/rtctl/mod.ts (OP_PATHS / TENANT_PATHS).
-const OP_PATHS = ["/v1/tenants", "/v1/tenants/*", "/v1/plans", "/v1/plans/*", "/v1/node/*", "/v1/version", "/v1/hosts", "/v1/hosts/*", "/v1/services/*/hosts/*"];
-const TENANT_PATHS = ["/v1/services", "/v1/services/*", "/v1/projects", "/v1/projects/*", "/v1/keys", "/v1/keys/*", "/v1/tenants/*/usage", "/v1/me", "/v1/limits"];
+const OP_PATHS = ["/v1/tenants", "/v1/tenants/*", "/v1/plans", "/v1/plans/*", "/v1/node/status", "/v1/node/config", "/v1/node/cache", "/v1/node/scheduler", "/v1/node/drain", "/v1/node/series", "/v1/node/stats", "/v1/node/events", "/v1/node/backups", "/v1/node/backups/status", "/v1/version", "/v1/hosts", "/v1/hosts/*", "/v1/services/*/hosts/*"];
+const TENANT_PATHS = ["/v1/scratch", "/v1/services", "/v1/services/*", "/v1/projects", "/v1/projects/*", "/v1/keys", "/v1/keys/*", "/v1/tenants/*/usage", "/v1/me", "/v1/limits"];
 const glob = (p: string) => new RegExp("^" + p.split("*").map((s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$");
 const OP_RE = OP_PATHS.map(glob);
 const TENANT_RE = TENANT_PATHS.map(glob);
 
 export const VALID_SCOPES = new Set<string>([
   "services:read", "services:write", "deploy", "invoke", "logs:read", "env:write",
-  "secrets:write", "queue:write", "data:admin", "keys:write", "sockets:write",
+  "secrets:write", "queue:write", "data:admin", "data:read", "keys:write", "sockets:write",
 ]);
 const SLUG_RE = /^[a-z][a-z0-9-]{1,62}$/;
 const ENV_RE = /^[a-z][a-z0-9-]{0,31}$/;
@@ -35,7 +35,61 @@ const unauthorized = () => new ApiErr(401, "unauthorized", "missing or invalid c
 const notFound = () => new ApiErr(404, "not_found", "not found");
 const scopeErr = (details: Record<string, unknown> = {}) => new ApiErr(403, "insufficient_scope", "insufficient scope", details);
 const escalation = () => scopeErr({ reason: "escalation" });
-const invalid = (msg: string) => new ApiErr(422, "validation_failed", msg);
+const invalid = (msg: string, code = "validation_failed") => new ApiErr(422, code, msg);
+
+// The checks of crates/rt-api/src/from_url.rs, in its order.
+const REFUSED_HEADERS = new Set(["host", "connection", "keep-alive", "proxy-authenticate", "proxy-authorization", "proxy-connection", "te", "trailer", "transfer-encoding", "upgrade", "content-length", "forwarded", "x-forwarded-for", "x-forwarded-host", "x-forwarded-proto"]);
+const bytes = (s: string) => new TextEncoder().encode(s).length;
+function checkMetaText(field: string, v: unknown, max: number): string | null {
+  if (typeof v !== "string") return `meta: ${field} must be a string`;
+  // eslint-disable-next-line no-control-regex
+  if (bytes(v) > max || (field !== "message" && /[\u0000-\u001f\u007f-\u009f]/.test(v))) return `meta: ${field} too long or has control characters`;
+  return null;
+}
+function checkFromUrl(b: Record<string, unknown>): string | null {
+  let url: URL;
+  try {
+    url = new URL(String(b.url));
+  } catch {
+    return "url is not a valid URL";
+  }
+  // The real route lets the fetcher refuse http (egress_denied); tests treat it as a bad request.
+  if (url.protocol !== "https:") return "url must be https";
+  for (const n of Object.keys((b.headers ?? {}) as object)) {
+    const lower = n.toLowerCase();
+    if (REFUSED_HEADERS.has(lower) || lower.startsWith("x-rt-")) return `header ${lower} cannot be set`;
+  }
+  if (typeof b.strip_components === "number" && b.strip_components > 16) return "strip_components too large";
+  if (b.activate !== undefined && b.activate !== null && b.activate !== "after_build") return "activate is after_build or absent";
+  if (b.activate === "after_build" && b.compile === "lazy") return "activate after_build implies an eager build";
+  if (b.meta === undefined || b.meta === null) return null;
+  const meta = b.meta as Record<string, unknown>;
+  if (bytes(JSON.stringify(meta)) > 4096) return "meta is limited to 4096 bytes";
+  for (const [k, v] of Object.entries(meta)) {
+    if (k === "label") {
+      const e = checkMetaText("label", v, 256);
+      if (e) return e;
+    } else if (k !== "git") return `meta: unknown key ${k}`;
+  }
+  const limits: Record<string, number> = { ref: 256, repo: 512, author: 256, message: 1024 };
+  for (const [k, v] of Object.entries((meta.git ?? {}) as Record<string, unknown>)) {
+    if (k === "sha") {
+      if (typeof v !== "string" || !/^[0-9a-fA-F]{7,64}$/.test(v)) return "meta: git.sha";
+      continue;
+    }
+    const max = limits[k];
+    if (max === undefined) return `meta: unknown key git.${k}`;
+    const e = checkMetaText(k, v, max);
+    if (e) return e;
+    if (k === "repo" && String(v).includes("://") && String(v).includes("@")) return "meta: git.repo must not carry credentials";
+  }
+  return null;
+}
+/** Query and header values stay out: they are credentials. */
+function fromUrlFingerprint(b: Record<string, unknown>): string {
+  const u = new URL(String(b.url));
+  return JSON.stringify([u.origin + u.pathname, Object.keys((b.headers ?? {}) as object).sort(), b.sha256 ?? "", b.strip_components ?? 0, b.subdir ?? "", b.entry ?? "", b.meta ?? "", b.compile ?? "", b.activate ?? ""]);
+}
 const conflict = (code: string, msg: string) => new ApiErr(409, code, msg);
 
 interface FTenant { id: string; name: string; plan: string; overrides?: unknown; created_at: number; disabled: boolean }
@@ -131,6 +185,45 @@ export class FakeRtCtl implements RtCtl {
       v.failure = { reason: "build_failed", message: "build failed", diagnostics };
     }
   }
+  /** Every `versions/from-url` call, credentials included: the runtime's route is mocked here to its documented shape. */
+  readonly fromUrlCalls: { service: string; body: Record<string, unknown>; idempotencyKey: string }[] = [];
+  fromUrlError: { status: number; code: string; message: string } | null = null;
+  /** How long the route holds its response: the real one answers after the download. */
+  private readonly fromUrlIdem = new Map<string, { fp: string; res: CtlRes }>();
+  nodeSeries: T.NodeSeriesPoint[] = [];
+  nodeStats: T.NodeStatsItem[] = [];
+  readonly nodeStatsQueries: Record<string, string | undefined>[] = [];
+  nodeEvents: T.NodeEvent[] = [];
+  nodeHost: T.NodeStatus["host"] | undefined;
+  backupStatusOver: Partial<T.BackupStatus> = {};
+  backups: T.Backup[] = [];
+  readonly migrations = new Map<string, T.Migrations>();
+  liveError: { status: number; code: string; message: string; details?: Record<string, unknown> } | null = null;
+  liveApplied: string[] | null = null;
+  nextBuildState: "ready" | "failed" = "ready";
+  /** The code the next from-url's fetch ends in, on the version: the POST itself still answers 202. */
+  fromUrlFailure: string | null = null;
+  /** Keeps from-url versions in "fetching" until releaseFetches. */
+  fromUrlHold = false;
+  private fromUrlHeld: (() => void)[] = [];
+  releaseFetches() {
+    this.fromUrlHold = false;
+    for (const f of this.fromUrlHeld.splice(0)) f();
+  }
+  /** Where an async promote is after its 202. */
+  asyncLiveState = "draining";
+  readonly bundles = new Map<string, string>();
+  bundleBytes = "AAAA";
+  readonly imports: { query: Record<string, string>; body: unknown; idempotencyKey: string }[] = [];
+  readonly scratchCalls: Record<string, unknown>[] = [];
+  scratchError: { status: number; code: string; message: string } | null = null;
+  readonly dataReads: { service: string; path: string; body: unknown }[] = [];
+  dataRefusal: { status: number; code: string; message: string } | null = null;
+
+  branchOf(parentId: string, name: string): FService | undefined {
+    return [...this.services.values()].find((x) => branchOf(x)?.of === parentId && (x.view as unknown as { scratch: { name: string } }).scratch.name === name);
+  }
+
   /** A branch of parent as the runtime stores it: its own service, env label and data, one live version. */
   seedBranch(parentId: string, name: string, o: { expires_at?: number; live?: boolean; env?: Record<string, string>; project?: string } = {}): FService {
     const parent = this.services.get(parentId);
@@ -272,7 +365,7 @@ export class FakeRtCtl implements RtCtl {
       if (is("GET", "node", "status")) {
         return ok({
           version: "rtctl-fake", mode: this.drained ? "draining" : "normal", default_profile: String(this.nodeConfig.default_profile),
-          v8_sandbox: true, processors: 4, kinds: {}, memory: {}, inflight: 0, sockets: { open: 0, objects: 0, pending: 0, max: 0 },
+          v8_sandbox: true, processors: 4, kinds: {}, memory: {}, inflight: 0, sockets: { open: 0, objects: 0, pending: 0, max: 0 }, ...(this.nodeHost ? { host: this.nodeHost } : {}),
         });
       }
       if (is("GET", "node", "config")) return ok(this.nodeConfig);
@@ -290,6 +383,28 @@ export class FakeRtCtl implements RtCtl {
       if (is("GET", "node", "cache")) return ok({ entries: 0 });
       if (is("GET", "node", "scheduler")) return ok({ kinds: {} });
       if (is("POST", "node", "drain")) return (this.drained = true), noContent();
+      if (is("GET", "node", "series")) return ok({ range: q.range ?? "1h", step_s: q.range === "1h" ? 60 : 300, points: this.nodeSeries });
+      if (is("GET", "node", "stats")) {
+        this.nodeStatsQueries.push({ ...q });
+        const limit = Math.min(Number(q.limit ?? 100), 200);
+        const start = Number(q.cursor ?? 0);
+        const end = start + limit;
+        return ok({ items: this.nodeStats.slice(start, end), next_cursor: end < this.nodeStats.length ? String(end) : null });
+      }
+      if (is("GET", "node", "events")) {
+        const after = Number(q.after ?? 0);
+        return ok({ items: this.nodeEvents.filter((e) => Number(e.id) > after), next_cursor: null });
+      }
+      if (is("GET", "node", "backups")) return ok({ items: this.backups, next_cursor: null });
+      if (is("GET", "node", "backups", "status")) {
+        return ok({ enabled: true, schedule: "0 3 * * *", last_ok_at: null, last_ok_id: null, last_failure: null, next_at: null, running_id: this.backups.find((b) => b.state === "running")?.id ?? null, last_restored_at: null, destination: { kind: "local" }, ...this.backupStatusOver });
+      }
+      if (is("POST", "node", "backups")) {
+        if (this.backups.some((b) => b.state === "running")) return conflict("backup_running", "a backup is running");
+        const id = `bkp_${this.backups.length + 1}`;
+        this.backups.unshift({ id, state: "running", trigger: "api", started_at: this.now(), finished_at: null, bytes: null, sha256: null, encrypted: false, verified_at: null, rt_version: "rtctl-fake", failure: null });
+        return ok({ id, state: "running" }, 202);
+      }
     }
 
     // self
@@ -340,6 +455,23 @@ export class FakeRtCtl implements RtCtl {
     if (r[0] === "projects") return this.projectRoutes(p, method, r, body, need, is);
 
     // services
+    if (is("POST", "scratch")) {
+      need("services:write");
+      if (this.scratchError) return new ApiErr(this.scratchError.status, this.scratchError.code, this.scratchError.message);
+      const b = obj(body);
+      const parent = this.serviceFor(p, String(b.of ?? ""));
+      if (!parent) return notFound();
+      const made = this.seedBranch(parent.view.id, String(b.name));
+      const hex8 = made.view.id.replace(/[^a-z0-9]/g, "").slice(-8).padStart(8, "0");
+      const mv = made.view as unknown as { slug: string; environment: string; scratch: Record<string, unknown> };
+      mv.slug = `${parent.view.slug}-${String(b.name)}-${hex8}`;
+      mv.environment = `preview-${hex8}`;
+      mv.scratch = { of: parent.view.id, kind: "preview", name: String(b.name), expires_at: this.now() + Number(b.ttl_seconds ?? 0) * 1000 };
+      made.live = null;
+      made.versions = [];
+      this.scratchCalls.push(b);
+      return ok(svcView(made), 201);
+    }
     if (r[0] === "services") return this.serviceRoutes(p, method, r, q, body, h, need, is);
     return notFound();
   }
@@ -403,6 +535,17 @@ export class FakeRtCtl implements RtCtl {
     p: Principal, method: string, r: string[], q: Record<string, string>, body: unknown, h: Record<string, string>,
     need: (s: string) => void, is: (m: string, ...pat: string[]) => boolean,
   ): CtlRes | ApiErr {
+    if (is("POST", "services", "import")) {
+      need("services:write");
+      need("deploy");
+      need("data:admin");
+      this.imports.push({ query: q, body, idempotencyKey: h["idempotency-key"] ?? "" });
+      if (q.from && !this.serviceFor(p, q.from)) return notFound();
+      if (!q.from && !body) return invalid("a bundle or from is required");
+      const made = this.createService(p, { slug: q.slug, runtime: "deno", project: q.project, environment: q.environment });
+      if (made instanceof ApiErr) return made;
+      return ok({ id: this.id("imp_"), service_id: (made.body as { id: string }).id, warnings: [], missing_secrets: ["API_KEY"], versions: [] }, 202);
+    }
     if (is("POST", "services")) {
       need("services:write");
       return this.createService(p, obj(body));
@@ -449,6 +592,60 @@ export class FakeRtCtl implements RtCtl {
     if (at("GET", "events")) return need("services:read"), ok(page(s.events));
 
     // versions
+    if (at("POST", "versions", "from-url")) {
+      need("deploy");
+      const b = obj(body);
+      this.fromUrlCalls.push({ service: s.view.id, body: b, idempotencyKey: h["idempotency-key"] ?? "" });
+      const refused = checkFromUrl(b);
+      if (refused) return invalid(refused);
+      const idemKey = h["idempotency-key"] ? `${s.view.id}|${h["idempotency-key"]}` : "";
+      const fp = fromUrlFingerprint(b);
+      const seen = idemKey ? this.fromUrlIdem.get(idemKey) : undefined;
+      if (seen && seen.fp !== fp) return invalid("the Idempotency-Key was used with a different request", "idempotency_mismatch");
+      if (seen) return seen.res;
+      if (this.fromUrlError) return new ApiErr(this.fromUrlError.status, this.fromUrlError.code, this.fromUrlError.message);
+      const v: FVersion = { version: s.versions.length + 1, source: String(b.url), contentType: "application/gzip", build_state: "fetching", failure: null, created_at: this.now() };
+      s.versions.push(v);
+      // Answered before the fetch: no digest yet, whatever the fetch comes to.
+      const res = ok({ ...versionView(v), source_digest: null }, 202);
+      const fail = this.fromUrlFailure;
+      const finish = () => {
+        v.build_state = fail ? "failed" : this.nextBuildState;
+        if (fail) v.failure = { code: fail, reason: fail, message: `fetch: ${fail}` };
+        if (b.activate === "after_build" && v.build_state === "ready") this.makeLive(s, v.version);
+      };
+      if (this.fromUrlHold) this.fromUrlHeld.push(finish);
+      else finish();
+      if (idemKey) this.fromUrlIdem.set(idemKey, { fp, res });
+      return res;
+    }
+    if (at("POST", "bundle")) {
+      need("data:admin");
+      const b = { id: this.id("bdl_"), state: "running", bytes: null, sha256: null, expires_at: this.now() + 3_600_000, failure: null };
+      this.bundles.set(b.id, s.view.id);
+      return ok(b, 202);
+    }
+    if (sub[0] === "bundle" && method === "GET") {
+      need("data:admin");
+      if (this.bundles.get(String(sub[1])) !== s.view.id) return notFound();
+      return { status: 206, headers: { "content-type": "application/zstd", "content-range": `bytes 0-3/${this.bundleBytes.length}`, etag: '"b1"' }, body: this.bundleBytes, encoding: "base64" };
+    }
+    if (sub[0] === "data" && sub[1] !== "export") {
+      const reserved = this.dataRefusal;
+      need("data:read");
+      if (reserved) return new ApiErr(reserved.status, reserved.code, reserved.message);
+      this.dataReads.push({ service: s.view.id, path: sub.slice(1).join("/"), body });
+      if (at("GET", "data", "tables")) return ok({ items: [{ name: `t_${s.view.slug.replaceAll("-", "_")}`, type: "table", columns: [{ name: "id", type: "INTEGER", pk: 1 }], rows_estimate: 2 }] });
+      if (at("POST", "data", "query")) return ok({ columns: ["id"], rows: [[1], [2]], truncated: false, elapsed_ms: 1 });
+      if (at("GET", "data", "kv")) return ok({ items: [{ key: "k", key_b64: "aw", type: "text", size: 1, expires_at: null, preview: "v" }], next_cursor: null });
+      if (at("GET", "data", "kv", "*")) return ok({ key: "k", key_b64: sub[2], type: "text", size: 1, expires_at: null, value: "v", truncated: false });
+      if (at("GET", "data", "blobs")) return ok({ items: [{ key: "b", size: 1, content_type: "text/plain" }], next_cursor: null });
+    }
+    if (at("GET", "migrations")) return need("services:read"), ok(this.migrations.get(s.view.id) ?? { applied: [], pending_for_latest: [] });
+    if (at("POST", "branches")) {
+      need("services:write");
+      return ok(svcView(this.seedBranch(s.view.id, String(obj(body).name))), 201);
+    }
     if (at("POST", "versions")) {
       need("deploy");
       if (typeof body !== "string" || body === "") return invalid("source body is required");
@@ -502,8 +699,25 @@ export class FakeRtCtl implements RtCtl {
       const v = s.versions[n - 1];
       if (!v) return notFound();
       if (v.build_state === "failed") return conflict("version_not_ready", "version failed to build");
+      if (q.async === "1") {
+        if (obj(body).dry_run === true) return invalid("dry_run is not async");
+        if (obj(body).migrate === false) need("data:admin");
+        const busy = this.switches.get(s.view.id)?.some((x) => x.state === "preparing" || x.state === "migrating");
+        if (busy) return conflict("switch_in_progress", "another switch is running");
+        const row = this.flip(s, "promote", n);
+        const first = { ...row, state: "preparing" };
+        // The first read moves it on, unless a test holds it there.
+        row.state = this.asyncLiveState;
+        if (row.state === "failed") row.error = "migration_failed";
+        else if (row.state === "preparing") s.live = row.from_version ?? null;
+        return ok(first, 202);
+      }
+      if (obj(body).dry_run === true) {
+        return ok({ dry_run: true, pending_migrations: (this.migrations.get(s.view.id)?.pending_for_latest ?? []).map((m) => m.name) });
+      }
+      if (this.liveError) return new ApiErr(this.liveError.status, this.liveError.code, this.liveError.message, this.liveError.details ?? {});
       this.makeLive(s, n);
-      return ok(svcView(s), 200, { etag: etagOf(s) });
+      return ok({ ...svcView(s), ...(this.liveApplied ? { migrations_applied: this.liveApplied } : {}) }, 200, { etag: etagOf(s) });
     }
 
     // logs: cursor = last seq seen

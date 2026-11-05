@@ -17,7 +17,9 @@ React console plus a TypeScript backend that runs as a 21 Cloud Functions Runtim
 | `server/src/{auth,users,orgs,invites,keys,apps,domains}/` | Feature services; routes in `server/src/routes/` |
 | `server/src/jobs/`, `server/src/jobs.ts` | Budgeted job runner; housekeeping run by `scheduled()` |
 | `server/src/metrics/` | The `metric_rollups` ring |
+| `server/src/alerts/` | Alert channels, rules, evaluation into state and outbox, the send job |
 | `server/src/hooks/` | Webhook verification (GitHub, Gitea, GitLab) and outbound signing |
+| `server/src/git/` | Repository links and branch rules; webhook to deploy pipeline with the head check |
 | `server/src/db/` | Schema migrations (v1 init, v2 domains/audit flag) |
 | `server/sdk/rtctl/` | Operator SDK published to the node |
 | `server/scripts/` | `install.mjs`, `deploy.mjs`, `gen-assets.mjs` |

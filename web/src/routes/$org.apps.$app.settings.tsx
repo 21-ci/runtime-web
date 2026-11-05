@@ -4,6 +4,7 @@ import { Settings } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { AccessSection } from "@/components/features/app-settings/access";
+import { BundleSection } from "@/components/features/app-settings/bundle";
 import { CallersSection } from "@/components/features/app-settings/callers";
 import { DangerZone } from "@/components/features/app-settings/danger-zone";
 import { ExportDataButton } from "@/components/features/app-settings/export-data";
@@ -177,6 +178,7 @@ function AppSettingsPage() {
                   </AdvancedRow>
                 ) : null}
               </dl>
+              {can("app.data.export") === true ? <BundleSection org={org} app={app} project={a.project} environment={a.environment} /> : null}
             </>
           ) : null}
           {section === "danger" && canDelete ? (

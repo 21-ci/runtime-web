@@ -5,11 +5,94 @@ import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { type AppDetail, type Ingress, usePatchApp } from "./api";
+import { type AppDetail, type Ingress, type RateRule, usePatchApp } from "./api";
 import { isCidr } from "./cidr";
 import { FieldError, FormAlert, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
 
 const METHODS = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"] as const;
+
+const RULES_MAX = 32;
+type RuleDraft = { path: string; methods: string; rps: string; burst: string; by: "service" | "ip" };
+
+const toDraft = (r: RateRule): RuleDraft => ({
+  path: r.path,
+  methods: (r.methods ?? []).join(", "),
+  rps: String(r.rps),
+  burst: r.burst ? String(r.burst) : "",
+  by: r.by === "ip" ? "ip" : "service",
+});
+
+/** Numbers that do not parse go through as written: the server names the field, as for every other input here. */
+const toWire = (d: RuleDraft): RateRule => {
+  const methods = d.methods.split(",").map((m) => m.trim().toUpperCase()).filter(Boolean);
+  return {
+    path: d.path.trim(),
+    ...(methods.length ? { methods } : {}),
+    rps: Number(d.rps),
+    ...(d.burst.trim() ? { burst: Number(d.burst) } : {}),
+    by: d.by,
+  };
+};
+
+// The first matching rule applies, so order matters: rows can move.
+function RateRules({ rules, onChange, fields }: { rules: RuleDraft[]; onChange: (r: RuleDraft[]) => void; fields: Record<string, string> }) {
+  const { t } = useTranslation(["platform", "common"]);
+  const set = (i: number, patch: Partial<RuleDraft>) => onChange(rules.map((r, j) => (j === i ? { ...r, ...patch } : r)));
+  const move = (i: number, by: number) => {
+    const next = [...rules];
+    const [row] = next.splice(i, 1);
+    if (row) next.splice(i + by, 0, row);
+    onChange(next);
+  };
+  return (
+    <fieldset className="flex flex-col gap-3">
+      <legend className="mb-1 text-[13px] font-medium text-text">{t("platform:rateRules.title")}</legend>
+      <p className="text-sm text-muted">{t("platform:rateRules.hint")}</p>
+      {rules.map((r, i) => {
+        const err = (f: string) => fields[`ingress.rate_rules[${i}].${f}`];
+        const n = i + 1;
+        return (
+          <div key={i} className="grid gap-2 rounded-md border border-line p-3 sm:grid-cols-2">
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`rule-path-${i}`}>{t("platform:rateRules.path", { n })}</Label>
+              <Input id={`rule-path-${i}`} value={r.path} placeholder="/api/login" onChange={(e) => set(i, { path: e.target.value })} />
+              <FieldError id={`rule-path-${i}-error`} message={err("path")} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`rule-methods-${i}`}>{t("platform:rateRules.methods", { n })}</Label>
+              <Input id={`rule-methods-${i}`} value={r.methods} placeholder="POST, PUT" onChange={(e) => set(i, { methods: e.target.value })} />
+              <FieldError id={`rule-methods-${i}-error`} message={err("methods")} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`rule-rps-${i}`}>{t("platform:rateRules.rps", { n })}</Label>
+              <Input id={`rule-rps-${i}`} inputMode="numeric" value={r.rps} onChange={(e) => set(i, { rps: e.target.value })} />
+              <FieldError id={`rule-rps-${i}-error`} message={err("rps")} />
+            </div>
+            <div className="flex flex-col gap-1">
+              <Label htmlFor={`rule-burst-${i}`}>{t("platform:rateRules.burst", { n })}</Label>
+              <Input id={`rule-burst-${i}`} inputMode="numeric" value={r.burst} onChange={(e) => set(i, { burst: e.target.value })} />
+              <FieldError id={`rule-burst-${i}-error`} message={err("burst")} />
+            </div>
+            <label className="flex items-center gap-2 text-sm">
+              <input type="checkbox" checked={r.by === "ip"} onChange={(e) => set(i, { by: e.target.checked ? "ip" : "service" })} />
+              {t("platform:rateRules.perClient", { n })}
+            </label>
+            <div className="flex justify-end gap-1">
+              <Button type="button" size="sm" variant="ghost" disabled={i === 0} aria-label={t("platform:rateRules.up", { n })} onClick={() => move(i, -1)}>↑</Button>
+              <Button type="button" size="sm" variant="ghost" disabled={i === rules.length - 1} aria-label={t("platform:rateRules.down", { n })} onClick={() => move(i, 1)}>↓</Button>
+              <Button type="button" size="sm" variant="ghost" aria-label={t("platform:rateRules.remove", { n })} onClick={() => onChange(rules.filter((_, j) => j !== i))}>{t("common:remove")}</Button>
+            </div>
+          </div>
+        );
+      })}
+      <div>
+        <Button type="button" variant="secondary" disabled={rules.length >= RULES_MAX} onClick={() => onChange([...rules, { path: "", methods: "", rps: "", burst: "", by: "service" }])}>
+          {t("platform:rateRules.add")}
+        </Button>
+      </div>
+    </fieldset>
+  );
+}
 
 // IngressSection edits methods, path prefixes, ip_allow CIDRs and rate_limit. Each list entry is its
 // own input, so a server error like "ingress.ip_allow[2]" lands on the third IP row.
@@ -22,6 +105,7 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
   const [rateLimit, setRateLimit] = useState(
     initial.rate_limit ? JSON.stringify(initial.rate_limit, null, 2) : "",
   );
+  const [rules, setRules] = useState<RuleDraft[]>((initial.rate_rules ?? []).map(toDraft));
   const [fields, setFields] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<string[]>([]);
   const patch = usePatchApp(org, app.slug);
@@ -58,6 +142,7 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
       ip_allow: cidrs,
     };
     if (rate) body.rate_limit = rate;
+    body.rate_rules = rules.map(toWire);
     try {
       await patch.mutateAsync({ etag: app.etag, body: { ingress: body } });
       setFields({});
@@ -65,7 +150,11 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
     } catch (err) {
       const server = fieldErrorsOf(err);
       setFields(server);
-      const shown = [...ipAllow.map((_, i) => `ingress.ip_allow[${i}]`), "ingress.rate_limit"];
+      const shown = [
+        ...ipAllow.map((_, i) => `ingress.ip_allow[${i}]`),
+        "ingress.rate_limit",
+        ...rules.flatMap((_, i) => ["path", "rps", "burst", "by", "methods"].map((f) => `ingress.rate_rules[${i}].${f}`)),
+      ];
       setErrors(unmappedErrors(server, shown));
     }
   }
@@ -173,6 +262,8 @@ export function IngressSection({ org, app }: { org: string; app: AppDetail }) {
           />
           <FieldError id="rate-limit-error" message={fields["ingress.rate_limit"]} />
         </div>
+
+        <RateRules rules={rules} onChange={setRules} fields={fields} />
 
         <FormAlert messages={errors} />
         <p className="text-sm text-muted">{t("replaceNote")}</p>

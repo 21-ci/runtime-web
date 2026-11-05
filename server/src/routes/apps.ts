@@ -11,6 +11,10 @@ import { audit as writeAudit } from "../audit/audit.ts";
 import { rt } from "../runtime/errors.ts";
 import * as A from "../apps/service.ts";
 import * as S from "../apps/switches.ts";
+import * as B from "../apps/bundles.ts";
+import * as D from "../apps/data.ts";
+import { readCapped } from "../git/provider.ts";
+import { pauseGitAutomation, pauseIfBehindGit } from "../git/links.ts";
 import { LOG_RANK, sseResponse } from "../apps/logs.ts";
 import { SLUG_RE } from "../apps/slug.ts";
 import type * as T from "../runtime/types.ts";
@@ -103,10 +107,28 @@ export function registerApps(router: Router, deps: Deps): void {
   router.put(`${one}/live`, route(async (c, ctx) => {
     const b = await readJson(ctx.req);
     if (typeof b.version !== "number" || !Number.isInteger(b.version) || b.version < 1) throw invalid({ version: "out_of_range" });
+    if (ctx.url.searchParams.get("async") === "1") {
+      for (const k of ["close_sockets", "migrate"]) if (b[k] !== undefined && typeof b[k] !== "boolean") throw invalid({ [k]: "not_boolean" });
+      const out = await S.promoteAsync(c, slug(ctx), { version: b.version, close_sockets: b.close_sockets as boolean | undefined, migrate: b.migrate as boolean | undefined }, A.ifMatch(ctx.req));
+      await audit(c, "app.live", slug(ctx), { version: b.version, switch: out.id, ...(b.migrate === false ? { migrate: false } : {}) });
+      const target = await A.resolve(c, slug(ctx));
+      await pauseIfBehindGit(deps, c.org.id, target.id, b.version);
+      return json(out, 202);
+    }
     const out = await A.promote(c, slug(ctx), b.version, A.ifMatch(ctx.req));
     await audit(c, "app.live", slug(ctx), { version: b.version });
+    const target = await A.resolve(c, slug(ctx));
+    await pauseIfBehindGit(deps, c.org.id, target.id, b.version);
     return json(out, 200, etagHeader(out.etag));
   }));
+
+  router.post(`${one}/live/dry-run`, route(async (c, ctx) => {
+    const b = await readJson(ctx.req);
+    if (typeof b.version !== "number" || !Number.isInteger(b.version) || b.version < 1) throw invalid({ version: "out_of_range" });
+    return json(await A.promoteDryRun(c, slug(ctx), b.version));
+  }));
+
+  router.get(`${one}/migrations`, route(async (c, ctx) => json(await A.migrations(c, slug(ctx)))));
 
   router.get(`${one}/versions/:v/build-logs`, route(async (c, ctx) => json({ items: await A.buildLogs(c, slug(ctx), versionParam(ctx)) })));
 
@@ -137,6 +159,8 @@ export function registerApps(router: Router, deps: Deps): void {
     const id = ctx.params.id ?? "";
     const out = await S.rollback(c, slug(ctx), id, A.ifMatch(ctx.req));
     await audit(c, "app.rollback", slug(ctx), { switch: id, rollback: out.id, from: out.from_version, to: out.to_version });
+    // Otherwise the next push would undo the rollback.
+    await pauseGitAutomation(deps, c.org.id, (await A.resolve(c, slug(ctx))).id);
     return json(out, 202);
   }));
 
@@ -305,9 +329,12 @@ export function registerApps(router: Router, deps: Deps): void {
 
   router.get(`${one}/stats`, route(async (c, ctx) => {
     const window = ctx.url.searchParams.get("window") || "5m";
+    if (window === "7d") return json(await A.weekStats(c, slug(ctx)));
     if (!["5m", "1h", "24h"].includes(window)) throw invalid({ window: "not_one_of" });
+    const step = ctx.url.searchParams.get("step") ?? undefined;
+    if (step !== undefined && !["1m", "5m", "1h"].includes(step)) throw invalid({ step: "not_one_of" });
     const app = await A.appFor(c, slug(ctx), "app.logs.read");
-    return json(statsView(await rt(() => c.cli.stats(app.id, window)), window));
+    return json(statsView(await rt(() => c.cli.stats(app.id, window, step)), window));
   }));
 
   router.get(`${one}/events`, route(async (c, ctx) => {
@@ -325,6 +352,37 @@ export function registerApps(router: Router, deps: Deps): void {
     const last = /^\d+$/.test(raw.trim()) ? Number(raw.trim()) : null;
     const app = await A.appFor(c, slug(ctx), "app.logs.read");
     return sseResponse(c, app, deps.storage.kv, deps.now, last, level);
+  }));
+
+  router.get(`${one}/data/tables`, route(async (c, ctx) => json(await D.tables(c, slug(ctx)))));
+  router.post(`${one}/data/query`, route(async (c, ctx) => json(await D.query(c, slug(ctx), await readJson(ctx.req)))));
+  router.get(`${one}/data/kv`, route(async (c, ctx) => json(await D.kvList(c, slug(ctx), ctx.url.searchParams))));
+  router.get(`${one}/data/kv/:key`, route(async (c, ctx) => json(await D.kvGet(c, slug(ctx), ctx.params.key ?? ""))));
+  router.get(`${one}/data/blobs`, route(async (c, ctx) => json(await D.blobs(c, slug(ctx), ctx.url.searchParams))));
+
+  router.post(`${base}/import`, route(async (c, ctx) => {
+    const input = B.parseImport(ctx.url.searchParams);
+    const stream = ctx.req.body;
+    const bytes = stream ? await readCapped(stream, B.MAX_IMPORT_BYTES) : new Uint8Array();
+    if (!bytes) throw new AppError(413, "too_large", "this bundle is too large to import here", { cli: "21ci app import" });
+    const out = await B.importApp(c, input, bytes);
+    await audit(c, "app.import", input.slug, { project: input.project, environment: input.environment, from: input.from ?? null, activate: input.activate, missing_secrets: out.missing_secrets });
+    return json(out, 202);
+  }));
+
+  router.post(`${one}/bundle`, route(async (c, ctx) => {
+    const out = await B.startBundle(c, slug(ctx));
+    await audit(c, "app.bundle", slug(ctx), { id: out.id });
+    return json(out, 202);
+  }));
+  router.get(`${one}/bundle/:id`, route(async (c, ctx) => json(await B.bundleState(c, slug(ctx), ctx.params.id ?? ""))));
+  router.get(`${one}/bundle/:id/download`, route(async (c, ctx) => {
+    const bytes = await B.bundleBytes(c, slug(ctx), ctx.params.id ?? "");
+    await audit(c, "app.bundle.download", slug(ctx), { id: ctx.params.id ?? "", bytes: bytes.length });
+    return new Response(bytes as Uint8Array<ArrayBuffer>, {
+      status: 200,
+      headers: { "content-type": "application/zstd", "content-disposition": `attachment; filename="app-${slug(ctx)}.tar.zst"`, "cache-control": "no-store" },
+    });
   }));
 
   router.get(`${one}/export`, route(async (c, ctx) => {

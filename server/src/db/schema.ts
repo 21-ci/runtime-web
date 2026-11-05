@@ -254,6 +254,164 @@ export const migrations: readonly Migration[] = [
       ) WITHOUT ROWID`,
     ],
   },
+  {
+    // Git deploys. A delivery row is keyed by ref too: one commit pushed to two branches is two deployments.
+    // git_refs holds what each ref last deployed, which outlives the 30-day delivery retention.
+    version: 8,
+    name: "git-links",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS git_links (
+        app_id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL,
+        provider TEXT NOT NULL CHECK (provider IN ('github','gitlab','gitea')),
+        base_url TEXT NOT NULL,
+        repo TEXT NOT NULL,
+        branch TEXT NOT NULL,
+        subdir TEXT,
+        auto_promote INTEGER NOT NULL DEFAULT 1,
+        paused INTEGER NOT NULL DEFAULT 0,
+        hook_id TEXT NOT NULL UNIQUE,
+        hook_secret_sealed BLOB NOT NULL,
+        token_sealed BLOB,
+        created_by TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS git_links_org ON git_links (org_id)`,
+      `CREATE TABLE IF NOT EXISTS git_branch_rules (
+        link_id TEXT NOT NULL,
+        ref_pattern TEXT NOT NULL,
+        branch_name TEXT NOT NULL,
+        auto_switch INTEGER NOT NULL DEFAULT 0,
+        paused INTEGER NOT NULL DEFAULT 0,
+        PRIMARY KEY (link_id, ref_pattern)
+      )`,
+      `CREATE TABLE IF NOT EXISTS git_deliveries (
+        hook_id TEXT NOT NULL,
+        event TEXT NOT NULL,
+        ref TEXT NOT NULL,
+        sha TEXT NOT NULL,
+        delivery_id TEXT,
+        state TEXT NOT NULL,
+        version INTEGER,
+        error TEXT,
+        received_at INTEGER NOT NULL,
+        next_at INTEGER,
+        head_sha TEXT,
+        target_id TEXT,
+        target_branch TEXT,
+        activate INTEGER NOT NULL DEFAULT 0,
+        fork INTEGER NOT NULL DEFAULT 0,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        deployed_at INTEGER,
+        PRIMARY KEY (hook_id, event, ref, sha)
+      )`,
+      `CREATE INDEX IF NOT EXISTS git_deliveries_due ON git_deliveries (state, next_at)`,
+      `CREATE INDEX IF NOT EXISTS git_deliveries_received ON git_deliveries (received_at)`,
+      `CREATE TABLE IF NOT EXISTS git_refs (
+        hook_id TEXT NOT NULL,
+        ref TEXT NOT NULL,
+        sha TEXT NOT NULL,
+        deployed_at INTEGER NOT NULL,
+        PRIMARY KEY (hook_id, ref)
+      )`,
+    ],
+  },
+  {
+    version: 9,
+    name: "alerts",
+    statements: [
+      `CREATE TABLE IF NOT EXISTS alert_channels (
+        id TEXT PRIMARY KEY,
+        org_id TEXT,
+        kind TEXT NOT NULL CHECK (kind IN ('webhook','email','telegram')),
+        name TEXT NOT NULL,
+        config_sealed BLOB NOT NULL,
+        created_by TEXT NOT NULL,
+        created_at INTEGER NOT NULL,
+        last_ok_at INTEGER,
+        last_error TEXT,
+        test_window_at INTEGER,
+        test_count INTEGER NOT NULL DEFAULT 0
+      )`,
+      `CREATE INDEX IF NOT EXISTS alert_channels_org ON alert_channels (org_id)`,
+      `CREATE TABLE IF NOT EXISTS alert_rules (
+        id TEXT PRIMARY KEY,
+        org_id TEXT,
+        app_id TEXT,
+        kind TEXT NOT NULL,
+        params TEXT NOT NULL,
+        channels TEXT NOT NULL,
+        enabled INTEGER NOT NULL DEFAULT 1,
+        for_s INTEGER NOT NULL DEFAULT 300,
+        repeat_s INTEGER NOT NULL DEFAULT 14400,
+        muted_until INTEGER,
+        created_by TEXT NOT NULL,
+        created_at INTEGER NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS alert_rules_org ON alert_rules (org_id)`,
+      `CREATE TABLE IF NOT EXISTS alert_state (
+        rule_id TEXT NOT NULL,
+        subject TEXT NOT NULL,
+        state TEXT NOT NULL CHECK (state IN ('ok','pending','firing')),
+        since INTEGER NOT NULL,
+        last_sent_at INTEGER,
+        last_value REAL,
+        baseline_at INTEGER,
+        clear_since INTEGER,
+        seen_pass INTEGER,
+        PRIMARY KEY (rule_id, subject)
+      )`,
+      `CREATE TABLE IF NOT EXISTS alert_outbox (
+        id TEXT PRIMARY KEY,
+        channel_id TEXT NOT NULL,
+        org_id TEXT,
+        rule_id TEXT,
+        body TEXT NOT NULL,
+        attempts INTEGER NOT NULL DEFAULT 0,
+        next_at INTEGER NOT NULL
+      )`,
+      `CREATE INDEX IF NOT EXISTS alert_outbox_due ON alert_outbox (next_at)`,
+    ],
+  },
+  {
+    version: 10,
+    name: "previews_and_data_key",
+    statements: [
+      // Keyed by PR number: a fork's branch named like an internal one cannot reach that one's preview.
+      // A held preview has no service yet: service_id and slug hold a placeholder until it is approved.
+      `CREATE TABLE IF NOT EXISTS previews (
+        service_id TEXT PRIMARY KEY,
+        app_id TEXT NOT NULL,
+        org_id TEXT NOT NULL,
+        ref TEXT NOT NULL,
+        pr INTEGER NOT NULL,
+        sha TEXT NOT NULL,
+        slug TEXT NOT NULL UNIQUE,
+        head_repo_id INTEGER,
+        fork INTEGER NOT NULL DEFAULT 0,
+        held INTEGER NOT NULL DEFAULT 0,
+        approved_sha TEXT,
+        approved_with_env INTEGER NOT NULL DEFAULT 0,
+        created_at INTEGER NOT NULL,
+        last_deploy_at INTEGER NOT NULL,
+        expires_at INTEGER NOT NULL,
+        UNIQUE (app_id, pr)
+      )`,
+      `CREATE INDEX IF NOT EXISTS previews_due ON previews (expires_at)`,
+      `CREATE TABLE IF NOT EXISTS preview_env (
+        app_id TEXT PRIMARY KEY,
+        org_id TEXT NOT NULL,
+        env_sealed BLOB NOT NULL,
+        updated_at INTEGER NOT NULL
+      )`,
+      `ALTER TABLE git_links ADD COLUMN previews INTEGER NOT NULL DEFAULT 0`,
+      // The repository's numeric id, set by the first signed event: a name can be renamed and taken over.
+      `ALTER TABLE git_links ADD COLUMN repo_id INTEGER`,
+      // A key holding only data:read, minted on first use. The default key never gets that scope.
+      `ALTER TABLE orgs ADD COLUMN data_key_id TEXT`,
+      `ALTER TABLE orgs ADD COLUMN data_key_sealed BLOB`,
+    ],
+  },
 ];
 
 export const LATEST_SCHEMA_VERSION = migrations.reduce((max, m) => Math.max(max, m.version), 0);

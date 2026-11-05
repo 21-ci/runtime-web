@@ -1,6 +1,8 @@
 import { Link, useNavigate, useParams } from "@tanstack/react-router";
 import {
+  Archive,
   ArrowLeft,
+  BellRing,
   Boxes,
   Building2,
   ChevronsLeft,
@@ -153,6 +155,8 @@ export const INSTANCE_SECTIONS = [
   { to: "/admin/audit", labelKey: "instance.auditLog", icon: ScrollText },
   { to: "/admin/node", labelKey: "instance.node", icon: Server },
   { to: "/admin/cache", labelKey: "instance.cache", icon: Database },
+  { to: "/admin/backups", labelKey: "instance.backups", icon: Archive },
+  { to: "/admin/alerts", labelKey: "instance.alerts", icon: BellRing },
   { to: "/admin/domains", labelKey: "instance.domains", icon: Globe },
   { to: "/admin/settings", labelKey: "instance.settings", icon: Settings },
 ] as const satisfies readonly { to: string; labelKey: string; icon: LucideIcon }[];
@@ -257,6 +261,7 @@ function OrgNav({ org, onNavigate }: { org: string; onNavigate?: () => void }) {
         <NavLink to="/$org" params={{ org }} icon={LayoutDashboard} label={t("nav.overview")} onNavigate={onNavigate} exact />
         <NavLink to="/$org/settings/members" params={{ org }} icon={Users} label={t("nav.members")} onNavigate={onNavigate} />
         <NavLink to="/$org/settings/tokens" params={{ org }} icon={KeyRound} label={t("nav.tokens")} onNavigate={onNavigate} />
+        <NavLink to="/$org/settings/alerts" params={{ org }} icon={BellRing} label={t("nav.alerts")} onNavigate={onNavigate} />
         <NavLink to="/$org/settings/audit" params={{ org }} icon={ScrollText} label={t("nav.auditLog")} onNavigate={onNavigate} />
         <NavLink to="/$org/settings/general" params={{ org }} icon={Settings} label={t("nav.settings")} onNavigate={onNavigate} />
       </div>
@@ -398,12 +403,13 @@ export const APP_SECTIONS: readonly { to: string; labelKey: AppSectionKey; icon:
   { to: "/$org/apps/$app/triggers", labelKey: "appNav.triggers", icon: Clock },
   { to: "/$org/apps/$app/versions", labelKey: "appNav.versions", icon: History },
   { to: "/$org/apps/$app/branches", labelKey: "appNav.branches", icon: GitBranch },
+  { to: "/$org/apps/$app/data", labelKey: "appNav.data", icon: Database },
   { to: "/$org/apps/$app/env", labelKey: "appNav.env", icon: Lock },
   { to: "/$org/apps/$app/domains", labelKey: "appNav.domains", icon: Globe },
   { to: "/$org/apps/$app/settings", labelKey: "appNav.settings", icon: Settings },
 ];
 
-type AppSectionKey = `appNav.${"overview" | "code" | "logs" | "triggers" | "versions" | "branches" | "env" | "domains" | "settings"}`;
+type AppSectionKey = `appNav.${"overview" | "code" | "logs" | "triggers" | "versions" | "branches" | "data" | "env" | "domains" | "settings"}`;
 
 function AppNav({ org, slug, onNavigate }: { org: string; slug: string; onNavigate?: () => void }) {
   const apps = useApps(org);

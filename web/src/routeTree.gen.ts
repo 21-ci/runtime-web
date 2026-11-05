@@ -17,7 +17,9 @@ import { Route as LoginRouteImport } from './routes/login'
 import { Route as SetupRouteImport } from './routes/setup'
 import { Route as OrgIndexRouteImport } from './routes/$org.index'
 import { Route as AdminIndexRouteImport } from './routes/admin/index'
+import { Route as AdminAlertsRouteImport } from './routes/admin/alerts'
 import { Route as AdminAuditRouteImport } from './routes/admin/audit'
+import { Route as AdminBackupsRouteImport } from './routes/admin/backups'
 import { Route as AdminCacheRouteImport } from './routes/admin/cache'
 import { Route as AdminDomainsRouteImport } from './routes/admin/domains'
 import { Route as AdminNodeRouteImport } from './routes/admin/node'
@@ -31,6 +33,7 @@ import { Route as MeSecurityRouteImport } from './routes/me.security'
 import { Route as OrgAppsAppRouteImport } from './routes/$org.apps.$app'
 import { Route as OrgAppsNewRouteImport } from './routes/$org.apps.new'
 import { Route as OrgProjectsPRouteImport } from './routes/$org.projects.$p'
+import { Route as OrgSettingsAlertsRouteImport } from './routes/$org.settings.alerts'
 import { Route as OrgSettingsAuditRouteImport } from './routes/$org.settings.audit'
 import { Route as OrgSettingsGeneralRouteImport } from './routes/$org.settings.general'
 import { Route as OrgSettingsMembersRouteImport } from './routes/$org.settings.members'
@@ -38,6 +41,7 @@ import { Route as OrgSettingsTokensRouteImport } from './routes/$org.settings.to
 import { Route as OrgAppsAppIndexRouteImport } from './routes/$org.apps.$app.index'
 import { Route as OrgAppsAppBranchesRouteImport } from './routes/$org.apps.$app.branches'
 import { Route as OrgAppsAppCodeRouteImport } from './routes/$org.apps.$app.code'
+import { Route as OrgAppsAppDataRouteImport } from './routes/$org.apps.$app.data'
 import { Route as OrgAppsAppDomainsRouteImport } from './routes/$org.apps.$app.domains'
 import { Route as OrgAppsAppEnvRouteImport } from './routes/$org.apps.$app.env'
 import { Route as OrgAppsAppLogsRouteImport } from './routes/$org.apps.$app.logs'
@@ -85,9 +89,19 @@ const AdminIndexRoute = AdminIndexRouteImport.update({
   path: '/',
   getParentRoute: () => AdminRoute,
 } as any)
+const AdminAlertsRoute = AdminAlertsRouteImport.update({
+  id: '/alerts',
+  path: '/alerts',
+  getParentRoute: () => AdminRoute,
+} as any)
 const AdminAuditRoute = AdminAuditRouteImport.update({
   id: '/audit',
   path: '/audit',
+  getParentRoute: () => AdminRoute,
+} as any)
+const AdminBackupsRoute = AdminBackupsRouteImport.update({
+  id: '/backups',
+  path: '/backups',
   getParentRoute: () => AdminRoute,
 } as any)
 const AdminCacheRoute = AdminCacheRouteImport.update({
@@ -155,6 +169,11 @@ const OrgProjectsPRoute = OrgProjectsPRouteImport.update({
   path: '/projects/$p',
   getParentRoute: () => OrgRoute,
 } as any)
+const OrgSettingsAlertsRoute = OrgSettingsAlertsRouteImport.update({
+  id: '/settings/alerts',
+  path: '/settings/alerts',
+  getParentRoute: () => OrgRoute,
+} as any)
 const OrgSettingsAuditRoute = OrgSettingsAuditRouteImport.update({
   id: '/settings/audit',
   path: '/settings/audit',
@@ -188,6 +207,11 @@ const OrgAppsAppBranchesRoute = OrgAppsAppBranchesRouteImport.update({
 const OrgAppsAppCodeRoute = OrgAppsAppCodeRouteImport.update({
   id: '/code',
   path: '/code',
+  getParentRoute: () => OrgAppsAppRoute,
+} as any)
+const OrgAppsAppDataRoute = OrgAppsAppDataRouteImport.update({
+  id: '/data',
+  path: '/data',
   getParentRoute: () => OrgAppsAppRoute,
 } as any)
 const OrgAppsAppDomainsRoute = OrgAppsAppDomainsRouteImport.update({
@@ -228,7 +252,9 @@ export interface FileRoutesByFullPath {
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRouteWithChildren
   '/setup': typeof SetupRoute
+  '/admin/alerts': typeof AdminAlertsRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/backups': typeof AdminBackupsRoute
   '/admin/cache': typeof AdminCacheRoute
   '/admin/domains': typeof AdminDomainsRoute
   '/admin/node': typeof AdminNodeRoute
@@ -244,12 +270,14 @@ export interface FileRoutesByFullPath {
   '/$org/apps/$app': typeof OrgAppsAppRouteWithChildren
   '/$org/apps/new': typeof OrgAppsNewRoute
   '/$org/projects/$p': typeof OrgProjectsPRoute
+  '/$org/settings/alerts': typeof OrgSettingsAlertsRoute
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
   '/$org/settings/general': typeof OrgSettingsGeneralRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
   '/$org/settings/tokens': typeof OrgSettingsTokensRoute
   '/$org/apps/$app/branches': typeof OrgAppsAppBranchesRoute
   '/$org/apps/$app/code': typeof OrgAppsAppCodeRoute
+  '/$org/apps/$app/data': typeof OrgAppsAppDataRoute
   '/$org/apps/$app/domains': typeof OrgAppsAppDomainsRoute
   '/$org/apps/$app/env': typeof OrgAppsAppEnvRoute
   '/$org/apps/$app/logs': typeof OrgAppsAppLogsRoute
@@ -262,7 +290,9 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/change-password': typeof ChangePasswordRoute
   '/setup': typeof SetupRoute
+  '/admin/alerts': typeof AdminAlertsRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/backups': typeof AdminBackupsRoute
   '/admin/cache': typeof AdminCacheRoute
   '/admin/domains': typeof AdminDomainsRoute
   '/admin/node': typeof AdminNodeRoute
@@ -277,12 +307,14 @@ export interface FileRoutesByTo {
   '/login': typeof LoginIndexRoute
   '/$org/apps/new': typeof OrgAppsNewRoute
   '/$org/projects/$p': typeof OrgProjectsPRoute
+  '/$org/settings/alerts': typeof OrgSettingsAlertsRoute
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
   '/$org/settings/general': typeof OrgSettingsGeneralRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
   '/$org/settings/tokens': typeof OrgSettingsTokensRoute
   '/$org/apps/$app/branches': typeof OrgAppsAppBranchesRoute
   '/$org/apps/$app/code': typeof OrgAppsAppCodeRoute
+  '/$org/apps/$app/data': typeof OrgAppsAppDataRoute
   '/$org/apps/$app/domains': typeof OrgAppsAppDomainsRoute
   '/$org/apps/$app/env': typeof OrgAppsAppEnvRoute
   '/$org/apps/$app/logs': typeof OrgAppsAppLogsRoute
@@ -299,7 +331,9 @@ export interface FileRoutesById {
   '/change-password': typeof ChangePasswordRoute
   '/login': typeof LoginRouteWithChildren
   '/setup': typeof SetupRoute
+  '/admin/alerts': typeof AdminAlertsRoute
   '/admin/audit': typeof AdminAuditRoute
+  '/admin/backups': typeof AdminBackupsRoute
   '/admin/cache': typeof AdminCacheRoute
   '/admin/domains': typeof AdminDomainsRoute
   '/admin/node': typeof AdminNodeRoute
@@ -315,12 +349,14 @@ export interface FileRoutesById {
   '/$org/apps/$app': typeof OrgAppsAppRouteWithChildren
   '/$org/apps/new': typeof OrgAppsNewRoute
   '/$org/projects/$p': typeof OrgProjectsPRoute
+  '/$org/settings/alerts': typeof OrgSettingsAlertsRoute
   '/$org/settings/audit': typeof OrgSettingsAuditRoute
   '/$org/settings/general': typeof OrgSettingsGeneralRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
   '/$org/settings/tokens': typeof OrgSettingsTokensRoute
   '/$org/apps/$app/branches': typeof OrgAppsAppBranchesRoute
   '/$org/apps/$app/code': typeof OrgAppsAppCodeRoute
+  '/$org/apps/$app/data': typeof OrgAppsAppDataRoute
   '/$org/apps/$app/domains': typeof OrgAppsAppDomainsRoute
   '/$org/apps/$app/env': typeof OrgAppsAppEnvRoute
   '/$org/apps/$app/logs': typeof OrgAppsAppLogsRoute
@@ -338,7 +374,9 @@ export interface FileRouteTypes {
     | '/change-password'
     | '/login'
     | '/setup'
+    | '/admin/alerts'
     | '/admin/audit'
+    | '/admin/backups'
     | '/admin/cache'
     | '/admin/domains'
     | '/admin/node'
@@ -354,12 +392,14 @@ export interface FileRouteTypes {
     | '/$org/apps/$app'
     | '/$org/apps/new'
     | '/$org/projects/$p'
+    | '/$org/settings/alerts'
     | '/$org/settings/audit'
     | '/$org/settings/general'
     | '/$org/settings/members'
     | '/$org/settings/tokens'
     | '/$org/apps/$app/branches'
     | '/$org/apps/$app/code'
+    | '/$org/apps/$app/data'
     | '/$org/apps/$app/domains'
     | '/$org/apps/$app/env'
     | '/$org/apps/$app/logs'
@@ -372,7 +412,9 @@ export interface FileRouteTypes {
     | '/'
     | '/change-password'
     | '/setup'
+    | '/admin/alerts'
     | '/admin/audit'
+    | '/admin/backups'
     | '/admin/cache'
     | '/admin/domains'
     | '/admin/node'
@@ -387,12 +429,14 @@ export interface FileRouteTypes {
     | '/login'
     | '/$org/apps/new'
     | '/$org/projects/$p'
+    | '/$org/settings/alerts'
     | '/$org/settings/audit'
     | '/$org/settings/general'
     | '/$org/settings/members'
     | '/$org/settings/tokens'
     | '/$org/apps/$app/branches'
     | '/$org/apps/$app/code'
+    | '/$org/apps/$app/data'
     | '/$org/apps/$app/domains'
     | '/$org/apps/$app/env'
     | '/$org/apps/$app/logs'
@@ -408,7 +452,9 @@ export interface FileRouteTypes {
     | '/change-password'
     | '/login'
     | '/setup'
+    | '/admin/alerts'
     | '/admin/audit'
+    | '/admin/backups'
     | '/admin/cache'
     | '/admin/domains'
     | '/admin/node'
@@ -424,12 +470,14 @@ export interface FileRouteTypes {
     | '/$org/apps/$app'
     | '/$org/apps/new'
     | '/$org/projects/$p'
+    | '/$org/settings/alerts'
     | '/$org/settings/audit'
     | '/$org/settings/general'
     | '/$org/settings/members'
     | '/$org/settings/tokens'
     | '/$org/apps/$app/branches'
     | '/$org/apps/$app/code'
+    | '/$org/apps/$app/data'
     | '/$org/apps/$app/domains'
     | '/$org/apps/$app/env'
     | '/$org/apps/$app/logs'
@@ -508,11 +556,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AdminIndexRouteImport
       parentRoute: typeof AdminRoute
     }
+    '/admin/alerts': {
+      id: '/admin/alerts'
+      path: '/alerts'
+      fullPath: '/admin/alerts'
+      preLoaderRoute: typeof AdminAlertsRouteImport
+      parentRoute: typeof AdminRoute
+    }
     '/admin/audit': {
       id: '/admin/audit'
       path: '/audit'
       fullPath: '/admin/audit'
       preLoaderRoute: typeof AdminAuditRouteImport
+      parentRoute: typeof AdminRoute
+    }
+    '/admin/backups': {
+      id: '/admin/backups'
+      path: '/backups'
+      fullPath: '/admin/backups'
+      preLoaderRoute: typeof AdminBackupsRouteImport
       parentRoute: typeof AdminRoute
     }
     '/admin/cache': {
@@ -606,6 +668,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgProjectsPRouteImport
       parentRoute: typeof OrgRoute
     }
+    '/$org/settings/alerts': {
+      id: '/$org/settings/alerts'
+      path: '/settings/alerts'
+      fullPath: '/$org/settings/alerts'
+      preLoaderRoute: typeof OrgSettingsAlertsRouteImport
+      parentRoute: typeof OrgRoute
+    }
     '/$org/settings/audit': {
       id: '/$org/settings/audit'
       path: '/settings/audit'
@@ -653,6 +722,13 @@ declare module '@tanstack/react-router' {
       path: '/code'
       fullPath: '/$org/apps/$app/code'
       preLoaderRoute: typeof OrgAppsAppCodeRouteImport
+      parentRoute: typeof OrgAppsAppRoute
+    }
+    '/$org/apps/$app/data': {
+      id: '/$org/apps/$app/data'
+      path: '/data'
+      fullPath: '/$org/apps/$app/data'
+      preLoaderRoute: typeof OrgAppsAppDataRouteImport
       parentRoute: typeof OrgAppsAppRoute
     }
     '/$org/apps/$app/domains': {
@@ -703,6 +779,7 @@ declare module '@tanstack/react-router' {
 interface OrgAppsAppRouteChildren {
   OrgAppsAppBranchesRoute: typeof OrgAppsAppBranchesRoute
   OrgAppsAppCodeRoute: typeof OrgAppsAppCodeRoute
+  OrgAppsAppDataRoute: typeof OrgAppsAppDataRoute
   OrgAppsAppDomainsRoute: typeof OrgAppsAppDomainsRoute
   OrgAppsAppEnvRoute: typeof OrgAppsAppEnvRoute
   OrgAppsAppLogsRoute: typeof OrgAppsAppLogsRoute
@@ -715,6 +792,7 @@ interface OrgAppsAppRouteChildren {
 const OrgAppsAppRouteChildren: OrgAppsAppRouteChildren = {
   OrgAppsAppBranchesRoute: OrgAppsAppBranchesRoute,
   OrgAppsAppCodeRoute: OrgAppsAppCodeRoute,
+  OrgAppsAppDataRoute: OrgAppsAppDataRoute,
   OrgAppsAppDomainsRoute: OrgAppsAppDomainsRoute,
   OrgAppsAppEnvRoute: OrgAppsAppEnvRoute,
   OrgAppsAppLogsRoute: OrgAppsAppLogsRoute,
@@ -733,6 +811,7 @@ interface OrgRouteChildren {
   OrgAppsAppRoute: typeof OrgAppsAppRouteWithChildren
   OrgAppsNewRoute: typeof OrgAppsNewRoute
   OrgProjectsPRoute: typeof OrgProjectsPRoute
+  OrgSettingsAlertsRoute: typeof OrgSettingsAlertsRoute
   OrgSettingsAuditRoute: typeof OrgSettingsAuditRoute
   OrgSettingsGeneralRoute: typeof OrgSettingsGeneralRoute
   OrgSettingsMembersRoute: typeof OrgSettingsMembersRoute
@@ -744,6 +823,7 @@ const OrgRouteChildren: OrgRouteChildren = {
   OrgAppsAppRoute: OrgAppsAppRouteWithChildren,
   OrgAppsNewRoute: OrgAppsNewRoute,
   OrgProjectsPRoute: OrgProjectsPRoute,
+  OrgSettingsAlertsRoute: OrgSettingsAlertsRoute,
   OrgSettingsAuditRoute: OrgSettingsAuditRoute,
   OrgSettingsGeneralRoute: OrgSettingsGeneralRoute,
   OrgSettingsMembersRoute: OrgSettingsMembersRoute,
@@ -753,7 +833,9 @@ const OrgRouteChildren: OrgRouteChildren = {
 const OrgRouteWithChildren = OrgRoute._addFileChildren(OrgRouteChildren)
 
 interface AdminRouteChildren {
+  AdminAlertsRoute: typeof AdminAlertsRoute
   AdminAuditRoute: typeof AdminAuditRoute
+  AdminBackupsRoute: typeof AdminBackupsRoute
   AdminCacheRoute: typeof AdminCacheRoute
   AdminDomainsRoute: typeof AdminDomainsRoute
   AdminNodeRoute: typeof AdminNodeRoute
@@ -764,7 +846,9 @@ interface AdminRouteChildren {
 }
 
 const AdminRouteChildren: AdminRouteChildren = {
+  AdminAlertsRoute: AdminAlertsRoute,
   AdminAuditRoute: AdminAuditRoute,
+  AdminBackupsRoute: AdminBackupsRoute,
   AdminCacheRoute: AdminCacheRoute,
   AdminDomainsRoute: AdminDomainsRoute,
   AdminNodeRoute: AdminNodeRoute,

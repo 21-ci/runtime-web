@@ -1,0 +1,81 @@
+{
+  "range": {
+    "label": "Time range",
+    "1h": "1 hour",
+    "6h": "6 hours",
+    "24h": "24 hours",
+    "7d": "7 days"
+  },
+  "chart": {
+    "noData": "No data in this range.",
+    "table": "Show as a table",
+    "time": "Time",
+    "value": "Value",
+    "dataFrom": "Data starts at {{time}}.",
+    "restart": "The node keeps this in memory, so it starts over after a restart."
+  },
+  "node": {
+    "title": "Monitoring",
+    "cpu": "CPU, %",
+    "load": "Load (1 min)",
+    "memory": "Memory committed",
+    "diskFree": "Free disk",
+    "rx": "Network in",
+    "tx": "Network out",
+    "uptime": "Uptime",
+    "unavailable": "This node does not report monitoring data. It may run an older runtime.",
+    "top": "Busiest Apps, last hour",
+    "slug": "App",
+    "requests": "Requests",
+    "errors": "Errors",
+    "events": "Node events",
+    "eventsEmpty": "No events yet.",
+    "kind": "Event"
+  },
+  "app": {
+    "title": "Traffic",
+    "requests": "Requests",
+    "errors": "Errors",
+    "p95": "p95, ms",
+    "weekNote": "Hourly counts. Percentiles are not kept for this range."
+  },
+  "backups": {
+    "title": "Backups",
+    "description": "The node's backups. Archives hold all tenants' data.",
+    "status": "Status",
+    "enabled": "Enabled",
+    "disabled": "Not enabled",
+    "schedule": "Schedule",
+    "lastOk": "Last good backup",
+    "next": "Next run",
+    "destination": "Destination",
+    "never": "Never",
+    "failure": "The last backup failed: {{code}}",
+    "now": "Back up now",
+    "running": "A backup is running",
+    "started": "Backup started",
+    "list": "History",
+    "empty": "No backups yet.",
+    "id": "ID",
+    "state": "State",
+    "started_at": "Started",
+    "size": "Size",
+    "plain": "Not encrypted",
+    "download": "Download",
+    "downloadHint": "The console cannot download archives. On the node, run:",
+    "config": "Configuration",
+    "configHint": "Read-only here. To change it, put this in the node's rt.toml and restart it."
+  },
+  "migrations": {
+    "title": "SQL migrations",
+    "description": "Applied to this App's database, and waiting in the latest version.",
+    "applied": "Applied",
+    "pending": "Pending",
+    "none": "None",
+    "promoteWill": "Checked on a copy of the data. Promoting will apply:",
+    "checking": "Checking migrations on a copy of the data…",
+    "failed": "This migration would fail: {{file}}, statement {{statement}}: {{message}}",
+    "failedPlain": "The migrations cannot run: {{code}}",
+    "compat": "Old code keeps running on the new schema for a moment, and after a rollback. Keep migrations backward-compatible."
+  }
+}

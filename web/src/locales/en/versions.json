@@ -5,6 +5,7 @@
   "live": "Live",
   "outside": "Outside the web",
   "state": {
+    "fetching": "Fetching",
     "pending": "Pending",
     "building": "Building",
     "ready": "Ready",

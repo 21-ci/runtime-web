@@ -68,9 +68,9 @@ const SAME_SITE_FETCH = new Set(["same-origin", "none"]);
  * Global middleware: every unsafe method must carry Origin == config.origin
  * (403 origin_invalid), public routes included, and a `Sec-Fetch-Site` other than
  * same-origin/none is refused even when Origin matches (apps share the console's site).
- * `exempt` paths (bearer-authed internal routes) and token-only bearer requests skip it.
+ * `exempt` paths (bearer-authed internal routes, signed webhooks from Git hosts) and token-only bearer requests skip it.
  */
-export function originCheck(deps: Pick<AuthDeps, "config">, exempt: readonly string[] = ["/api/internal/*"]): Middleware {
+export function originCheck(deps: Pick<AuthDeps, "config">, exempt: readonly string[] = ["/api/internal/*", "/api/hooks/*"]): Middleware {
   const want = normalizeOrigin(deps.config.origin);
   return async (ctx, next) => {
     if (isSafeMethod(ctx.req.method) || pathAllowed(ctx.url.pathname, exempt)) return next();

@@ -121,6 +121,7 @@ nav:
       - Editor: user-guide/editor.md
       - Logs: user-guide/logs.md
       - Triggers: user-guide/triggers.md
+      - Git deploys: user-guide/git.md
       - Tokens and keys: user-guide/tokens.md
       - Domains: user-guide/domains.md
       - Members: user-guide/members.md

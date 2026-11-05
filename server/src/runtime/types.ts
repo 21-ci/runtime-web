@@ -99,6 +99,7 @@ export type Scope =
   | "secrets:write"
   | "queue:write"
   | "data:admin"
+  | "data:read"
   | "keys:write"
   | "sockets:write";
 
@@ -263,9 +264,59 @@ export interface ServiceFilter {
 }
 
 export interface VersionFailure {
+  /** fetch_failed, egress_denied, egress_quota, too_large, validation_failed, invalid_artifact, internal; absent on an older build failure. */
+  code?: string;
   reason: string;
   message: string;
   diagnostics?: unknown;
+}
+/** A preview service; absent `kind` on older branches. */
+export interface ScratchCreate {
+  of: string;
+  name: string;
+  ttl_seconds?: number;
+  allowed_hosts?: string[];
+}
+export interface DataTables {
+  items: { name: string; type: string; columns: { name: string; type: string; pk: number | boolean }[]; rows_estimate: number | null }[];
+}
+export interface DataQuery {
+  sql: string;
+  args?: unknown[];
+  limit?: number;
+}
+export interface DataResult {
+  columns: string[];
+  rows: unknown[][];
+  truncated: boolean;
+  elapsed_ms: number;
+}
+export interface DataListQuery {
+  prefix?: string | undefined;
+  cursor?: string | undefined;
+  limit?: number | undefined;
+}
+export interface BundleState {
+  id: string;
+  state: string;
+  bytes: number | null;
+  sha256: string | null;
+  expires_at: number | null;
+  failure: unknown;
+}
+export interface ImportQuery {
+  slug: string;
+  project: string;
+  environment: string;
+  activate?: boolean | undefined;
+  from?: string | undefined;
+}
+export interface ImportResult {
+  id: string;
+  service_id: string;
+  warnings?: unknown[];
+  missing_secrets?: string[];
+  versions?: unknown;
 }
 export interface Version {
   version: number;
@@ -398,6 +449,76 @@ export interface LogQuery {
   cursor?: string;
 }
 
+export interface Migrations {
+  applied: { name: string; sha256: string; applied_at: number; version: number }[];
+  pending_for_latest: { name: string; sha256: string }[];
+}
+export interface NodeSeriesPoint {
+  ts: number;
+  cpu_pct: number | null;
+  load1: number | null;
+  mem_committed: number | null;
+  disk_free: number | null;
+  rx: number | null;
+  tx: number | null;
+}
+export interface NodeSeries {
+  range: string;
+  step_s: number;
+  points: NodeSeriesPoint[];
+}
+export interface NodeStatsQuery {
+  from?: number | undefined;
+  to?: number | undefined;
+  fields?: "counts" | "all" | undefined;
+  cursor?: string | undefined;
+  limit?: number | undefined;
+}
+export interface NodeStatsItem {
+  service: string;
+  tenant: string;
+  slug: string | null;
+  count: number;
+  errors: number;
+  p50: number | null;
+  p95: number | null;
+  p99: number | null;
+  dlq: number;
+  depth: number;
+}
+export interface NodeEvent {
+  id: string | number;
+  ts: number;
+  tenant: string | null;
+  service: string | null;
+  kind: string;
+  data: unknown;
+}
+export interface Backup {
+  id: string;
+  state: string;
+  trigger: string;
+  started_at: number;
+  finished_at: number | null;
+  bytes: number | null;
+  sha256: string | null;
+  encrypted: boolean;
+  verified_at: number | null;
+  rt_version: string;
+  failure: { code: string; message: string } | null;
+}
+export interface BackupStatus {
+  enabled: boolean;
+  schedule: string;
+  last_ok_at: number | null;
+  last_ok_id: string | null;
+  last_failure: unknown;
+  next_at: number | null;
+  running_id: string | null;
+  last_restored_at: number | null;
+  destination: { kind: string; endpoint_host?: string | null; bucket?: string | null } | null;
+}
+
 export interface NodeStatus {
   version: string;
   mode: string;
@@ -409,6 +530,7 @@ export interface NodeStatus {
   inflight: number;
   /** {open, objects, pending, max} */
   sockets?: unknown;
+  host?: { disk?: { free_bytes: number; total_bytes: number } | null };
 }
 export interface NodeConfigUpdate {
   default_profile?: string;

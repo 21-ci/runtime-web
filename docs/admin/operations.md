@@ -106,11 +106,36 @@ Restore onto the same version of Runtime Web and `rt` that made the backup, then
 
 Rehearse this on a second machine before you need it.
 
+### Restore an `rt` backup to a new host
+
+The **Backups** page of the instance admin area shows the node's scheduled backups and starts one. The console cannot
+download or delete an archive: its binding lists only `/v1/node/backups` and `/v1/node/backups/status`. Copy archives
+on the node, or with `21ci backup download <id>`, and delete them with `21ci backup delete <id>`.
+
+On a new host (bare mode), first put `/etc/default/rt` and `/etc/rtweb/` back, then:
+
+```sh
+./install.sh --mode bare --domain console.example.com --apps-domain apps.example.com \
+  --runtime-version X.Y.Z --restore rt-backup-<id>.tar --master-key /secure/master.key
+```
+
+The installer installs `rt`, runs `rt backup restore` into the empty `/var/lib/rt`, puts the master key in place and
+continues as usual. It refuses a node that already has data. Use the `rt` version that made the backup, or a newer one.
+
+A backup brings back keys that were revoked after it was taken. Pass `--revoke-keys-before <time>` to revoke keys older
+than that time, or rotate tenant keys afterwards. Encrypted archives are not supported yet, because `rt` does not write
+them yet.
+
+Docker: run `rt backup restore <archive> --data-dir <empty dir>` in the image against the empty volume, then continue
+with step 4 above.
+
 ## Metrics and alerting
 
 The node serves Prometheus metrics on its loopback metrics listener: `http://127.0.0.1:9090/metrics`, with
 `/healthz` and `/readyz` next to it (docker: inside the container; publish nothing, scrape it with an agent on the host
 network or a sidecar). The console answers `GET /healthz` on its host with `{"ok":true,"db":true,...}`.
+
+The console can send some of these itself: see **Alerts** in the instance admin area and in each org's settings (webhook or Telegram). Evaluation depends on the console's cron, so a node that is down cannot report itself; keep an external probe.
 
 Suggested alerts:
 

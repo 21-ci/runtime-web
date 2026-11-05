@@ -356,7 +356,7 @@ describe("config: env, secrets, schedules, queue", () => {
     expect(await s.json()).toMatchObject({ window: "5m", count: 3, requests: 3, errors: 1, p50_ms: 12, p95_ms: 40, p99_ms: 90, total: { p95_ms: 40 } });
     const day = await w.admin.call("GET", `${APPS}/hello/stats?window=24h`);
     expect(await day.json()).toMatchObject({ window: "24h", requests: 30 });
-    expect((await w.admin.call("GET", `${APPS}/hello/stats?window=7d`)).status).toBe(422);
+    expect((await w.admin.call("GET", `${APPS}/hello/stats?window=9d`)).status).toBe(422);
     const ev = (await (await w.admin.call("GET", `${APPS}/hello/events`)).json()) as { items: { kind: string }[]; next_cursor: unknown };
     expect(ev.items.map((e) => e.kind)).toContain("service.created");
     expect(ev).toHaveProperty("next_cursor");

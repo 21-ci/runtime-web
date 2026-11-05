@@ -216,7 +216,7 @@ function Preflight({ data, branch }: { data: Switch; branch: string }) {
   );
 }
 
-function Progress({ org, app, id }: { org: string; app: string; id: string }) {
+export function Progress({ org, app, id }: { org: string; app: string; id: string }) {
   const { t } = useTranslation("branches");
   const status = useSwitchStatus(org, app, id);
   if (!status.data) return <Skeleton className="h-16 w-full" />;

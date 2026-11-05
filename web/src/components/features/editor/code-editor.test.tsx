@@ -160,8 +160,9 @@ describe("code editor", () => {
     server.use(
       http.put(`${BASE}/live`, async ({ request }) => {
         promoted = { body: await request.json(), ifMatch: request.headers.get("if-match") };
-        return HttpResponse.json({ live_version: 2, etag: '"e3"' });
+        return HttpResponse.json({ id: "swt_1", kind: "promote", state: "preparing", to_version: 2 }, { status: 202 });
       }),
+      http.get(`${BASE}/switches/swt_1`, () => HttpResponse.json({ id: "swt_1", kind: "promote", state: "draining", to_version: 2 })),
     );
     await userEvent.click(screen.getByRole("button", { name: /deploy v2/i }));
     expect(await screen.findByRole("link", { name: /live v2/i })).toBeInTheDocument();

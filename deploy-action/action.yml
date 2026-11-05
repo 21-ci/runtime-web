@@ -1,0 +1,62 @@
+name: Deploy to 21 Cloud
+description: Deploys an archive your workflow built to an App on a Runtime Web console.
+branding:
+  icon: upload-cloud
+  color: blue
+
+inputs:
+  console-url:
+    description: Console origin, for example https://console.example.com
+    required: true
+  org:
+    description: Org slug
+    required: true
+  app:
+    description: App slug
+    required: true
+  token:
+    description: Console API token with the deploy scope. Pass it from a secret.
+    required: true
+  archive-url:
+    description: https URL of a tar.gz the runtime can fetch, for example a release asset
+    required: true
+  branch:
+    description: App branch to deploy to, instead of the App itself
+    required: false
+    default: ""
+
+outputs:
+  version:
+    description: The new version number
+    value: ${{ steps.deploy.outputs.version }}
+
+runs:
+  using: composite
+  steps:
+    - id: deploy
+      shell: sh
+      # Inputs arrive through the environment, so a branch or URL cannot inject shell.
+      env:
+        CONSOLE_URL: ${{ inputs.console-url }}
+        ORG: ${{ inputs.org }}
+        APP: ${{ inputs.app }}
+        TOKEN: ${{ inputs.token }}
+        ARCHIVE_URL: ${{ inputs.archive-url }}
+        BRANCH: ${{ inputs.branch }}
+        SHA: ${{ github.sha }}
+        REF: ${{ github.ref }}
+      run: |
+        set -eu
+        echo "::add-mask::$TOKEN"
+        body=$(jq -n --arg url "$ARCHIVE_URL" --arg sha "$SHA" --arg ref "$REF" --arg branch "$BRANCH" \
+          '{url: $url, sha: $sha, ref: $ref} + (if $branch == "" then {} else {branch: $branch} end)')
+        # A header file, because a command line is readable by every process on the runner.
+        headers=$(mktemp)
+        trap 'rm -f "$headers"' EXIT
+        printf 'authorization: Bearer %s\ncontent-type: application/json\n' "$TOKEN" > "$headers"
+        answer=$(curl --silent --show-error --fail-with-body --max-time 60 \
+          --request POST --header "@$headers" --data "$body" \
+          "$CONSOLE_URL/api/orgs/$ORG/apps/$APP/deploys")
+        version=$(printf '%s' "$answer" | jq -r .version)
+        echo "version=$version" >> "$GITHUB_OUTPUT"
+        echo "Deployed version $version"

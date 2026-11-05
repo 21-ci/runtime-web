@@ -3,6 +3,7 @@
     "overview": "Umumiy koʻrinish",
     "members": "Aʼzolar",
     "tokens": "Tokenlar",
+    "alerts": "Ogohlantirishlar",
     "auditLog": "Audit jurnali",
     "settings": "Sozlamalar",
     "projects": "Loyihalar",
@@ -23,7 +24,8 @@
     "branches": "Tarmoqlar",
     "env": "Muhit va maxfiy qiymatlar",
     "domains": "Domenlar",
-    "settings": "Sozlamalar"
+    "settings": "Sozlamalar",
+    "data": "Maʼlumotlar"
   },
   "instance": {
     "title": "Instans",
@@ -32,6 +34,8 @@
     "auditLog": "Audit jurnali",
     "node": "Tugun",
     "cache": "Kesh",
+    "backups": "Zaxira nusxalar",
+    "alerts": "Ogohlantirishlar",
     "domains": "Domenlar",
     "settings": "Sozlamalar"
   },
@@ -112,6 +116,7 @@
     "org": "Tashkilot sozlamalari",
     "members": "Aʼzolar",
     "tokens": "Tokenlar",
+    "alerts": "Ogohlantirishlar",
     "auditLog": "Audit jurnali",
     "accountSecurity": "Hisob xavfsizligi",
     "instanceUsers": "Instans: foydalanuvchilar",
@@ -119,6 +124,8 @@
     "instanceAudit": "Instans: audit jurnali",
     "instanceNode": "Instans: tugun",
     "instanceCache": "Instans: kesh",
+    "instanceBackups": "Instans: zaxira nusxalar",
+    "instanceAlerts": "Instansiya: ogohlantirishlar",
     "instanceDomains": "Instans: domenlar",
     "instanceSettings": "Instans: sozlamalar"
   },

@@ -1,8 +1,12 @@
 import { History } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
+import { toast } from "sonner";
 
+import { Progress } from "@/components/features/branches/branches-view";
+import { useSwitchStatus } from "@/components/features/branches/use-branches";
 import { PageHeader } from "@/components/ui/page-header";
+import { i18n } from "@/lib/i18n";
 
 import { QueryError } from "@/components/features/empty/query-error";
 import { Badge } from "@/components/ui/badge";
@@ -21,18 +25,24 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { formatDateTime } from "@/lib/format";
 
+import { migrationRefused, MigrationsCard, PromotePreflight } from "./migrations";
+
 import {
   type BuildState,
   type Version,
   useAppDetail,
   useBuildLog,
   useFiles,
+  useDryRun,
+  useMigrations,
   usePromote,
+  usePromoteSettled,
   useRebuild,
   useVersions,
 } from "./use-versions";
 
 const STATE_VARIANT: Record<BuildState, "success" | "danger" | "warning"> = {
+  fetching: "warning",
   pending: "warning",
   building: "warning",
   ready: "success",
@@ -42,13 +52,30 @@ const STATE_VARIANT: Record<BuildState, "success" | "danger" | "warning"> = {
 // VersionsView lists an app's versions newest first. Only ready versions can be promoted; failed ones
 // can be rebuilt. Promote and rollback both go through a confirm dialog that names the target version.
 export function VersionsView({ org, app }: { org: string; app: string }) {
-  const { t } = useTranslation(["versions", "common"]);
+  const { t } = useTranslation(["versions", "common", "platform"]);
   const versions = useVersions(org, app);
   const detail = useAppDetail(org, app);
   const promote = usePromote(org, app);
   const rebuild = useRebuild(org, app);
   const deploy = useCan(org, detail.data?.project)("app.deploy") === true;
-  const [promoteTarget, setPromoteTarget] = useState<Version | null>(null);
+  const [promoteTarget, setPromoteTargetRaw] = useState<Version | null>(null);
+  const [switchId, setSwitchId] = useState<string | null>(null);
+  const [closeSockets, setCloseSockets] = useState(false);
+  const setPromoteTarget = (v: Version | null) => {
+    setPromoteTargetRaw(v);
+    if (v === null) {
+      setSwitchId(null);
+      setCloseSockets(false);
+    }
+  };
+  const migrations = useMigrations(org, app);
+  const pendingNames = migrations.data?.pending_for_latest.map((m) => m.name) ?? [];
+  const dryRun = useDryRun(
+    org,
+    app,
+    promoteTarget?.version ?? null,
+    pendingNames.length > 0 && promoteTarget !== null && (detail.data?.live_version ?? 0) < promoteTarget.version,
+  );
   const [logVersion, setLogVersion] = useState<number | null>(null);
   const [diffVersion, setDiffVersion] = useState<number | null>(null);
 
@@ -73,6 +100,7 @@ export function VersionsView({ org, app }: { org: string; app: string }) {
   const etag = detail.data?.etag;
   const target = promoteTarget;
   const isRollback = target !== null && liveVersion !== null && target.version < liveVersion;
+  const needsCheck = target !== null && !isRollback && pendingNames.length > 0;
 
   return (
     <section className="flex flex-col gap-6" aria-labelledby="versions-heading">
@@ -82,6 +110,7 @@ export function VersionsView({ org, app }: { org: string; app: string }) {
         title={<span id="versions-heading">{t("title")}</span>}
         description={t("description")}
       />
+      {migrations.data ? <MigrationsCard migrations={migrations.data} /> : null}
       <div className="overflow-x-auto">
         <Table>
           <TableHeader>
@@ -164,7 +193,15 @@ export function VersionsView({ org, app }: { org: string; app: string }) {
         </Table>
       </div>
 
-      <Dialog open={target !== null} onOpenChange={(open) => !open && setPromoteTarget(null)}>
+      <Dialog
+        open={target !== null}
+        onOpenChange={(open) => {
+          if (open) return;
+          setPromoteTarget(null);
+          setSwitchId(null);
+          setCloseSockets(false);
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>
@@ -178,26 +215,66 @@ export function VersionsView({ org, app }: { org: string; app: string }) {
                 : t("liveReplace", { version: target?.version, live: liveVersion })}
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
-            <Button variant="secondary" onClick={() => setPromoteTarget(null)}>
-              {t("common:cancel")}
-            </Button>
-            <Button
-              disabled={promote.isPending || !etag}
-              onClick={() => {
-                if (!target || !etag) return;
-                promote.mutate({ version: target.version, etag }, { onSuccess: () => setPromoteTarget(null) });
-              }}
-            >
-              {isRollback ? t("rollback") : t("promote")}
-            </Button>
-          </DialogFooter>
+          {switchId ? (
+            <>
+              <PromoteProgress org={org} app={app} id={switchId} version={target?.version ?? 0} />
+              <DialogFooter>
+                <Button variant="secondary" onClick={() => setPromoteTarget(null)}>
+                  {t("common:close")}
+                </Button>
+              </DialogFooter>
+            </>
+          ) : (
+            <>
+              {pendingNames.length > 0 && !isRollback ? <PromotePreflight check={dryRun} /> : null}
+              <label className="flex items-center gap-2 text-sm">
+                <input type="checkbox" checked={closeSockets} onChange={(e) => setCloseSockets(e.target.checked)} />
+                {t("platform:promote.closeSockets")}
+              </label>
+              <DialogFooter>
+                <Button variant="secondary" onClick={() => setPromoteTarget(null)}>
+                  {t("common:cancel")}
+                </Button>
+                <Button
+                  disabled={promote.isPending || !etag || (needsCheck && (dryRun.isPending || migrationRefused(dryRun.error)))}
+                  onClick={() => {
+                    if (!target || !etag) return;
+                    promote.mutate({ version: target.version, etag, closeSockets }, { onSuccess: (s) => setSwitchId(s.id) });
+                  }}
+                >
+                  {isRollback ? t("rollback") : t("promote")}
+                </Button>
+              </DialogFooter>
+            </>
+          )}
         </DialogContent>
       </Dialog>
 
       <BuildLogDialog org={org} app={app} version={logVersion} onClose={() => setLogVersion(null)} />
       <DiffDialog org={org} app={app} version={diffVersion} onClose={() => setDiffVersion(null)} />
     </section>
+  );
+}
+
+// PromoteProgress follows the switch; closing the dialog leaves it running. The new version serves from draining on.
+function PromoteProgress({ org, app, id, version }: { org: string; app: string; id: string; version: number }) {
+  const { t } = useTranslation("platform");
+  const status = useSwitchStatus(org, app, id);
+  const settled = usePromoteSettled(org, app);
+  const state = status.data?.state;
+  const done = state !== undefined && state !== "preparing" && state !== "migrating";
+  useEffect(() => {
+    if (!done) return;
+    settled();
+    if (state === "failed") toast.error(t("promote.failed", { version }));
+    else toast.success(i18n.t("versions:toast.live", { version }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- once per finished switch
+  }, [done]);
+  return (
+    <>
+      {!done ? <p className="text-sm text-muted" role="status">{t(state === "migrating" ? "promote.migrating" : "promote.preparing")}</p> : null}
+      <Progress org={org} app={app} id={id} />
+    </>
   );
 }
 
