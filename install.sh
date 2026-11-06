@@ -239,7 +239,9 @@ fi
 
 # --- upgrade rt only -----------------------------------------------------------------------------------------------
 if [ "$UPGRADE_RT" = 1 ]; then
-  [ "$MODE" != docker ] && [ ! -f "$DOCKER_DIR/compose.yaml" ] || die "--upgrade-runtime is for bare mode: in Docker mode rt is part of the image"
+  if [ "$MODE" = docker ] || [ -f "$DOCKER_DIR/compose.yaml" ]; then
+    die "--upgrade-runtime is for bare mode: in Docker mode rt is part of the image"
+  fi
   [ "$RT_VERSION_SET" = 1 ] || die "--upgrade-runtime needs --runtime-version X.Y.Z"
   MODE=bare
   platform_checks
