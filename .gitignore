@@ -2,7 +2,7 @@
 .DS_Store
 node_modules/
 dist/
-data/
+/data/
 .env
 .idea/
 
