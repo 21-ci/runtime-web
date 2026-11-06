@@ -5,7 +5,7 @@
 // control API's own status/headers/body; refusals by the binding carry
 // `x-rt-reason` (binding_denied, rate_limited, binding_upstream, …).
 
-export type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+export type Method = "GET" | "HEAD" | "POST" | "PUT" | "PATCH" | "DELETE";
 
 export interface CtlReq {
   method: Method;
@@ -15,7 +15,7 @@ export interface CtlReq {
   /** JSON value, or a string sent verbatim with `contentType`. */
   body?: unknown | undefined;
   contentType?: string | undefined;
-  /** Extra request headers (If-Match, Accept, Last-Event-ID). */
+  /** Extra request headers (If-Match, Accept, Last-Event-ID, Range, If-Range). */
   headers?: Record<string, string> | undefined;
 }
 
@@ -99,6 +99,7 @@ export type Scope =
   | "secrets:write"
   | "queue:write"
   | "data:admin"
+  | "data:read"
   | "keys:write"
   | "sockets:write";
 
@@ -263,9 +264,59 @@ export interface ServiceFilter {
 }
 
 export interface VersionFailure {
+  /** fetch_failed, egress_denied, egress_quota, too_large, validation_failed, invalid_artifact, internal; absent on an older build failure. */
+  code?: string;
   reason: string;
   message: string;
   diagnostics?: unknown;
+}
+/** A preview service; absent `kind` on older branches. */
+export interface ScratchCreate {
+  of: string;
+  name: string;
+  ttl_seconds?: number;
+  allowed_hosts?: string[];
+}
+export interface DataTables {
+  items: { name: string; type: string; columns: { name: string; type: string; pk: number | boolean }[]; rows_estimate: number | null }[];
+}
+export interface DataQuery {
+  sql: string;
+  args?: unknown[];
+  limit?: number;
+}
+export interface DataResult {
+  columns: string[];
+  rows: unknown[][];
+  truncated: boolean;
+  elapsed_ms: number;
+}
+export interface DataListQuery {
+  prefix?: string | undefined;
+  cursor?: string | undefined;
+  limit?: number | undefined;
+}
+export interface BundleState {
+  id: string;
+  state: string;
+  bytes: number | null;
+  sha256: string | null;
+  expires_at: number | null;
+  failure: unknown;
+}
+export interface ImportQuery {
+  slug: string;
+  project: string;
+  environment: string;
+  activate?: boolean | undefined;
+  from?: string | undefined;
+}
+export interface ImportResult {
+  id: string;
+  service_id: string;
+  warnings?: unknown[];
+  missing_secrets?: string[];
+  versions?: unknown;
 }
 export interface Version {
   version: number;
@@ -273,6 +324,8 @@ export interface Version {
   lock_digest: string | null;
   build_state: string;
   failure: VersionFailure | null;
+  /** What the deploy claims ({git, label}): not verified, shown as text. */
+  meta?: unknown;
   created_at: number;
 }
 export interface UploadOpts {
@@ -280,9 +333,78 @@ export interface UploadOpts {
   compile?: "lazy" | "eager";
 }
 
+export interface SwitchWarning {
+  code: string;
+  names?: string[];
+}
+export interface SwitchBody {
+  from: { branch: string };
+  close_sockets: boolean;
+  dry_run: boolean;
+}
+export interface Switch {
+  /** Absent on a dry run. */
+  id?: string;
+  service: string;
+  kind: string;
+  state: string;
+  from_version?: number;
+  to_version?: number;
+  source?: { service: string; version: number; digest?: string };
+  inflight_old: number;
+  drain_deadline?: number;
+  interrupted: boolean;
+  error?: string;
+  warnings?: SwitchWarning[];
+  dry_run?: boolean;
+  /** Not answered by runtimes without schema migrations. */
+  pending_migrations?: string[];
+  created_at: number;
+  updated_at: number;
+}
+/** A branch: its own service, with its branch identity in `scratch`. */
+export type Branch = Service & { scratch?: { name?: string; expires_at?: number | null } };
+
 export interface SecretName {
   name: string;
   updated_at: number;
+  source?: "plain" | "vault";
+  last_synced_at?: number | null;
+  last_error?: string | null;
+}
+export interface SecretRefResult {
+  name: string;
+  source: string;
+  last_synced_at: number | null;
+}
+export interface DataEventsConfig {
+  topic: string;
+  tables: { name: string; ops: string[]; payload: "keys" | "row" }[];
+  kv_prefixes: { prefix: string; payload: "keys" | "row" }[];
+  max_backlog?: number;
+}
+export interface DataEvents {
+  state: "disabled" | "pending" | "active" | "paused_overflow" | "error";
+  lag: number;
+  backlog: number;
+  last_error: string | null;
+  tables: DataEventsConfig["tables"];
+  topic: string | null;
+  warnings: unknown[];
+}
+export interface PlanQuota {
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+  period: "day" | "total" | "per_service";
+}
+/** GET /v1/usage. keys/usage.ts is the one place that reads it. */
+export interface PlanUsage {
+  plan: string;
+  day: string;
+  resets_at: number;
+  quotas: Record<string, PlanQuota>;
+  limits: Record<string, unknown>;
 }
 export interface Schedule {
   id: string;
@@ -366,6 +488,76 @@ export interface LogQuery {
   cursor?: string;
 }
 
+export interface Migrations {
+  applied: { name: string; sha256: string; applied_at: number; version: number }[];
+  pending_for_latest: { name: string; sha256: string }[];
+}
+export interface NodeSeriesPoint {
+  ts: number;
+  cpu_pct: number | null;
+  load1: number | null;
+  mem_committed: number | null;
+  disk_free: number | null;
+  rx: number | null;
+  tx: number | null;
+}
+export interface NodeSeries {
+  range: string;
+  step_s: number;
+  points: NodeSeriesPoint[];
+}
+export interface NodeStatsQuery {
+  from?: number | undefined;
+  to?: number | undefined;
+  fields?: "counts" | "all" | undefined;
+  cursor?: string | undefined;
+  limit?: number | undefined;
+}
+export interface NodeStatsItem {
+  service: string;
+  tenant: string;
+  slug: string | null;
+  count: number;
+  errors: number;
+  p50: number | null;
+  p95: number | null;
+  p99: number | null;
+  dlq: number;
+  depth: number;
+}
+export interface NodeEvent {
+  id: string | number;
+  ts: number;
+  tenant: string | null;
+  service: string | null;
+  kind: string;
+  data: unknown;
+}
+export interface Backup {
+  id: string;
+  state: string;
+  trigger: string;
+  started_at: number;
+  finished_at: number | null;
+  bytes: number | null;
+  sha256: string | null;
+  encrypted: boolean;
+  verified_at: number | null;
+  rt_version: string;
+  failure: { code: string; message: string } | null;
+}
+export interface BackupStatus {
+  enabled: boolean;
+  schedule: string;
+  last_ok_at: number | null;
+  last_ok_id: string | null;
+  last_failure: unknown;
+  next_at: number | null;
+  running_id: string | null;
+  last_restored_at: number | null;
+  destination: { kind: string; endpoint_host?: string | null; bucket?: string | null } | null;
+}
+
 export interface NodeStatus {
   version: string;
   mode: string;
@@ -377,6 +569,7 @@ export interface NodeStatus {
   inflight: number;
   /** {open, objects, pending, max} */
   sockets?: unknown;
+  host?: { disk?: { free_bytes: number; total_bytes: number } | null };
 }
 export interface NodeConfigUpdate {
   default_profile?: string;

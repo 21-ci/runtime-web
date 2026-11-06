@@ -26,6 +26,33 @@ Saving code creates a version but does not change what is live. Deploying (the *
 the versions page) makes a version live. From the versions page you can roll back to an earlier
 version. The earlier version becomes live again, and no code is deleted.
 
+![The versions page of an app](../assets/screenshots/versions-light.png#only-light)
+![The versions page of an app](../assets/screenshots/versions-dark.png#only-dark)
+
+## Branches
+
+The **Branches** page creates staging copies of an app, each with its own URL, data and secrets. **Switch** makes a
+branch's build live on the app, and the switch history below offers **Roll back**.
+
+![A branch and the switch history](../assets/screenshots/branches-light.png#only-light)
+![A branch and the switch history](../assets/screenshots/branches-dark.png#only-dark)
+
+The rollback dialog says what stays: data written by the newer version is not undone.
+
+![The rollback dialog](../assets/screenshots/rollback-light.png#only-light)
+![The rollback dialog](../assets/screenshots/rollback-dark.png#only-dark)
+
+## Traffic and data
+
+The overview shows requests, errors and latency. The **Data** page reads the app's tables, keys and files; nothing there
+can change them, and every read is recorded in the audit log.
+
+![An app's overview with requests and latency](../assets/screenshots/app-overview-light.png#only-light)
+![An app's overview with requests and latency](../assets/screenshots/app-overview-dark.png#only-dark)
+
+![The data browser showing a table](../assets/screenshots/data-light.png#only-light)
+![The data browser showing a table](../assets/screenshots/data-dark.png#only-dark)
+
 ## Settings
 
 The app's settings page groups what the runtime enforces for the app:

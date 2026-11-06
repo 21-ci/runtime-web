@@ -5,7 +5,7 @@
   "orgNotFound": "Org not found",
   "empty": {
     "title": "No pending invites",
-    "description": "Invite a teammate with the form below."
+    "description": "Use Invite member to add a teammate."
   },
   "item": {
     "noRole": "No role",
@@ -24,7 +24,9 @@
   },
   "form": {
     "submit": "Create invite",
-    "copyLinkAria": "Copy invite link"
+    "copyLinkAria": "Copy invite link",
+    "open": "Invite member",
+    "sheetDescription": "They get a link to join this org. The link is shown once."
   },
   "errors": {
     "email": "Enter an email address."

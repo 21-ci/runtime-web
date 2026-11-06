@@ -106,6 +106,8 @@ export function testApp(overrides: Partial<Deps> = {}): TestApp {
     rtctl: new FakeRtCtl(),
     config: testConfig(),
     hasher: fastHasher,
+    // No test reaches the internet: housekeeping's update check would otherwise wait on GitHub and time out.
+    fetch: () => Promise.reject(new TypeError("network is off in tests")),
     ...overrides,
   };
   const app = createApp(deps);
@@ -115,8 +117,10 @@ export function testApp(overrides: Partial<Deps> = {}): TestApp {
     tick: (ms) => void (t += ms),
     call: (method, path, init = {}) => {
       const headers = new Headers(init.headers);
-      let body: string | undefined;
-      if (init.body !== undefined) {
+      let body: BodyInit | undefined;
+      if (init.body instanceof Uint8Array) {
+        body = init.body as Uint8Array<ArrayBuffer>;
+      } else if (init.body !== undefined) {
         body = JSON.stringify(init.body);
         if (!headers.has("content-type")) headers.set("content-type", "application/json");
       }

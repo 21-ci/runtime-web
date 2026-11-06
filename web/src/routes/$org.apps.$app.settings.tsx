@@ -1,9 +1,9 @@
-import { useState } from "react";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { Download, Settings } from "lucide-react";
+import { Gauge, GitBranch, Globe, Settings, Shield, SlidersHorizontal, TriangleAlert, Wrench, type LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { AccessSection } from "@/components/features/app-settings/access";
+import { BundleSection } from "@/components/features/app-settings/bundle";
 import { CallersSection } from "@/components/features/app-settings/callers";
 import { DangerZone } from "@/components/features/app-settings/danger-zone";
 import { EgressSection } from "@/components/features/app-settings/egress";
@@ -13,17 +13,27 @@ import { ScalingSection } from "@/components/features/app-settings/scaling";
 import { StatusPill } from "@/components/features/app-settings/status-pill";
 import { useAppDetail } from "@/components/features/app-settings/api";
 import { WriteAccess } from "@/components/features/app-settings/shared";
+import { DomainsPanel } from "@/components/features/domains/domains-panel";
+import { GitSettings } from "@/components/features/git/git-settings";
+import { DataEventsCard } from "@/components/features/triggers/data-events-card";
 import { QueryError } from "@/components/features/empty/query-error";
 import { PageBody } from "@/components/layout/app-shell";
+import { SettingsRow as AdvancedRow, SettingsRows } from "@/components/layout/settings-section";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { PageHeader, SectionLabel } from "@/components/ui/page-header";
+import { PageHeader } from "@/components/ui/page-header";
+import { SectionCard } from "@/components/ui/section-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { CopyButton } from "@/components/ui/url-bar";
 import { useCan } from "@/hooks/authz";
 import { cn } from "@/lib/utils";
 
+const SECTION_IDS = ["general", "access", "limits", "git", "integrations", "advanced", "danger"] as const;
+type SectionId = (typeof SECTION_IDS)[number];
+
 export const Route = createFileRoute("/$org/apps/$app/settings")({
+  validateSearch: (s: Record<string, unknown>): { section?: SectionId } =>
+    SECTION_IDS.includes(s.section as SectionId) ? { section: s.section as SectionId } : {},
   component: AppSettingsPage,
 });
 
@@ -31,7 +41,12 @@ export const Route = createFileRoute("/$org/apps/$app/settings")({
 // keeps its own save. Each section saves its own block with the etag it was loaded with (If-Match),
 // so a stale save is refused rather than overwriting. Write controls are shown only to roles that
 // hold the action (viewers see a read-only page). Danger zone appears only for roles that can delete.
-type SectionId = "general" | "access" | "limits" | "advanced" | "danger";
+type SectionDef = {
+  id: SectionId;
+  labelKey: `nav.${SectionId}`;
+  hintKey: `nav.${SectionId}Hint`;
+  icon: LucideIcon;
+};
 
 function AppSettingsPage() {
   const { org, app } = Route.useParams();
@@ -39,7 +54,10 @@ function AppSettingsPage() {
   const { t } = useTranslation(["app-settings", "common"]);
   const detail = useAppDetail(org, app);
   const can = useCan(org, detail.data?.project);
-  const [section, setSection] = useState<SectionId>("general");
+  const search = Route.useSearch();
+  // In the URL, so a link can open a section and a reload stays on it.
+  const section: SectionId = search.section ?? "general";
+  const setSection = (id: SectionId) => void navigate({ to: ".", search: id === "general" ? {} : { section: id }, replace: true });
 
   if (detail.isError) {
     return (
@@ -70,12 +88,14 @@ function AppSettingsPage() {
   }
 
   const canDelete = can("app.delete") === true;
-  const sections: { id: SectionId; labelKey: "nav.general" | "nav.access" | "nav.limits" | "nav.advanced" | "nav.danger" }[] = [
-    { id: "general", labelKey: "nav.general" },
-    { id: "access", labelKey: "nav.access" },
-    { id: "limits", labelKey: "nav.limits" },
-    { id: "advanced", labelKey: "nav.advanced" },
-    ...(canDelete ? [{ id: "danger" as const, labelKey: "nav.danger" as const }] : []),
+  const sections: SectionDef[] = [
+    { id: "general", labelKey: "nav.general", hintKey: "nav.generalHint", icon: SlidersHorizontal },
+    { id: "access", labelKey: "nav.access", hintKey: "nav.accessHint", icon: Shield },
+    { id: "limits", labelKey: "nav.limits", hintKey: "nav.limitsHint", icon: Gauge },
+    { id: "git", labelKey: "nav.git", hintKey: "nav.gitHint", icon: GitBranch },
+    { id: "integrations", labelKey: "nav.integrations", hintKey: "nav.integrationsHint", icon: Globe },
+    { id: "advanced", labelKey: "nav.advanced", hintKey: "nav.advancedHint", icon: Wrench },
+    ...(canDelete ? [{ id: "danger" as const, labelKey: "nav.danger" as const, hintKey: "nav.dangerHint" as const, icon: TriangleAlert }] : []),
   ];
 
   return (
@@ -88,7 +108,7 @@ function AppSettingsPage() {
         actions={<StatusPill status={a.status} />}
       />
       <div className="flex flex-col gap-6 md:flex-row md:gap-10">
-        <nav aria-label={t("nav.label")} className="md:sticky md:top-16 md:w-44 md:shrink-0 md:self-start">
+        <nav aria-label={t("nav.label")} className="md:sticky md:top-16 md:w-48 md:shrink-0 md:self-start">
           <ul className="flex gap-1 overflow-x-auto md:flex-col [scrollbar-width:none]">
             {sections.map((s) => {
               const current = s.id === section;
@@ -99,7 +119,7 @@ function AppSettingsPage() {
                     aria-current={current ? "page" : undefined}
                     onClick={() => setSection(s.id)}
                     className={cn(
-                      "flex h-8 w-full items-center whitespace-nowrap rounded-md px-2.5 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus",
+                      "flex h-8 w-full items-center gap-2 whitespace-nowrap rounded-md px-2.5 text-left text-sm outline-none transition-colors focus-visible:ring-2 focus-visible:ring-focus",
                       current
                         ? "bg-active font-medium text-text"
                         : s.id === "danger"
@@ -107,6 +127,7 @@ function AppSettingsPage() {
                           : "text-muted hover:bg-hover hover:text-text",
                     )}
                   >
+                    <s.icon className="size-4 shrink-0" aria-hidden="true" />
                     {t(s.labelKey)}
                   </button>
                 </li>
@@ -119,7 +140,7 @@ function AppSettingsPage() {
           <WriteAccess.Provider value={can("app.update") === true}>
             {section === "general" ? (
               <>
-                <SectionLabel>{t("nav.general")}</SectionLabel>
+                <SectionTitle section={sections.find((s) => s.id === "general")!} />
                 <ScalingSection org={org} app={a} />
                 <IngressSection org={org} app={a} />
                 <EgressSection org={org} app={a} />
@@ -127,22 +148,37 @@ function AppSettingsPage() {
             ) : null}
             {section === "access" ? (
               <>
-                <SectionLabel>{t("nav.access")}</SectionLabel>
+                <SectionTitle section={sections.find((s) => s.id === "access")!} />
                 <AccessSection org={org} app={a} />
                 <CallersSection org={org} app={a} />
               </>
             ) : null}
             {section === "limits" ? (
               <>
-                <SectionLabel>{t("nav.limits")}</SectionLabel>
+                <SectionTitle section={sections.find((s) => s.id === "limits")!} />
                 <LimitsSection org={org} app={a} />
               </>
             ) : null}
           </WriteAccess.Provider>
+          {section === "git" ? (
+            <>
+              <SectionTitle section={sections.find((s) => s.id === "git")!} />
+              <GitSettings org={org} app={app} />
+            </>
+          ) : null}
+          {section === "integrations" ? (
+            <>
+              <SectionTitle section={sections.find((s) => s.id === "integrations")!} />
+              <SectionCard title={t("integrations.domains")} description={t("integrations.domainsHint")}>
+                <DomainsPanel org={org} app={app} canWrite={can("domains.manage") === true} />
+              </SectionCard>
+              <DataEventsCard org={org} app={app} />
+            </>
+          ) : null}
           {section === "advanced" ? (
             <>
-              <SectionLabel>{t("nav.advanced")}</SectionLabel>
-              <dl className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
+              <SectionTitle section={sections.find((s) => s.id === "advanced")!} />
+              <SettingsRows>
                 <AdvancedRow label={t("advanced.slug")} hint={t("advanced.slugHint")}>
                   <code className="rounded-md bg-panel-2 px-1.5 py-0.5 text-[13px]">{a.slug}</code>
                   <CopyButton text={a.slug} label={t("advanced.copySlug")} />
@@ -163,28 +199,13 @@ function AppSettingsPage() {
                     </Link>
                   </Button>
                 </AdvancedRow>
-                <AdvancedRow label={t("advanced.domains")} hint={t("advanced.domainsHint")}>
-                  <Button asChild variant="secondary" size="sm">
-                    <Link to="/$org/apps/$app/domains" params={{ org, app }}>
-                      {t("advanced.openDomains")}
-                    </Link>
-                  </Button>
-                </AdvancedRow>
-                {can("app.data.export") === true ? (
-                  <AdvancedRow label={t("advanced.exportData")} hint={t("advanced.exportHint")}>
-                    <Button asChild variant="secondary" size="sm">
-                      <a href={`/api/orgs/${encodeURIComponent(org)}/apps/${encodeURIComponent(app)}/export`} download>
-                        <Download aria-hidden="true" /> {t("advanced.download")}
-                      </a>
-                    </Button>
-                  </AdvancedRow>
-                ) : null}
-              </dl>
+              </SettingsRows>
+              {can("app.data.export") === true ? <BundleSection org={org} app={app} project={a.project} environment={a.environment} /> : null}
             </>
           ) : null}
           {section === "danger" && canDelete ? (
             <>
-              <SectionLabel className="text-danger-text">{t("nav.danger")}</SectionLabel>
+              <SectionTitle section={sections.find((s) => s.id === "danger")!} danger />
               <DangerZone org={org} app={a} onDeleted={() => void navigate({ to: "/$org", params: { org } })} />
             </>
           ) : null}
@@ -194,14 +215,12 @@ function AppSettingsPage() {
   );
 }
 
-function AdvancedRow({ label, hint, children }: { label: string; hint?: string; children: React.ReactNode }) {
+function SectionTitle({ section, danger = false }: { section: SectionDef; danger?: boolean }) {
+  const { t } = useTranslation("app-settings");
   return (
-    <div className="flex flex-col gap-2 px-5 py-3.5 sm:flex-row sm:items-center sm:gap-6">
-      <dt className="sm:w-40 sm:shrink-0">
-        <span className="block text-sm font-medium">{label}</span>
-        {hint ? <span className="block text-[12px] text-muted">{hint}</span> : null}
-      </dt>
-      <dd className="flex min-w-0 flex-1 items-center gap-1 sm:justify-end">{children}</dd>
+    <div>
+      <h2 className={cn("text-[15px] font-semibold", danger ? "text-danger-text" : "text-text")}>{t(section.labelKey)}</h2>
+      <p className="text-[13px] text-muted">{t(section.hintKey)}</p>
     </div>
   );
 }

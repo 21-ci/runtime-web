@@ -1,10 +1,10 @@
 {
-  "title": "Versions",
-  "description": "Every build of this app, newest first. Promote a ready version or roll back to an earlier one.",
+  "title": "Deployments",
+  "description": "Every build of this app and every switch between them, newest first. Promote a ready version or roll back to an earlier one.",
   "versionLabel": "v{{version}}",
   "live": "Live",
-  "outside": "Outside the web",
   "state": {
+    "fetching": "Fetching",
     "pending": "Pending",
     "building": "Building",
     "ready": "Ready",
@@ -12,8 +12,10 @@
   },
   "table": {
     "version": "Version",
-    "build": "Build",
-    "author": "Author"
+    "author": "Author",
+    "state": "State",
+    "source": "Source",
+    "duration": "Duration"
   },
   "buildLog": "Build log",
   "buildLogFor": "Build log for version {{version}}",
@@ -47,5 +49,49 @@
   "toast": {
     "live": "Version {{version}} is live",
     "rebuilding": "Rebuilding version {{version}}"
-  }
+  },
+  "source": {
+    "git": "Git",
+    "console": "Console",
+    "api": "CLI or API",
+    "fromVersion": "Version {{version}}",
+    "fromVersionHint": "Switched from version {{version}} of the source app",
+    "unknownHint": "The runtime did not record where this came from."
+  },
+  "switchState": {
+    "preparing": "Preparing",
+    "migrating": "Migrating",
+    "draining": "Draining",
+    "completed": "Done",
+    "drain_timed_out": "Drain timed out",
+    "failed": "Failed"
+  },
+  "switchKind": {
+    "promote": "Promoted",
+    "switch": "Switched",
+    "rollback": "Rolled back"
+  },
+  "switchTitle": {
+    "promote": "Promoted v{{from}} to v{{to}}",
+    "switch": "Switched v{{from}} to v{{to}}",
+    "rollback": "Rolled back v{{from}} to v{{to}}"
+  },
+  "switchMadeLive": "Made v{{to}} live",
+  "switchesError": "Switches and rollbacks could not be loaded. Versions are still listed.",
+  "count_one": "{{count}} entry",
+  "count_other": "{{count}} entries",
+  "noMatch": "No deployments match these filters.",
+  "filter": {
+    "state": "State",
+    "source": "Source",
+    "period": "Period",
+    "allStates": "All states",
+    "allSources": "All sources",
+    "allTime": "All time",
+    "24h": "24 h",
+    "7d": "7 d",
+    "30d": "30 d"
+  },
+  "buildLogExport": "Export .txt",
+  "migrationsToggle": "Migrations ({{count}} pending)"
 }

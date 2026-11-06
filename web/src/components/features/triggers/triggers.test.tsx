@@ -19,12 +19,20 @@ beforeEach(() => {
 });
 
 describe("triggers", () => {
-  it("lists pending one-off tasks", async () => {
+  it("lists queued runs", async () => {
     useAppHandlers();
     renderAt(TRIGGERS);
 
-    const section = await screen.findByRole("region", { name: "One-off tasks" });
+    const section = await screen.findByRole("region", { name: "Queued runs" });
     expect(await within(section).findByText("sch_once_1")).toBeInTheDocument();
+  });
+
+  it("sums up HTTP in one line, linked to settings, without the change stream", async () => {
+    useAppHandlers();
+    renderAt(TRIGGERS);
+    const section = await screen.findByRole("region", { name: "HTTP" });
+    expect(within(section).getByRole("link", { name: "Edit in Settings › Access" })).toHaveAttribute("href", "/acme/apps/hello/settings");
+    expect(screen.queryByText("Change stream")).toBeNull();
   });
 
   it("dlq redrive requires confirmation", async () => {
@@ -32,7 +40,8 @@ describe("triggers", () => {
     useAppHandlers({ onRedrive: redrive });
     renderAt(TRIGGERS);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Redrive" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Dead-letter queue actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Redrive" }));
     const dialog = await screen.findByRole("alertdialog");
     expect(redrive).not.toHaveBeenCalled();
 
@@ -45,7 +54,8 @@ describe("triggers", () => {
     useAppHandlers({ onPurge: purge });
     renderAt(TRIGGERS);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Purge DLQ" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Dead-letter queue actions" }));
+    await userEvent.click(await screen.findByRole("menuitem", { name: "Purge DLQ" }));
     const dialog = await screen.findByRole("alertdialog");
     const confirm = within(dialog).getByRole("button", { name: "Purge" });
     expect(confirm).toBeDisabled();
@@ -98,7 +108,8 @@ describe("triggers", () => {
     );
     renderAt(TRIGGERS);
 
-    await userEvent.click(await screen.findByRole("button", { name: "Enqueue test message" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Send test message" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Send message" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/runtime is busy/i);
     await userEvent.click(screen.getByRole("button", { name: "Retry" }));
     await waitFor(() => expect(calls).toBe(2));

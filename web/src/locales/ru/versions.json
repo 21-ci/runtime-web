@@ -1,10 +1,10 @@
 {
-  "title": "Версии",
-  "description": "Каждая сборка этого приложения, сначала новые. Опубликуйте готовую версию или откатитесь к более ранней.",
+  "title": "Развёртывания",
+  "description": "Каждая сборка приложения и каждое переключение между ними, сначала новые. Сделайте готовую версию рабочей или откатитесь к более ранней.",
   "versionLabel": "v{{version}}",
   "live": "Рабочая",
-  "outside": "Вне веб-консоли",
   "state": {
+    "fetching": "Загрузка",
     "pending": "Ожидание",
     "building": "Сборка",
     "ready": "Готово",
@@ -12,8 +12,10 @@
   },
   "table": {
     "version": "Версия",
-    "build": "Сборка",
-    "author": "Автор"
+    "author": "Автор",
+    "state": "Состояние",
+    "source": "Источник",
+    "duration": "Длительность"
   },
   "buildLog": "Журнал сборки",
   "buildLogFor": "Журнал сборки версии {{version}}",
@@ -47,5 +49,51 @@
   "toast": {
     "live": "Версия {{version}} стала рабочей",
     "rebuilding": "Пересборка версии {{version}}"
-  }
+  },
+  "source": {
+    "git": "Git",
+    "console": "Консоль",
+    "api": "CLI или API",
+    "fromVersion": "Версия {{version}}",
+    "fromVersionHint": "Переключено с версии {{version}} исходного app",
+    "unknownHint": "Среда выполнения не записала источник."
+  },
+  "switchState": {
+    "preparing": "Подготовка",
+    "migrating": "Миграция",
+    "draining": "Завершение запросов",
+    "completed": "Готово",
+    "drain_timed_out": "Истекло время завершения",
+    "failed": "Ошибка"
+  },
+  "switchKind": {
+    "promote": "Опубликовано",
+    "switch": "Переключено",
+    "rollback": "Откачено"
+  },
+  "switchTitle": {
+    "promote": "Опубликовано: v{{from}} → v{{to}}",
+    "switch": "Переключено: v{{from}} → v{{to}}",
+    "rollback": "Откат: v{{from}} → v{{to}}"
+  },
+  "switchMadeLive": "v{{to}} стала рабочей",
+  "switchesError": "Не удалось загрузить переключения и откаты. Версии показаны.",
+  "count_one": "{{count}} запись",
+  "count_few": "{{count}} записи",
+  "count_many": "{{count}} записей",
+  "count_other": "{{count}} записи",
+  "noMatch": "Нет развёртываний по этим фильтрам.",
+  "filter": {
+    "state": "Состояние",
+    "source": "Источник",
+    "period": "Период",
+    "allStates": "Все состояния",
+    "allSources": "Все источники",
+    "allTime": "За всё время",
+    "24h": "24 ч",
+    "7d": "7 дн",
+    "30d": "30 дн"
+  },
+  "buildLogExport": "Экспорт .txt",
+  "migrationsToggle": "Миграции (ожидают: {{count}})"
 }

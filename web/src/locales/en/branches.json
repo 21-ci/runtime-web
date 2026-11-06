@@ -1,0 +1,113 @@
+{
+  "title": "Branches",
+  "description": "Staging copies of this app with their own URL, data and secrets. Switch sends new traffic and the queue to a branch's build while the old version finishes its work.",
+  "emptyTitle": "No branches yet",
+  "emptyDescription": "Create one with 21ci branch create. It appears here with its URL and build.",
+  "table": {
+    "branch": "Branch",
+    "url": "URL",
+    "build": "Build",
+    "sha": "SHA",
+    "expires": "Expires"
+  },
+  "never": "Never",
+  "noSha": "None",
+  "state": {
+    "pending": "Pending",
+    "building": "Building",
+    "ready": "Ready",
+    "failed": "Failed",
+    "none": "No build"
+  },
+  "notFound": "App not found",
+  "notFoundDescription": "It may have been deleted or you lack access.",
+  "switch": "Switch",
+  "switchFor": "Switch to branch {{name}}",
+  "switchTitle": "Switch to branch {{name}}?",
+  "switchHint": "Data and secrets do not move: the new code runs on this app's data and secrets. A rollback does not undo data it wrote.",
+  "preflightError": "The check could not finish, so nothing changed.",
+  "retry": "Check again",
+  "preflight": {
+    "clear": "Nothing needs your attention.",
+    "review": "Items to review: {{count}}",
+    "heading": "Before you switch",
+    "liveChange": "Live version",
+    "liveChangeValue": "v{{from}} to the build of {{name}} (v{{source}})",
+    "liveFirstValue": "The build of {{name}} (v{{source}}) becomes live",
+    "running": "Tasks still running on the live version",
+    "envMissing": "Env and secret names this app lacks",
+    "triggers": "Trigger settings that differ and stay as they are on this app",
+    "migrations": "Pending migrations",
+    "migrationsUnknown": "Not reported by this runtime",
+    "migrationsNone": "None",
+    "none": "None",
+    "closeSockets": "Close open WebSockets once the new version is live"
+  },
+  "warning": {
+    "routes_refresh_delayed": "The new version is committed and reaches traffic once the node re-reads its routes.",
+    "schedule_tick_skipped": "A schedule may skip one tick while an old run finishes.",
+    "other": "Runtime warning: {{code}}",
+    "replaces_with_starter": "This branch still runs the starter code. Switching replaces this app's live code with it."
+  },
+  "progress": {
+    "took": "Took {{time}}",
+    "step": {
+      "prepare": "Prepare",
+      "migrate": "Migrate",
+      "drain": "Drain",
+      "live": "Live"
+    },
+    "heading": "Progress",
+    "running": "{{count}} tasks of v{{version}} still running",
+    "deadline": "Stops waiting at {{time}}",
+    "done": "Done",
+    "interrupted": "The node restarted during this switch.",
+    "error": "Reason: {{code}}",
+    "close": "Close"
+  },
+  "switchState": {
+    "preparing": "Preparing",
+    "migrating": "Migrating",
+    "draining": "Draining",
+    "completed": "Completed",
+    "drain_timed_out": "Drain timed out",
+    "failed": "Failed"
+  },
+  "kind": {
+    "promote": "Promote",
+    "switch": "Switch",
+    "rollback": "Rollback"
+  },
+  "history": {
+    "successRate": "Success rate",
+    "median": "Median duration",
+    "last": "Last switch",
+    "strip": "Completed {{ok}} of the last {{total}} switches",
+    "title": "Switch history",
+    "empty": "No switches yet.",
+    "kind": "Kind",
+    "change": "Change",
+    "state": "State",
+    "change_value": "v{{from}} to v{{to}}",
+    "first_value": "v{{to}}"
+  },
+  "rollback": "Roll back",
+  "rollbackFor": "Roll back to version {{version}}",
+  "rollbackTitle": "Roll back to version {{version}}?",
+  "rollbackDescription": "Version {{version}} becomes live again. Data written by the newer version stays.",
+  "toast": {
+    "switched": "Switching to version {{version}}",
+    "rolledBack": "Rolling back to version {{version}}",
+    "deleted": "Branch deleted"
+  },
+  "parentCode": "Start from this app's code",
+  "parentCodeHint": "The branch runs the live version from the start. Off: it has no code until you push, and the editor offers a starter.",
+  "parentCodeNotReady": "This app's live version has not finished building, so it cannot be copied yet. Try again after the first request, or start with no code.",
+  "copyUrlFor": "Copy URL of {{name}}",
+  "deleteFor": "Delete branch {{name}}",
+  "delete": "Delete branch",
+  "deleteTitle": "Delete branch {{name}}?",
+  "deleteHint": "Its code, data and secrets are deleted. This app is not affected.",
+  "count_one": "{{count}} branch",
+  "count_other": "{{count}} branches"
+}

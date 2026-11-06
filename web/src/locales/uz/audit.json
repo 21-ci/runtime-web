@@ -2,9 +2,17 @@
   "title": "Audit jurnali",
   "description": "Bu tashkilotda kim nimani oʻzgartirgani, eng yangisi birinchi.",
   "filters": {
-    "actor": "Foydalanuvchi ID (ijrochi)",
+    "actorLabel": "Ijrochi",
+    "allActors": "Barcha aʼzolar",
     "action": "Amal",
-    "apply": "Filtrlarni qoʻllash"
+    "apply": "Filtrlarni qoʻllash",
+    "period": "Davr",
+    "periods": {
+      "all": "Hammasi",
+      "24h": "24 soat",
+      "7d": "7 kun",
+      "30d": "30 kun"
+    }
   },
   "columns": {
     "when": "Qachon",

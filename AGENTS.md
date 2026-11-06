@@ -1,14 +1,14 @@
 # AGENTS.md
 
 Instructions for coding agents working **on this repository**: the Runtime Web console. If you are writing an App
-that runs **on** 21 Cloud Runtime, this is the wrong guide; see the runtime repository instead.
+that runs **on** 21 Cloud Functions Runtime, this is the wrong guide; see the runtime repository instead.
 
 ## What this is
 
-A self-hosted console for writing, deploying and running small apps on 21 Cloud Runtime. It has an org and project
+A self-hosted console for writing, deploying and running small apps on 21 Cloud Functions Runtime. It has an org and project
 model, an in-browser code editor, logs, triggers, tokens, custom domains and an instance admin console. The console
 is a React single-page app (`web/`) on top of a JSON API. The API backend (`server/`) is TypeScript and runs as an
-**App on 21 Cloud Runtime** (the service `rtweb`); the design is in
+**App on 21 Cloud Functions Runtime** (the service `rtweb`); the design is in
 [docs/contributing/architecture.md](docs/contributing/architecture.md).
 
 Vocabulary, use it exactly:
@@ -28,6 +28,13 @@ Vocabulary, use it exactly:
 | `server/src/routes/` | HTTP routes per area; `server/src/http/` router, error envelope, validation, cookies |
 | `server/src/auth/`, `server/src/authz/` | sessions, CSRF, Origin, MFA, OAuth; the role and action rules (`can`) |
 | `server/src/{apps,orgs,invites,keys,domains,users,audit}/` | feature services |
+| `server/src/jobs/`, `server/src/jobs.ts` | budgeted job runner; housekeeping run by `scheduled()` |
+| `server/src/metrics/` | the `metric_rollups` ring |
+| `server/src/alerts/` | alert channels, rules, evaluation into state and outbox, the send job |
+| `server/src/hooks/` | webhook verification (GitHub, Gitea, GitLab) and outbound signing |
+| `server/src/git/` | repository links and branch rules; webhook to deploy pipeline with the head check |
+| `server/src/updates/`, `server/src/telemetry/` | the GitHub release check for the update notice; the daily user count pushed to the runtime |
+| `deploy-action/` | GitHub Action that calls `POST …/deploys` |
 | `server/src/runtime/` | control-API client over `sdk("rtctl")`; `errors.ts` maps runtime errors |
 | `server/src/db/`, `server/src/storage/` | schema migrations; `std:sql` / `std:kv` adapters |
 | `server/src/crypto/`, `server/src/config.ts` | AES-GCM sealing, argon2id, TOTP; env config |
@@ -70,6 +77,8 @@ Vocabulary, use it exactly:
   plain SQL with append-only migrations in `server/src/db/schema.ts`.
 - Console: data goes through TanStack Query hooks only (never `fetch` inside a component). Use the primitives in
   `web/src/components/ui/` and the tokens in [docs/contributing/design-tokens.md](docs/contributing/design-tokens.md).
+  Every screen follows [docs/contributing/ui-guidelines.md](docs/contributing/ui-guidelines.md) (components, lists,
+  states, exports, copy, responsive and theme rules). It is binding.
 - Tests: Vitest everywhere; `testApp()` and `FakeRtCtl` on the server, Testing Library and MSW in the console.
 - Comments explain why, not what. Do not reference planning documents, task numbers or design doc sections in code.
 

@@ -5,6 +5,7 @@
 
 import { auditStmt, type AuditActor } from "../audit/audit.ts";
 import { newId } from "../crypto/random.ts";
+import { rethrowBudget } from "../jobs/budget.ts";
 import { isRuntimeError } from "../runtime/client.ts";
 import type { Stmt } from "../storage/types.ts";
 import {
@@ -56,6 +57,7 @@ async function run(host: string, f: () => Promise<unknown>): Promise<void> {
   try {
     await f();
   } catch (e) {
+    rethrowBudget(e);
     warn("check failed", host, e);
   }
 }
@@ -110,6 +112,7 @@ async function reconcile(deps: DomainDeps): Promise<void> {
     try {
       hosts = await listHostsOf(deps, svc);
     } catch (e) {
+      rethrowBudget(e);
       warn("reconcile list hosts failed", svc, e);
       continue;
     }
@@ -119,6 +122,7 @@ async function reconcile(deps: DomainDeps): Promise<void> {
       try {
         await runtimeOf(deps).op().putHost(svc, d.host);
       } catch (e) {
+        rethrowBudget(e);
         if (!isRuntimeError(e) || e.status !== 409) warn("reconcile put failed", d.host, e);
       }
     }

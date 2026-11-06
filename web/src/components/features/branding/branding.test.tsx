@@ -1,3 +1,4 @@
+import { defaultIcon } from "./brand";
 import { configure, fireEvent, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
@@ -68,9 +69,23 @@ describe("branding on public pages", () => {
       const { queryClient } = renderAt("/login").options.context;
       await waitFor(() => expect(link.getAttribute("href")).toBe("/api/branding/assets/icon?v=new"));
       queryClient.setQueryData(["branding"], { ...acme, icon_url: null });
-      await waitFor(() => expect(link.getAttribute("href")).toBe("favicon.svg"));
+      await waitFor(() => expect(link.getAttribute("href")).toBe("/favicon.svg"));
     } finally {
       link.remove();
+    }
+  });
+
+  it("resolves the bundled icon from the root, or from <base href> under a path route", () => {
+    window.history.pushState({}, "", "/acme/apps/hello/logs");
+    expect(defaultIcon()).toBe("/favicon.svg");
+    const base = document.createElement("base");
+    base.setAttribute("href", "/s/console/");
+    document.head.appendChild(base);
+    try {
+      expect(defaultIcon()).toBe("/s/console/favicon.svg");
+    } finally {
+      base.remove();
+      window.history.pushState({}, "", "/");
     }
   });
 

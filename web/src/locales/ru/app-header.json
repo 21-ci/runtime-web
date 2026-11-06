@@ -1,1 +1,16 @@
-{}
+{
+  "live": "Активна v{{version}}",
+  "noLive": "Пока ничего не запущено",
+  "state": {
+    "ready": "Готово",
+    "failed": "Ошибка",
+    "building": "Сборка",
+    "pending": "Ожидание"
+  },
+  "access": {
+    "public": "Публичный",
+    "key": "API-ключ",
+    "internal": "Внутренний"
+  },
+  "openDeployments": "Открыть развёртывания"
+}

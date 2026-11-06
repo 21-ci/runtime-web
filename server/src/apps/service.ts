@@ -3,9 +3,11 @@
 // `Runtime.as(key)`. A slug held by another tenant is invisible to that key and so
 // 404. No resolve cache: each request is its own task.
 
+import { removeLinkOf } from "../git/links.ts";
+import { removePreviewsOf } from "../git/previews.ts";
 import type { Deps } from "../app.ts";
 import { AppError, conflict, invalid, notFound } from "../http/errors.ts";
-import { Runtime, type Scoped } from "../runtime/client.ts";
+import { Runtime, RuntimeError, type Scoped } from "../runtime/client.ts";
 import type * as T from "../runtime/types.ts";
 import { can, type Action, type Subject } from "../authz/policy.ts";
 import { authorize } from "../orgs/members.ts";
@@ -14,10 +16,35 @@ import { dbOf } from "../auth/types.ts";
 import type { AppLookup } from "../domains/types.ts";
 import { removeAppDomains } from "../domains/domains.ts";
 import type { Actor } from "../orgs/common.ts";
-import { rt } from "../runtime/errors.ts";
+import { rethrowBudget } from "../jobs/budget.ts";
+import { deleteRollups, HOUR_STEP_S, readRollups } from "../metrics/rollups.ts";
+import { mapRuntimeError, rt } from "../runtime/errors.ts";
 import { checkBundle, MAX_FILE_BYTES, unpack } from "./source.ts";
 import { appIndexDelete, appIndexPut } from "./index-table.ts";
 import { renderTemplate } from "./templates.ts";
+
+const RATE_RULES_MAX = 32;
+const RATE_RULE_FIELDS = new Set(["path", "methods", "rps", "burst", "by"]);
+const RATE_MAX = 1_000_000;
+
+/** The shape only, mapped to field errors a form can show. The runtime holds the path grammar and has the last word. */
+function parseRateRules(raw: unknown, fields: Record<string, string>): unknown[] {
+  if (!Array.isArray(raw) || raw.length > RATE_RULES_MAX) {
+    fields["ingress.rate_rules"] = "out_of_range";
+    return [];
+  }
+  return raw.map((r: unknown, i) => {
+    const at = `ingress.rate_rules[${i}]`;
+    const o = (r ?? {}) as Record<string, unknown>;
+    for (const k of Object.keys(o)) if (!RATE_RULE_FIELDS.has(k)) fields[`${at}.${k}`] = "unknown";
+    if (typeof o.path !== "string" || !o.path.startsWith("/") || new TextEncoder().encode(o.path).length > 256) fields[`${at}.path`] = "invalid_format";
+    if (!(Number.isInteger(o.rps) && (o.rps as number) >= 1 && (o.rps as number) <= RATE_MAX)) fields[`${at}.rps`] = "out_of_range";
+    if (o.burst !== undefined && !(Number.isInteger(o.burst) && (o.burst as number) >= 0 && (o.burst as number) <= RATE_MAX)) fields[`${at}.burst`] = "out_of_range";
+    if (o.by !== undefined && o.by !== "service" && o.by !== "ip") fields[`${at}.by`] = "not_one_of";
+    if (o.methods !== undefined && !(Array.isArray(o.methods) && o.methods.length <= 16 && o.methods.every((m) => typeof m === "string"))) fields[`${at}.methods`] = "invalid_format";
+    return o;
+  });
+}
 
 /** Clock seams (tests replace sleep with a fake-clock tick). */
 export const timing = {
@@ -104,6 +131,13 @@ export function appUrl(runtimeUrl: string, slug: string): string {
   return `/s/${slug}/`;
 }
 
+/** A branch's identity: its slug is always `<parent>-br-<name>`. */
+function branchOf(s: T.Service): { name: string; parent: string } | null {
+  const name = (s as T.Branch).scratch?.name;
+  const suffix = `-br-${name}`;
+  return name && s.slug.endsWith(suffix) ? { name, parent: s.slug.slice(0, -suffix.length) } : null;
+}
+
 export function appView(s: T.Service, etag: string, runtimeUrl: string) {
   const requested = s.limits === undefined || s.limits === null ? null : s.limits;
   const e = etag || s.etag;
@@ -111,6 +145,7 @@ export function appView(s: T.Service, etag: string, runtimeUrl: string) {
     ...summary(s),
     etag: e,
     runtime: s.runtime, profile: s.profile, access: s.access,
+    branch: branchOf(s),
     url: appUrl(runtimeUrl, s.slug),
     scaling: s.scaling ?? null, ingress: s.ingress ?? null, egress: s.egress ?? null,
     call: s.call ?? null, triggers: s.triggers ?? null,
@@ -145,19 +180,33 @@ export async function createApp(c: OrgCtx, b: { project: string; environment: st
   authorize(c.sub, "app.create", b.project);
   const src = renderTemplate(b.template, b.slug);
   if (src === undefined) throw invalid({ template: "not_one_of" });
+  return createWith(c, b, "deno", src, "application/typescript");
+}
+
+/** A WebAssembly component: the runtime validates it, this only stops a file that is plainly something else. */
+export async function createWasmApp(c: OrgCtx, b: { project: string; environment: string; slug: string; name?: string }, bytes: Uint8Array) {
+  authorize(c.sub, "app.create", b.project);
+  const magic = [0, 0x61, 0x73, 0x6d];
+  if (!magic.every((m, i) => bytes[i] === m)) throw invalid({ file: "not_wasm" });
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return createWith(c, b, "wasm", btoa(bin), "application/wasm;base64");
+}
+
+async function createWith(c: OrgCtx, b: { project: string; environment: string; slug: string; name?: string }, runtime: "deno" | "wasm", src: string, contentType: string) {
   const envs = await rt(() => c.cli.getProjectEnvironments(b.project));
   // Items are `{name, services}` objects (runtime v0.1.1); accept bare strings too.
   const names = (envs.environments as unknown[]).map((e) => (typeof e === "string" ? e : String((e as { name?: unknown })?.name ?? "")));
   if (!names.includes(b.environment)) throw invalid({ environment: "not_one_of" });
   let svc: T.Service;
   try {
-    svc = await rt(() => c.cli.createService({ slug: b.slug, runtime: "deno", project: b.project, environment: b.environment, ...(b.name ? { name: b.name } : {}) }));
+    svc = await rt(() => c.cli.createService({ slug: b.slug, runtime, project: b.project, environment: b.environment, ...(b.name ? { name: b.name } : {}) }));
   } catch (e) {
     if (e instanceof AppError && e.code === "slug_taken") throw conflict("slug_taken", SLUG_TAKEN_MESSAGE);
     throw e;
   }
   try {
-    const v = await rt(() => c.cli.uploadVersion(svc.id, src, "application/typescript", { activate: true, compile: "eager" }));
+    const v = await rt(() => c.cli.uploadVersion(svc.id, src, contentType, { activate: true, compile: "eager" }));
     await recordAuthor(c, svc.id, v.version);
   } catch (e) {
     // Do not leave an empty app holding the slug: delete it now, or queue the delete for scheduled().
@@ -200,7 +249,7 @@ export function toServicePatch(b: Record<string, unknown>): T.ServicePatch {
     out.scaling = b.scaling;
   }
   if (b.ingress !== undefined) {
-    const ig = (b.ingress ?? {}) as { methods?: unknown; path_prefixes?: unknown; ip_allow?: unknown; rate_limit?: unknown };
+    const ig = (b.ingress ?? {}) as { methods?: unknown; path_prefixes?: unknown; ip_allow?: unknown; rate_limit?: unknown; rate_rules?: unknown };
     const ip = Array.isArray(ig.ip_allow) ? ig.ip_allow : [];
     ip.forEach((v, i) => {
       if (typeof v !== "string" || !isCidr(v)) fields[`ingress.ip_allow[${i}]`] = "invalid_format";
@@ -210,6 +259,10 @@ export function toServicePatch(b: Record<string, unknown>): T.ServicePatch {
     if (Array.isArray(ig.path_prefixes) && ig.path_prefixes.length) ing.allow_paths = ig.path_prefixes;
     if (ip.length) ing.ip_allow = ip;
     if (ig.rate_limit !== undefined && ig.rate_limit !== null) ing.rate_limit = ig.rate_limit;
+    if (ig.rate_rules !== undefined && ig.rate_rules !== null) {
+      const rules = parseRateRules(ig.rate_rules, fields);
+      if (rules.length) ing.rate_rules = rules;
+    }
     out.ingress = ing;
   }
   if (b.call !== undefined) {
@@ -243,13 +296,25 @@ export async function updateApp(c: OrgCtx, slug: string, patch: T.ServicePatch, 
   return svc;
 }
 
+const branchExists = () => new AppError(409, "branch_exists", "Delete this app's branches first.");
+
 export async function deleteApp(c: OrgCtx, slug: string) {
   const app = await appFor(c, slug, "app.delete");
   // Domains first: removing them deletes the rows and queues runtime unmaps (retried by the domain
   // checker), so nothing is left pointing at a deleted service if a later step fails.
-  await removeAppDomains(c.deps, app.id, c.actor);
-  await rt(() => c.cli.deleteService(app.id));
+  // So branches are checked before them: the runtime refuses the delete, and the domains would be gone.
+  try {
+    if ((await c.cli.listBranches(app.id)).length > 0) throw branchExists();
+    await removeAppDomains(c.deps, app.id, c.actor);
+    await c.cli.deleteService(app.id);
+  } catch (e) {
+    if (e instanceof RuntimeError && e.code === "branch_exists") throw branchExists();
+    throw mapRuntimeError(e);
+  }
   await appIndexDelete(c.deps.storage.db, app.slug);
+  await deleteRollups(c.deps.storage.db, app.id);
+  await removeLinkOf(c.deps, c.org.id, app.id);
+  await removePreviewsOf(c.deps, c.org.id, c.org.tenantId, app.id);
   return app;
 }
 
@@ -284,6 +349,7 @@ export async function retryPendingServiceDeletes(deps: Deps): Promise<number> {
       await rt(() => cli.deleteService(r.service_id));
       await done();
     } catch (e) {
+      rethrowBudget(e);
       if (e instanceof AppError && e.status === 404) {
         await done();
         continue;
@@ -304,7 +370,12 @@ export async function getFiles(c: OrgCtx, slug: string, version: number | "lates
   const app = await appFor(c, slug, "app.read");
   if (version === "latest") {
     const list = await rt(() => c.cli.listVersions(app.id));
-    if (list.length === 0) throw notFound();
+    if (list.length === 0) {
+      // Nothing pushed yet (a new branch): version 0 is a starter for the editor, stored only on save.
+      const { value } = await rt(() => c.cli.getService(app.id));
+      if (value.runtime === "wasm") return { version: 0, entry: "", files: {}, read_only: true, kind: "wasm" as const };
+      return { version: 0, entry: "main.ts", files: { "main.ts": renderTemplate("http", slug) ?? "" }, read_only: false, kind: "ts" as const };
+    }
     version = Math.max(...list.map((v) => v.version));
   } else if (version === 0) {
     const { value } = await rt(() => c.cli.getService(app.id));
@@ -322,7 +393,7 @@ interface Author { user_id: string; name: string }
 function versionView(v: T.Version, live: number | null, author: Author | null) {
   return {
     version: v.version, build_state: v.build_state, live: live !== null && v.version === live,
-    source_digest: v.source_digest, failure: v.failure, author, created_at: v.created_at,
+    source_digest: v.source_digest, failure: v.failure, author, meta: v.meta ?? null, created_at: v.created_at,
   };
 }
 
@@ -392,7 +463,29 @@ export async function promote(c: OrgCtx, slug: string, version: number, etag: st
   const app = await appFor(c, slug, "app.deploy");
   if (!etag) throw new AppError(428, "precondition_required", "If-Match header required");
   const svc = await rt(() => c.cli.setLive(app.id, version, etag));
-  return { live_version: version, etag: svc.etag };
+  return { live_version: version, etag: svc.etag, ...(svc.migrations_applied ? { migrations_applied: svc.migrations_applied } : {}) };
+}
+
+export async function migrations(c: OrgCtx, slug: string) {
+  const app = await appFor(c, slug, "app.read");
+  return rt(() => c.cli.migrations(app.id));
+}
+
+/** Runs what a promote of this version would on a copy of the data. A failure answers like a real promote. */
+export async function promoteDryRun(c: OrgCtx, slug: string, version: number) {
+  const app = await appFor(c, slug, "app.deploy");
+  const out = await rt(() => c.cli.liveDryRun(app.id, version));
+  return { pending_migrations: out.pending_migrations ?? [] };
+}
+
+const WEEK_MS = 7 * 86_400_000;
+
+/** The week view reads the ring: the node's own figures end at 24 h. Per-hour counts, no week-wide percentile. */
+export async function weekStats(c: OrgCtx, slug: string) {
+  const app = await appFor(c, slug, "app.logs.read");
+  const now = c.deps.now();
+  const rows = await readRollups(c.deps.storage.db, app.id, HOUR_STEP_S, now - WEEK_MS, now);
+  return { window: "7d", step_s: HOUR_STEP_S, series: rows.map((r) => ({ ts: r.ts, count: r.data.count ?? 0, errors: r.data.errors ?? 0 })), data_from: rows[0]?.ts ?? null };
 }
 
 export async function rebuild(c: OrgCtx, slug: string, v: number) {
@@ -439,32 +532,62 @@ function bytesOf(res: T.CtlRes): Uint8Array {
   return new TextEncoder().encode(s);
 }
 
+/** The size hint without a snapshot; null when refused or absent (a binding or SDK not yet updated): it is advisory. */
+async function exportHint(c: OrgCtx, path: string): Promise<number | null> {
+  try {
+    const raw = (await c.cli.raw({ method: "HEAD", path })).headers["x-rt-size-hint"];
+    return raw !== undefined && /^\d+$/.test(raw) ? Number(raw) : null;
+  } catch (e) {
+    rethrowBudget(e);
+    return null;
+  }
+}
+
 /**
- * Reads the data snapshot in Range hops. If the control API ignores Range and
- * the whole snapshot exceeds one hop, answers 413 export_too_large.
+ * Reads one data snapshot in Range hops: the first hop's ETag goes as If-Range on the others, so every
+ * byte comes from that snapshot. A resumed hop answering anything but the next piece of it (a 200 is a
+ * new snapshot, the tag having expired) fails the download rather than stitching two snapshots: bytes
+ * already sent cannot be taken back, so starting over from zero is the browser's next request.
+ * If the control API ignores Range and the whole snapshot exceeds one hop, answers 413 export_too_large.
  */
-export async function exportData(c: OrgCtx, slug: string): Promise<{ first: Uint8Array; rest: () => AsyncGenerator<Uint8Array> }> {
+export async function exportData(c: OrgCtx, slug: string): Promise<{ first: Uint8Array; total: number | null; rest: () => AsyncGenerator<Uint8Array> }> {
   const app = await appFor(c, slug, "app.data.export");
   const path = `/v1/services/${encodeURIComponent(app.id)}/data/export`;
-  const hop = (off: number) =>
-    rt(() => c.cli.raw({ method: "GET", path, headers: { accept: "application/vnd.sqlite3", range: `bytes=${off}-${off + EXPORT_CHUNK - 1}` } }));
+  const hop = (off: number, tag?: string) =>
+    rt(() =>
+      c.cli.raw({
+        method: "GET",
+        path,
+        headers: { accept: "application/vnd.sqlite3", range: `bytes=${off}-${off + EXPORT_CHUNK - 1}`, ...(tag ? { "if-range": tag } : {}) },
+      }),
+    );
   const tooLarge = () => new AppError(413, "export_too_large", "the data snapshot is too large to download here", { cli: "21ci data export" });
+  const maxBytes = EXPORT_CHUNK * EXPORT_HOPS;
+  const hint = await exportHint(c, path);
+  if (hint !== null && hint > maxBytes) throw tooLarge();
   const res = await hop(0);
   const first = bytesOf(res);
   if (res.status !== 206) {
     if (first.length > EXPORT_CHUNK) throw tooLarge();
-    return { first, rest: async function* () {} };
+    return { first, total: first.length, rest: async function* () {} };
   }
   const total = totalOf(res.headers["content-range"]);
-  if (total === null || Math.ceil(total / EXPORT_CHUNK) > EXPORT_HOPS) throw tooLarge();
+  if (total === null || total > maxBytes) throw tooLarge();
+  const tag = res.headers["etag"];
+  if (first.length >= total) return { first, total, rest: async function* () {} };
+  if (!tag || first.length === 0) throw new AppError(502, "runtime_unavailable", "runtime unavailable");
   return {
     first,
+    total,
     rest: async function* () {
       let off = first.length;
-      while (off < total && first.length > 0) {
-        const r = await hop(off);
+      while (off < total) {
+        const r = await hop(off, tag);
         const b = bytesOf(r);
-        if (b.length === 0) return;
+        const range = /^bytes (\d+)-\d+\/(\d+)\s*$/.exec(r.headers["content-range"] ?? "");
+        if (r.status !== 206 || r.headers["etag"] !== tag || Number(range?.[1]) !== off || Number(range?.[2]) !== total || b.length === 0) {
+          throw new AppError(409, "export_restarted", "the data snapshot expired during the download; start it again");
+        }
         yield b;
         off += b.length;
       }

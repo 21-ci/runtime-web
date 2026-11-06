@@ -56,7 +56,7 @@ base_url        = "http://127.0.0.1:8081"
 inject_headers  = { authorization = "env:RTWEB_OP_TOKEN" }
 allowed_plans   = ["rtweb"]
 allowed_methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
-allowed_paths   = ["/v1/tenants", "/v1/tenants/*", "/v1/plans", "/v1/plans/*", "/v1/node/*", "/v1/version", "/v1/hosts", "/v1/hosts/*", "/v1/services/*/hosts/*"]
+allowed_paths   = ["/v1/tenants", "/v1/tenants/*", "/v1/plans", "/v1/plans/*", "/v1/node/status", "/v1/node/config", "/v1/node/cache", "/v1/node/scheduler", "/v1/node/drain", "/v1/node/series", "/v1/node/stats", "/v1/node/events", "/v1/node/backups", "/v1/node/backups/status", "/v1/version", "/v1/hosts", "/v1/hosts/*", "/v1/services/*/hosts/*", "/v1/telemetry/console", "/v1/telemetry/preview"]
 rate_limit      = { rps = 50, burst = 100 }
 
 # Tenant-scoped routes through the Caddy relay (:8082), which maps x-rtweb-key -> Authorization.
@@ -65,6 +65,6 @@ name            = "rtctl-tenant"
 base_url        = "http://127.0.0.1:8082"
 inject_headers  = { x-relay-auth = "env:RTWEB_RELAY_SECRET" }
 allowed_plans   = ["rtweb"]
-allowed_methods = ["GET", "POST", "PUT", "PATCH", "DELETE"]
-allowed_paths   = ["/v1/services", "/v1/services/*", "/v1/projects", "/v1/projects/*", "/v1/keys", "/v1/keys/*", "/v1/tenants/*/usage", "/v1/me", "/v1/limits"]
+allowed_methods = ["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]
+allowed_paths   = ["/v1/scratch", "/v1/services", "/v1/services/*", "/v1/projects", "/v1/projects/*", "/v1/keys", "/v1/keys/*", "/v1/tenants/*/usage", "/v1/me", "/v1/limits", "/v1/usage"]
 rate_limit      = { rps = 100, burst = 200 }

@@ -9,6 +9,7 @@ import { newId, randomBytes } from "../crypto/random.ts";
 import { Runtime, isNotFound, isRuntimeError } from "../runtime/client.ts";
 import { conflict, invalid } from "../http/errors.ts";
 import type { Db, Stmt } from "../storage/types.ts";
+import { rethrowBudget } from "../jobs/budget.ts";
 import { dohTxt } from "./doh.ts";
 import type { AppRef, TxtLookup } from "./types.ts";
 
@@ -190,7 +191,8 @@ export async function txtMatches(deps: DomainDeps, d: Pick<DomainRow, "host" | "
   try {
     const vals = await txtLookupOf(deps)(TXT_PREFIX + d.host);
     return vals.some((v) => v.trim() === d.txt_token);
-  } catch {
+  } catch (e) {
+    rethrowBudget(e);
     return false;
   }
 }
@@ -266,6 +268,7 @@ export async function unmapHost(deps: DomainDeps, m: PendingUnmap): Promise<bool
   try {
     await runtimeOf(deps).op().deleteHost(m.service_id, m.host);
   } catch (e) {
+    rethrowBudget(e);
     if (!isNotFound(e)) return false;
   }
   await db.run("DELETE FROM pending_unmaps WHERE id = ?", [m.id]);

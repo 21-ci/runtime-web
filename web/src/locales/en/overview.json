@@ -4,48 +4,30 @@
   "quick": {
     "label": "Quick actions",
     "newApp": "New app",
-    "newAppHint": "Deploy code in seconds",
     "newProject": "New project",
-    "newProjectHint": "Group apps together",
     "inviteMember": "Invite member",
-    "inviteMemberHint": "Bring your team in",
-    "createToken": "Create token",
-    "createTokenHint": "Access the API",
-    "addDomain": "Add domain",
-    "addDomainHint": "Serve an app on your URL"
+    "createToken": "Create token"
   },
   "projects": {
-    "title": "Projects",
-    "notFound": "Organization not found",
-    "appCount_one": "{{count}} app",
-    "appCount_other": "{{count}} apps"
+    "notFound": "Organization not found"
   },
   "apps": {
     "title": "Apps",
-    "menu": "Apps menu",
     "filter": "Filter apps by project",
     "allProjects": "All projects",
     "projectLabel": "Project",
     "new": "New app",
     "emptyTitle": "No apps yet",
-    "emptyDescription": "Create an app to see it here."
+    "emptyDescription": "Create an app to see it here.",
+    "description": "Every app in this organization."
   },
   "activity": {
-    "title": "Recent activity",
-    "adminsOnly": "Activity is for admins",
-    "adminsHint": "Ask an owner or admin.",
+    "title": "Activity",
+    "adminsOnly": "Only org owners and admins can see activity.",
     "error": "Could not load activity",
     "emptyTitle": "No activity yet",
     "emptyDescription": "Changes in this org show up here.",
     "system": "System"
-  },
-  "members": {
-    "title": "Members",
-    "titleCount": "Members ({{count}})",
-    "menu": "Members menu",
-    "invite": "Invite member",
-    "manage": "Manage members",
-    "empty": "No members to show"
   },
   "build": {
     "ready": "Ready",
@@ -53,35 +35,20 @@
     "building": "Building",
     "pending": "Pending"
   },
-  "access": {
-    "public": "Public",
-    "key": "Key required",
-    "internal": "Internal"
-  },
-  "liveVersion": "v{{version}}",
   "app": {
     "notFound": "App not found"
   },
-  "editCode": "Edit code",
-  "open": "Open",
   "lastError": "Last error: {{error}}",
   "stats": {
-    "title": "Last 5 minutes",
+    "title": "Last hour",
     "viewLogs": "View logs",
+    "viewAnalytics": "View analytics",
     "notFound": "Stats not found",
     "requests": "Requests",
     "errors": "Errors",
     "errorRate": "Error rate",
-    "p50": "p50",
     "p95": "p95",
-    "p99": "p99"
-  },
-  "code": {
-    "title": "Code",
-    "history": "History",
-    "unavailable": "Code is not available for this version.",
-    "entry": "entry",
-    "version": "v{{version}}"
+    "noRequests": "No requests in the last hour."
   },
   "events": {
     "title": "Events",
@@ -100,6 +67,35 @@
     "description": "Download the app's SQLite database as a file.",
     "export": "Export data"
   },
-  "liveUrl": "Live URL",
-  "preview": "Response preview"
+  "preview": "Response preview",
+  "appsTable": {
+    "app": "App",
+    "project": "Project",
+    "environment": "Environment",
+    "state": "State",
+    "live": "Live version",
+    "notLive": "Not live",
+    "filter": "Filter apps",
+    "environmentFilter": "Filter apps by environment",
+    "stateFilter": "Filter apps by state",
+    "allEnvironments": "All environments",
+    "allStates": "All states",
+    "count_one": "{{count}} app",
+    "count_other": "{{count}} apps",
+    "countOf_one": "{{shown}} of {{count}} app",
+    "countOf_other": "{{shown}} of {{count}} apps",
+    "noMatch": "No apps match these filters."
+  },
+  "lastDeployment": {
+    "title": "Last deployment",
+    "all": "Deployments",
+    "version": "Version",
+    "live": "Live",
+    "state": "State",
+    "author": "Author",
+    "outside": "CLI or API",
+    "created": "Created",
+    "emptyTitle": "No deployments yet",
+    "emptyDescription": "Save code to create the first version."
+  }
 }

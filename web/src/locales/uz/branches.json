@@ -1,0 +1,113 @@
+{
+  "title": "Tarmoqlar",
+  "description": "Ilovaning oʻz URL, maʼlumotlar va maxfiy qiymatlariga ega sinov nusxalari. Almashtirish yangi trafik va navbatni tarmoq yigʻilishiga yoʻnaltiradi, eski versiya esa boshlangan ishini tugatadi.",
+  "emptyTitle": "Hozircha tarmoqlar yoʻq",
+  "emptyDescription": "21ci branch create buyrugʻi bilan yarating. U shu yerda URL va yigʻilishi bilan chiqadi.",
+  "table": {
+    "branch": "Tarmoq",
+    "url": "URL",
+    "build": "Yigʻilish",
+    "sha": "SHA",
+    "expires": "Muddati"
+  },
+  "never": "Hech qachon",
+  "noSha": "Yoʻq",
+  "state": {
+    "pending": "Kutilmoqda",
+    "building": "Yigʻilmoqda",
+    "ready": "Tayyor",
+    "failed": "Xato",
+    "none": "Yigʻilish yoʻq"
+  },
+  "notFound": "Ilova topilmadi",
+  "notFoundDescription": "U oʻchirilgan yoki sizda ruxsat yoʻq boʻlishi mumkin.",
+  "switch": "Almashtirish",
+  "switchFor": "{{name}} tarmogʻiga almashtirish",
+  "switchTitle": "{{name}} tarmogʻiga almashtirilsinmi?",
+  "switchHint": "Maʼlumotlar va maxfiy qiymatlar koʻchmaydi: yangi kod shu ilovaning maʼlumotlari bilan ishlaydi. Orqaga qaytish u yozgan maʼlumotlarni bekor qilmaydi.",
+  "preflightError": "Tekshiruv tugamadi, hech narsa oʻzgarmadi.",
+  "retry": "Qayta tekshirish",
+  "preflight": {
+    "clear": "E'tibor talab qiladigan narsa yo'q.",
+    "review": "Tekshirish kerak: {{count}}",
+    "heading": "Almashtirishdan oldin",
+    "liveChange": "Ishlayotgan versiya",
+    "liveChangeValue": "v{{from}} oʻrniga {{name}} yigʻilishi (v{{source}})",
+    "liveFirstValue": "{{name}} yigʻilishi (v{{source}}) ishga tushadi",
+    "running": "Ishlayotgan versiyada hali bajarilayotgan vazifalar",
+    "envMissing": "Ilovada yoʻq muhit va maxfiy qiymat nomlari",
+    "triggers": "Farq qiladigan va ilovada oʻzgarmay qoladigan trigger sozlamalari",
+    "migrations": "Kutilayotgan migratsiyalar",
+    "migrationsUnknown": "Bu ish muhiti ular haqida xabar bermaydi",
+    "migrationsNone": "Yoʻq",
+    "none": "Yoʻq",
+    "closeSockets": "Yangi versiya ishga tushgach ochiq WebSocketlarni yopish"
+  },
+  "warning": {
+    "routes_refresh_delayed": "Yangi versiya saqlandi va tugun marshrutlarni qayta oʻqigach trafik oladi.",
+    "schedule_tick_skipped": "Eski ish tugaguncha jadval bir marta oʻtkazib yuborilishi mumkin.",
+    "other": "Ish muhiti ogohlantirishi: {{code}}",
+    "replaces_with_starter": "Bu tarmoqda hali ham namuna kod turibdi. Almashtirish ilovaning jonli kodini shu bilan almashtiradi."
+  },
+  "progress": {
+    "took": "{{time}} davom etdi",
+    "step": {
+      "prepare": "Tayyorlash",
+      "migrate": "Migratsiya",
+      "drain": "Vazifalarni yakunlash",
+      "live": "Ishga tushdi"
+    },
+    "heading": "Jarayon",
+    "running": "v{{version}} vazifalari hali bajarilmoqda: {{count}}",
+    "deadline": "Kutish {{time}} da tugaydi",
+    "done": "Tayyor",
+    "interrupted": "Almashtirish vaqtida tugun qayta ishga tushdi.",
+    "error": "Sabab: {{code}}",
+    "close": "Yopish"
+  },
+  "switchState": {
+    "preparing": "Tayyorlanmoqda",
+    "migrating": "Migratsiya",
+    "draining": "Vazifalar tugatilmoqda",
+    "completed": "Yakunlandi",
+    "drain_timed_out": "Kutish vaqti tugadi",
+    "failed": "Xato"
+  },
+  "kind": {
+    "promote": "Joriy qilish",
+    "switch": "Almashtirish",
+    "rollback": "Orqaga qaytish"
+  },
+  "history": {
+    "successRate": "Muvaffaqiyat ulushi",
+    "median": "Median davomiylik",
+    "last": "Oxirgi almashtirish",
+    "strip": "Oxirgi {{total}} almashtirishdan {{ok}} tasi muvaffaqiyatli",
+    "title": "Almashtirishlar tarixi",
+    "empty": "Hozircha almashtirishlar yoʻq.",
+    "kind": "Turi",
+    "change": "Oʻzgarish",
+    "state": "Holati",
+    "change_value": "v{{from}} dan v{{to}} ga",
+    "first_value": "v{{to}}"
+  },
+  "rollback": "Orqaga qaytish",
+  "rollbackFor": "{{version}}-versiyaga qaytish",
+  "rollbackTitle": "{{version}}-versiyaga qaytilsinmi?",
+  "rollbackDescription": "{{version}}-versiya yana ishga tushadi. Yangi versiya yozgan maʼlumotlar qoladi.",
+  "toast": {
+    "switched": "{{version}}-versiyaga almashtirilmoqda",
+    "rolledBack": "{{version}}-versiyaga qaytilmoqda",
+    "deleted": "Tarmoq o'chirildi"
+  },
+  "parentCode": "Shu ilova kodidan boshlash",
+  "parentCodeHint": "Tarmoq boshidanoq jonli versiyani ishga tushiradi. O'chirilgan bo'lsa, push qilmaguningizcha kod bo'lmaydi va muharrir namuna taklif qiladi.",
+  "parentCodeNotReady": "Ilovaning jonli versiyasi hali yig'ilmagan, shuning uchun uni hozircha nusxalab bo'lmaydi. Birinchi so'rovdan keyin qayta urining yoki kodsiz boshlang.",
+  "copyUrlFor": "{{name}} URL manzilini nusxalash",
+  "deleteFor": "{{name}} tarmog'ini o'chirish",
+  "delete": "Tarmoqni o'chirish",
+  "deleteTitle": "{{name}} tarmog'i o'chirilsinmi?",
+  "deleteHint": "Uning kodi, ma'lumotlari va sirlari o'chiriladi. Ilovaning o'ziga ta'sir qilmaydi.",
+  "count_one": "{{count}} ta tarmoq",
+  "count_other": "{{count}} ta tarmoq"
+}

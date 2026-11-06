@@ -1,18 +1,8 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 
-import { PageBody } from "@/components/layout/app-shell";
-
-import { VersionsView } from "@/components/features/versions/versions-view";
-
+// The Versions page became Deployments; old links keep working.
 export const Route = createFileRoute("/$org/apps/$app/versions")({
-  component: AppVersionsPage,
+  beforeLoad: ({ params }) => {
+    throw redirect({ to: "/$org/apps/$app/deployments", params, replace: true });
+  },
 });
-
-function AppVersionsPage() {
-  const { org, app } = Route.useParams();
-  return (
-    <PageBody>
-      <VersionsView org={org} app={app} />
-    </PageBody>
-  );
-}

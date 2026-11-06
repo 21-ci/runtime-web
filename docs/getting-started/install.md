@@ -5,7 +5,7 @@ description: Install Runtime Web on a Linux host with one script, or deploy it o
 
 # Install
 
-Runtime Web runs as an App, the service `rtweb`, on a 21 Cloud Runtime node. One installer sets it up on a Linux host
+Runtime Web runs as an App, the service `rtweb`, on a 21 Cloud Functions Runtime node. One installer sets it up on a Linux host
 in either of two modes:
 
 - **bare**: the `rt` node as a systemd service, the console on it, and Caddy on the host for HTTPS.
@@ -251,7 +251,7 @@ sudo firewall-cmd --add-service=http --add-service=https --permanent && sudo fir
 
 ## Manual install onto an existing node
 
-If you already run a 21 Cloud Runtime node, you can deploy the console onto it without the installer. The steps are
+If you already run a 21 Cloud Functions Runtime node, you can deploy the console onto it without the installer. The steps are
 the same ones the installer runs. See [Manual install](manual-install.md).
 
 ## Upgrade

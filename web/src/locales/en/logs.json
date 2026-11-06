@@ -1,8 +1,8 @@
 {
-  "title": "Live logs",
+  "title": "Logs",
   "compactLabel": "Logs",
   "filterLabel": "Filter lines",
-  "filterPlaceholder": "Filter lines…",
+  "filterPlaceholder": "Filter, or @level:error @kind:build",
   "levelLabel": "Minimum level",
   "levels": {
     "all": "All levels",
@@ -27,11 +27,43 @@
   "linesLabel": "Log lines",
   "empty": {
     "title": "No log lines yet",
-    "description": "Lines appear here as the app handles requests.",
+    "description": "Lines appear here when the app prints something. A request that prints nothing adds no line.",
     "noMatchTitle": "No lines match this filter",
     "noMatchDescription": "Clear the filter to see every line.",
-    "compact": "Lines appear here as the app handles requests.",
+    "compact": "Lines appear here when the app prints something. A request that prints nothing adds no line.",
     "compactNoMatch": "No lines match this filter."
   },
-  "streamEnded": "The log stream ended."
+  "scope": "This shows what your code prints and build output, from what the node has kept. Requests are not listed one by one: their counts and errors are on the app's Overview.",
+  "streamEnded": "The log stream ended.",
+  "kindLabel": "Kind",
+  "kinds": {
+    "all": "All kinds",
+    "runtime": "Runtime",
+    "build": "Build",
+    "system": "System"
+  },
+  "modeLabel": "Mode",
+  "mode": {
+    "live": "Live tail",
+    "range": "Range"
+  },
+  "rangeLabel": "Range",
+  "refresh": "Refresh",
+  "loadNewer": "Load newer lines",
+  "rangeError": "The logs for this range could not be loaded.",
+  "retry": "Retry",
+  "noRange": "No log lines between {{since}} and {{until}}.",
+  "details": {
+    "version": "Version",
+    "task": "Task",
+    "trigger": "Trigger",
+    "truncated": "Cut short",
+    "yes": "Yes"
+  },
+  "range": {
+    "custom": "Custom",
+    "since": "From",
+    "until": "Until",
+    "invalid": "Choose a start before the end."
+  }
 }

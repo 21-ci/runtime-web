@@ -2,7 +2,7 @@
 .DS_Store
 node_modules/
 dist/
-data/
+/data/
 .env
 .idea/
 
@@ -22,3 +22,17 @@ server/.gen-blobs.json
 coverage/
 .venv/
 .ci-local/
+
+# Internal dev notes: plans, reviews, research, PR drafts (never published)
+/docs/design/
+/docs/plans/
+/docs/reviews/
+*.local.md
+/PLAN.md
+/TODO.md
+/NOTES.md
+
+# Local demo, tooling and test output
+.demo/
+.codegraph/
+e2e/test-results/

@@ -51,7 +51,7 @@ export function InvitesPanel() {
           description={t("invites.empty.description")}
         />
       ) : (
-        <Table>
+        <Table stack>
           <TableHeader>
             <TableRow>
               <TableHead>{t("common:email")}</TableHead>

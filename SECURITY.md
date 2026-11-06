@@ -29,7 +29,7 @@ otherwise. Coordinated disclosure is expected: give us a reasonable window to sh
 
 In scope: the console (the `rtweb` service: API and SPA), its edge (`deploy/Caddyfile`, the `rtctl` SDK and its
 bindings in `deploy/rt.rtweb.toml`), `install.sh` and the release artifacts, the setup and login flows, OAuth and TOTP, sealing of secrets at
-rest, custom domain verification, audit log integrity, and anything that lets one user or org act on another's
+rest, custom domain verification, git webhooks and previews, the data browser, alert channels, the update check, audit log integrity, and anything that lets one user or org act on another's
 resources.
 
 Out of scope: the 21 Cloud Runtime node itself (report to [21-ci/runtime](https://github.com/21-ci/runtime) and see

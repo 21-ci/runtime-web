@@ -1,6 +1,6 @@
 # Configuration
 
-Runtime Web is a service (`rtweb`) on a 21 Cloud Runtime node, so there is no process of its own to configure. Settings
+Runtime Web is a service (`rtweb`) on a 21 Cloud Functions Runtime node, so there is no process of its own to configure. Settings
 live in three places:
 
 - **Service env and secrets** of `rtweb`, set by `server/scripts/install.mjs` and validated fail-closed by

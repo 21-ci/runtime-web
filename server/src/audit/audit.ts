@@ -70,6 +70,9 @@ export interface AuditFilter {
   action?: string | undefined;
   /** Actions to leave out (e.g. routine reads in an overview feed). */
   excludeActions?: string[] | undefined;
+  /** Inclusive bounds on the entry's time, in milliseconds. */
+  since?: number | undefined;
+  until?: number | undefined;
   /** Cursor from a previous page ("<ts>:<id>"). */
   cursor?: string | undefined;
   limit?: number | undefined;
@@ -119,6 +122,14 @@ export async function listAudit(db: Db, f: AuditFilter = {}): Promise<AuditPage>
   if (f.excludeActions?.length) {
     where.push(`a.action NOT IN (${f.excludeActions.map(() => "?").join(", ")})`);
     args.push(...f.excludeActions);
+  }
+  if (f.since !== undefined) {
+    where.push("a.ts >= ?");
+    args.push(f.since);
+  }
+  if (f.until !== undefined) {
+    where.push("a.ts <= ?");
+    args.push(f.until);
   }
   if (f.cursor) {
     const c = decodeCursor(f.cursor);

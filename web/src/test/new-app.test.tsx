@@ -1,4 +1,4 @@
-import { screen, waitFor } from "@testing-library/react";
+import { screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { describe, expect, it } from "vitest";
@@ -23,6 +23,26 @@ describe("new app form", () => {
     await userEvent.click(screen.getByRole("button", { name: "Create app" }));
     expect(await screen.findByText(/lowercase letters, digits and single hyphens/i)).toBeInTheDocument();
     expect(posted).toBe(false);
+  });
+
+  it("says which characters are wrong as you type, and clears when they are gone", async () => {
+    useShellHandlers();
+    renderAt("/acme/apps/new");
+    const slug = await screen.findByLabelText("App name");
+    await userEvent.type(slug, "Bad_Name");
+    expect(screen.getByText(/can't use B, _, N/i)).toBeInTheDocument();
+    expect(screen.queryByText("Enter an app name.")).toBeNull();
+    await userEvent.clear(slug);
+    await userEvent.type(slug, "bad-name");
+    expect(screen.queryByText(/can't use/i)).toBeNull();
+  });
+
+  it("labels a branch environment and does not pick it by default", async () => {
+    useShellHandlers();
+    server.use(http.get("/api/orgs/:org/projects/:p/environments", () => HttpResponse.json({ items: ["br-priority", "production"] })));
+    renderAt("/acme/apps/new");
+    await waitFor(() => expect(screen.getByLabelText("Environment")).toHaveTextContent("production"));
+    expect(screen.queryByText(/goes away with its branch/i)).toBeNull();
   });
 
   it("shows the server's slug pattern error inline", async () => {
@@ -60,6 +80,31 @@ describe("new app form", () => {
     release();
     await waitFor(() => expect(create).toBeEnabled());
     expect(screen.queryByText("Loading environments…")).toBeNull();
+  });
+
+  it("offers WebAssembly as a fifth card that needs a file", async () => {
+    useShellHandlers();
+    renderAt("/acme/apps/new");
+    await userEvent.type(await screen.findByLabelText("App name"), "ok-name");
+    const group = screen.getByRole("radiogroup", { name: "Template" });
+    expect(within(group).getAllByRole("radio")).toHaveLength(5);
+    expect(screen.queryByLabelText("Component file (.wasm)")).toBeNull();
+    await userEvent.click(within(group).getByRole("radio", { name: /WebAssembly component/ }));
+    expect(screen.getByLabelText("Component file (.wasm)")).toBeInTheDocument();
+    const create = screen.getByRole("button", { name: "Create app" });
+    await waitFor(() => expect(create).toBeEnabled());
+    await userEvent.click(create);
+    expect(await screen.findByText("Choose a .wasm file.")).toBeInTheDocument();
+  });
+
+  it("moves through the template cards with the arrow keys", async () => {
+    useShellHandlers();
+    renderAt("/acme/apps/new");
+    const radios = within(await screen.findByRole("radiogroup", { name: "Template" })).getAllByRole("radio");
+    radios[0]!.focus();
+    await userEvent.keyboard("{ArrowRight}");
+    expect(radios[1]).toHaveAttribute("aria-checked", "true");
+    expect(radios[1]).toHaveFocus();
   });
 
   it("explains a project without environments", async () => {

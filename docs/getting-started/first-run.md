@@ -59,6 +59,11 @@ After setup is complete the token no longer matters, and a new one cannot be use
 
 ## Next steps
 
+After setup and your first deploys, the org overview lists your projects, apps, quota and usage.
+
+![The org overview with projects, apps, quota and usage](../assets/screenshots/overview-light.png#only-light)
+![The org overview with projects, apps, quota and usage](../assets/screenshots/overview-dark.png#only-dark)
+
 - [Orgs](../user-guide/orgs.md) and [Projects](../user-guide/projects.md): organize your team's work
 - [Members](../user-guide/members.md): invite people
 - [Admin guide](../admin/index.md): the instance console and account recovery

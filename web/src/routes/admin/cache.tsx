@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { Database } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
-import { KeyValueCard } from "@/components/features/admin/key-value-card";
+import { CacheView } from "@/components/features/admin/node-facts";
 import { useNodeCache } from "@/components/features/admin/use-admin";
 import { PageHeader } from "@/components/ui/page-header";
 
@@ -16,7 +16,7 @@ function AdminCachePage() {
   return (
     <div className="flex min-w-0 flex-col gap-6">
       <PageHeader icon={Database} entity="admin" title={t("cache.title")} description={t("cache.description")} />
-      <KeyValueCard title={t("cache.cardTitle")} query={cache} />
+      <CacheView query={cache} />
     </div>
   );
 }

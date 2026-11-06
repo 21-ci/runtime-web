@@ -26,7 +26,8 @@
     "save": "HTTP marshrutini saqlash",
     "toast": {
       "saved": "HTTP marshruti saqlandi"
-    }
+    },
+    "edit": "Sozlamalar › Kirishda tahrirlash"
   },
   "schedules": {
     "title": "Jadvallar",
@@ -60,7 +61,7 @@
     }
   },
   "oneOff": {
-    "title": "Bir martalik vazifalar",
+    "title": "Navbatdagi ishga tushirishlar",
     "description": "Kodingiz std:schedule orqali navbatga qoʻygan, ishga tushishini kutayotgan vazifalar.",
     "empty": "Kutilayotgan vazifalar yoʻq.",
     "runs": "Ishga tushadi: {{when}}",
@@ -78,11 +79,13 @@
     "body": "Xabar matni (JSON)",
     "delay": "Kechikish soniyalarda (ixtiyoriy)",
     "bodyInvalid": "Xabar matni toʻgʻri JSON boʻlishi kerak.",
-    "send": "Sinov xabarini yuborish",
+    "send": "Xabarni yuborish",
     "sending": "Yuborilmoqda…",
     "toast": {
       "enqueued": "Sinov xabari navbatga qoʻyildi"
-    }
+    },
+    "openSend": "Sinov xabarini yuborish",
+    "sendDescription": "Xabar shu ilova navbatiga tushadi va uning navbat ishlovchisini ishga tushiradi."
   },
   "dlq": {
     "title": "Yetkazilmagan xabarlar navbati",
@@ -106,7 +109,8 @@
       "redriven_one": "{{count}} ta xabar qayta ishga tushirildi",
       "redriven_other": "{{count}} ta xabar qayta ishga tushirildi",
       "purged": "Yetkazilmagan xabarlar navbati tozalandi"
-    }
+    },
+    "actions": "Yetkazilmagan xabarlar navbati amallari"
   },
   "errors": {
     "planLimit": "Bu trigger tarifingizda ruxsat etilmagan yoki jadvallar limiti tugagan. Mavjud jadvallardan birini oʻchiring yoki instans administratoridan tarifni oʻzgartirishni soʻrang.",

@@ -46,6 +46,13 @@ export async function appIndexPut(db: Db, e: AppIndexEntry): Promise<void> {
   );
 }
 
+/** Every indexed App, for naming the runtime's service IDs on the node's own pages. */
+export async function appIndexAll(db: Db): Promise<AppIndexEntry[]> {
+  await ensure(db);
+  const rows = await db.all<{ slug: string; org_id: string; service_id: string }>("SELECT slug, org_id, service_id FROM app_index");
+  return rows.map((r) => ({ orgId: r.org_id, slug: r.slug, serviceId: r.service_id }));
+}
+
 /** Forgets the App with this slug. Call after the runtime service is deleted. */
 export async function appIndexDelete(db: Db, slug: string): Promise<void> {
   await ensure(db);
@@ -57,6 +64,36 @@ export async function appIndexDeleteOrg(db: Db, orgId: string): Promise<void> {
   await ensure(db);
   await db.run("DELETE FROM app_index WHERE org_id = ?", [orgId]);
   await db.run("DELETE FROM app_index_orgs WHERE org_id = ?", [orgId]);
+}
+
+/** Which tenant owns each of these services, for those that are Apps of a live org. */
+export async function appIndexTenants(db: Db, serviceIds: readonly string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (serviceIds.length === 0) return out;
+  await ensure(db);
+  const rows = await db.all<{ service_id: string; tenant_id: string }>(
+    `SELECT a.service_id, o.tenant_id FROM app_index a JOIN orgs o ON o.id = a.org_id
+     WHERE o.deleted_at IS NULL AND a.service_id IN (${serviceIds.map(() => "?").join(",")})`,
+    [...serviceIds],
+  );
+  for (const r of rows) out.set(r.service_id, r.tenant_id);
+  return out;
+}
+
+/** service id to slug, for showing a subject. */
+export async function appIndexSlugs(db: Db, serviceIds: readonly string[]): Promise<Map<string, string>> {
+  const out = new Map<string, string>();
+  if (serviceIds.length === 0) return out;
+  await ensure(db);
+  const rows = await db.all<{ service_id: string; slug: string }>(`SELECT service_id, slug FROM app_index WHERE service_id IN (${serviceIds.map(() => "?").join(",")})`, [...serviceIds]);
+  for (const r of rows) out.set(r.service_id, r.slug);
+  return out;
+}
+
+/** The rollups of an org's Apps go with it. Call before appIndexDeleteOrg: the index is what names them. */
+export async function deleteOrgRollups(db: Db, orgId: string): Promise<void> {
+  await ensure(db);
+  await db.run("DELETE FROM metric_rollups WHERE scope IN (SELECT service_id FROM app_index WHERE org_id = ?)", [orgId]);
 }
 
 /** The App with this slug in a live org, or null. One query, no runtime call. */

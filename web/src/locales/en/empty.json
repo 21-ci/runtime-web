@@ -9,8 +9,22 @@
     "description": "A project groups apps and the environments they deploy to. Create one to start.",
     "action": "Create project"
   },
+  "notFound": {
+    "title": "Page not found",
+    "description": "This address does not exist, or you don't have access to it.",
+    "home": "Go to the console home"
+  },
   "queryError": {
     "title": "Could not load this",
     "description": "Something went wrong while loading. Check your connection and try again."
+  },
+  "data": {
+    "noFiles": "No files yet",
+    "noKeys": "No keys yet",
+    "noKeysPrefix": "No keys start with this prefix",
+    "showing": "Showing {{shown}} of {{total}} rows.",
+    "exportTitle": "Export data",
+    "exportHint": "Download this app's SQLite database.",
+    "download": "Download"
   }
 }

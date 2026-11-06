@@ -1,4 +1,4 @@
-# Architecture: the backend on 21 Cloud Runtime
+# Architecture: the backend on 21 Cloud Functions Runtime
 
 The design record of the Runtime Web backend (decided 2026-10-24): a TypeScript service `rtweb` on a 21 Cloud
 Runtime node, replacing an earlier standalone Go server and its host router. The HTTP contract is
@@ -13,7 +13,7 @@ marked (live), on a local node. Installing and releasing it: [Install](../gettin
 | D1 | Backend is **TypeScript** on the runtime's **Deno executor**, one service `rtweb` (Form B default export: `fetch` + `scheduled`). | Deno isolates are first class (std:* modules, npm: imports); WASM/Rust adds a toolchain for no capability gain. |
 | D2 | Runtime Web owns one runtime **tenant** `runtime-web` (plan `rtweb`, operator-defined: storage ≥1 GB, cpu 2 s, wall 30 s). Each **org keeps its own runtime tenant** (as today). | Keeps per-org quotas, usage and key isolation. |
 | D3 | All control-API access goes through an **operator SDK `rtctl`** (published with `POST /v1/sdks`, granted only to tenant `runtime-web`) that calls two **`[[binding]]`s**. | Guest `fetch` cannot reach loopback/private/node addresses (SSRF guard, `egress_denied`). Bindings are the only sanctioned path; credentials never enter guest memory. |
-| D4 | Binding `rtctl-op` → `http://127.0.0.1:8081`, injects `authorization = env:RTWEB_OP_TOKEN` (root/operator token), `allowed_paths` = `/v1/tenants*`, `/v1/plans*`, `/v1/node/*`, `/v1/version`, `/v1/hosts*`. Binding `rtctl-tenant` → the **relay** (`http://127.0.0.1:8082`), injects `x-relay-auth = env:RTWEB_RELAY_SECRET`, `allowed_paths` = `/v1/services*`, `/v1/projects*`, `/v1/keys*`, `/v1/tenants/*/usage`. | A binding strips `authorization` and every `x-rt-*` header from the SDK request (checked: `rt-host/src/calls.rs` `forwarded_headers`), so per-org tenant keys and `x-rt-tenant` cannot pass through a binding directly. |
+| D4 | Binding `rtctl-op` → `http://127.0.0.1:8081`, injects `authorization = env:RTWEB_OP_TOKEN` (root/operator token), `allowed_paths` = `/v1/tenants*`, `/v1/plans*`, `/v1/node/{status,config,cache,scheduler,drain,series,stats,events}`, `/v1/node/backups`, `/v1/node/backups/status`, `/v1/version`, `/v1/hosts*`, `/v1/services/*/hosts/*`, `/v1/telemetry/console`, `/v1/telemetry/preview` (no backup download or delete). Binding `rtctl-tenant` → the **relay** (`http://127.0.0.1:8082`), injects `x-relay-auth = env:RTWEB_RELAY_SECRET`, `allowed_paths` = `/v1/scratch`, `/v1/services*`, `/v1/projects*`, `/v1/keys*`, `/v1/tenants/*/usage`, `/v1/me`, `/v1/limits`, `/v1/usage`. `deploy/rt.rtweb.toml` is the source of truth. | A binding strips `authorization` and every `x-rt-*` header from the SDK request (checked: `rt-host/src/calls.rs` `forwarded_headers`), so per-org tenant keys and `x-rt-tenant` cannot pass through a binding directly. |
 | D5 | The **relay** is the reverse proxy already required for TLS (Caddy). A loopback-only site on :8082 requires `x-relay-auth`, maps `x-rtweb-key: rtk_…` → `Authorization: Bearer rtk_…`, drops both headers, proxies to :8081. No custom code. | Smallest trusted component that lets the per-org hidden default key reach the control API. Caddy fragment ships in `deploy/Caddyfile`. |
 | D6 | SPA (`web/dist`, 604 KB, 28 files, all < 1 MB) is **embedded in the deploy bundle**: the deploy script generates `server/src/gen/assets.ts` (path → `{type, b64, etag}`). Served by the same `rtweb` service with SPA fallback, immutable caching for `/assets/*`. | Bundle accepts only text sources (≤1 MB/file, ≤10 MB total); one atomic version for API + UI; no blob upload step. Fallback if dist grows past 7 MB: `std:blob` upload by the install script. |
 | D7 | Storage: **`std:sql`** (per-service SQLite) for all relational state; **`std:kv`** for rate limits (`kv.incr` + TTL fixed windows), OAuth state/PKCE, SSE cursors. No durable objects. | Indexes, UNIQUE, PK work (live). One SQLite writer is enough for a console. |
@@ -66,7 +66,7 @@ marked (live), on a local node. Installing and releasing it: [Install](../gettin
 |---|---|---|
 | `GET /api/internal/router/routes`, `POST /api/internal/router/cert-status` | dropped (no host router) | `GET /api/internal/tls-ask?domain=` (200 if an `active` domain, else 404), localhost-only by Caddy; `cert_status` in `Domain` becomes `"none"` unless Caddy reports (always `none` in v1) |
 | `GET …/{app}/logs` (SSE) | works, but streams end every ≤25 s | EventSource auto-reconnect with `Last-Event-ID`; `web/` already uses EventSource, no change |
-| `GET …/{app}/export` | works only ≤ 192 KiB per SDK hop | SDK method `exportChunk(offset)` re-reads the snapshot with `Range`; if the control API ignores `Range`, answer `413 export_too_large` with `details.cli: "21ci data export"` (R4) |
+| `GET …/{app}/export` | works only ≤ 192 KiB per SDK hop | `HEAD` size hint first (no snapshot), then `Range` hops with the first ETag as `If-Range`; a `200` or another tag on a resumed hop fails the download, never appends; if the control API ignores `Range`, answer `413 export_too_large` with `details.cli: "21ci data export"` (R4) |
 | `GET/PUT …/{app}/files` | bundles up to 10 MB vs 256 KiB SDK cap | chunk per file through the SDK (`filesList` then `fileGet`); PUT keeps 1 MB body cap per file, total sent in ≤200 KiB SDK chunks staged in KV then one `versionCreate` (R2) |
 | `GET /healthz` | unchanged | also `GET /api/healthz` |
 | everything else | 1:1 | — |
@@ -80,7 +80,7 @@ marked (live), on a local node. Installing and releasing it: [Install](../gettin
 2. Writes `deploy/Caddyfile` snippet (relay :8082 + console host + on-demand TLS `ask`).
 3. `POST /v1/tenants {name:"runtime-web", plan:"rtweb"}` (reuse if present).
 4. `POST /v1/sdks {name:"rtctl", version, source}` from `server/sdk/rtctl/mod.ts`; `PUT /v1/sdk-grants {scope:"tenant:<id>", sdk:"rtctl"}` and a `deny` at `scope:"node"`.
-5. Create service `rtweb` (triggers: http, cron `*/5 * * * *` for housekeeping; `call` off), set env `RTWEB_ORIGIN`,
+5. Create service `rtweb` (triggers: http, cron `* * * * *` with payload `{job:"tick"}` for the job runner; `call` off), set env `RTWEB_ORIGIN`,
    secrets `RTWEB_SEAL_KEY` (random 32 B) and `RTWEB_SETUP_TOKEN` (random, printed once).
 6. Build SPA (`npm --prefix web run build`), generate `src/gen/assets.ts`, upload bundle, wait `ready`, activate.
 7. Operator maps the console host: `PUT /v1/services/rtweb/hosts/console.example.com` (op → `active`).

@@ -1,10 +1,11 @@
 import { useState, type FormEvent } from "react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Server } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
-import { KeyValueCard, KeyValueTables } from "@/components/features/admin/key-value-card";
+import { NodeMonitor } from "@/components/features/admin/node-monitor";
+import { BackupWarning, NodeSchedulerCard, NodeStatusCard } from "@/components/features/admin/node-facts";
 import {
   useDrainNode,
   useNodeConfig,
@@ -16,6 +17,7 @@ import {
 import { QueryError } from "@/components/features/empty/query-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
+import { KeyValueRows, objectFromRows, rowsFromObject, type KvRow } from "@/components/ui/key-value-rows";
 import {
   Dialog,
   DialogContent,
@@ -47,12 +49,14 @@ function AdminNodePage() {
     <div className="flex min-w-0 flex-col gap-6">
       <PageHeader icon={Server} entity="admin" title={t("node.title")} description={t("node.description")} />
 
+      <BackupWarning />
+
+      <NodeMonitor activityLink={<Link to="/admin/audit" className="text-muted hover:text-text hover:underline">{t("common:viewAll")}</Link>} />
+
       <div className="grid min-w-0 gap-4 md:grid-cols-2">
-        <KeyValueCard title={t("node.status")} description={t("node.statusDescription")} query={status} tables="omit" />
-        <KeyValueCard title={t("node.scheduler")} description={t("node.schedulerDescription")} query={scheduler} tables="omit" />
+        <NodeStatusCard query={status} />
+        <NodeSchedulerCard query={scheduler} />
       </div>
-      <KeyValueTables query={status} source={t("node.status")} />
-      <KeyValueTables query={scheduler} source={t("node.scheduler")} />
 
       <SectionCard title={t("node.configTitle")} description={t("node.configDescription")}>
         {config.isError ? (
@@ -78,23 +82,32 @@ function NodeConfigForm({ initial }: { initial: NodeConfig }) {
   const save = useSaveNodeConfig();
   const [degradation, setDegradation] = useState(initial.degradation_mode ?? "");
   const [profile, setProfile] = useState(initial.default_profile ?? "");
-  const [rateLimit, setRateLimit] = useState(JSON.stringify(initial.rate_limit ?? {}, null, 2));
+  const [rateLimit, setRateLimit] = useState<KvRow[]>(() => rowsFromObject(initial.rate_limit ?? {}));
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [rowErrors, setRowErrors] = useState<Record<number, string>>({});
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    let parsed: Record<string, unknown>;
-    try {
-      const value: unknown = JSON.parse(rateLimit);
-      if (typeof value !== "object" || value === null || Array.isArray(value)) throw new Error("not object");
-      parsed = value as Record<string, unknown>;
-    } catch {
-      setErrors({ rate_limit: t("node.rateLimitInvalid") });
+    const built = objectFromRows(rateLimit, {
+      keyRequired: t("node.rateLimitKeyRequired"),
+      valueRequired: t("node.rateLimitValueRequired"),
+      duplicateKey: t("node.rateLimitDuplicateKey"),
+    });
+    if ("errors" in built) {
+      setRowErrors(built.errors);
       return;
     }
+    setRowErrors({});
     setErrors({});
+    // Only what changed: the node rejects an empty mode, and restart-only keys must not be marked pending for nothing.
+    const patch: Partial<NodeConfig> = {
+      ...(degradation !== (initial.degradation_mode ?? "") ? { degradation_mode: degradation } : {}),
+      ...(profile !== (initial.default_profile ?? "") ? { default_profile: profile } : {}),
+      ...(JSON.stringify(built.value) !== JSON.stringify(initial.rate_limit ?? {}) ? { rate_limit: built.value } : {}),
+    };
+    if (Object.keys(patch).length === 0) return;
     save.mutate(
-      { degradation_mode: degradation, default_profile: profile, rate_limit: parsed },
+      patch,
       {
         onSuccess: (res) => {
           if (res.pending_restart.length > 0) {
@@ -145,17 +158,27 @@ function NodeConfigForm({ initial }: { initial: NodeConfig }) {
           <Label htmlFor="rate_limit">{t("node.rateLimit")}</Label>
           <Badge variant="outline">{t("node.restartBadge")}</Badge>
         </div>
-        <textarea
-          id="rate_limit"
-          name="rate_limit"
-          rows={5}
-          spellCheck={false}
-          value={rateLimit}
-          onChange={(e) => setRateLimit(e.target.value)}
-          aria-invalid={errors.rate_limit ? true : undefined}
-          className="rounded-md border border-line-strong bg-field p-2 font-mono text-[13px] shadow-card outline-none focus-visible:border-accent focus-visible:ring-2 focus-visible:ring-focus"
-        />
-        {errors.rate_limit ? <p className="text-sm text-danger">{errors.rate_limit}</p> : null}
+        <div className="flex flex-col gap-2">
+          <p className="text-[13px] text-muted">{t("node.rateLimitHint")}</p>
+          {initial.rate_limit === undefined && rateLimit.length === 0 ? (
+            <p className="text-sm text-muted">{t("node.rateLimitNotReported")}</p>
+          ) : null}
+          <KeyValueRows
+            idPrefix="rate_limit"
+            rows={rateLimit}
+            onChange={setRateLimit}
+            errors={rowErrors}
+            labels={{
+              key: t("node.rateLimitKey"),
+              value: t("node.rateLimitValue"),
+              add: t("node.rateLimitAdd"),
+              remove: (key) => t("node.rateLimitRemove", { key }),
+              keyPlaceholder: "rps",
+              valuePlaceholder: "50",
+            }}
+          />
+          {errors.rate_limit ? <p className="text-sm text-danger">{errors.rate_limit}</p> : null}
+        </div>
       </div>
 
       <div>

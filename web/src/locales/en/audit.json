@@ -2,9 +2,17 @@
   "title": "Audit log",
   "description": "Who changed what in this org, newest first.",
   "filters": {
-    "actor": "Actor user ID",
+    "actorLabel": "Actor",
+    "allActors": "All members",
     "action": "Action",
-    "apply": "Apply filters"
+    "apply": "Apply filters",
+    "period": "Period",
+    "periods": {
+      "all": "All",
+      "24h": "24 h",
+      "7d": "7 d",
+      "30d": "30 d"
+    }
   },
   "columns": {
     "when": "When",

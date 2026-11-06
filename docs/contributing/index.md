@@ -6,7 +6,7 @@ description: How to set up a checkout of Runtime Web, run its checks, and send a
 # Contributing
 
 Thanks for helping. Runtime Web is a React console in `web/` and a TypeScript backend in `server/` that runs as an App
-on 21 Cloud Runtime. These pages cover the day-to-day work. The short rules for a pull request are in
+on 21 Cloud Functions Runtime. These pages cover the day-to-day work. The short rules for a pull request are in
 [CONTRIBUTING.md](https://github.com/21-ci/runtime-web/blob/main/CONTRIBUTING.md).
 
 ## Start here

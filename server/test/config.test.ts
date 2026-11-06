@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { loadConfig, registrableDomain } from "../src/config.ts";
+import { gitHostAllowed, parseBaseUrl, setGitTestOrigin } from "../src/git/provider.ts";
 
 const KEY_B64 = btoa(String.fromCharCode(...Array.from({ length: 32 }, (_, i) => i)));
 const base = {
@@ -88,5 +89,29 @@ describe("apps URL and default plan", () => {
     [{ RTWEB_DEFAULT_PLAN: "Bad Plan!" }, /RTWEB_DEFAULT_PLAN/],
   ])("rejects %o", (over, msg) => {
     expect(() => loadConfig(env({ ...base, ...over }))).toThrow(msg);
+  });
+});
+
+describe("the harness's private Git origin", () => {
+  const local = "https://127.0.0.1:13443";
+
+  it("is off by default and refused without the insecure switch", () => {
+    expect(loadConfig(env(base)).gitTestOrigin).toBeUndefined();
+    expect(parseBaseUrl(local)).toBeNull();
+    expect(() => loadConfig(env({ ...base, RTWEB_TEST_GIT_ORIGIN: local }))).toThrow(/RTWEB_TEST_GIT_ORIGIN/);
+    const on = loadConfig(env({ ...base, RTWEB_INSECURE_COOKIES: "1", RTWEB_TEST_GIT_ORIGIN: local }));
+    expect(on.gitTestOrigin).toBe(local);
+  });
+
+  it("lets exactly that origin through", () => {
+    setGitTestOrigin(local);
+    try {
+      expect(parseBaseUrl(local)).toBe(local);
+      for (const other of ["https://127.0.0.1:13444", "https://localhost:13443", "http://127.0.0.1:13443"]) expect(parseBaseUrl(other)).toBeNull();
+      expect(gitHostAllowed(new URL(`${local}/api/v1/x`))).toBe(true);
+    } finally {
+      setGitTestOrigin(null);
+    }
+    expect(parseBaseUrl(local)).toBeNull();
   });
 });

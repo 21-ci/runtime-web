@@ -4,13 +4,14 @@ import { sdk } from "std:sdk";
 import { assets } from "./gen/assets.ts";
 import { runtimeStorage } from "./storage/runtime.ts";
 import { loadConfig } from "./config.ts";
+import { setGitTestOrigin } from "./git/provider.ts";
 import { scheduled } from "./jobs.ts";
 import { argon2Hasher } from "./auth/password.ts";
 import { sdkRtCtl } from "./runtime/client.ts";
 import { appLookup } from "./apps/service.ts";
 
 // Runtime entry (rt.json "entry"). Form B handler: `fetch` for HTTP, `scheduled`
-// for the housekeeping cron (expiry, key-revoke and domain retries: src/jobs.ts).
+// for the one-minute tick that runs background jobs (src/jobs.ts).
 // loadConfig throws ConfigError on a bad env, so a misconfigured deploy fails at load.
 
 const deps: Deps = {
@@ -22,14 +23,15 @@ const deps: Deps = {
   hasher: argon2Hasher,
   rtctl: sdkRtCtl(sdk("rtctl")),
 };
+setGitTestOrigin(deps.config.gitTestOrigin ?? null);
 deps.apps = appLookup(deps);
 const app = createApp(deps);
 
 export default {
   fetch(req: Request, ctx: RtCtx): Promise<Response> {
-    return app.fetch(req, ctx.client ? { clientIp: ctx.client.ip } : {});
+    return app.fetch(req, { ...(ctx.client ? { clientIp: ctx.client.ip } : {}), waitUntil: (p) => ctx.waitUntil(p) });
   },
-  scheduled(): Promise<void> {
-    return scheduled(deps);
+  scheduled(event: { payload?: unknown }): Promise<void> {
+    return scheduled(deps, event?.payload);
   },
 };

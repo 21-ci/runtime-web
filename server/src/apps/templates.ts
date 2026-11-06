@@ -46,6 +46,9 @@ export default {
   async fetch(req: Request): Promise<Response> {
     const path = new URL(req.url).pathname.replace(/\\/+$/, "");
     const id = Number(path.split("/").pop());
+    if ((path === "" || path.endsWith("/{{SLUG}}")) && req.method === "GET") {
+      return Response.json({ app: "{{SLUG}}", try: ["GET /items", "POST /items", "DELETE /items/<id>"] });
+    }
     if (path.endsWith("/items") && req.method === "GET") {
       return Response.json(db.query("SELECT id, name FROM items ORDER BY id").all());
     }

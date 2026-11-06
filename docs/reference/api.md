@@ -1,7 +1,7 @@
 # Runtime Web HTTP API (v1 contract)
 
 This is the contract between the `rtweb` service (`server/src/routes/`, a TypeScript backend that runs as an App
-on 21 Cloud Runtime) and the React console (`web/`). Handlers and MSW mocks are both written from this file, and
+on 21 Cloud Functions Runtime) and the React console (`web/`). Handlers and MSW mocks are both written from this file, and
 `server/test/contract.test.ts` fails when a route listed here is not registered. When the code and this
 file disagree, fix one of them in the same PR.
 
@@ -85,6 +85,7 @@ token's `projects` (empty = every project):
 | `app.queue.write` | `queue:write` |
 | `app.logs.read` | `logs:read` |
 | `app.data.export` | `data:admin` |
+| `app.data.read` | `data:read` |
 
 Every other action, `domains.manage` included, is never allowed to a token. `invoke` and `sockets:write` only
 apply to calls to the runtime.
@@ -147,7 +148,7 @@ iframe; it is `'none'` when that variable is unset or names the console's own or
 | 403 | `<code>` | `apperr.Forbidden{Code}`: `setup_token_invalid`, `password_login_disabled`, `plan_limit` |
 | 404 | `not_found` | `apperr.ErrNotFound`, runtime 404, unknown `/api/*` path |
 | 404 | `invite_invalid` | expired, used or revoked invite |
-| 409 | `<code>` | `apperr.Conflict{Code}`: `already_set_up`, `last_owner`, `last_admin`, `slug_taken`, `org_not_empty`, `host_taken`, `pending_limit`, `stale`, `version_not_ready`, `totp_already_enabled`, `totp_not_enabled` |
+| 409 | `<code>` | `apperr.Conflict{Code}`: `already_set_up`, `last_owner`, `last_admin`, `slug_taken`, `org_not_empty`, `host_taken`, `pending_limit`, `stale`, `version_not_ready`, `switch_in_progress`, `not_a_branch`, `rollback_target_gone`, `git_link_exists`, `totp_already_enabled`, `totp_not_enabled` |
 | 409 | `stale` | runtime `412` (ETag mismatch) |
 | 422 | `invalid` | `apperr.ErrInvalid` (+ `details.fields`) |
 | 422 | `<runtime code>` | runtime 422 with its `code` and `details` |
@@ -202,6 +203,29 @@ type Page<T> = { items: T[]; next_cursor: string | null }; // null = last page
 
 Paged routes: `/api/admin/audit`, `/api/orgs/{org}/audit`, `/api/orgs/{org}/apps/{app}/events`,
 `/api/orgs/{org}/apps` and `/api/admin/users`. Every other list returns `{ items: T[] }` without paging.
+
+### 1.6.1 File exports
+
+These reads also answer as a file with `?format=`, under the same authorization as the view and with its filters:
+
+| Route | Formats | Audit action |
+|---|---|---|
+| `…/{app}/logs?format=&since&until&level&kind&task_id` | `ndjson`, `txt` | `app.logs.export` |
+| `…/{app}/versions?format=` | `csv` | `app.versions.export` |
+| `…/{app}/stats?format=&window&step` | `csv` (the series, or a one-row summary when the window has none) | `app.stats.export` |
+| `/api/orgs/{org}/audit?format=&actor&action&exclude_action&since&until`, `/api/admin/audit?format=&org&…` | `csv`, `ndjson` | `audit.export` |
+| `/api/orgs/{org}/members?format=` | `csv` | `org.members.export` |
+| `/api/orgs/{org}/tokens?format=` | `csv` (no secret: the list holds none) | `org.tokens.export` |
+| `/api/orgs/{org}/usage?format=&from&to`, `/api/admin/orgs/{org}/usage?format=&from&to` | `csv` | `org.usage.export` |
+
+- An unknown format is `422`. `since` and `until` are RFC 3339, and `level` is a minimum, as in the live log view.
+- The response carries `Content-Disposition: attachment; filename="<org>-[<app>-]<kind>-<from|start>-<to>.<ext>"`,
+  with times in UTC, and `Cache-Control: no-store`.
+- The body is streamed. A file holds at most 100 000 rows; past that its last line says so: `{"truncated":true,"limit":100000}`
+  in `ndjson`, `# truncated at 100000 rows` otherwise. A failure after the first row breaks the connection, so a cut
+  download looks cut.
+- CSV cells that start like a spreadsheet formula are prefixed with `'`. Log text keeps one `txt` line per entry:
+  new lines in a message are written as `\n`.
 
 ### 1.7 Optimistic concurrency
 
@@ -275,7 +299,7 @@ type AuditEntry = {
 | POST | `/api/auth/login` | public (Origin) | `LoginReq` | `200 LoginResp` + cookie (full or MFA-pending) | `401 invalid_credentials`, `403 password_login_disabled`, `429 rate_limited`, `503 busy` |
 | POST | `/api/auth/mfa` | MFA-pending session cookie; no CSRF (there is no token yet); Origin enforced | `{code: string}` | `200 SessionResp` + full session cookie | `401 unauthenticated` (no/expired pending), `401 invalid_code`, `429 rate_limited` |
 | POST | `/api/auth/logout` | session | | `204` + cookie cleared | |
-| GET | `/api/me` | session (gate-exempt) | | `200 Me` | |
+| GET | `/api/me` | session (gate-exempt) | `?probe=1` turns the signed-out `401` into `200 {user: null}` | `200 Me` | |
 | PUT | `/api/me/password` | session (gate-exempt) | `{current_password: string; new_password: string}` | `204` (other sessions revoked) | `401 invalid_credentials` (wrong current), `422 invalid` (length < 12), `429 rate_limited` (10 wrong current passwords in 15 min) |
 
 ```ts
@@ -424,11 +448,21 @@ All routes require `instance.admin`. Every mutation is audited.
 | GET | `/api/admin/node/config` | | `200 object` (runtime passthrough) | |
 | PUT | `/api/admin/node/config` | `NodeConfigPatch` | `200 {applied: string[]; pending_restart: string[]}` | `422 invalid` (any other field) |
 | GET | `/api/admin/node/scheduler` | | `200 object` (runtime passthrough) | |
-| GET | `/api/admin/node/cache` | | `200 object` (runtime passthrough) | |
+| GET | `/api/admin/node/cache` | | `200 object` (runtime passthrough) plus `owners: {[digest]: {org; app; version}}` naming the top digests it could match | |
 | GET | `/api/admin/node/version` | | `200 {version: string; web_version: string}` | |
+| GET | `/api/admin/node/series` | `?range=1h\|6h\|24h\|7d` | `200 {range; step_s; points: [{ts, cpu_pct, load1, mem_committed, disk_free, rx, tx}]; data_from: number \| null}`; `7d` reads the console's ring, the others the node, which starts over at a restart | `422 invalid` |
+| GET | `/api/admin/node/stats` | `?cursor` | `200 {items: [{service, tenant, slug, org, system, count, errors, dlq, depth, …}]; next_cursor}` (all tenants, the last hour, counts only) | |
+| GET | `/api/admin/node/events` | `?after&kinds&limit` (limit at most 200) | `200 {items: [{id, ts, tenant, service, app, org, kind, data}]; next_cursor}` | `422 invalid` |
+| GET | `/api/admin/backups/status` | | `200 BackupStatus` (runtime passthrough) | |
+| GET | `/api/admin/backups` | `?cursor` | `200 {items: Backup[]; next_cursor}` | |
+| POST | `/api/admin/backups` | | `202 {id; state}`, audited. There is no route to download or delete a backup: the console's binding cannot reach them | `409 backup_running`, `503 backup_disabled`, `507 insufficient_storage` |
 | POST | `/api/admin/node/drain` | `{confirm: "drain"}` | `202 object` (runtime passthrough) | `422 invalid` (bad confirm) |
 | GET | `/api/admin/domains` | | `200 {items: (Domain & {org: {slug; name}})[]}` | |
-| GET | `/api/admin/audit` | `?org&actor&action&exclude_action&cursor&limit` | `200 Page<AuditEntry>` (instance-wide) | |
+| GET | `/api/admin/audit` | `?org&actor&action&exclude_action&since&until&cursor&limit` (`since`, `until`: RFC 3339, inclusive) | `200 Page<AuditEntry>` (instance-wide) | |
+| GET | `/api/admin/updates` | | `200 {enabled; checked_at: number\|null; items: [{component: "runtime"\|"runtime_web"; repo; current: string\|null; latest: string\|null; outdated; check_failed; check_error: "http_<status>"\|"network"\|"bad_response"\|"unknown"\|null; notes_url: string\|null; commands: {bare; docker: string\|null}\|null}]}` | |
+| PUT | `/api/admin/updates` | `{enabled: boolean}` | `200` same as GET, audited as `updates.configure` | `422 invalid` |
+| POST | `/api/admin/updates/check` | | `200` same as GET. Checks now, unless the last check of that repository is under a minute old or checks are off | |
+| GET | `/api/admin/telemetry` | | `200 {sending: boolean\|null}`: whether the node sends its daily report; `null` when the node or its binding does not answer | |
 | GET | `/api/admin/settings` | | `200 InstanceSettings` | |
 | PUT | `/api/admin/settings` | `Partial<InstanceSettingsWrite>` | `200 InstanceSettings` | `422 invalid` (`details.fields.password_login_disabled` when SSO-only is enabled with no OAuth/OIDC provider configured; `auth.SetPolicy` returns `Conflict{sso_not_configured}`, and the handler maps it to this 422) |
 
@@ -512,6 +546,44 @@ type BrandingWrite = Omit<Branding, "accent_adjusted" | "palette" | "logo_light_
 // invalid_choice, invalid_characters, unknown_field.
 ```
 
+### 6.2 Alerts
+
+The same routes exist per org, under `/api/orgs/{org}/alerts` (org owners and admins: actions `alert.read`, `alert.write`), and for the instance, under `/api/admin/alerts` (instance admins). API tokens are refused. An org's rules can use only that org's channels, an instance rule only instance channels; this is checked on every write and again at send.
+
+| Method | Path (under the root above) | Body / query | Success | Errors |
+|---|---|---|---|---|
+| GET | `/channels` | | `200 {items: Channel[]}` | |
+| POST | `/channels` | `{kind: "webhook", name, config: {url, secret}}` or `{kind: "telegram", name, config: {bot_token, chat_id}}` | `201 Channel`, audited | `409 alert_channel_limit` (20), `422 invalid` (`config.url`: `not_public_https`, `not_public`) |
+| PATCH | `/channels/{id}` | `{name?, config?}`; `config` replaces the whole config | `200 Channel`, audited | `404`, `422 invalid` |
+| DELETE | `/channels/{id}` | | `204`, audited | `404`, `409 alert_channel_in_use` |
+| POST | `/channels/{id}/test` | | `200 {ok; status; http_status?; excerpt?}`, audited without the excerpt. `excerpt` is up to 200 characters of a refusal's body with the channel's config blanked; it is not stored | `404`, `429 rate_limited` (5 per minute per channel) |
+| GET | `/rules` | | `200 {items: Rule[]}` | |
+| POST | `/rules` | `{kind, channels: string[] (1 to 5), app?, params?, enabled?, for_s?, repeat_s?, muted_until?}` | `201 Rule`, audited | `404` (`app` not in this org), `409 alert_rule_limit` (50), `422 invalid` |
+| PATCH | `/rules/{id}` | `{channels?, params?, enabled?, for_s?, repeat_s?, muted_until?}` | `200 Rule`, audited | `404`, `422 invalid` |
+| DELETE | `/rules/{id}` | | `204`, audited | `404` |
+| GET | `/active` | | `200 {items: [{rule_id, kind, subject, state: "pending"\|"firing", since, last_sent_at, value}]}` | |
+
+`Channel` is `{id, kind, name, created_at, last_ok_at, last_error}`. No route returns a channel's `config`, which is sealed to its row. `last_error` and the test's `status` are a status class only: `3xx`, `4xx`, `5xx`, `network`, `blocked` (the address is not public) or `config`; the test also answers `ok`.
+
+`Rule` is `{id, kind, app, params, channels, enabled, for_s, repeat_s, muted_until, created_at}`.
+
+| `kind` | Scope | `params` (default) | Fires when |
+|---|---|---|---|
+| `app_error_rate` | org | `threshold_pct` (5), `min_requests` (100) | error share over 5 minutes is above the threshold, with the minimum volume |
+| `dlq_growth` | org | | dead letters grew over 15 minutes |
+| `build_failed` | org | | a build fails; once per version, never resolved |
+| `disk_low` | instance | `min_free_pct` (15) | the node's free disk is below the threshold |
+| `backup_stale` | instance | `max_age_h` (26) | backups are on and the last good one is older than this |
+
+A condition must hold for `for_s` (default 300) to fire, repeats every `repeat_s` (default 14400) while firing, and resolves once it has been clear for twice `for_s`. A figure the node could not provide changes nothing: no alert and no resolve.
+
+A webhook gets `POST` with `{delivery, event: "firing"|"repeat"|"resolved"|"test"|"digest", kind, subject, value, threshold, at}` and these headers:
+
+- `X-Rtweb-Signature: t=<unix>,v1=<hex hmac-sha256 of "<t>.<raw body>">`, under the channel's `secret`.
+- `X-Rtweb-Delivery`, the same on every retry of one notification: use it to drop duplicates, since delivery is at least once, up to 8 attempts.
+
+Redirects are not followed. More than 5 notifications due at once on a channel arrive as one `digest` `{count, items}`.
+
 ## 7. Orgs, members, tokens, projects
 
 | Method | Path | Auth | Request | Response | Errors |
@@ -528,9 +600,10 @@ type BrandingWrite = Omit<Branding, "accent_adjusted" | "palette" | "logo_light_
 | POST | `/api/orgs/{org}/tokens` | `tokens.manage` | `TokenReq` | `201 {token: Token; secret: string}` (secret shown once) | `403`, `404` (unknown app), `422 invalid` (unknown scope, past expiry) |
 | DELETE | `/api/orgs/{org}/tokens/{id}` | `tokens.manage` | | `204` | `404` |
 | POST | `/api/orgs/{org}/default-key/rotate` | `defaultkey.rotate` | | `204` (custom tokens keep working) | `403`, `404` |
-| GET | `/api/orgs/{org}/limits` | `org.read` | | `200 Limits` (read-only quota bar) | `404` |
+| GET | `/api/orgs/{org}/limits` | `org.read` | | `200 Limits` (read-only quota bar), with `hidden_services`: branches and previews counted in `services`, or `null` when the node does not report them | `404` |
 | GET | `/api/orgs/{org}/usage` | `org.usage.read` | `?from&to` | `200 {items: Usage[]}` | `403`, `404` |
-| GET | `/api/orgs/{org}/audit` | `org.audit.read` | `?actor=<user id>&action=&exclude_action=a,b&cursor&limit` | `200 Page<AuditEntry>` (this org only) | `403`, `404` |
+| GET | `/api/orgs/{org}/plan-usage` | `org.usage.read` | | `200 {plan: string \| null; resets_at; metrics: {key; used; limit: number \| null; period}[]}` | `403`, `404` (also a node without the route) |
+| GET | `/api/orgs/{org}/audit` | `org.audit.read` | `?actor=<user id>&action=&exclude_action=a,b&since&until&cursor&limit` (`since`, `until`: RFC 3339, inclusive) | `200 Page<AuditEntry>` (this org only) | `403`, `404` |
 | GET | `/api/orgs/{org}/projects` | `org.read` | | `200 {items: Project[]}` (members see granted projects only) | `404` |
 | POST | `/api/orgs/{org}/projects` | `project.create` | `{slug: string; name?: string; environments?: string[]}` | `201 Project` | `403`, `409 slug_taken`, `422` |
 | GET | `/api/orgs/{org}/projects/{p}` | `project.read` | | `200 Project` | `404` |
@@ -622,10 +695,12 @@ type AppPatch = {
 
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
-| GET | `…/{app}/files` | `app.read` | `?version=<n>` or `?version=latest` (default: live) | `200 Files` | `404`, `422` |
+| GET | `…/{app}/files` | `app.read` | `?version=<n>` or `?version=latest` (default: live). `latest` with nothing pushed yet answers `version: 0` with a starter (read-only and empty for WASM) | `200 Files` | `404`, `422` |
 | PUT | `…/{app}/files` | `app.deploy` | `{entry: string; files: Record<string,string>}`, `If-Match` | `200 {version: Version; etag: string}` + `ETag` (built eagerly; the live version is unchanged, promote with `PUT …/live`) | `403`, `409 stale`, `422 build_failed` / runtime `422 validation_failed` (+ `BuildDetails`), `428`, `429 build_quota` |
 | GET | `…/{app}/versions` | `app.read` | | `200 {items: Version[]}` (newest first) | `404` |
-| PUT | `…/{app}/live` | `app.deploy` | `{version: number}`, `If-Match` | `200 {live_version: number; etag: string}` + `ETag` | `403`, `409 stale`, `409 version_not_ready`, `428` |
+| PUT | `…/{app}/live` | `app.deploy` | `{version: number}`, `If-Match`; with `?async=1` also `{close_sockets?; migrate?}` (`migrate: false` takes `app.data.export`) | `200 {live_version: number; etag: string}` + `ETag`; with `?async=1`, `202` Switch at `preparing`: poll `…/switches/{id}` until past `preparing` and `migrating` (`draining`, `completed` and `drain_timed_out` are committed; `failed` has `error`) | `403`, `409 stale`, `409 version_not_ready`, `409 switch_in_progress` (never queued), `428` |
+| POST | `…/{app}/live/dry-run` | `app.deploy` | `{version: number}` | `200 {pending_migrations: string[]}`: runs them on a copy of the data; a failing migration answers as `PUT …/live` does |
+| GET | `…/{app}/migrations` | `app.read` | | `200 {applied: [{name, sha256, applied_at, version}]; pending_for_latest: [{name, sha256}]}` |
 | GET | `…/{app}/versions/{v}/build-logs` | `app.read` | | `200 {items: LogLine[]}` | `404` |
 | POST | `…/{app}/versions/{v}/rebuild` | `app.deploy` | | `202 Version` (state `building`) | `403`, `404`, `409 version_not_ready`, `429 build_quota` |
 
@@ -652,6 +727,128 @@ A save never changes the live version: `PUT …/files` stores and builds a new v
 makes it live. `If-Match` on a save is the app's current ETag, so a save after someone changed the app elsewhere gets
 `409 stale`. On `422 build_failed` `details.version` names the failed version.
 
+### 8.2.2 Git deploys
+
+A link belongs to one App. `base_url`, `provider` and `repo` are immutable: delete the link and create a new one, which
+destroys the sealed token and secret. `app.git.manage` is a project-admin action that no API token can hold.
+
+| Method | Path | Action | Request | Response | Errors |
+|---|---|---|---|---|---|
+| GET | `…/{app}/git` | `app.git.manage` | | `200 {link: GitLink \| null; rules: GitRule[]; deliveries: GitDelivery[]}` (latest 20 deliveries) | `403`, `404` |
+| POST | `…/{app}/git` | `app.git.manage` | `{provider; base_url; repo; branch; subdir?; auto_promote?; token?}` | `201 GitLink & {hook_secret}`: the secret appears only here | `403`, `404`, `409 git_link_exists`, `422 invalid` |
+| PATCH | `…/{app}/git` | `app.git.manage` | any of `{branch; subdir; auto_promote; paused; token}`; `token: null` forgets it | `200 GitLink` | `403`, `404`, `422 invalid` (`immutable` for the three fixed fields) |
+| DELETE | `…/{app}/git` | `app.git.manage` | | `204` | `403`, `404` |
+| PUT | `…/{app}/git/rules` | `app.git.manage` | `{rules: GitRule[]}` (at most 20), replaces the set | `200 {rules: GitRule[]}` | `403`, `404`, `422 invalid` |
+| POST | `…/{app}/deploys` | `app.deploy` | `{url; sha?; ref?; branch?}`; `url` is public `https` without credentials | `202 {version; build_state}`; goes live after its build | `403`, `404`, `413 too_large`, `422 invalid`, `502 fetch_failed` |
+
+```ts
+type GitLink = {
+  provider: "github" | "gitlab" | "gitea";
+  base_url: string;
+  repo: string;
+  branch: string;
+  subdir: string | null;
+  auto_promote: boolean;
+  paused: boolean;
+  hook_id: string;
+  has_token: boolean; // the token itself is never returned
+  webhook_url: string;
+};
+type GitRule = { ref_pattern: string; branch_name: string; auto_switch?: boolean; paused?: boolean };
+type GitDelivery = {
+  ref: string;
+  sha: string;
+  head_sha: string | null;
+  state: "queued" | "resolving" | "building" | "deployed" | "skipped" | "failed";
+  version: number | null;
+  error: string | null; // a stable code
+  target_branch: string | null;
+  received_at: number;
+};
+```
+
+**Webhook.** `POST /api/hooks/git/{hookId}` has no session and is exempt from the Origin and CSRF checks; the signature
+is the check. Body at most 1 MiB, 60 requests a minute per hook id, counted before the signature is read.
+
+| Status | Body | When |
+|---|---|---|
+| `202` | `{"status":"queued"}` | a push to the production branch or a branch rule |
+| `202` | `{"status":"duplicate"}` | that commit is already being deployed on that ref |
+| `202` | `{"status":"ignored"}` | other events, branches, tags, deletes, or another repository |
+| `404` | `not_found` | an unknown hook or any signature failure, indistinguishable |
+| `413`, `429` | `too_large`, `rate_limited` | |
+
+### 8.2.1 Branches and switches
+
+A branch is a staging copy of an App with its own URL, data and secrets. A switch makes the branch's live build the
+App's live version, and the previous version finishes what it is running. A status read is one short call, so the console
+polls `…/switches/{id}` for progress instead of holding a request open.
+
+| Method | Path | Action | Request | Response | Errors |
+|---|---|---|---|---|---|
+| GET | `…/{app}/branches` | `app.read` | | `200 {items: Branch[]}` | `403`, `404` |
+| POST | `…/{app}/switch` | `app.deploy` | `SwitchRequest`; `If-Match` unless `dry_run` | `202 Switch`; `200 Switch` when `dry_run` (writes nothing, not audited) | `403`, `404`, `409 stale`, `409 switch_in_progress`, `409 version_not_ready`, `409 not_a_branch`, `422 invalid`, `422 runtime_mismatch`, `428` |
+| GET | `…/{app}/switches` | `app.read` | `?limit=1..200&cursor=` | `200 {items: Switch[]; next_cursor: string \| null}` (newest first) | `403`, `404`, `422 invalid` |
+| GET | `…/{app}/switches/{id}` | `app.read` | | `200 Switch` | `403`, `404` |
+| POST | `…/{app}/switches/{id}/rollback` | `app.deploy` | `If-Match` | `202 Switch` (a new switch of kind `rollback`) | `403`, `404`, `409 stale`, `409 rollback_target_gone`, `409 switch_in_progress`, `428` |
+
+```ts
+type Branch = {
+  name: string;
+  slug: string;
+  url: string;
+  build_state: string;
+  live_version: number | null;
+  digest: string | null;        // source digest of the live (else newest) build
+  expires_at: number | null;
+};
+type SwitchRequest = { branch: string; dry_run?: boolean; close_sockets?: boolean };
+type Switch = {
+  id: string | null;            // null on a dry run
+  kind: "promote" | "switch" | "rollback";
+  state: "preparing" | "migrating" | "draining" | "completed" | "drain_timed_out" | "failed";
+  from_version: number | null;
+  to_version: number | null;
+  source: { version: number; digest: string | null } | null;
+  inflight_old: number;         // tasks of the previous version still running
+  drain_deadline: number | null;
+  interrupted: boolean;
+  error: string | null;         // a stable code
+  warnings: { code: string; names: string[] }[];   // names only, never a value
+  pending_migrations: string[] | null;             // null: the runtime does not report them
+  dry_run: boolean;
+  created_at: number;
+  updated_at: number;
+};
+```
+
+### 8.2.3 Previews
+
+A preview is a separate runtime service for one pull request, created from `pull_request` / `Merge Request Hook` webhooks once
+`PATCH …/{app}/git {previews: true}` is set. Rows are keyed by PR number. The repository's numeric id is pinned by the first signed
+event; another id under the same name is ignored. A fork (head and base ids differ, or either is missing, on the event or the host's
+answer) is held with no service until a project admin approves that SHA; a later commit is held again. It gets the preview env only
+with `with_env`. Env comes from `preview-env` and never from production. At most 5 per App; removed on close, on App delete and at 7 days.
+
+| Method | Path | Action | Request | Response | Errors |
+|---|---|---|---|---|---|
+| GET | `…/{app}/previews` | `app.read` | | `200 {items: Preview[]}` | `403`, `404` |
+| DELETE | `…/{app}/previews/{pr}` | `app.deploy` | | `204` | `403`, `404` |
+| POST | `…/{app}/previews/{pr}/approve` | `app.git.manage` | `{sha; with_env?}` | `200 {pr; sha; with_env}` | `403`, `404`, `409 preview_sha_changed`, `409 preview_not_held` |
+| GET | `…/{app}/preview-env` | `app.env.read` | | `200 {env}` | `403`, `404` |
+| PUT | `…/{app}/preview-env` | `app.env.write` | `{env: Record<string,string>}` | `204` | `403`, `404`, `422 invalid` |
+
+### 8.2.4 Bundles
+
+Holds settings, env values, data, blobs and sources, never secrets. Downloads and uploads here are capped; larger ones use `21ci app export|import`.
+
+| Method | Path | Action | Request | Response | Errors |
+|---|---|---|---|---|---|
+| POST | `…/{app}/bundle` | `app.data.export` | | `202 {id; state; bytes; expires_at; failure}` | `403`, `404`, `429 heavy_job_busy` |
+| GET | `…/{app}/bundle/{id}` | `app.data.export` | | `200 {id; state: running\|ready\|failed; bytes; failure; too_large}` | `403`, `404` |
+| GET | `…/{app}/bundle/{id}/download` | `app.data.export` | | `200 application/zstd` | `403`, `404`, `409 bundle_not_ready`, `413 export_too_large` |
+| POST | `…/import` | `app.create` + `app.deploy` + `app.data.export` on `project`; also `app.data.export` on `from` | `?slug&project&environment&activate&from`; body: a bundle up to 4 MiB, or empty with `from` (an App slug, a fork) | `202 {slug; warnings; missing_secrets}` | `403`, `404`, `409 slug_taken`, `413 too_large`, `422 bundle_invalid`, `429 heavy_job_busy` |
+
 ### 8.3 Config: env, secrets, schedules, queue
 
 | Method | Path | Auth | Request | Response | Errors |
@@ -659,7 +856,13 @@ makes it live. `If-Match` on a save is the app's current ETag, so a save after s
 | GET | `…/{app}/env` | `app.env.read` (project `developer` and up) | | `200 {env: Record<string,string>}` + `ETag` | `403` (viewer), `404` |
 | PUT | `…/{app}/env` | `app.env.write` | `{env: Record<string,string>}` (complete map, replaces), `If-Match` | `200 {env: Record<string,string>}` + `ETag` | `403`, `412 precondition_failed` (env changed since the read), `422`, `428` |
 | PATCH | `…/{app}/env` | `app.env.write` | `{set?: Record<string,string>; unset?: string[]}`, optional `If-Match` | `200 {env: Record<string,string>}` + `ETag` | `403`, `412 precondition_failed`, `422` |
-| GET | `…/{app}/secrets` | `app.read` | | `200 {items: {name: string; updated_at: number}[]}` (names only) | `404` |
+| GET | `…/{app}/secrets` | `app.read` | | `200 {items: {name: string; updated_at: number; source?: "plain" \| "vault"; last_synced_at?: number \| null; last_error?: string \| null}[]}` (never values) | `404` |
+| PUT | `…/{app}/secrets/{name}/ref` | `app.secrets.write` | `{path: string; field: string}` | `200 {name; source; last_synced_at}` | `403`, `404 not_found`, `404 secret_source_not_found`, `422 ref_outside_prefix` (also no Vault on the node), `503 secret_source_unavailable` |
+| DELETE | `…/{app}/secrets/{name}/ref` | `app.secrets.write` | | `204`; the value stays as a plain secret | `403`, `404` |
+| POST | `…/{app}/secrets/sync` | `app.secrets.write` | | `202` | `403`, `404`, `429 rate_limited` |
+| GET | `…/{app}/data-events` | `app.read` | | `200 {state; lag; backlog; last_error; tables; topic; warnings}` | `404` |
+| PUT | `…/{app}/data-events` | `app.update` + `app.data.read` | `{topic: string; tables?: {name; ops: ("insert" \| "update" \| "delete")[]; payload?: "keys" \| "row"}[]; kv_prefixes?: {prefix; payload?}[]; max_backlog?: number}` | `200`, same shape as GET; also rearms paused events | `403`, `404`, `422` |
+| DELETE | `…/{app}/data-events` | `app.update` | | `204` | `403`, `404` |
 | PUT | `…/{app}/secrets/{name}` | `app.secrets.write` | `{value: string}` (write-only) | `204` | `403`, `422` |
 | DELETE | `…/{app}/secrets/{name}` | `app.secrets.write` | | `204` | `403`, `404` |
 | GET | `…/{app}/schedules` | `app.read` | | `200 {items: Schedule[]}` | `404` |
@@ -695,10 +898,26 @@ schedule count.
 
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
-| GET | `…/{app}/stats` | `app.logs.read` | `?window=5m\|1h\|24h` (default `5m`) | `200 object`: runtime stats passthrough (`count`, `errors`, `error_rate`, `outcomes`, `queue`/`init`/`exec`/`total` percentiles, `admission`) plus `window` and flat `requests` (= `count`), `p50_ms`/`p95_ms`/`p99_ms` (= `total.*`) | `404` |
+| GET | `…/{app}/stats` | `app.logs.read` | `?window=5m\|1h\|24h\|7d` (default `5m`), `&step=1m\|5m\|1h` adds `series`; `7d` answers `{window, step_s, series: [{ts, count, errors}], data_from}` from the console's hourly ring | `200 object`: runtime stats passthrough (`count`, `errors`, `error_rate`, `outcomes`, `queue`/`init`/`exec`/`total` percentiles, `admission`) plus `window` and flat `requests` (= `count`), `p50_ms`/`p95_ms`/`p99_ms` (= `total.*`) | `404` |
 | GET | `…/{app}/events` | `app.logs.read` | `?cursor&limit` | `200 Page<{id: string; ts: number; kind: string; data: unknown}>` | `404` |
 | GET | `…/{app}/logs` | `app.logs.read` | SSE, see §8.6 | `text/event-stream` | `404`, `429 rate_limited` (org upstream cap) |
+| GET | `…/{app}/logs?view=range` | `app.logs.read` | `&since&until&level&kind&task_id`. The Logs page's read of a past range: not a file and not audited | `200` NDJSON of `LogLine`, at most 1000 lines, then `{truncated: true, limit}` when more exist | `404`, `422 invalid` |
+| POST | `…/{app}/preview` | `app.read` | | One anonymous `GET` of the app's live URL with redirects not followed: `200 {status: number; content_type: string\|null; body: string\|null; truncated: boolean}`. `body` is at most 256 KiB of text, `null` when binary. The app's request counts in its metrics | `404`, `502 preview_unavailable` (the console cannot reach the app) |
 | GET | `…/{app}/export` | `app.data.export` | | `200 application/vnd.sqlite3`, `Content-Disposition: attachment; filename="<app>.sqlite"` (streamed) | `403`, `404` |
+
+### 8.4.1 Data browser
+
+Read-only and for project admins: `app.data.read` is `projAdmin`, and an instance admin needs a role of their own. Reads use a separate
+key holding only `data:read`; the default key never has that scope. Each read is audited with who and a hash of the SQL or key, never
+values. `ingress.rate_rules` (at most 32, `{path, methods?, rps, burst?, by?}`) is set through `PATCH …/{app}` in `ingress`.
+
+| Method | Path | Action | Request | Response | Errors |
+|---|---|---|---|---|---|
+| GET | `…/{app}/data/tables` | `app.data.read` | | `200 {items: [{name; type; columns; rows_estimate}]}` | `403`, `404` |
+| POST | `…/{app}/data/query` | `app.data.read` | `{sql; args?; limit?}` | `200 {columns; rows; truncated; elapsed_ms}` | `403`, `404`, `413 result_too_large`, `422 sql_not_readonly`, `422 sql_error`, `429 rate_limited`, `503 sql_busy`, `503 sql_timeout` |
+| GET | `…/{app}/data/kv` | `app.data.read` | `?prefix&cursor&limit` | `200 {items; next_cursor}` | `403`, `404` |
+| GET | `…/{app}/data/kv/{key}` | `app.data.read` | base64url key | `200 {key; type; size; value; truncated}` | `403`, `404` |
+| GET | `…/{app}/data/blobs` | `app.data.read` | `?prefix&cursor&limit` | `200 {items; next_cursor}`: metadata only | `403`, `404` |
 
 ### 8.5 Domains
 

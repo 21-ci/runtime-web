@@ -9,8 +9,22 @@
     "description": "Loyiha ilovalarni va ular joylashtiriladigan muhitlarni birlashtiradi. Boshlash uchun bittasini yarating.",
     "action": "Loyiha yaratish"
   },
+  "notFound": {
+    "title": "Sahifa topilmadi",
+    "description": "Bunday manzil yoʻq yoki sizda unga ruxsat yoʻq.",
+    "home": "Konsol bosh sahifasiga"
+  },
   "queryError": {
     "title": "Yuklab boʻlmadi",
     "description": "Yuklashda nimadir xato ketdi. Ulanishni tekshirib, qayta urinib koʻring."
+  },
+  "data": {
+    "noFiles": "Hozircha fayllar yo'q",
+    "noKeys": "Hozircha kalitlar yo'q",
+    "noKeysPrefix": "Bu prefiks bilan boshlanadigan kalitlar yo'q",
+    "showing": "{{total}} qatordan {{shown}} tasi ko'rsatilgan.",
+    "exportTitle": "Ma'lumotlarni eksport qilish",
+    "exportHint": "Shu ilovaning SQLite bazasini yuklab olish.",
+    "download": "Yuklab olish"
   }
 }

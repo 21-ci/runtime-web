@@ -33,7 +33,7 @@ interface Ctx {
   caller: Caller;
 }
 
-type Method = "GET" | "POST" | "PUT" | "PATCH" | "DELETE";
+type Method = "GET" | "HEAD" | "POST" | "PUT" | "PATCH" | "DELETE";
 export interface WireReq {
   method: Method;
   path: string;
@@ -74,13 +74,26 @@ export const OP_PATHS = [
   "/v1/tenants/*",
   "/v1/plans",
   "/v1/plans/*",
-  "/v1/node/*",
+  // One by one: `*` spans segments, and a glob would reach /v1/node/backups/{id}/archive and its DELETE.
+  "/v1/node/status",
+  "/v1/node/config",
+  "/v1/node/cache",
+  "/v1/node/scheduler",
+  "/v1/node/drain",
+  "/v1/node/series",
+  "/v1/node/stats",
+  "/v1/node/events",
+  "/v1/node/backups",
+  "/v1/node/backups/status",
   "/v1/version",
   "/v1/hosts",
   "/v1/hosts/*",
   "/v1/services/*/hosts/*",
+  "/v1/telemetry/console",
+  "/v1/telemetry/preview",
 ];
 export const TENANT_PATHS = [
+  "/v1/scratch",
   "/v1/services",
   "/v1/services/*",
   "/v1/projects",
@@ -90,9 +103,10 @@ export const TENANT_PATHS = [
   "/v1/tenants/*/usage",
   "/v1/me",
   "/v1/limits",
+  "/v1/usage",
 ];
-const METHODS = new Set(["GET", "POST", "PUT", "PATCH", "DELETE"]);
-const FWD_HEADERS = new Set(["if-match", "if-none-match", "accept", "last-event-id"]);
+const METHODS = new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]);
+const FWD_HEADERS = new Set(["if-match", "if-none-match", "accept", "last-event-id", "range", "if-range", "idempotency-key"]);
 
 function glob(p: string): RegExp {
   return new RegExp("^" + p.split("*").map((s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$");
@@ -197,7 +211,7 @@ export function createCore(d: CoreDeps) {
       headers.set("content-type", (w.contentType ?? "").replace(/;\s*base64$/, ""));
     }
     const init: RequestInit = { method: w.method, headers };
-    if (body !== undefined && w.method !== "GET") init.body = bin ? new Blob([bin as Uint8Array<ArrayBuffer>]) : body;
+    if (body !== undefined && w.method !== "GET" && w.method !== "HEAD") init.body = bin ? new Blob([bin as Uint8Array<ArrayBuffer>]) : body;
     const res = await d.fetch(scope === "op" ? "rtctl-op" : "rtctl-tenant", new Request(url, init));
     const out: Record<string, string> = {};
     res.headers.forEach((v, k) => {

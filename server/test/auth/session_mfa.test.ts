@@ -30,6 +30,13 @@ describe("middleware", () => {
     }
   });
 
+  it("the start-up probe answers signed out without a 401, and gives nothing away", async () => {
+    const app = testApp();
+    const res = await app.call("GET", "/api/me?probe=1");
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ user: null });
+  });
+
   it("no or bad cookie is 401 unauthenticated", async () => {
     const app = testApp();
     expect(await errCode(await app.call("GET", "/api/me"))).toBe("unauthenticated");

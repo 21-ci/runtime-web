@@ -25,6 +25,8 @@ export interface Config {
    * app URLs relative, /s/<slug>/.
    */
   readonly runtimePublicUrl: string;
+  /** Test harness only (RTWEB_TEST_GIT_ORIGIN, needs RTWEB_INSECURE_COOKIES=1): one private Git origin the checks let pass. */
+  readonly gitTestOrigin?: string;
   /** Runtime plan for new org tenants (RTWEB_DEFAULT_PLAN, default "free"). */
   readonly defaultPlan: string;
 }
@@ -76,7 +78,9 @@ export function loadConfig(getenv: Getenv, warn: (msg: string) => void = (m) => 
   if (!/^[a-z0-9][a-z0-9_-]{0,62}$/.test(defaultPlan)) {
     throw new ConfigError("RTWEB_DEFAULT_PLAN: must be a runtime plan name (lowercase letters, digits, - and _)");
   }
-  return { origin, sealKey, insecureCookies, setupToken, runtimePublicUrl, defaultPlan };
+  const gitTestOrigin = getenv("RTWEB_TEST_GIT_ORIGIN") || undefined;
+  if (gitTestOrigin && !insecureCookies) throw new ConfigError("RTWEB_TEST_GIT_ORIGIN: test harness only, needs RTWEB_INSECURE_COOKIES=1");
+  return { origin, sealKey, insecureCookies, setupToken, runtimePublicUrl, defaultPlan, ...(gitTestOrigin ? { gitTestOrigin } : {}) };
 }
 
 function parseOrigin(raw: string | undefined, insecure: boolean): string {

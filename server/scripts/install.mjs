@@ -149,17 +149,22 @@ async function ensureService(tenant, cron) {
     svc = (await api("POST", "/v1/services", { tenant, body: { slug: SLUG, runtime: "deno", name: "Runtime Web", triggers } })).data;
     step(5, `created service ${SLUG} (${svc.id})`);
   }
-  if (!cron) todo.push(`Plan lacks the cron trigger: the housekeeping schedule (*/5 * * * *) is not created.`);
+  if (!cron) todo.push(`Plan lacks the cron trigger: the job tick schedule (* * * * *) is not created.`);
   else {
     const scheds = await get(`/v1/services/${svc.id}/schedules`, { tenant });
-    // Runtime schedules have no name: the housekeeping one is the cron schedule whose payload says so.
-    const isHousekeeping = (s) => s.kind === "cron" && s.payload?.job === "housekeeping";
-    if (!(Array.isArray(scheds) ? scheds : scheds.items ?? []).some(isHousekeeping)) {
+    // Runtime schedules have no name: ours are the cron schedules whose payload says so.
+    const list = Array.isArray(scheds) ? scheds : scheds.items ?? [];
+    if (!list.some((s) => s.kind === "cron" && s.payload?.job === "tick")) {
       await api("POST", `/v1/services/${svc.id}/schedules`, {
         tenant,
-        body: { kind: "cron", cron: "*/5 * * * *", timezone: "UTC", payload: { job: "housekeeping" } },
+        body: { kind: "cron", cron: "* * * * *", timezone: "UTC", payload: { job: "tick" } },
       });
-      step(5, "created schedule housekeeping (*/5 * * * *)");
+      step(5, "created schedule tick (* * * * *)");
+    }
+    // After the tick exists, so an upgrade never leaves the node without a schedule.
+    for (const s of list.filter((x) => x.kind === "cron" && x.payload?.job === "housekeeping")) {
+      await api("DELETE", `/v1/services/${svc.id}/schedules/${s.id}`, { tenant, ok: [404] });
+      step(5, "removed the old housekeeping schedule");
     }
   }
   const secrets = new Set((await get(`/v1/services/${svc.id}/secrets`, { tenant })).map((s) => s.name));

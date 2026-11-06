@@ -10,12 +10,12 @@ describe("format", () => {
     expect(formatBytes(1_048_576)).toBe("1.00 MiB");
     expect(formatBytes(15.5 * 1_048_576)).toBe("15.5 MiB");
     expect(formatBytes(27.2 * 1024 ** 3)).toBe("27.2 GiB");
-    expect(formatBytes(null)).toBe("-");
+    expect(formatBytes(null)).toBe("N/A");
   });
 
   it("groups counts", () => {
     expect(formatCount(100000)).toBe("100,000");
-    expect(formatCount(undefined)).toBe("-");
+    expect(formatCount(undefined)).toBe("N/A");
   });
 
   it("formats durations from milliseconds", () => {
@@ -33,7 +33,7 @@ describe("format", () => {
     expect(formatQuantity("idle_seconds", 45)).toBe("45 s");
     expect(formatQuantity("procs", 10)).toBe("10");
     expect(formatQuantity("mode", "normal")).toBe("normal");
-    expect(formatQuantity("x", null)).toBe("-");
+    expect(formatQuantity("x", null)).toBe("N/A");
   });
 
   it("renders relative times", () => {

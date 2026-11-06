@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Command } from "cmdk";
 import { useTranslation } from "react-i18next";
-import { useNavigate, useRouter } from "@tanstack/react-router";
+import { useNavigate, useParams, useRouter } from "@tanstack/react-router";
 import {
   Boxes,
   FolderOpen,
@@ -21,6 +21,7 @@ import { useApps, useOrgs, useProjects } from "@/hooks/orgs";
 import { useCreateAppGate } from "./create-app-gate";
 import { visibleSettings } from "./settings-registry";
 import { useShell } from "./shell-context";
+import { APP_SECTIONS } from "./sidebar";
 
 const ITEM =
   "flex h-8 cursor-pointer items-center gap-2.5 rounded-md px-2 text-sm text-text transition-colors duration-[100ms] data-[selected=true]:bg-hover";
@@ -47,6 +48,8 @@ export function CommandMenu({ org }: { org: string }) {
   const apps = useApps(org);
   const gate = useCreateAppGate(org);
   const { t } = useTranslation("shell");
+  const params = useParams({ strict: false }) as { app?: string };
+  const app = params.app && params.app !== "new" ? params.app : undefined;
 
   const role = orgs.data?.find((o) => o.slug === org)?.role;
   const canCreateProject = role === "owner" || role === "admin";
@@ -135,6 +138,21 @@ export function CommandMenu({ org }: { org: string }) {
               </Command.Item>
             ) : null}
           </Command.Group>
+
+          {app ? (
+            <Command.Group heading={app} className={HEADING}>
+              {APP_SECTIONS.map((s) => (
+                <Command.Item
+                  key={s.to}
+                  value={`app section ${t(s.labelKey)}`}
+                  onSelect={() => run(() => void navigate({ to: s.to as "/$org/apps/$app", params: { org, app } }))}
+                  className={ITEM}
+                >
+                  <s.icon className={ICON} aria-hidden="true" /> {t(s.labelKey)}
+                </Command.Item>
+              ))}
+            </Command.Group>
+          ) : null}
 
           {settings.length > 0 ? (
             <Command.Group heading={t("palette.settings")} className={HEADING}>

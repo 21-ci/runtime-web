@@ -19,14 +19,16 @@ export type AppView = AppSummary & {
   access: "public" | "key" | "internal";
   ingress: Ingress | null;
   limits: { effective: Record<string, unknown> };
+  branch?: { name: string; parent: string } | null;
 };
 
 export function appPath(org: string, app: string) {
   return `/orgs/${encodeURIComponent(org)}/apps/${encodeURIComponent(app)}`;
 }
 
-export function useAppView(org: string, app: string) {
+export function useAppView(org: string, app: string, enabled = true) {
   return useQuery({
+    enabled,
     queryKey: ["app", org, app],
     queryFn: () => api.get<AppView>(appPath(org, app)),
   });

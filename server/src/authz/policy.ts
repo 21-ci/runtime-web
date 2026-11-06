@@ -30,6 +30,10 @@ export const Actions = [
   "app.queue.write",
   "app.logs.read",
   "app.data.export",
+  "app.data.read",
+  "app.git.manage",
+  "alert.read",
+  "alert.write",
   "instance.admin",
 ] as const;
 
@@ -76,6 +80,7 @@ export const TOKEN_SCOPE_FOR: Readonly<Partial<Record<Action, string>>> = {
   "app.queue.write": "queue:write",
   "app.logs.read": "logs:read",
   "app.data.export": "data:admin",
+  "app.data.read": "data:read",
 };
 
 function tokenCan(t: TokenGrant, a: string, projectSlug: string): boolean {
@@ -115,6 +120,13 @@ const rules: Record<Action, Level> = {
   "app.queue.write": "projDeveloper",
   "app.logs.read": "projViewer",
   "app.data.export": "projAdmin",
+  // Rows may be personal: not for viewers or developers.
+  "app.data.read": "projAdmin",
+  // Not app.deploy: a link decides where the console sends a stored token and what may reach production.
+  "app.git.manage": "projAdmin",
+  // A rule can span every App of the org, so reading one is not narrowed to a project.
+  "alert.read": "orgAdmin",
+  "alert.write": "orgAdmin",
   "instance.admin": "instance",
 };
 

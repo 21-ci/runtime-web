@@ -34,6 +34,17 @@ async function otherProject(w: World): Promise<void> {
 const DEPLOYER = ["services:read", "services:write", "deploy", "logs:read"];
 
 describe("bearer tokens on the app routes", () => {
+  it("a deploy token can call POST deploys, and no token can manage a Git link", async () => {
+    const w = await world();
+    await createApp(w.admin);
+    const t = await mint(w, { scopes: [...DEPLOYER, "secrets:write", "data:admin", "env:write"] });
+    const ok = await call(w, t, "POST", `${APPS}/hello/deploys`, { url: "https://objects.example.com/a.tgz" });
+    expect(ok.status, await ok.clone().text()).toBe(202);
+    expect((await call(w, t, "GET", `${APPS}/hello/git`)).status).toBe(403);
+    expect((await call(w, t, "POST", `${APPS}/hello/git`, {})).status).toBe(403);
+    expect((await call(w, t, "PUT", `${APPS}/hello/git/rules`, { rules: [] })).status).toBe(403);
+  });
+
   it("a project-scoped token deploys and reads logs in its project without Origin or CSRF", async () => {
     const w = await world();
     await createApp(w.admin);

@@ -9,8 +9,14 @@ import { isBranded, productName, UPSTREAM_NAME, useBranding, type Branding } fro
 // name in <title> and the uploaded icon (else the bundled favicon.svg), and links
 // /api/branding/theme.css. BrandingEffects keeps the document in step after an admin saves:
 // the tab title, the favicon and a fresh theme.css (the etag busts the browser cache).
-/** The bundled favicon (web/public/favicon.svg), used while no icon is uploaded. */
-export const DEFAULT_ICON = "favicon.svg";
+/**
+ * The bundled favicon (web/public/favicon.svg), used while no icon is uploaded. Absolute, because a relative path
+ * resolves against the current route where the page has no <base href>; under a path route the server's base wins.
+ */
+export function defaultIcon(): string {
+  const base = document.querySelector("base")?.getAttribute("href") ?? "/";
+  return `${base.endsWith("/") ? base : `${base}/`}favicon.svg`;
+}
 
 export function BrandingEffects() {
   const { data } = useBranding();
@@ -35,8 +41,7 @@ export function BrandingEffects() {
   useEffect(() => {
     const link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
     if (!link) return;
-    // Relative, so it resolves against <base href> under a path route.
-    const href = icon ?? DEFAULT_ICON;
+    const href = icon ?? defaultIcon();
     if (link.getAttribute("href") !== href) link.setAttribute("href", href);
   }, [icon]);
 

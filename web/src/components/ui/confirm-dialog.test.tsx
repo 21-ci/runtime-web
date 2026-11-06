@@ -50,6 +50,32 @@ describe("ConfirmDialog", () => {
     expect(onConfirm).toHaveBeenCalledTimes(1);
   });
 
+  it("confirms on Enter in the typed field only once the value matches", async () => {
+    const user = userEvent.setup();
+    const { onConfirm } = setup({ typedValue: "billing" });
+    const field = screen.getByLabelText(/to confirm/i);
+
+    await user.type(field, "bill{Enter}");
+    expect(onConfirm).not.toHaveBeenCalled();
+
+    await user.type(field, "ing{Enter}");
+    expect(onConfirm).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not confirm on Enter while pending", async () => {
+    const user = userEvent.setup();
+    const { onConfirm } = setup({ typedValue: "billing", pending: true });
+    await user.type(screen.getByLabelText(/to confirm/i), "billing{Enter}");
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
+  it("keeps focus on Cancel without a typed value, so a stray Enter cannot confirm", async () => {
+    const user = userEvent.setup();
+    const { onConfirm } = setup();
+    await user.keyboard("{Enter}");
+    expect(onConfirm).not.toHaveBeenCalled();
+  });
+
   it("honours an externally controlled confirmDisabled gate", () => {
     setup({ confirmDisabled: true });
     expect(screen.getByRole("button", { name: "Delete app" })).toBeDisabled();

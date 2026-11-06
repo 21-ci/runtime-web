@@ -13,12 +13,15 @@ import { registerTokens } from "./routes/tokens.ts";
 import { registerProjects } from "./routes/projects.ts";
 import { registerLimitsUsage } from "./routes/limits_usage.ts";
 import { registerAdminNode } from "./routes/admin_node.ts";
+import { registerUpdates } from "./routes/updates.ts";
 import { registerApps } from "./routes/apps.ts";
 import { registerDomains } from "./routes/domains.ts";
 import { registerAudit } from "./routes/audit.ts";
 import { registerSettings } from "./routes/settings.ts";
 import { registerBranding } from "./routes/branding.ts";
 import { registerInternal } from "./routes/internal.ts";
+import { registerGit } from "./routes/git.ts";
+import { registerAlerts } from "./routes/alerts.ts";
 import type { AppLookup, TxtLookup } from "./domains/types.ts";
 import { appLookup } from "./apps/service.ts";
 import type { RouteInfo } from "./http/router.ts";
@@ -47,7 +50,7 @@ export interface Deps {
 }
 
 export interface App {
-  fetch(req: Request, info?: { clientIp?: string }): Promise<Response>;
+  fetch(req: Request, info?: { clientIp?: string; waitUntil?: (p: Promise<unknown>) => void }): Promise<Response>;
   /** Registered routes (contract guard). */
   routes(): RouteInfo[];
 }
@@ -68,8 +71,11 @@ export function createApp(deps: Deps): App {
   registerDomains(router, deps);
   registerAudit(router, deps);
   registerSettings(router, deps);
+  registerUpdates(router, deps);
   registerBranding(router, deps);
   registerInternal(router, deps);
+  registerGit(router, deps);
+  registerAlerts(router, deps);
   registerSpa(router, deps); // keep last: installs the SPA fallback
   const appOrigin = appFrameSources(deps.config.runtimePublicUrl);
   return {
@@ -80,6 +86,7 @@ export function createApp(deps: Deps): App {
           // The runtime-resolved address only (ctx.client.ip, else its x-rt-client-ip, which
           // clients cannot set). X-Forwarded-For is never consulted.
           clientIp: info?.clientIp ?? req.headers.get("x-rt-client-ip") ?? undefined,
+          ...(info?.waitUntil ? { waitUntil: info.waitUntil } : {}),
         }),
         deps.config.origin,
         appOrigin,

@@ -4,6 +4,8 @@ import type { Deps } from "../app.ts";
 import { authOf, requireSession } from "../auth/middleware.ts";
 import { orgAccess } from "../orgs/members.ts";
 import { createToken, listTokens, parseTokenReq, revokeToken, rotateDefaultKey } from "../keys/keys.ts";
+import { audit } from "../audit/audit.ts";
+import { csvLine, exportFileName, exportFormat, exportResponse, isoTime } from "../http/export.ts";
 import type { Router } from "../http/router.ts";
 import { withRuntimeErrors } from "../runtime/errors.ts";
 import { json, noContent, readJson } from "../http/json.ts";
@@ -15,8 +17,20 @@ export function registerTokens(r: Router, deps: Deps): void {
     "/api/orgs/:org/tokens",
     s(async (ctx) => {
       const { user } = authOf(ctx);
-      const { org } = await orgAccess(deps, user, ctx.params.org as string, "tokens.manage");
-      return json({ items: await listTokens(deps, org.id) });
+      const format = exportFormat(ctx.url.searchParams, ["csv"] as const);
+      const { org, actor } = await orgAccess(deps, user, ctx.params.org as string, "tokens.manage");
+      const items = await listTokens(deps, org.id);
+      if (!format) return json({ items });
+      // The list holds no secret, so neither can the file.
+      const res = await exportResponse({
+        fileName: exportFileName([org.slug], "tokens", null, deps.now(), format),
+        format,
+        header: "name,scopes,projects,environments,created_by,created_at,expires_at,last_used_at",
+        rows: items,
+        line: (k) => csvLine([k.name, k.scopes.join(" "), k.projects.join(" "), k.environments.join(" "), k.created_by.name, isoTime(k.created_at), isoTime(k.expires_at), isoTime(k.last_used_at)]),
+      });
+      await audit(deps, { actor, orgId: org.id, action: "org.tokens.export", target: org.slug, detail: { format, rows: items.length } });
+      return res;
     }),
   );
 

@@ -4,48 +4,30 @@
   "quick": {
     "label": "Tezkor amallar",
     "newApp": "Yangi ilova",
-    "newAppHint": "Kodni soniyalar ichida joylashtiring",
     "newProject": "Yangi loyiha",
-    "newProjectHint": "Ilovalarni guruhlang",
     "inviteMember": "Aʼzoni taklif qilish",
-    "inviteMemberHint": "Jamoangizni qoʻshing",
-    "createToken": "Token yaratish",
-    "createTokenHint": "APIga kirish",
-    "addDomain": "Domen qoʻshish",
-    "addDomainHint": "Ilovani oʻz URL manzilingizda ishga tushiring"
+    "createToken": "Token yaratish"
   },
   "projects": {
-    "title": "Loyihalar",
-    "notFound": "Tashkilot topilmadi",
-    "appCount_one": "{{count}} ta ilova",
-    "appCount_other": "{{count}} ta ilova"
+    "notFound": "Tashkilot topilmadi"
   },
   "apps": {
     "title": "Ilovalar",
-    "menu": "Ilovalar menyusi",
     "filter": "Ilovalarni loyiha boʻyicha filtrlash",
     "allProjects": "Barcha loyihalar",
     "projectLabel": "Loyiha",
     "new": "Yangi ilova",
     "emptyTitle": "Hali ilovalar yoʻq",
-    "emptyDescription": "Bu yerda chiqishi uchun ilova yarating."
+    "emptyDescription": "Bu yerda chiqishi uchun ilova yarating.",
+    "description": "Bu tashkilotning barcha ilovalari."
   },
   "activity": {
-    "title": "Soʻnggi faollik",
-    "adminsOnly": "Faollik faqat administratorlar uchun",
-    "adminsHint": "Egasi yoki administratordan soʻrang.",
+    "title": "Faollik",
+    "adminsOnly": "Faollikni faqat tashkilot egalari va administratorlari koʻradi.",
     "error": "Faollikni yuklab boʻlmadi",
     "emptyTitle": "Hali faollik yoʻq",
     "emptyDescription": "Bu tashkilotdagi oʻzgarishlar shu yerda koʻrinadi.",
     "system": "Tizim"
-  },
-  "members": {
-    "title": "Aʼzolar",
-    "titleCount": "Aʼzolar ({{count}})",
-    "menu": "Aʼzolar menyusi",
-    "invite": "Aʼzoni taklif qilish",
-    "manage": "Aʼzolarni boshqarish",
-    "empty": "Koʻrsatish uchun aʼzolar yoʻq"
   },
   "build": {
     "ready": "Tayyor",
@@ -53,35 +35,20 @@
     "building": "Yigʻilmoqda",
     "pending": "Kutilmoqda"
   },
-  "access": {
-    "public": "Ochiq",
-    "key": "Kalit talab qilinadi",
-    "internal": "Ichki"
-  },
-  "liveVersion": "v{{version}}",
   "app": {
     "notFound": "Ilova topilmadi"
   },
-  "editCode": "Kodni tahrirlash",
-  "open": "Ochish",
   "lastError": "Soʻnggi xato: {{error}}",
   "stats": {
-    "title": "Oxirgi 5 daqiqa",
+    "title": "Oxirgi soat",
     "viewLogs": "Loglarni koʻrish",
+    "viewAnalytics": "Analitikani koʻrish",
     "notFound": "Statistika topilmadi",
     "requests": "Soʻrovlar",
     "errors": "Xatolar",
     "errorRate": "Xatolar ulushi",
-    "p50": "p50",
     "p95": "p95",
-    "p99": "p99"
-  },
-  "code": {
-    "title": "Kod",
-    "history": "Tarix",
-    "unavailable": "Bu versiya uchun kod mavjud emas.",
-    "entry": "kirish nuqtasi",
-    "version": "v{{version}}"
+    "noRequests": "Oxirgi soatda soʻrovlar boʻlmagan."
   },
   "events": {
     "title": "Hodisalar",
@@ -100,6 +67,35 @@
     "description": "Ilovaning SQLite maʼlumotlar bazasini fayl sifatida yuklab oling.",
     "export": "Maʼlumotlarni eksport qilish"
   },
-  "liveUrl": "Ishlayotgan manzil",
-  "preview": "Javobning oldindan koʻrinishi"
+  "preview": "Javobning oldindan koʻrinishi",
+  "appsTable": {
+    "app": "Ilova",
+    "project": "Loyiha",
+    "environment": "Muhit",
+    "state": "Holat",
+    "live": "Ishlayotgan versiya",
+    "notLive": "Ishga tushmagan",
+    "filter": "Ilovalarni filtrlash",
+    "environmentFilter": "Ilovalarni muhit boʻyicha filtrlash",
+    "stateFilter": "Ilovalarni holat boʻyicha filtrlash",
+    "allEnvironments": "Barcha muhitlar",
+    "allStates": "Barcha holatlar",
+    "count_one": "{{count}} ta ilova",
+    "count_other": "{{count}} ta ilova",
+    "countOf_one": "{{count}} tadan {{shown}} ta ilova",
+    "countOf_other": "{{count}} tadan {{shown}} ta ilova",
+    "noMatch": "Bu filtrlarga mos ilova yoʻq."
+  },
+  "lastDeployment": {
+    "title": "Oxirgi joylashtirish",
+    "all": "Joylashtirishlar",
+    "version": "Versiya",
+    "live": "Ishlamoqda",
+    "state": "Holat",
+    "author": "Muallif",
+    "outside": "CLI yoki API",
+    "created": "Yaratilgan",
+    "emptyTitle": "Hali joylashtirishlar yoʻq",
+    "emptyDescription": "Birinchi versiyani yaratish uchun kodni saqlang."
+  }
 }

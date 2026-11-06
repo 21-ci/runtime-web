@@ -1,5 +1,6 @@
-import { describe, expect, it } from "vitest";
-import { scheduled } from "../../src/jobs.ts";
+import { describe, expect, it, vi } from "vitest";
+import { HOUSEKEEPING_JOBS, scheduled } from "../../src/jobs.ts";
+import { runJobs } from "../../src/jobs/runner.ts";
 import { serviceDeleteBackoff } from "../../src/apps/service.ts";
 import { APPS, createApp, world } from "./helpers.ts";
 
@@ -50,6 +51,19 @@ describe("apps ↔ domains", () => {
     expect(w.fake.hosts.has("a.example.com")).toBe(false);
   });
 
+  it("a queued delete refused by the tick's budget is not charged an attempt", async () => {
+    const w = await world();
+    w.fake.failNext({ status: 503, match: (r) => r.method === "POST" && r.path.endsWith("/versions") });
+    w.fake.failNext({ status: 503, match: (r) => r.method === "DELETE" && r.path.startsWith("/v1/services/") });
+    await w.admin.call("POST", APPS, { project: "default", environment: "production", slug: "orphan", template: "http" });
+    const db = w.app.deps.storage.db;
+    const err = vi.spyOn(console, "error").mockImplementation(() => undefined);
+    await runJobs(w.app.deps, HOUSEKEEPING_JOBS.filter((j) => j.name === "service_deletes"), { wallMs: 20_000, fetches: 0 });
+    err.mockRestore();
+    expect(await db.all("SELECT attempts FROM pending_service_deletes")).toEqual([{ attempts: 0 }]);
+    expect(await db.first("SELECT last_error FROM job_state WHERE name = 'service_deletes'")).toEqual({ last_error: "budget_exhausted" });
+  });
+
   it("a failed cleanup after a failed create is queued and retried by the scheduled job", async () => {
     const w = await world();
     w.fake.failNext({ status: 503, match: (r) => r.method === "POST" && r.path.endsWith("/versions") });
@@ -65,7 +79,8 @@ describe("apps ↔ domains", () => {
     expect((await q())[0]?.attempts).toBe(1);
     await scheduled(w.app.deps); // not due yet
     expect((await q())[0]?.attempts).toBe(1);
-    w.app.tick(serviceDeleteBackoff(1));
+    expect(serviceDeleteBackoff(1)).toBeLessThan(5 * 60_000);
+    w.app.tick(5 * 60_000); // the job's own interval, past the row's backoff
     await scheduled(w.app.deps);
     expect(await q()).toEqual([]);
     const again = await w.admin.call("POST", APPS, { project: "default", environment: "production", slug: "orphan", template: "http" });

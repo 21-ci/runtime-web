@@ -2,21 +2,45 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+import { Bounded } from "./bounded";
+
+function labelCells(table: HTMLTableElement) {
+  const heads = Array.from(table.tHead?.rows[0]?.cells ?? [], (th) => th.textContent ?? "");
+  for (const body of Array.from(table.tBodies)) {
+    for (const row of Array.from(body.rows)) {
+      Array.from(row.cells).forEach((cell, i) => {
+        // A spanning cell (an empty note, an expanded detail) is not one column's field.
+        if (cell.colSpan > 1) cell.removeAttribute("data-label");
+        else cell.setAttribute("data-label", heads[i] ?? "");
+      });
+    }
+  }
+}
+
 // Table wraps real table markup in a bordered 10px frame. `bare` skips the frame so a table can sit
 // inside a SectionCard with flush body. The frame is the horizontal scroll container (never the
 // page): a table wider than its card scrolls inside it, with an edge shadow on the side that has
 // more columns.
-const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement> & { bare?: boolean }>(
-  ({ className, bare = false, ...props }, ref) => (
-    <div
-      className={cn(
-        "scroll-shadow-x relative w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain",
-        !bare && "rounded-lg border border-line shadow-card",
-      )}
-    >
-      <table ref={ref} className={cn("w-full caption-bottom text-sm", className)} {...props} />
-    </div>
-  ),
+//
+// `stack` (guidelines rules 5 and 13): under md each row becomes a card of labelled fields, in column order, styled by
+// .table-stack in index.css. The labels are read from the header row, so they cannot drift from it.
+const Table = React.forwardRef<HTMLTableElement, React.HTMLAttributes<HTMLTableElement> & { bare?: boolean; stack?: boolean }>(
+  ({ className, bare = false, stack = false, ...props }, ref) => {
+    const own = React.useRef<HTMLTableElement | null>(null);
+    React.useImperativeHandle(ref, () => own.current as HTMLTableElement);
+    React.useLayoutEffect(() => {
+      if (stack && own.current) labelCells(own.current);
+    });
+    return (
+      <div className={cn("w-full min-w-0 max-w-full", !bare && "overflow-hidden rounded-lg border border-line shadow-card")}>
+        <Bounded>
+          <div className="scroll-shadow-x relative w-full min-w-0 max-w-full overflow-x-auto overscroll-x-contain">
+            <table ref={own} className={cn("w-full caption-bottom text-sm", stack && "table-stack", className)} {...props} />
+          </div>
+        </Bounded>
+      </div>
+    );
+  },
 );
 Table.displayName = "Table";
 

@@ -1,0 +1,62 @@
+{
+  "title": "Ogohlantirishlar",
+  "description": "App yoki tugunda muammo chiqqanda va u tugaganda xabar olasiz.",
+  "adminsOnly": "Faqat tashkilot administratorlari uchun",
+  "adminsOnlyHint": "Ogohlantirishlarni sozlashni tashkilot egasi yoki administratoridan soʻrang.",
+  "active": {
+    "title": "Hozir faol",
+    "none": "Hozir hammasi joyida."
+  },
+  "state": {
+    "pending": "Kutilmoqda",
+    "firing": "Ishga tushdi"
+  },
+  "kinds": {
+    "app_error_rate": "App xatolari ulushi",
+    "dlq_growth": "Yetkazilmagan xabarlar koʻpaymoqda",
+    "build_failed": "Yigʻish muvaffaqiyatsiz",
+    "disk_low": "Diskda joy kam",
+    "backup_stale": "Zaxira nusxa eskirgan"
+  },
+  "channelKinds": {
+    "webhook": "Webhook",
+    "telegram": "Telegram",
+    "email": "Email"
+  },
+  "fields": {
+    "name": "Nomi",
+    "kind": "Turi",
+    "url": "URL",
+    "urlHint": "Ochiq HTTPS manzil. Qayta yoʻnaltirishlarga oʻtilmaydi.",
+    "secret": "Imzo siri",
+    "secretHint": "Kamida 16 belgi. Har bir soʻrov u bilan X-Rtweb-Signature sarlavhasida imzolanadi. Uni qayta koʻrsatib boʻlmaydi.",
+    "botToken": "Bot tokeni",
+    "chatId": "Chat ID",
+    "app": "App",
+    "appHint": "Tashkilotning barcha app larini kuzatish uchun boʻsh qoldiring."
+  },
+  "channels": {
+    "title": "Kanallar",
+    "none": "Hali kanallar yoʻq.",
+    "add": "Kanal qoʻshish",
+    "status": "Oxirgi yuborish",
+    "test": "Sinov yuborish",
+    "delete": "{{name}} kanalini oʻchirish",
+    "testOk": "Sinov xabari yetkazildi",
+    "testFailed": "Sinov xabari yetkazilmadi: {{status}}",
+    "lastError": "Xato: {{status}}",
+    "lastOk": "Yetkazildi {{at}}",
+    "neverSent": "Hali hech narsa yuborilmagan"
+  },
+  "rules": {
+    "title": "Qoidalar",
+    "none": "Hali qoidalar yoʻq.",
+    "add": "Qoida qoʻshish",
+    "channels": "Kanal",
+    "allApps": "Barcha app lar",
+    "enable": "Yoqish",
+    "disable": "Oʻchirish",
+    "delete": "Qoidani oʻchirish",
+    "needChannel": "Avval kanal qoʻshing, shunda qoida unga yubora oladi."
+  }
+}

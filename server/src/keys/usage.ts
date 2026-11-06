@@ -9,7 +9,11 @@ import type { Org as OrgRow } from "../orgs/orgs.ts";
 import { defaultKeySecret, rtOf } from "./keys.ts";
 
 /** Runtime quota view without the plan name, plus the plan's trigger kinds (null when unknown). */
-export type LimitsJson = Omit<Limits, "plan"> & { allowed_triggers: string[] | null };
+export type LimitsJson = Omit<Limits, "plan"> & {
+  allowed_triggers: string[] | null;
+  /** Branches and previews counted in `services`, which the App lists hide; null on a node that does not report them. */
+  hidden_services: number | null;
+};
 
 export interface UsageJson {
   app: string | null;
@@ -39,10 +43,40 @@ export function parseRange(q: URLSearchParams): { from?: string; to?: string } {
 export async function orgLimits(deps: Deps, org: OrgRow): Promise<LimitsJson> {
   const secret = await defaultKeySecret(deps, org);
   const cli = rtOf(deps).as(secret);
-  const [l, me] = await Promise.all([cli.limits(), cli.me()]);
+  const [l, me, usage] = await Promise.all([cli.limits(), cli.me(), cli.planUsage().catch(() => null)]);
   const out: Partial<Limits> = { ...l };
   delete out.plan;
-  return { ...(out as Omit<Limits, "plan">), allowed_triggers: allowedTriggers(me.plan?.settings) };
+  return { ...(out as Omit<Limits, "plan">), allowed_triggers: allowedTriggers(me.plan?.settings), hidden_services: hiddenServices(usage?.quotas) };
+}
+
+function hiddenServices(quotas: unknown): number | null {
+  const q = (quotas && typeof quotas === "object" ? quotas : {}) as Record<string, { used?: unknown } | undefined>;
+  const branches = q.branches?.used;
+  const previews = q.previews?.used;
+  if (typeof branches !== "number" && typeof previews !== "number") return null;
+  return (typeof branches === "number" ? branches : 0) + (typeof previews === "number" ? previews : 0);
+}
+
+export interface PlanUsageJson {
+  plan: string | null;
+  resets_at: number | string | null;
+  metrics: { key: string; used: number; limit: number | null; period: string }[];
+}
+
+/** The rows of the usage panel, in this order. */
+const QUOTA_ORDER = ["invocations", "cpu_ms", "egress_bytes", "storage_bytes", "services", "projects", "branches", "previews", "custom_hosts", "schedules", "secrets"];
+
+/** Usage against the plan's limits, from GET /v1/usage. Rows that do not have the expected shape are dropped. */
+export async function orgPlanUsage(deps: Deps, org: OrgRow): Promise<PlanUsageJson> {
+  const u = await rtOf(deps).as(await defaultKeySecret(deps, org)).planUsage();
+  const quotas: Record<string, unknown> = u?.quotas && typeof u.quotas === "object" ? u.quotas : {};
+  const metrics: PlanUsageJson["metrics"] = [];
+  for (const key of QUOTA_ORDER) {
+    const q = quotas[key] as { used?: unknown; limit?: unknown; period?: unknown } | undefined;
+    if (typeof q?.used !== "number" || !(q.limit === null || typeof q.limit === "number")) continue;
+    metrics.push({ key, used: q.used, limit: q.limit, period: typeof q.period === "string" ? q.period : "" });
+  }
+  return { plan: typeof u?.plan === "string" ? u.plan : null, resets_at: u?.resets_at ?? null, metrics };
 }
 
 /** `plan.settings.allowed_triggers` of GET /v1/me (the tenant's effective plan), when it is a string list. */

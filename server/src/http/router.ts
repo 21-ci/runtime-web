@@ -14,6 +14,8 @@ export interface RequestContext {
   /** Path the browser sees in front of ours: "/s/<slug>" on path routes, "" on hosts. */
   basePath: string;
   clientIp: string | undefined;
+  /** Keeps the task alive for work that must not hold the response (absent outside the runtime). */
+  waitUntil?: (p: Promise<unknown>) => void;
   /** Filled by auth middleware (task: auth-sessions). */
   state: Record<string, unknown>;
 }

@@ -1,0 +1,62 @@
+{
+  "title": "Alerts",
+  "description": "Get told when an app or the node has a problem, and again when it ends.",
+  "adminsOnly": "Org admins only",
+  "adminsOnlyHint": "Ask an owner or admin of this org to set up alerts.",
+  "active": {
+    "title": "Active now",
+    "none": "Nothing is wrong right now."
+  },
+  "state": {
+    "pending": "Pending",
+    "firing": "Firing"
+  },
+  "kinds": {
+    "app_error_rate": "App error rate",
+    "dlq_growth": "Dead letters growing",
+    "build_failed": "Build failed",
+    "disk_low": "Disk low",
+    "backup_stale": "Backup stale"
+  },
+  "channelKinds": {
+    "webhook": "Webhook",
+    "telegram": "Telegram",
+    "email": "Email"
+  },
+  "fields": {
+    "name": "Name",
+    "kind": "Type",
+    "url": "URL",
+    "urlHint": "A public HTTPS address. Redirects are not followed.",
+    "secret": "Signing secret",
+    "secretHint": "At least 16 characters. Each request is signed with it in X-Rtweb-Signature. It cannot be shown again.",
+    "botToken": "Bot token",
+    "chatId": "Chat ID",
+    "app": "App",
+    "appHint": "Leave empty to watch every app of this org."
+  },
+  "channels": {
+    "title": "Channels",
+    "none": "No channels yet.",
+    "add": "Add channel",
+    "status": "Last send",
+    "test": "Send test",
+    "delete": "Delete channel {{name}}",
+    "testOk": "Test message delivered",
+    "testFailed": "Test message failed: {{status}}",
+    "lastError": "Failed: {{status}}",
+    "lastOk": "Delivered {{at}}",
+    "neverSent": "Nothing sent yet"
+  },
+  "rules": {
+    "title": "Rules",
+    "none": "No rules yet.",
+    "add": "Add rule",
+    "channels": "Channel",
+    "allApps": "All apps",
+    "enable": "Turn on",
+    "disable": "Turn off",
+    "delete": "Delete rule",
+    "needChannel": "Add a channel first, then a rule can send to it."
+  }
+}

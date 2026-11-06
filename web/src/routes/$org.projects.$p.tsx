@@ -4,36 +4,26 @@ import { useTranslation } from "react-i18next";
 
 import { NoApps } from "@/components/features/empty/no-apps";
 import { QueryError } from "@/components/features/empty/query-error";
+import { parseAppFilters } from "@/components/features/overview/apps-filter";
+import { AppsBrowser } from "@/components/features/overview/apps-table";
 import { useCreateAppGate } from "@/components/layout/create-app-gate";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
-import { LetterTile, hueFor } from "@/components/ui/icon-tile";
 import { PageHeader } from "@/components/ui/page-header";
-import { SectionCard } from "@/components/ui/section-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useApps, useEnvironments, useProjects } from "@/hooks/orgs";
 
 export const Route = createFileRoute("/$org/projects/$p")({
+  validateSearch: parseAppFilters,
   component: ProjectPage,
 });
-
-const BUILD_VARIANT: Record<string, "success" | "danger" | "warning" | "default"> = {
-  ready: "success",
-  failed: "danger",
-  building: "warning",
-  pending: "warning",
-};
-const BUILD_KEY = {
-  ready: "build.ready",
-  failed: "build.failed",
-  building: "build.building",
-  pending: "build.pending",
-} as const;
 
 function ProjectPage() {
   const { t } = useTranslation(["apps", "common"]);
   const { org, p } = Route.useParams();
+  const filters = Route.useSearch();
+  const navigate = Route.useNavigate();
   const projects = useProjects(org);
   const envs = useEnvironments(org, p);
   const apps = useApps(org, p);
@@ -90,38 +80,19 @@ function ProjectPage() {
         }
       />
 
-      {apps.isPending ? (
-        <Skeleton className="h-24 w-full" />
-      ) : list.length === 0 ? (
+      {!apps.isPending && list.length === 0 ? (
         <NoApps org={org} project={p} />
       ) : (
-        <SectionCard title={t("project.apps")} description={t("project.appsInProject", { count: list.length })} flush>
-          <ul className="divide-y divide-line">
-            {list.map((a) => (
-              <li key={a.slug}>
-                <Link
-                  to="/$org/apps/$app"
-                  params={{ org, app: a.slug }}
-                  className="flex h-12 items-center gap-3 px-5 outline-none transition-colors hover:bg-hover focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-focus"
-                >
-                  <LetterTile label={a.name ?? a.slug} hue={hueFor(a.slug)} size="sm" solid />
-                  <span className="min-w-0 flex-1 truncate text-sm font-medium">{a.name ?? a.slug}</span>
-                  <Badge variant="outline" className="hidden sm:inline-flex">
-                    {a.environment}
-                  </Badge>
-                  <Badge variant={BUILD_VARIANT[a.status.build_state] ?? "default"} dot>
-                    {BUILD_KEY[a.status.build_state as keyof typeof BUILD_KEY]
-                      ? t(BUILD_KEY[a.status.build_state as keyof typeof BUILD_KEY])
-                      : a.status.build_state}
-                  </Badge>
-                  <span className="hidden w-12 text-right text-[12px] tabular-nums text-muted sm:inline">
-                    {a.live_version !== null ? `v${a.live_version}` : "-"}
-                  </span>
-                </Link>
-              </li>
-            ))}
-          </ul>
-        </SectionCard>
+        <AppsBrowser
+          org={org}
+          name={`${org}-${p}-apps`}
+          apps={list}
+          projects={projects.data}
+          filters={filters}
+          hideProject
+          loading={apps.isPending}
+          onFiltersChange={(next) => void navigate({ search: next, replace: true })}
+        />
       )}
     </div>
   );

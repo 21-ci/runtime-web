@@ -13,7 +13,7 @@ function num(value: number, digits = 0, useGrouping = true): string {
 }
 
 export function formatBytes(n: number | null | undefined): string {
-  if (n === null || n === undefined || !Number.isFinite(n)) return "-";
+  if (n === null || n === undefined || !Number.isFinite(n)) return i18n.t("common:na");
   let v = Math.abs(n);
   let i = 0;
   while (v >= 1024 && i < BYTE_UNITS.length - 1) {
@@ -26,7 +26,7 @@ export function formatBytes(n: number | null | undefined): string {
 }
 
 export function formatCount(n: number | null | undefined): string {
-  if (n === null || n === undefined || !Number.isFinite(n)) return "-";
+  if (n === null || n === undefined || !Number.isFinite(n)) return i18n.t("common:na");
   return new Intl.NumberFormat(intlLocale()).format(n);
 }
 
@@ -46,7 +46,7 @@ function durationParts(ms: number): { unit: DurationUnit; value: string } {
 
 // formatDuration renders milliseconds as ms, s, min, h or d.
 export function formatDuration(ms: number | null | undefined): string {
-  if (ms === null || ms === undefined || !Number.isFinite(ms)) return "-";
+  if (ms === null || ms === undefined || !Number.isFinite(ms)) return i18n.t("common:na");
   const { unit, value } = durationParts(ms);
   return i18n.t(`common:units.${unit}`, { value });
 }
@@ -97,7 +97,7 @@ export function formatDate(ts: number): string {
 
 // formatQuantity picks a unit from the metric name: *_bytes → bytes, *_ms → duration, else count.
 export function formatQuantity(key: string, value: unknown): string {
-  if (typeof value !== "number") return value === null || value === undefined ? "-" : String(value);
+  if (typeof value !== "number") return value === null || value === undefined ? i18n.t("common:na") : String(value);
   if (/bytes?$/i.test(key)) return formatBytes(value);
   if (/_ms$|millis/i.test(key)) return formatDuration(value);
   if (/_(at|time|ts)$/i.test(key) && value > 1_000_000_000_000) return formatDateTime(value);

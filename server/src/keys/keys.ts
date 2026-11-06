@@ -6,6 +6,7 @@
 import type { Deps } from "../app.ts";
 import { dbOf, sealerOf } from "../auth/types.ts";
 import { AppError, conflict, invalid, notFound } from "../http/errors.ts";
+import { rethrowBudget } from "../jobs/budget.ts";
 import { isNotFound, isRuntimeError } from "../runtime/client.ts";
 import type { Scope } from "../runtime/types.ts";
 import { newId } from "../crypto/random.ts";
@@ -15,7 +16,12 @@ import { defaultKey, defaultKeyContext, type Org as OrgRow } from "../orgs/orgs.
 import { runtimeOf } from "../orgs/common.ts";
 
 export const DEFAULT_KEY_NAME = "rtweb-default";
-/** Every tenant scope except keys:write (the default key scopes). */
+/** Holds data:read and nothing else; see apps/data.ts. */
+export const DATA_KEY_NAME = "rtweb-data-browser";
+/**
+ * Every tenant scope except keys:write and data:read (the default key scopes). The runtime grants data:read only to
+ * a key that names it, and row contents must stay out of reach of whatever acts with the default key.
+ */
 export const KEY_SCOPES = [
   "services:read",
   "logs:read",
@@ -274,7 +280,8 @@ async function revokePending(deps: Pick<Deps, "storage" | "now" | "rtctl">, row:
   const db = await dbOf(deps);
   try {
     await revokeRuntimeKey(deps, row.tenant_id, row.runtime_key_id);
-  } catch {
+  } catch (e) {
+    rethrowBudget(e);
     const attempts = (row.attempts ?? 0) + 1;
     await db.run("UPDATE pending_key_revokes SET attempts = ?, next_at = ? WHERE runtime_key_id = ?", [
       attempts,

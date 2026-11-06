@@ -10,7 +10,9 @@ export type Ingress = {
   path_prefixes?: string[];
   ip_allow?: string[];
   rate_limit?: Record<string, unknown>;
+  rate_rules?: RateRule[];
 };
+export type RateRule = { path: string; methods?: string[]; rps: number; burst?: number; by?: "service" | "ip" };
 export type AppDetail = {
   slug: string;
   name: string | null;

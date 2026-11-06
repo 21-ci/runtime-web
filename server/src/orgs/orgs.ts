@@ -12,6 +12,7 @@ import type { Scope } from "../runtime/types.ts";
 import type { Db, Row } from "../storage/types.ts";
 import { runtimeOf, type Actor } from "./common.ts";
 import { auditStmt } from "../audit/audit.ts";
+import { appIndexDeleteOrg, deleteOrgRollups } from "../apps/index-table.ts";
 import { mapRuntimeError } from "../runtime/errors.ts";
 
 export type OrgDeps = Pick<Deps, "storage" | "now" | "config" | "rtctl">;
@@ -187,12 +188,25 @@ export async function deleteOrg(deps: OrgDeps, actor: Actor, org: Org): Promise<
   }
   const db = await dbOf(deps);
   const now = deps.now();
+  // A tenant that is already gone counts as empty, so its Apps' index rows can still be here.
+  await deleteOrgRollups(db, org.id);
+  await appIndexDeleteOrg(db, org.id);
   await db.batch([
     { sql: "DELETE FROM project_grants WHERE org_id = ?", args: [org.id] },
     { sql: "DELETE FROM members WHERE org_id = ?", args: [org.id] },
     { sql: "DELETE FROM invites WHERE org_id = ?", args: [org.id] },
     { sql: "DELETE FROM tokens WHERE org_id = ?", args: [org.id] },
     { sql: "DELETE FROM domains WHERE org_id = ?", args: [org.id] },
+    { sql: "DELETE FROM git_deliveries WHERE hook_id IN (SELECT hook_id FROM git_links WHERE org_id = ?)", args: [org.id] },
+    { sql: "DELETE FROM git_refs WHERE hook_id IN (SELECT hook_id FROM git_links WHERE org_id = ?)", args: [org.id] },
+    { sql: "DELETE FROM git_branch_rules WHERE link_id IN (SELECT app_id FROM git_links WHERE org_id = ?)", args: [org.id] },
+    { sql: "DELETE FROM git_links WHERE org_id = ?", args: [org.id] },
+    { sql: "DELETE FROM previews WHERE org_id = ?", args: [org.id] },
+    { sql: "DELETE FROM preview_env WHERE org_id = ?", args: [org.id] },
+    { sql: "DELETE FROM alert_state WHERE rule_id IN (SELECT id FROM alert_rules WHERE org_id = ?)", args: [org.id] },
+    { sql: "DELETE FROM alert_outbox WHERE org_id = ?", args: [org.id] },
+    { sql: "DELETE FROM alert_rules WHERE org_id = ?", args: [org.id] },
+    { sql: "DELETE FROM alert_channels WHERE org_id = ?", args: [org.id] },
     { sql: "DELETE FROM orgs WHERE id = ?", args: [org.id] },
     auditStmt(now, { actor, orgId: null, action: "org.delete", target: org.id, detail: { slug: org.slug } }),
   ]);

@@ -13,7 +13,10 @@ import {
   type ProviderId,
 } from "@/components/features/admin/use-admin";
 import { BrandingSection } from "@/components/features/branding/branding-section";
+import { TelemetryNotice } from "@/components/features/admin/telemetry-notice";
+import { UpdatesSection } from "@/components/features/admin/update-notice";
 import { QueryError } from "@/components/features/empty/query-error";
+import { SettingsSection } from "@/components/layout/settings-section";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -50,6 +53,10 @@ function AdminSettingsPage() {
       ) : (
         <SettingsForm initial={settings.data} />
       )}
+      <div className="flex max-w-5xl min-w-0 flex-col gap-6">
+        <UpdatesSection />
+        <TelemetryNotice />
+      </div>
       <BrandingSection />
     </div>
   );
@@ -120,22 +127,18 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
   }
 
   return (
-    <form aria-label={t("settings.formLabel")} onSubmit={onSubmit} noValidate className="flex max-w-3xl min-w-0 flex-col gap-6">
-      <section aria-labelledby="public-url-heading" className="flex flex-col gap-1.5">
-        <h2 id="public-url-heading" className="text-[15px] font-semibold">
-          {t("settings.publicUrl")}
-        </h2>
+    <form aria-label={t("settings.formLabel")} onSubmit={onSubmit} noValidate className="flex max-w-5xl min-w-0 flex-col gap-6">
+      <SettingsSection headingId="public-url-heading" title={t("settings.publicUrl")} description={t("settings.publicUrlSection")}>
+        <div className="flex flex-col gap-1.5">
         <Label htmlFor="public_url">{t("settings.publicUrl")}</Label>
         <Input id="public_url" name="public_url" value={initial.public_url} readOnly aria-describedby="public-url-hint" />
         <p id="public-url-hint" className="text-sm text-muted">
           {t("settings.publicUrlHint")}
         </p>
-      </section>
+        </div>
+      </SettingsSection>
 
-      <section aria-labelledby="policy-heading" className="flex flex-col gap-3">
-        <h2 id="policy-heading" className="text-[15px] font-semibold">
-          {t("settings.policy")}
-        </h2>
+      <SettingsSection headingId="policy-heading" title={t("settings.policy")} description={t("settings.policySection")}>
         <label className="flex items-center gap-2 text-sm">
           <input
             type="checkbox"
@@ -170,12 +173,9 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
             <p className="text-sm text-danger">{errors.password_login_disabled}</p>
           ) : null}
         </div>
-      </section>
+      </SettingsSection>
 
-      <section aria-labelledby="providers-heading" className="flex flex-col gap-4">
-        <h2 id="providers-heading" className="text-[15px] font-semibold">
-          {t("settings.providers")}
-        </h2>
+      <SettingsSection headingId="providers-heading" title={t("settings.providers")} description={t("settings.providersSection")}>
         {draft.providers.map((p) => {
           const name = p.id === "oidc" ? (p.name || PROVIDER_LABEL.oidc) : PROVIDER_LABEL[p.id];
           const secretId = `${p.id}-client-secret`;
@@ -242,7 +242,7 @@ function SettingsForm({ initial }: { initial: InstanceSettings }) {
             </fieldset>
           );
         })}
-      </section>
+      </SettingsSection>
 
       <div>
         <Button type="submit" variant="default" disabled={save.isPending}>

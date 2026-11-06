@@ -8,32 +8,28 @@
   <a href="https://github.com/21-ci/runtime-web/actions/workflows/ci.yml"><img alt="CI" src="https://github.com/21-ci/runtime-web/actions/workflows/ci.yml/badge.svg?branch=main"></a>
   <a href="https://github.com/21-ci/runtime-web/actions/workflows/security.yml"><img alt="Security" src="https://github.com/21-ci/runtime-web/actions/workflows/security.yml/badge.svg?branch=main"></a>
   <a href="https://github.com/21-ci/runtime-web/releases/latest"><img alt="Release" src="https://img.shields.io/github/v/release/21-ci/runtime-web?sort=semver"></a>
-  <a href="https://21-ci.github.io/runtime-web/"><img alt="Docs" src="https://img.shields.io/badge/docs-21-ci.github.io-4f7cff"></a>
+  <a href="https://21-ci.github.io/runtime-web/"><img alt="Docs" src="https://img.shields.io/badge/docs-21--ci.github.io-2563eb"></a>
   <a href="LICENSE"><img alt="License: Apache-2.0" src="https://img.shields.io/badge/license-Apache--2.0-blue"></a>
 </p>
 
 <p align="center">
-  <b>A self-hosted console for writing, deploying and running apps on 21 Cloud Runtime.</b>
+  <b>A self-hosted console for writing, deploying and running apps on 21 Cloud Functions Runtime.</b>
 </p>
 
 <p align="center">
   <a href="https://21-ci.github.io/runtime-web/">Docs</a> ·
-  <a href="#quick-install">Quick install</a> ·
+  <a href="#quickstart">Quickstart</a> ·
   <a href="#features">Features</a> ·
   <a href="#development">Development</a> ·
   <a href="SECURITY.md">Security</a> ·
   <a href="CONTRIBUTING.md">Contributing</a>
 </p>
 
-<p align="center">
-  <img src="docs/assets/screenshot.png" alt="Runtime Web console: the org overview with projects, apps, members and usage" width="880">
-</p>
-
 ---
 
 ## Why
 
-[21 Cloud Runtime](https://github.com/21-ci/runtime) runs tenant code safely and densely, but a runtime is an API, not
+[21 Cloud Functions Runtime](https://github.com/21-ci/runtime) runs tenant code safely and densely, but a runtime is an API, not
 a product. Shipping an app means a repository, a deploy command, a token, a log tail and a domain. Runtime Web puts all
 of that in one browser console for your team, on your own host.
 
@@ -55,22 +51,28 @@ click here you can also script.
 | **Branding** | Built-in white-label branding for the console (coming in this release) |
 | **Languages** | Russian and Uzbek interfaces (coming) |
 
-## Quick install
+## Screenshots
 
-On a Linux host (x86_64 or aarch64) with systemd, Node.js 22.5+ and Caddy:
+The org overview, an app with its traffic, and the branches page with the switch history.
 
-```bash
-curl -fsSL https://raw.githubusercontent.com/21-ci/runtime-web/main/install.sh -o install.sh
-sudo sh install.sh --domain console.example.com --email you@your-company.com
-```
-
-The installer sets up a 21 Cloud Runtime node if `rt` is missing, verifies a signed release, adds the console's plan
-and bindings to the node, puts Caddy in front with automatic TLS, and deploys the console as an App on the node. It
-prints a one-time setup token. Open `https://<domain>/setup` to create the instance admin account.
-
-Preview the steps without changing the host with `--dry-run`. Remove everything with `--uninstall`. Full steps:
-[Install](https://21-ci.github.io/runtime-web/getting-started/install/), then
-[First run](https://21-ci.github.io/runtime-web/getting-started/first-run/).
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/overview-dark.png">
+    <img src="docs/assets/screenshots/overview-light.png" alt="Runtime Web console: the org overview with projects, apps, quota and usage" width="880">
+  </picture>
+</p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/app-overview-dark.png">
+    <img src="docs/assets/screenshots/app-overview-light.png" alt="An app's overview page with its address, request counts and latency" width="880">
+  </picture>
+</p>
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/assets/screenshots/branches-dark.png">
+    <img src="docs/assets/screenshots/branches-light.png" alt="The branches page: a branch with its own URL, and the switch history with a roll back action" width="880">
+  </picture>
+</p>
 
 ## Architecture
 
@@ -82,16 +84,34 @@ browser ──HTTPS──► Caddy ──► rt invoke listener :8080 ──► 
 ```
 
 - **Console**: a React single-page app in `web/`, embedded into `server/`, a TypeScript backend that runs as the App
-  `rtweb` on 21 Cloud Runtime. Its state lives in the App's SQL database and KV store.
+  `rtweb` on 21 Cloud Functions Runtime. Its state lives in the App's SQL database and KV store.
 - **Runtime**: runs the apps, owns their code, storage, schedules and queues, maps custom hosts and enforces limits.
 - **Caddy**: terminates TLS for the console and for custom domains, and relays tenant-scoped control API calls.
 
 Design: [Architecture](https://21-ci.github.io/runtime-web/contributing/architecture/). Trust boundaries:
 [Security model](https://21-ci.github.io/runtime-web/security-model/).
 
+## Quickstart
+
+On a Linux host (x86_64 or aarch64). Bare mode needs systemd, Node.js 22.5+ and Caddy on the host; docker mode needs
+Docker Engine with the Compose plugin and runs Caddy in a container ([requirements](https://21-ci.github.io/runtime-web/getting-started/install/#requirements)):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/21-ci/runtime-web/main/install.sh -o install.sh
+sudo sh install.sh --domain console.example.com --email you@your-company.com
+```
+
+The installer sets up a 21 Cloud Functions Runtime node if `rt` is missing, verifies a signed release, adds the console's plan
+and bindings to the node, puts Caddy in front with automatic TLS, and deploys the console as an App on the node. It
+prints a one-time setup token. Open `https://<domain>/setup` to create the instance admin account.
+
+Preview the steps without changing the host with `--dry-run`. Remove everything with `--uninstall`. Full steps:
+[Install](https://21-ci.github.io/runtime-web/getting-started/install/), then
+[First run](https://21-ci.github.io/runtime-web/getting-started/first-run/).
+
 ## Development
 
-You need Node.js 22.5+ and GNU make. A local 21 Cloud Runtime node is optional, for a live deploy.
+You need Node.js 22.5+ and GNU make. A local 21 Cloud Functions Runtime node is optional, for a live deploy.
 
 ```bash
 make help            # list the targets
@@ -116,7 +136,8 @@ runtime node. Setup, the day-to-day loop and the test guide are in [Contributing
 ## Contributing
 
 Read [CONTRIBUTING.md](CONTRIBUTING.md) for the ground rules and [AGENTS.md](AGENTS.md) if you work with a coding agent.
-Commits follow Conventional Commits. Support and questions: [SUPPORT.md](SUPPORT.md).
+Commits follow Conventional Commits. Support and questions: [SUPPORT.md](SUPPORT.md). Design language for the console,
+docs and READMEs: [DESIGN.md](DESIGN.md).
 
 ## Security
 

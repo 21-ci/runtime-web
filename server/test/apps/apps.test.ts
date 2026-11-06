@@ -171,6 +171,30 @@ describe("files and versions", () => {
     expect((await w.admin.call("GET", `${APPS}/hello/files?version=9`)).status).toBe(404);
   });
 
+  it("GET files?version=latest with no version offers a starter, so the first push can come from the console", async () => {
+    const w = await world();
+    await createApp(w.admin);
+    const s = w.fake.services.get(svcOf(w, "hello"));
+    if (!s) throw new Error("no service");
+    s.versions = [];
+    const r = await w.admin.call("GET", `${APPS}/hello/files?version=latest`);
+    expect(r.status).toBe(200);
+    const f = (await r.json()) as { version: number; entry: string; files: Record<string, string>; read_only: boolean };
+    expect(f).toMatchObject({ version: 0, entry: "main.ts", kind: "ts", read_only: false });
+    expect(f.files["main.ts"]).toContain("export default");
+  });
+
+  it("GET files?version=latest with no version stays read-only for a wasm app", async () => {
+    const w = await world();
+    await createApp(w.admin);
+    const s = w.fake.services.get(svcOf(w, "hello"));
+    if (!s) throw new Error("no service");
+    s.versions = [];
+    s.view.runtime = "wasm";
+    const f = (await (await w.admin.call("GET", `${APPS}/hello/files?version=latest`)).json()) as object;
+    expect(f).toMatchObject({ version: 0, files: {}, read_only: true, kind: "wasm" });
+  });
+
   it("PUT files round-trips 3 MB through the chunked SDK transport", async () => {
     const fake = new FakeRtCtl();
     const log: string[] = [];
@@ -356,7 +380,7 @@ describe("config: env, secrets, schedules, queue", () => {
     expect(await s.json()).toMatchObject({ window: "5m", count: 3, requests: 3, errors: 1, p50_ms: 12, p95_ms: 40, p99_ms: 90, total: { p95_ms: 40 } });
     const day = await w.admin.call("GET", `${APPS}/hello/stats?window=24h`);
     expect(await day.json()).toMatchObject({ window: "24h", requests: 30 });
-    expect((await w.admin.call("GET", `${APPS}/hello/stats?window=7d`)).status).toBe(422);
+    expect((await w.admin.call("GET", `${APPS}/hello/stats?window=9d`)).status).toBe(422);
     const ev = (await (await w.admin.call("GET", `${APPS}/hello/events`)).json()) as { items: { kind: string }[]; next_cursor: unknown };
     expect(ev.items.map((e) => e.kind)).toContain("service.created");
     expect(ev).toHaveProperty("next_cursor");
@@ -433,51 +457,179 @@ describe("logs SSE", () => {
 });
 
 describe("export", () => {
-  function withExport(fake: FakeRtCtl, data: Uint8Array, honourRange: boolean): RtCtl {
-    const b64 = (u: Uint8Array) => {
-      let s = "";
-      for (const x of u) s += String.fromCharCode(x);
-      return btoa(s);
-    };
+  const TAG = '"snap-1"';
+  const SQLITE = { "content-type": "application/vnd.sqlite3" };
+  const b64 = (u: Uint8Array) => {
+    let s = "";
+    for (const x of u) s += String.fromCharCode(x);
+    return btoa(s);
+  };
+  const failure = (status: number, code: string, headers: Record<string, string> = {}): CtlRes => ({ status, headers, body: { error: { code, message: `runtime says ${code}` } } });
+
+  /** The runtime's contract: one range, ETag, If-Range past byte 0, `hop(n, req)` may override hop n (0-based). */
+  function withExport(fake: FakeRtCtl, data: Uint8Array, honourRange: boolean, over: { head?: () => CtlRes; hop?: (n: number) => CtlRes | undefined; seen?: CtlReq[] } = {}): RtCtl {
+    let hops = 0;
     return {
       op: (r) => fake.op(r),
       tenant: async (k: string, r: CtlReq): Promise<CtlRes> => {
         if (!r.path.endsWith("/data/export")) return fake.tenant(k, r);
-        const ct = { "content-type": "application/vnd.sqlite3" };
+        over.seen?.push(r);
+        if ((r.method as string) === "HEAD") return over.head?.() ?? { status: 200, headers: { ...SQLITE, "x-rt-size-hint": String(data.length) }, body: "" };
+        const forced = over.hop?.(hops++);
+        if (forced) return forced;
         const m = /bytes=(\d+)-(\d+)/.exec(r.headers?.range ?? "");
-        if (!honourRange || !m) return { status: 200, headers: ct, body: b64(data), encoding: "base64" };
+        if (!honourRange || !m) return { status: 200, headers: SQLITE, body: b64(data), encoding: "base64" };
         const a = Number(m[1]);
+        if (a > 0 && r.headers?.["if-range"] === undefined) return failure(428, "if_range_required");
         const e = Math.min(Number(m[2]), data.length - 1);
-        return { status: 206, headers: { ...ct, "content-range": `bytes ${a}-${e}/${data.length}` }, body: b64(data.subarray(a, e + 1)), encoding: "base64" };
+        return { status: 206, headers: { ...SQLITE, etag: TAG, "accept-ranges": "bytes", "content-range": `bytes ${a}-${e}/${data.length}` }, body: b64(data.subarray(a, e + 1)), encoding: "base64" };
       },
     };
   }
   const blob = (n: number) => Uint8Array.from({ length: n }, (_, i) => (i * 31) % 251);
-
-  it("streams the snapshot over Range hops", async () => {
+  /** Reads a body that may fail midway: what arrived, and whether it finished. */
+  async function drain(r: Response): Promise<{ got: Buffer; ok: boolean }> {
+    const reader = (r.body as ReadableStream<Uint8Array>).getReader();
+    const parts: Uint8Array[] = [];
+    for (;;) {
+      let step: Awaited<ReturnType<typeof reader.read>>;
+      try {
+        step = await reader.read();
+      } catch {
+        return { got: Buffer.concat(parts), ok: false };
+      }
+      if (step.done) return { got: Buffer.concat(parts), ok: true };
+      parts.push(step.value);
+    }
+  }
+  async function run(data: Uint8Array, honourRange: boolean, over: Parameters<typeof withExport>[3] = {}) {
     const fake = new FakeRtCtl();
-    const data = blob(500_000);
-    const w = await world({ fake, rtctl: withExport(fake, data, true) });
+    const w = await world({ fake, rtctl: withExport(fake, data, honourRange, over) });
     await createApp(w.admin);
-    const r = await w.admin.call("GET", `${APPS}/hello/export`);
+    return w.admin.call("GET", `${APPS}/hello/export`);
+  }
+
+  it("streams one snapshot over Range hops: If-Range with the ETag past byte 0, none at byte 0", async () => {
+    const data = blob(500_000);
+    const seen: CtlReq[] = [];
+    const r = await run(data, true, { seen });
     expect(r.status).toBe(200);
     expect(r.headers.get("content-type")).toBe("application/vnd.sqlite3");
     expect(r.headers.get("content-disposition")).toBe('attachment; filename="hello.sqlite"');
+    expect(r.headers.get("content-length")).toBe("500000");
     expect(Buffer.from(await r.arrayBuffer()).equals(Buffer.from(data))).toBe(true);
+    const gets = seen.filter((q) => q.method === "GET");
+    expect(gets.length).toBe(3);
+    expect(gets[0]?.headers?.["if-range"]).toBeUndefined();
+    expect(gets.slice(1).map((q) => q.headers?.["if-range"])).toEqual([TAG, TAG]);
+  });
+
+  it("a size hint over the cap answers 413 without taking a snapshot", async () => {
+    const seen: CtlReq[] = [];
+    const r = await run(blob(10), true, { seen, head: () => ({ status: 200, headers: { "x-rt-size-hint": String(40 * 192 * 1024 + 1) }, body: "" }) });
+    expect(r.status).toBe(413);
+    expect((await errOf(r)).code).toBe("export_too_large");
+    expect(seen.map((q) => q.method)).toEqual(["HEAD"]);
+  });
+
+  it("the hint is advisory: a refused HEAD (older binding) still downloads", async () => {
+    const data = blob(1000);
+    const r = await run(data, true, { head: () => failure(403, "binding_denied") });
+    expect(new Uint8Array(await r.arrayBuffer())).toEqual(data);
+  });
+
+  it("the real total over the cap still answers 413", async () => {
+    const r = await run(blob(1000), true, { hop: () => ({ status: 206, headers: { etag: TAG, "content-range": `bytes 0-999/${40 * 192 * 1024 + 1}` }, body: b64(blob(1000)), encoding: "base64" }) });
+    expect(r.status).toBe(413);
+  });
+
+  it("a 200 on a resumed hop is a new snapshot: the download fails, nothing of it is appended", async () => {
+    const data = blob(500_000);
+    const fresh = blob(600_000).reverse();
+    const r = await run(data, true, { hop: (n) => (n === 1 ? { status: 200, headers: { ...SQLITE, etag: '"snap-2"' }, body: b64(fresh), encoding: "base64" } : undefined) });
+    expect(r.status).toBe(200);
+    const { got, ok } = await drain(r);
+    expect(ok).toBe(false);
+    expect(got.equals(Buffer.from(data.subarray(0, got.length)))).toBe(true);
+    expect(got.length).toBe(192 * 1024);
+  });
+
+  it.each([
+    ["another ETag", { etag: '"snap-2"', "content-range": "bytes 196608-393215/500000" }],
+    ["another offset", { etag: TAG, "content-range": "bytes 0-196607/500000" }],
+    ["another total", { etag: TAG, "content-range": "bytes 196608-393215/500001" }],
+  ])("a resumed 206 with %s is never stitched in", async (_name, headers) => {
+    const data = blob(500_000);
+    const r = await run(data, true, { hop: (n) => (n === 1 ? { status: 206, headers, body: b64(blob(196_608)), encoding: "base64" } : undefined) });
+    const { got, ok } = await drain(r);
+    expect(ok).toBe(false);
+    expect(got.length).toBe(192 * 1024);
+  });
+
+  it("a first 206 without an ETag cannot be resumed: refused unless it is the whole file", async () => {
+    const whole = blob(1000);
+    let r = await run(whole, true, { hop: () => ({ status: 206, headers: { "content-range": "bytes 0-999/1000" }, body: b64(whole), encoding: "base64" }) });
+    expect(new Uint8Array(await r.arrayBuffer())).toEqual(whole);
+    const part = blob(192 * 1024);
+    r = await run(part, true, { hop: () => ({ status: 206, headers: { "content-range": "bytes 0-196607/500000" }, body: b64(part), encoding: "base64" }) });
+    expect(r.status).toBe(502);
+    expect((await errOf(r)).code).toBe("runtime_unavailable");
+  });
+
+  it.each([
+    [429, "heavy_job_busy"],
+    [507, "insufficient_storage"],
+    [416, "range_not_satisfiable"],
+  ])("first hop %i %s keeps its status and code, with the console's own message", async (status, code) => {
+    const r = await run(blob(10), true, { hop: () => failure(status, code, status === 429 ? { "retry-after": "7" } : {}) });
+    expect(r.status).toBe(status);
+    const e = await errOf(r);
+    expect(e.code).toBe(code);
+    expect(JSON.stringify(e)).not.toContain("runtime says");
+    if (status === 429) expect(e.details).toEqual({ retry_after: 7 });
   });
 
   it("small snapshot without Range support is fine; over the cap → 413 export_too_large", async () => {
-    const fake = new FakeRtCtl();
     const small = blob(1000);
-    let w = await world({ fake, rtctl: withExport(fake, small, false) });
-    await createApp(w.admin);
-    expect(new Uint8Array(await (await w.admin.call("GET", `${APPS}/hello/export`)).arrayBuffer())).toEqual(small);
-    const fake2 = new FakeRtCtl();
-    w = await world({ fake: fake2, rtctl: withExport(fake2, blob(300_000), false) });
-    await createApp(w.admin);
-    const r = await w.admin.call("GET", `${APPS}/hello/export`);
+    expect(new Uint8Array(await (await run(small, false)).arrayBuffer())).toEqual(small);
+    const r = await run(blob(300_000), false);
     expect(r.status).toBe(413);
     expect(await errOf(r)).toEqual({ code: "export_too_large", message: expect.any(String), details: { cli: "21ci data export" } });
+  });
+});
+
+describe("delete with branches", () => {
+  async function setup(branches: unknown[], del?: CtlRes) {
+    const fake = new FakeRtCtl();
+    const calls: string[] = [];
+    const rtctl: RtCtl = {
+      op: (r) => fake.op(r),
+      tenant: async (k, r) => {
+        calls.push(`${r.method} ${r.path}`);
+        if (r.method === "GET" && r.path.endsWith("/branches")) return { status: 200, headers: {}, body: { items: branches } };
+        if (r.method === "DELETE" && del) return del;
+        return fake.tenant(k, r);
+      },
+    };
+    const w = await world({ fake, rtctl });
+    await createApp(w.admin);
+    return { w, calls };
+  }
+  const CONSOLE_MSG = "Delete this app's branches first.";
+
+  it("refuses before touching anything, with no API path in the message", async () => {
+    const { w, calls } = await setup([{ id: "svc_b", slug: "hello-b" }]);
+    const r = await w.admin.call("DELETE", `${APPS}/hello`);
+    expect(r.status).toBe(409);
+    expect(await errOf(r)).toMatchObject({ code: "branch_exists", message: CONSOLE_MSG });
+    expect(calls.filter((c) => c.startsWith("DELETE"))).toEqual([]);
+  });
+
+  it("a branch appearing after the check gets the same answer from the runtime's 409", async () => {
+    const { w } = await setup([], { status: 409, headers: {}, body: { error: { code: "branch_exists", message: "delete this service's branches first: GET /v1/services/{s}/branches" } } });
+    const r = await w.admin.call("DELETE", `${APPS}/hello`);
+    expect(r.status).toBe(409);
+    expect(await errOf(r)).toMatchObject({ code: "branch_exists", message: CONSOLE_MSG });
   });
 });
 

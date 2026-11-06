@@ -5,15 +5,22 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { type AppDetail, usePatchApp } from "./api";
+import { resolved, sourceLabel } from "./limit-format";
 import { FieldError, FormAlert, Section, fieldErrorsOf, SaveButton, unmappedErrors } from "./shared";
 
 const SHOWN = ["scaling.min_instances", "scaling.max_instances"];
 
 // ScalingSection edits the instance range. Server 422 paths map onto the min and max inputs.
 export function ScalingSection({ org, app }: { org: string; app: AppDetail }) {
-  const { t } = useTranslation(["app-settings", "common"]);
-  const [min, setMin] = useState(String(app.scaling?.min_instances ?? 0));
-  const [max, setMax] = useState(String(app.scaling?.max_instances ?? 1));
+  const { t } = useTranslation(["app-settings", "common", "operator"]);
+  // An unset value stays empty: the runtime then uses the plan's or profile's, shown under the input.
+  const [min, setMin] = useState(app.scaling?.min_instances != null ? String(app.scaling.min_instances) : "");
+  const [max, setMax] = useState(app.scaling?.max_instances != null ? String(app.scaling.max_instances) : "");
+  const effective = (key: string) => {
+    const { value, source } = resolved(app.limits.effective[key]);
+    if (value === undefined || value === null) return null;
+    return t("operator:scaling.effective", { value: String(value), source: source ? sourceLabel(source) : t("operator:source.default") });
+  };
   const [fields, setFields] = useState<Record<string, string>>({});
   const [errors, setErrors] = useState<string[]>([]);
   const patch = usePatchApp(org, app.slug);
@@ -21,11 +28,13 @@ export function ScalingSection({ org, app }: { org: string; app: AppDetail }) {
   async function onSubmit(e: FormEvent) {
     e.preventDefault();
     const local: Record<string, string> = {};
+    const minSet = min.trim() !== "";
+    const maxSet = max.trim() !== "";
     const minN = Number(min);
     const maxN = Number(max);
-    if (!Number.isInteger(minN) || minN < 0) local["scaling.min_instances"] = t("scaling.minInvalid");
-    if (!Number.isInteger(maxN) || maxN < 1) local["scaling.max_instances"] = t("scaling.maxInvalid");
-    if (!local["scaling.min_instances"] && !local["scaling.max_instances"] && minN > maxN) {
+    if (minSet && (!Number.isInteger(minN) || minN < 0)) local["scaling.min_instances"] = t("scaling.minInvalid");
+    if (maxSet && (!Number.isInteger(maxN) || maxN < 1)) local["scaling.max_instances"] = t("scaling.maxInvalid");
+    if (minSet && maxSet && !local["scaling.min_instances"] && !local["scaling.max_instances"] && minN > maxN) {
       local["scaling.max_instances"] = t("scaling.maxBelowMin");
     }
     setFields(local);
@@ -35,7 +44,7 @@ export function ScalingSection({ org, app }: { org: string; app: AppDetail }) {
     try {
       await patch.mutateAsync({
         etag: app.etag,
-        body: { scaling: { min_instances: minN, max_instances: maxN } },
+        body: { scaling: { ...(minSet ? { min_instances: minN } : {}), ...(maxSet ? { max_instances: maxN } : {}) } },
       });
       setFields({});
       toast.success(t("scaling.saved"));
@@ -49,17 +58,19 @@ export function ScalingSection({ org, app }: { org: string; app: AppDetail }) {
   return (
     <Section id="scaling" title={t("scaling.title")} description={t("scaling.description")}>
       <form onSubmit={onSubmit} className="flex flex-col gap-3" aria-label={t("scaling.formLabel")}>
-        <div className="grid grid-cols-2 gap-3">
+        <div className="grid gap-3 sm:grid-cols-2">
           <div className="flex flex-col gap-1">
             <Label htmlFor="scaling-min">{t("scaling.min")}</Label>
             <Input
               id="scaling-min"
               inputMode="numeric"
               value={min}
+              placeholder={t("operator:scaling.blank")}
               onChange={(e) => setMin(e.target.value)}
               aria-invalid={Boolean(fields["scaling.min_instances"])}
               aria-describedby="scaling-min-error"
             />
+            {effective("min_instances") ? <p className="text-xs text-muted">{effective("min_instances")}</p> : null}
             <FieldError id="scaling-min-error" message={fields["scaling.min_instances"]} />
           </div>
           <div className="flex flex-col gap-1">
@@ -68,15 +79,16 @@ export function ScalingSection({ org, app }: { org: string; app: AppDetail }) {
               id="scaling-max"
               inputMode="numeric"
               value={max}
+              placeholder={t("operator:scaling.blank")}
               onChange={(e) => setMax(e.target.value)}
               aria-invalid={Boolean(fields["scaling.max_instances"])}
               aria-describedby="scaling-max-error"
             />
+            {effective("max_instances") ? <p className="text-xs text-muted">{effective("max_instances")}</p> : null}
             <FieldError id="scaling-max-error" message={fields["scaling.max_instances"]} />
           </div>
         </div>
         <FormAlert messages={errors} />
-        <p className="text-sm text-muted">{t("replaceNote")}</p>
         <div>
           <SaveButton disabled={patch.isPending}>
             {t("scaling.save")}

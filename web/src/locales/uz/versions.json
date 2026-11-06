@@ -1,10 +1,10 @@
 {
-  "title": "Versiyalar",
-  "description": "Ilovaning har bir yigʻilishi, eng yangisi birinchi. Tayyor versiyani joriy qiling yoki oldingisiga qayting.",
+  "title": "Joylashtirishlar",
+  "description": "Ilovaning har bir yigʻilishi va ular orasidagi har bir almashtirish, eng yangisi birinchi. Tayyor versiyani joriy qiling yoki oldingisiga qayting.",
   "versionLabel": "v{{version}}",
   "live": "Ishlayotgan",
-  "outside": "Veb-konsoldan tashqarida",
   "state": {
+    "fetching": "Yuklanmoqda",
     "pending": "Kutilmoqda",
     "building": "Yigʻilmoqda",
     "ready": "Tayyor",
@@ -12,8 +12,10 @@
   },
   "table": {
     "version": "Versiya",
-    "build": "Yigʻish",
-    "author": "Muallif"
+    "author": "Muallif",
+    "state": "Holat",
+    "source": "Manba",
+    "duration": "Davomiylik"
   },
   "buildLog": "Yigʻish jurnali",
   "buildLogFor": "{{version}}-versiyaning yigʻish jurnali",
@@ -47,5 +49,49 @@
   "toast": {
     "live": "{{version}}-versiya ishlayapti",
     "rebuilding": "{{version}}-versiya qayta yigʻilmoqda"
-  }
+  },
+  "source": {
+    "git": "Git",
+    "console": "Konsol",
+    "api": "CLI yoki API",
+    "fromVersion": "{{version}}-versiya",
+    "fromVersionHint": "Manba app ning {{version}}-versiyasidan almashtirildi",
+    "unknownHint": "Runtime manbani qayd etmagan."
+  },
+  "switchState": {
+    "preparing": "Tayyorlanmoqda",
+    "migrating": "Migratsiya",
+    "draining": "Soʻrovlar yakunlanmoqda",
+    "completed": "Bajarildi",
+    "drain_timed_out": "Yakunlash vaqti tugadi",
+    "failed": "Xato"
+  },
+  "switchKind": {
+    "promote": "Joriy qilindi",
+    "switch": "Almashtirildi",
+    "rollback": "Qaytarildi"
+  },
+  "switchTitle": {
+    "promote": "Joriy qilindi: v{{from}} → v{{to}}",
+    "switch": "Almashtirildi: v{{from}} → v{{to}}",
+    "rollback": "Qaytarildi: v{{from}} → v{{to}}"
+  },
+  "switchMadeLive": "v{{to}} joriy boʻldi",
+  "switchesError": "Almashtirish va qaytarishlarni yuklab boʻlmadi. Versiyalar koʻrsatilgan.",
+  "count_one": "{{count}} ta yozuv",
+  "count_other": "{{count}} ta yozuv",
+  "noMatch": "Bu filtrlarga mos joylashtirish yoʻq.",
+  "filter": {
+    "state": "Holat",
+    "source": "Manba",
+    "period": "Davr",
+    "allStates": "Barcha holatlar",
+    "allSources": "Barcha manbalar",
+    "allTime": "Butun vaqt",
+    "24h": "24 soat",
+    "7d": "7 kun",
+    "30d": "30 kun"
+  },
+  "buildLogExport": ".txt eksport",
+  "migrationsToggle": "Migratsiyalar (kutilmoqda: {{count}})"
 }

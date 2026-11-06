@@ -63,6 +63,9 @@ because Caddy cannot set a `Host` header there; it never leaves loopback. See
 
 ## Backups and keys
 
+![The backups page with status and history](../assets/screenshots/backups-light.png#only-light)
+![The backups page with status and history](../assets/screenshots/backups-dark.png#only-dark)
+
 What to back up:
 
 | What | Bare | Docker |
@@ -106,11 +109,45 @@ Restore onto the same version of Runtime Web and `rt` that made the backup, then
 
 Rehearse this on a second machine before you need it.
 
+### Restore an `rt` backup to a new host
+
+The **Backups** page of the instance admin area shows the node's scheduled backups and starts one. The console cannot
+download or delete an archive: its binding lists only `/v1/node/backups` and `/v1/node/backups/status`. Copy archives
+on the node, or with `21ci backup download <id>`, and delete them with `21ci backup delete <id>`.
+
+On a new host (bare mode), first put `/etc/default/rt` and `/etc/rtweb/` back, then:
+
+```sh
+./install.sh --mode bare --domain console.example.com --apps-domain apps.example.com \
+  --runtime-version X.Y.Z --restore rt-backup-<id>.tar --master-key /secure/master.key
+```
+
+The installer installs `rt`, runs `rt backup restore` into the empty `/var/lib/rt`, puts the master key in place and
+continues as usual. It refuses a node that already has data. Use the `rt` version that made the backup, or a newer one.
+
+A backup brings back keys that were revoked after it was taken. Pass `--revoke-keys-before <time>` to revoke keys older
+than that time, or rotate tenant keys afterwards. Encrypted archives are not supported yet, because `rt` does not write
+them yet.
+
+Docker: run `rt backup restore <archive> --data-dir <empty dir>` in the image against the empty volume, then continue
+with step 4 above.
+
 ## Metrics and alerting
 
 The node serves Prometheus metrics on its loopback metrics listener: `http://127.0.0.1:9090/metrics`, with
 `/healthz` and `/readyz` next to it (docker: inside the container; publish nothing, scrape it with an agent on the host
 network or a sidecar). The console answers `GET /healthz` on its host with `{"ok":true,"db":true,...}`.
+
+In the console, **Usage** shows what an org used against its plan, and **Alerts** sends a message to a webhook or
+Telegram channel when a rule fires.
+
+![Plan usage of an org](../assets/screenshots/usage-light.png#only-light)
+![Plan usage of an org](../assets/screenshots/usage-dark.png#only-dark)
+
+![Alert channels and rules](../assets/screenshots/alerts-light.png#only-light)
+![Alert channels and rules](../assets/screenshots/alerts-dark.png#only-dark)
+
+The console can send some of these itself: see **Alerts** in the instance admin area and in each org's settings (webhook or Telegram). Evaluation depends on the console's cron, so a node that is down cannot report itself; keep an external probe.
 
 Suggested alerts:
 
@@ -125,6 +162,38 @@ Suggested alerts:
 | Backups | the newest backup older than 26 hours |
 
 ## Upgrades
+
+Every six hours the console reads the GitHub releases of `21-ci/runtime` and `21-ci/runtime-web`, without a token and
+ignoring prereleases. When either is newer than what runs here, instance admins see **Update available** at the bottom
+of the sidebar. It opens a dialog with the release notes and the commands for this upgrade. The console does not run
+the upgrade: it is an App with no access to the host. To stop the checks, turn off **Check for new releases** under
+Instance, Settings.
+
+A normal run of the installer leaves an `rt` it finds alone. To upgrade the node on a bare install, run what the dialog
+gives you:
+
+```bash
+sudo sh install.sh --upgrade-runtime --runtime-version X.Y.Z
+```
+
+This verifies the release against its checksums and Sigstore signature (it needs `cosign`, unless X.Y.Z is the version
+`install.sh` pins), replaces `/usr/bin/rt` and restarts it. Config and data stay. The old binary stays at
+`/usr/bin/rt.previous` and comes back if the new one does not stay up. A downgrade is refused. In Docker mode `rt` is
+part of the image and moves with a Runtime Web release. Test a runtime newer than the one `install.sh` pins before you
+use it in production.
+
+## Telemetry
+
+The runtime sends one anonymous report a day: request, project, service, organization and user counts, plus the version
+and a random ID. No IP addresses are stored. The first report leaves 24 hours after the first start.
+
+The console's only part is the user count. Once a day it gives the runtime a number through `PUT /v1/telemetry/console`,
+and it never contacts the telemetry server. A failed call is ignored.
+
+To opt out, set `telemetry.enabled = false` in `rt.toml`, or `DO_NOT_TRACK=1` in the node's environment, and restart
+`rt`. The count then stays on the node. To see the exact report, run `rt telemetry show`.
+
+To upgrade Runtime Web:
 
 1. Read the [changelog](https://github.com/21-ci/runtime-web/blob/main/CHANGELOG.md) for every version between yours and
    the target, including **Breaking** entries.

@@ -16,8 +16,10 @@ describe("app shell", { timeout: 15_000 }, () => {
   it("sidebar lists projects then apps", async () => {
     useShellHandlers();
     renderAt("/acme");
-    const web = await screen.findByRole("link", { name: "Web" });
-    const hello = await screen.findByRole("link", { name: "Hello" });
+    // The apps table links the same names, so the order is read inside the sidebar.
+    const nav = within(await screen.findByRole("navigation", { name: /sidebar/i }));
+    const web = await nav.findByRole("link", { name: "Web" });
+    const hello = await nav.findByRole("link", { name: "Hello" });
     expect(web.compareDocumentPosition(hello) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
@@ -76,25 +78,28 @@ describe("app shell", { timeout: 15_000 }, () => {
     useShellHandlers();
     renderAt("/beta");
     await screen.findByRole("heading", { name: /no projects yet/i });
+    // Usage is its own page now; the overview keeps no usage card for anyone.
     expect(screen.queryByRole("region", { name: /usage/i })).toBeNull();
   });
 
-  it("usage card shown for owners", async () => {
+  it("usage page is linked from the sidebar and opens for owners", async () => {
     useShellHandlers();
     renderAt("/acme");
-    expect(await screen.findByRole("region", { name: /usage/i })).toBeDefined();
+    const nav = within(await screen.findByRole("navigation", { name: /sidebar/i }));
+    await userEvent.click(await nav.findByRole("link", { name: "Usage" }));
+    expect(await screen.findByRole("heading", { name: /usage/i, level: 1 })).toBeDefined();
   });
 
-  it("overview shows retry on projects error and recovers", async () => {
+  it("overview shows retry on apps error and recovers", async () => {
     useShellHandlers();
-    server.use(http.get("/api/orgs/:org/projects", () => apiError(500, "internal")));
+    server.use(http.get("/api/orgs/:org/apps", () => apiError(500, "internal")));
     renderAt("/acme");
-    const main = await screen.findByRole("heading", { name: "Projects" });
-    const retry = await within(main.parentElement as HTMLElement).findByRole("button", { name: "Retry" });
+    const main = within(await screen.findByRole("main"));
+    const retry = await main.findByRole("button", { name: "Retry" });
 
     useShellHandlers();
     await userEvent.click(retry);
-    expect(await screen.findByRole("link", { name: "Web" })).toBeDefined();
+    expect(await main.findByRole("link", { name: "Hello" })).toBeDefined();
   });
 
   it("sidebar shows an error with retry when projects fail", async () => {
@@ -179,9 +184,11 @@ describe("app shell", { timeout: 15_000 }, () => {
     renderAt("/acme");
     const nav = await screen.findByRole("navigation", { name: /sidebar/i });
     expect(await within(nav).findByRole("button", { name: "New app in Web" })).toBeDefined();
-    await userEvent.click(within(nav).getByRole("button", { name: "Collapse sidebar" }));
-    expect(await screen.findByRole("button", { name: "Expand sidebar" })).toBeDefined();
-    await userEvent.click(screen.getByRole("button", { name: "Expand sidebar" }));
+    const toggle = within(nav).getByRole("button", { name: "Collapse sidebar" });
+    await userEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("false");
+    await userEvent.click(toggle);
+    expect(toggle.getAttribute("aria-expanded")).toBe("true");
   });
 
   it("command menu hides admin settings from non-admins", async () => {

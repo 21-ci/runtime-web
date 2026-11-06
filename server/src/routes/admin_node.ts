@@ -6,7 +6,9 @@ import { invalid } from "../http/errors.ts";
 import type { Router } from "../http/router.ts";
 import { withRuntimeErrors } from "../runtime/errors.ts";
 import { json, readJson } from "../http/json.ts";
-import { drainNode, nodeCache, nodeConfig, nodeScheduler, nodeStatus, parseNodeConfig, runtimeVersion, setNodeConfig } from "../keys/node.ts";
+import {
+  backupStatus, createBackup, drainNode, listBackups, nodeCache, nodeConfig, nodeEvents, nodeScheduler, nodeSeries, nodeStats, nodeStatus, parseNodeConfig, runtimeVersion, setNodeConfig,
+} from "../keys/node.ts";
 
 export function registerAdminNode(r: Router, deps: Deps): void {
   const s = (h: Parameters<typeof requireSession>[1]) => requireSession(deps, withRuntimeErrors(h), { admin: true });
@@ -43,6 +45,43 @@ export function registerAdminNode(r: Router, deps: Deps): void {
   r.get(
     "/api/admin/node/version",
     s(async () => json(await runtimeVersion(deps))),
+  );
+
+  r.get(
+    "/api/admin/node/series",
+    s(async (ctx) => json(await nodeSeries(deps, ctx.url.searchParams.get("range") ?? "1h"))),
+  );
+
+  r.get(
+    "/api/admin/node/stats",
+    s(async (ctx) => json(await nodeStats(deps, ctx.url.searchParams.get("cursor") ?? undefined))),
+  );
+
+  r.get(
+    "/api/admin/node/events",
+    s(async (ctx) => {
+      const q = ctx.url.searchParams;
+      return json(await nodeEvents(deps, { after: q.get("after"), kinds: q.get("kinds"), limit: q.get("limit") }));
+    }),
+  );
+
+  // Backups: read and start only. Downloading or deleting one is the operator's, on the node (21ci backup …).
+  r.get(
+    "/api/admin/backups/status",
+    s(async () => json(await backupStatus(deps))),
+  );
+
+  r.get(
+    "/api/admin/backups",
+    s(async (ctx) => json(await listBackups(deps, ctx.url.searchParams.get("cursor")))),
+  );
+
+  r.post(
+    "/api/admin/backups",
+    s(async (ctx) => {
+      const { user } = authOf(ctx);
+      return json(await createBackup(deps, { id: user.id, name: user.name }), 202);
+    }),
   );
 
   r.post(

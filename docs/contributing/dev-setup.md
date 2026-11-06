@@ -15,7 +15,7 @@ needed to see a change running in the console.
 | Node.js 22.5 or newer, with npm | The console (`web/`) and the backend (`server/`). The server tests use `node:sqlite` |
 | GNU make | Every task is a `make` target |
 | Python 3.10 or newer | The docs site (`docs/requirements.txt`) |
-| A local 21 Cloud Runtime node | Optional. Needed for `make server-deploy`, `make server-install` and `make e2e` |
+| A local 21 Cloud Functions Runtime node | Optional. Needed for `make server-deploy`, `make server-install` and `make e2e` |
 | `shellcheck`, `actionlint`, `gitleaks` | Optional. CI runs them on `install.sh`, the workflows and the secrets |
 
 ## Steps

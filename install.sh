@@ -24,6 +24,8 @@
 #   --version X.Y.Z        Runtime Web release (default: the latest)
 #   --yes, -y              never ask; use the flags and the defaults
 #   --dry-run              print every step instead of changing the host (needs no root, no network)
+#   --restore ARCHIVE      bare mode: restore an rt backup into this new node before it first starts; needs
+#                          --master-key FILE (the key that sealed the data), optional --revoke-keys-before TIME
 #   --uninstall            remove Runtime Web (mode from --mode or detected); data volumes stay unless --purge
 #   --purge                with --uninstall --mode docker: also delete the data volumes and the secrets
 #   --wildcard-cert        one wildcard certificate for *.<apps-domain> (Let's Encrypt DNS-01): the default when a
@@ -56,6 +58,11 @@
 #   --http-port N          host port for HTTP (default 80; with --tls none: 8080 on 127.0.0.1)
 #   --https-port N         host port for HTTPS (default 443)
 #   --docker-subnet CIDR   subnet of the compose network, trusted for X-Forwarded-For (default 172.31.221.0/24)
+# Upgrade the node only (bare mode; takes no other install flags):
+#   --upgrade-runtime --runtime-version X.Y.Z
+#                          replace /usr/bin/rt with that verified release and restart it; config and data stay. It needs
+#                          cosign unless X.Y.Z is the pinned version, keeps the old binary at /usr/bin/rt.previous and
+#                          puts it back if the new one does not stay up. An existing rt is otherwise left alone.
 # Both:
 #   --insecure-skip-signature
 #                          install without verifying the Sigstore signature (checksums only). Without this flag
@@ -138,6 +145,8 @@ MODE=""
 TLS=""
 VERSION=""
 RT_VERSION=""
+RT_VERSION_SET=0
+UPGRADE_RT=0
 DOMAIN=""
 APPS_DOMAIN=""
 EMAIL=""
@@ -165,12 +174,17 @@ CADDY_SHA256=""
 DNS_TOKEN=""
 BASE_DOMAIN=""
 
+RESTORE=""
+RESTORE_MASTER_KEY=""
+RESTORE_REVOKE=""
+
 while [ "$#" -gt 0 ]; do
   case "$1" in
     --mode) need_arg "$@"; MODE=$2; shift 2 ;;
     --tls) need_arg "$@"; TLS=$2; shift 2 ;;
     --version) need_arg "$@"; VERSION=${2#v}; shift 2 ;;
-    --runtime-version) need_arg "$@"; RT_VERSION=${2#v}; shift 2 ;;
+    --runtime-version) need_arg "$@"; RT_VERSION=${2#v}; RT_VERSION_SET=1; shift 2 ;;
+    --upgrade-runtime) UPGRADE_RT=1; shift ;;
     --domain) need_arg "$@"; DOMAIN=$2; shift 2 ;;
     --apps-domain) need_arg "$@"; APPS_DOMAIN=$2; shift 2 ;;
     --email) need_arg "$@"; EMAIL=$2; shift 2 ;;
@@ -195,6 +209,9 @@ while [ "$#" -gt 0 ]; do
     --caddy-sha256) need_arg "$@"; CADDY_SHA256=$2; shift 2 ;;
     --yes | -y) ASSUME_YES=1; shift ;;
     --dry-run) DRY_RUN=1; shift ;;
+    --restore) need_arg "$@"; RESTORE=$2; shift 2 ;;
+    --master-key) need_arg "$@"; RESTORE_MASTER_KEY=$2; shift 2 ;;
+    --revoke-keys-before) need_arg "$@"; RESTORE_REVOKE=$2; shift 2 ;;
     --uninstall) UNINSTALL=1; shift ;;
     --purge) PURGE=1; shift ;;
     -h | --help) usage; exit 0 ;;
@@ -204,6 +221,8 @@ done
 
 init_ui
 init_tty
+
+check_restore_args
 
 # --- uninstall -----------------------------------------------------------------------------------------------------
 if [ "$UNINSTALL" = 1 ]; then
@@ -215,6 +234,22 @@ if [ "$UNINSTALL" = 1 ]; then
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT INT TERM
   if [ "$MODE" = docker ]; then uninstall_docker; else uninstall_bare; fi
+  exit 0
+fi
+
+# --- upgrade rt only -----------------------------------------------------------------------------------------------
+if [ "$UPGRADE_RT" = 1 ]; then
+  if [ "$MODE" = docker ] || [ -f "$DOCKER_DIR/compose.yaml" ]; then
+    die "--upgrade-runtime is for bare mode: in Docker mode rt is part of the image"
+  fi
+  [ "$RT_VERSION_SET" = 1 ] || die "--upgrade-runtime needs --runtime-version X.Y.Z"
+  MODE=bare
+  platform_checks
+  need awk
+  need tar
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT INT TERM
+  upgrade_rt
   exit 0
 fi
 
@@ -551,12 +586,49 @@ usage: install.sh [--mode bare|docker] [--domain HOST] [--apps-domain HOST] [--e
          bare:    [--public-url URL] [--default-plan NAME] [--runtime-version X.Y.Z] [--tarball PATH [--sha256 HEX]]
          docker:  [--image REF] [--install-docker] [--http-port N] [--https-port N] [--docker-subnet CIDR]
                   [--insecure-skip-signature]
+       install.sh --restore ARCHIVE --master-key FILE [--revoke-keys-before TIME] --mode bare [other flags]
        install.sh --uninstall [--mode bare|docker] [--purge] [--dry-run]
 
 Installs Runtime Web, the 21 Cloud console, with HTTPS from Let's Encrypt: as a systemd service with Caddy on the
 host (bare) or as containers with docker compose (docker). With a terminal it asks for what is missing; with --yes
 or without a terminal it never asks. Release signatures are verified with cosign (Sigstore).
 EOF
+}
+
+# check_restore_args: refuses a bad --restore before anything is installed.
+check_restore_args() {
+  if [ -z "$RESTORE" ]; then
+    [ -z "$RESTORE_MASTER_KEY$RESTORE_REVOKE" ] || die "--master-key and --revoke-keys-before go with --restore"
+    return 0
+  fi
+  [ "$UNINSTALL" = 0 ] || die "--restore does not go with --uninstall"
+  [ "$MODE" = bare ] || die "--restore needs --mode bare (docker: run 'rt backup restore' in the image, see docs/admin/operations.md)"
+  [ -f "$RESTORE" ] || die "--restore: no such archive: $RESTORE"
+  [ -n "$RESTORE_MASTER_KEY" ] || die "--restore needs --master-key FILE: the archive never holds the master key"
+  [ -f "$RESTORE_MASTER_KEY" ] || die "--master-key: no such file: $RESTORE_MASTER_KEY"
+  if [ -n "$RESTORE_REVOKE" ]; then
+    printf '%s' "$RESTORE_REVOKE" | grep -Eq '^[0-9A-Za-z:.+-]{1,40}$' || die "bad --revoke-keys-before '$RESTORE_REVOKE'"
+  fi
+}
+
+# restore_data: runs once rt is installed and before it first starts. rt checks the archive's MAC and refuses a
+# data directory that is not empty, so a node with data is never overwritten. The key goes in place afterwards.
+restore_data() {
+  [ -n "$RESTORE" ] || return 0
+  if [ "$DRY_RUN" = 0 ]; then
+    /usr/bin/rt backup restore --help >/dev/null 2>&1 ||
+      die "rt $RT_VERSION has no 'backup restore': pass --runtime-version with the version that made the backup"
+    [ -z "$(ls -A /var/lib/rt 2>/dev/null)" ] || die "--restore needs an empty /var/lib/rt: this node already has data"
+  fi
+  step "restoring $RESTORE into /var/lib/rt"
+  if [ -n "$RESTORE_REVOKE" ]; then
+    run env RT_MASTER_KEY_FILE="$RESTORE_MASTER_KEY" /usr/bin/rt backup restore "$RESTORE" --data-dir /var/lib/rt --revoke-keys-before "$RESTORE_REVOKE"
+  else
+    run env RT_MASTER_KEY_FILE="$RESTORE_MASTER_KEY" /usr/bin/rt backup restore "$RESTORE" --data-dir /var/lib/rt
+  fi
+  run install -m 0400 -o rt -g rt "$RESTORE_MASTER_KEY" /var/lib/rt/master.key
+  run chown -R rt:rt /var/lib/rt
+  ok "restored. Bump the console session epoch and rotate tenant keys if the backup predates a revocation"
 }
 
 valid_version() { printf '%s' "$1" | grep -Eq '^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$'; }
@@ -890,8 +962,10 @@ install_bare() {
   section "Runtime node (rt)"
   if have rt; then
     ok "found $(rt --version 2>/dev/null || echo rt)"
+    [ "$RT_VERSION_SET" = 0 ] || warn "--runtime-version does not replace an existing rt: use --upgrade-runtime --runtime-version $RT_VERSION"
   else
     install_rt
+    restore_data
   fi
 
   if [ "$DRY_RUN" = 1 ]; then
@@ -1040,7 +1114,7 @@ master_key_credential() {
   [ -f "$RT_CRED_DROPIN" ] && { ok "master key: $RT_CRED_DIR/rt-master-key ($RT_CRED_DROPIN)"; return 0; }
   if grep -Eq '^RT_MASTER_KEY(_FILE)?=' "$RT_ENV" 2>/dev/null || [ -f /var/lib/rt/master.key ] ||
     grep -Eq '^[[:space:]]*master_key_file[[:space:]]*=[[:space:]]*"[^"]' "$RT_TOML" 2>/dev/null; then
-    step "master key: kept where it is (see docs/design/data-protection.md to move it to a systemd credential)"
+    step "master key: kept where it is (see docs/getting-started/install.md to move it to a systemd credential)"
     return 0
   fi
   sdv=$(systemctl --version 2>/dev/null | awk 'NR==1 {print $2}')
@@ -1076,10 +1150,84 @@ master_key_credential() {
 # install_rt: the rt binary from its GitHub release tarball, the production rt.toml from the same tarball, and the
 # unit from this (already verified) Runtime Web release. Never runs a script downloaded from the runtime repository.
 install_rt() {
+  fetch_verified_rt
+  run install -m 0755 "$tmp/rt/$name/rt" /usr/bin/rt
+  if [ "$DRY_RUN" = 0 ] && ! id rt >/dev/null 2>&1; then
+    useradd --system --user-group --home-dir /var/lib/rt --no-create-home --shell /usr/sbin/nologin rt
+  fi
+  run install -d -m 0755 /etc/rt
+  run install -d -m 0750 /var/lib/rt
+  run chown rt:rt /var/lib/rt
+  if [ ! -f "$RT_TOML" ]; then run install -m 0644 "$tmp/rt/$name/defconfigs/production.toml" "$RT_TOML"; fi
+  run install -m 0644 "$APP/deploy/rt.service" /etc/systemd/system/rt.service
+}
+
+# version_older A B: whether X.Y.Z A is below B. A suffix is ignored: a prerelease counts as its release.
+version_older() {
+  awk -v a="${1%%-*}" -v b="${2%%-*}" 'BEGIN {
+    split(a, x, "."); split(b, y, ".")
+    for (i = 1; i <= 3; i++) { if (x[i] + 0 < y[i] + 0) exit 0; if (x[i] + 0 > y[i] + 0) exit 1 }
+    exit 1
+  }'
+}
+
+# upgrade_rt: replaces the binary of a bare node with a verified release, keeping its config and data. The previous
+# binary stays at /usr/bin/rt.previous, and comes back if the new one does not answer.
+upgrade_rt() {
+  section "Upgrade the runtime node (rt)"
+  if ! have rt; then
+    [ "$DRY_RUN" = 1 ] || die "no rt on this host: run the installer without --upgrade-runtime"
+    warn "no rt on this host; continuing the dry run"
+  fi
+  have curl || [ "$DRY_RUN" = 1 ] || die "this installer needs 'curl' on PATH"
+  if have sha256sum; then
+    sha256() { sha256sum "$1" | awk '{print $1}'; }
+  elif have shasum; then
+    sha256() { shasum -a 256 "$1" | awk '{print $1}'; }
+  else
+    die "this installer needs sha256sum or shasum to verify downloads"
+  fi
+  HAVE_COSIGN=0
+  have cosign && HAVE_COSIGN=1
+  if [ "$HAVE_COSIGN" = 0 ] && [ "$RT_VERSION" != "$RT_PINNED_VERSION" ] && [ "$DRY_RUN" = 0 ]; then
+    die "cosign is required to verify rt $RT_VERSION (https://docs.sigstore.dev/cosign/system_config/installation/)"
+  fi
+  current=$(rt --version 2>/dev/null | awk '{print $NF}' | sed 's/^v//')
+  if [ "$current" = "$RT_VERSION" ]; then
+    ok "rt $RT_VERSION is already installed"
+    return 0
+  fi
+  # A newer node may have migrated its data past what an older binary reads. See the downgrade steps in the docs.
+  if valid_version "$current" && version_older "$RT_VERSION" "$current"; then
+    die "rt $current is newer than $RT_VERSION: a downgrade needs a restore from backup (docs/admin/operations.md)"
+  fi
+  step "rt ${current:-unknown} -> $RT_VERSION"
+  fetch_verified_rt
+  if [ "$DRY_RUN" = 0 ]; then
+    new=$("$tmp/rt/$name/rt" --version 2>/dev/null | awk '{print $NF}' | sed 's/^v//')
+    [ "$new" = "$RT_VERSION" ] || die "the downloaded binary reports version '$new', not $RT_VERSION: refusing to install"
+  fi
+  run cp -p /usr/bin/rt /usr/bin/rt.previous
+  run install -m 0755 "$tmp/rt/$name/rt" /usr/bin/rt
+  run systemctl restart rt
+  [ "$DRY_RUN" = 0 ] || return 0
+  if wait_for "rt" 60 systemctl is-active --quiet rt && sleep 3 && systemctl is-active --quiet rt; then
+    ok "rt $RT_VERSION is running (previous binary kept at /usr/bin/rt.previous)"
+    return 0
+  fi
+  warn "rt $RT_VERSION did not stay up: putting the previous binary back"
+  run install -m 0755 /usr/bin/rt.previous /usr/bin/rt
+  run systemctl restart rt
+  die "upgrade failed and rt was rolled back: see journalctl -u rt"
+}
+
+# fetch_verified_rt: downloads the rt release into $tmp/rt and verifies it (pinned checksums and, with cosign, the
+# Sigstore signature); sets name. Nothing is installed here.
+fetch_verified_rt() {
   target="$arch-unknown-linux-gnu"
   name="rt-$RT_VERSION-$target"
   url="$RT_BASE_URL/v$RT_VERSION"
-  step "installing rt $RT_VERSION ($target) from $RT_REPO release assets"
+  step "fetching rt $RT_VERSION ($target) from $RT_REPO release assets"
   mkdir -p "$tmp/rt"
   fetch "$url/SHA256SUMS" "$tmp/rt/SHA256SUMS"
   fetch "$url/$name.tar.gz" "$tmp/rt/$name.tar.gz"
@@ -1106,15 +1254,6 @@ install_rt() {
   fi
   check_sum "$tmp/rt/SHA256SUMS" "$tmp/rt/$name.tar.gz" "$name.tar.gz"
   run tar -xzf "$tmp/rt/$name.tar.gz" -C "$tmp/rt" --no-same-owner
-  run install -m 0755 "$tmp/rt/$name/rt" /usr/bin/rt
-  if [ "$DRY_RUN" = 0 ] && ! id rt >/dev/null 2>&1; then
-    useradd --system --user-group --home-dir /var/lib/rt --no-create-home --shell /usr/sbin/nologin rt
-  fi
-  run install -d -m 0755 /etc/rt
-  run install -d -m 0750 /var/lib/rt
-  run chown rt:rt /var/lib/rt
-  if [ ! -f "$RT_TOML" ]; then run install -m 0644 "$tmp/rt/$name/defconfigs/production.toml" "$RT_TOML"; fi
-  run install -m 0644 "$APP/deploy/rt.service" /etc/systemd/system/rt.service
 }
 
 # install_caddy_dns: Caddy with the DNS provider module, from Caddy's official build server, pinned Caddy and module

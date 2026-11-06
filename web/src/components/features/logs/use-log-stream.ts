@@ -45,9 +45,9 @@ function parseData<T>(raw: unknown): T | null {
   }
 }
 
-// useLogStream follows the app's SSE log route. The browser EventSource resumes with Last-Event-ID on
+// useLogStream follows the app's SSE log route while enabled. The browser EventSource resumes with Last-Event-ID on
 // its own; seq de-duplicates replayed lines. While paused, new lines are held in a buffer.
-export function useLogStream(org: string, app: string, level: LogLevel) {
+export function useLogStream(org: string, app: string, level: LogLevel, enabled = true) {
   const [lines, setLines] = useState<LogLine[]>([]);
   const [conn, setConn] = useState<ConnState>("connecting");
   const [gap, setGap] = useState(false);
@@ -85,6 +85,7 @@ export function useLogStream(org: string, app: string, level: LogLevel) {
       bufferRef.current = [];
       seenRef.current = new Set();
     }
+    if (!enabled) return;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
     const qs = level ? `?level=${level}` : "";
@@ -134,7 +135,7 @@ export function useLogStream(org: string, app: string, level: LogLevel) {
       if (timer) clearTimeout(timer);
       es.close();
     };
-  }, [org, app, level, streamKey, generation]);
+  }, [org, app, level, streamKey, generation, enabled]);
 
   const reconnect = useCallback(() => {
     attemptRef.current = 0;

@@ -26,7 +26,8 @@
     "save": "Save HTTP route",
     "toast": {
       "saved": "HTTP route saved"
-    }
+    },
+    "edit": "Edit in Settings › Access"
   },
   "schedules": {
     "title": "Schedules",
@@ -60,7 +61,7 @@
     }
   },
   "oneOff": {
-    "title": "One-off tasks",
+    "title": "Queued runs",
     "description": "Tasks your code queued with std:schedule, waiting to run.",
     "empty": "No pending tasks.",
     "runs": "Runs {{when}}",
@@ -78,11 +79,13 @@
     "body": "Message body (JSON)",
     "delay": "Delay in seconds (optional)",
     "bodyInvalid": "Message body must be valid JSON.",
-    "send": "Enqueue test message",
+    "send": "Send message",
     "sending": "Sending…",
     "toast": {
       "enqueued": "Test message enqueued"
-    }
+    },
+    "openSend": "Send test message",
+    "sendDescription": "The message goes on this app's queue and runs its queue handler."
   },
   "dlq": {
     "title": "Dead-letter queue",
@@ -106,7 +109,8 @@
       "redriven_one": "Redriven {{count}} message",
       "redriven_other": "Redriven {{count}} messages",
       "purged": "Dead-letter queue purged"
-    }
+    },
+    "actions": "Dead-letter queue actions"
   },
   "errors": {
     "planLimit": "This trigger is not allowed on your plan, or the schedule limit is reached. Remove an existing schedule or ask an instance admin to change the plan.",

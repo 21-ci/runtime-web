@@ -90,7 +90,7 @@ Worked example: `web/src/components/features/members/` (+ `routes/$org.settings.
 | `features/security/`, `routes/me.security.tsx` | `security` |
 | `features/tokens/`, `routes/$org.settings.tokens.tsx` | `tokens` |
 | `features/triggers/`, `routes/$org.apps.$app.triggers.tsx` | `triggers` |
-| `features/versions/`, `routes/$org.apps.$app.versions.tsx` | `versions` |
+| `features/deployments/`, `routes/$org.apps.$app.deployments.tsx` | `versions` |
 
 Done already (do not touch): `components/ui`, `components/layout`, `components/auth`, `features/empty`
 (except `TEMPLATES`), `features/members`, auth routes, `routes/index.tsx`, `lib/`.

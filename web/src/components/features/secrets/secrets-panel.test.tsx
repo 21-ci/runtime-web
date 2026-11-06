@@ -33,7 +33,9 @@ describe("SecretsPanel", () => {
     renderPanel();
 
     expect(await screen.findByText("STRIPE_KEY")).toBeInTheDocument();
-    const value = screen.getByLabelText("Value");
+    expect(screen.queryByLabelText("Value")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Set secret" }));
+    const value = await screen.findByLabelText("Value");
     expect(value).toHaveAttribute("type", "password");
     expect(value).toHaveValue("");
 
@@ -45,5 +47,20 @@ describe("SecretsPanel", () => {
     // The value is never rendered back, not even right after saving.
     expect(document.body.textContent ?? "").not.toContain("s3cret-value");
     expect(screen.queryByDisplayValue("s3cret-value")).toBeNull();
+  });
+
+  it("replaces a secret from its row without asking for the name", async () => {
+    const user = userEvent.setup();
+    let put = false;
+    server.use(
+      http.get("/api/orgs/acme/apps/hello/secrets", () => HttpResponse.json({ items: [{ name: "STRIPE_KEY", updated_at: 1_700_000_000_000 }] })),
+      http.put("/api/orgs/acme/apps/hello/secrets/STRIPE_KEY", () => ((put = true), new HttpResponse(null, { status: 204 }))),
+    );
+    renderPanel();
+    await user.click(await screen.findByRole("button", { name: "Replace STRIPE_KEY" }));
+    expect(screen.queryByLabelText("Name")).toBeNull();
+    await user.type(await screen.findByLabelText("Value"), "v");
+    await user.click(screen.getByRole("button", { name: "Save secret" }));
+    await waitFor(() => expect(put).toBe(true));
   });
 });

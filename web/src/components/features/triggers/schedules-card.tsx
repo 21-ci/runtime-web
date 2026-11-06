@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { QueryError } from "@/components/features/empty/query-error";
+import { BoundedList } from "@/components/ui/bounded";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
@@ -75,7 +76,7 @@ export function SchedulesCard({ org, app, cronAllowed = true }: { org: string; a
           action={<Button onClick={() => setAdding(true)}>{t("schedules.add")}</Button>}
         />
       ) : (
-        <ul className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
+        <BoundedList className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
           {schedules.data.map((s) => {
             const label = scheduleLabel(s);
             return (
@@ -111,7 +112,7 @@ export function SchedulesCard({ org, app, cronAllowed = true }: { org: string; a
               </li>
             );
           })}
-        </ul>
+        </BoundedList>
       )}
 
       {adding ? <ScheduleDialog org={org} app={app} cronAllowed={cronAllowed} onClose={() => setAdding(false)} /> : null}

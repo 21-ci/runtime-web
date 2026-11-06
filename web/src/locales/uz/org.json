@@ -4,11 +4,13 @@
   },
   "identity": {
     "title": "Tashkilot",
-    "description": "Ushbu ish maydonining maʼlumotlari. Nomini oʻzgartirish hozircha mavjud emas.",
+    "description": "Ushbu ish maydonining maʼlumotlari.",
     "slug": "Slug",
     "role": "Sizning rolingiz"
   },
   "quota": {
+    "near": "Limitga yaqin: {{count}}",
+    "ok": "Limit doirasida",
     "title": "Kvota",
     "unavailable": "Kvota mavjud emas",
     "resetsAt": "Kunlik hisoblagichlar {{time}} da qayta tiklanadi",
@@ -30,13 +32,15 @@
     }
   },
   "usageCard": {
-    "title": "Bugungi foydalanish",
-    "aria": "Foydalanish",
+    "title": "Ilovalar boʻyicha bugungi foydalanish",
     "empty": "Bugun hali chaqiruvlar yoʻq.",
     "invocations": "Chaqiruvlar",
     "cpu": "CPU",
     "egress": "Chiquvchi trafik",
-    "deletedApp": "Oʻchirilgan ilova"
+    "deletedApp": "Oʻchirilgan ilova",
+    "description": "UTC kuni boʻyicha hisoblanadi.",
+    "app": "Ilova",
+    "adminsOnly": "Ilovalar boʻyicha foydalanishni faqat tashkilot egalari va administratorlari koʻradi."
   },
   "rotate": {
     "title": "Standart kalit",
@@ -54,7 +58,9 @@
     "slug": "Slug",
     "name": "Nomi (ixtiyoriy)",
     "environments": "Muhitlar",
-    "environmentsHint": "Vergul bilan ajratilgan, masalan: dev, staging, prod.",
+    "environmentPlaceholder": "Nom yozing, so'ng Enter bosing",
+    "environmentsHint": "Masalan: dev, staging, prod. Har birini Enter yoki vergul bilan qoʻshing.",
+    "removeEnvironment": "{{name}} ni olib tashlash",
     "submit": "Loyiha yaratish",
     "errors": {
       "slug": "Loyiha nomini kiriting.",
