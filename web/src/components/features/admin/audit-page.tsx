@@ -23,6 +23,7 @@ import {
 import { formatDateTime } from "@/lib/format";
 
 import { AUDIT_PERIODS, patchAuditSearch, sinceFor, type AuditPeriod, type AuditSearch } from "@/components/features/audit/audit-search";
+import { AuditTarget } from "@/components/features/audit/audit-target";
 
 import { useAdminAudit, useAdminOrgs, withQuery, useUserOptions, type AuditFilters } from "./admin-api";
 
@@ -143,7 +144,7 @@ export function AuditPage({ search, onSearchChange }: { search: AuditSearch; onS
                 </TableCell>
                 <TableCell className="max-w-40 break-all text-sm">{entry.org?.slug ?? t("audit.instance")}</TableCell>
                 <TableCell className="whitespace-nowrap font-mono text-sm">{entry.action}</TableCell>
-                <TableCell className="min-w-40 max-w-72 break-all text-sm">{entry.target}</TableCell>
+                <TableCell className="min-w-40 max-w-72 break-all text-sm"><AuditTarget target={entry.target} orgs={orgs.data} /></TableCell>
                 <TableCell>
                   <pre className="min-w-48 max-w-xs whitespace-pre-wrap break-all font-mono text-xs text-muted">
                     {entry.detail === null || entry.detail === undefined ? "" : JSON.stringify(entry.detail)}

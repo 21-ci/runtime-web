@@ -16,8 +16,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { api } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 import { useMembers } from "@/components/features/members/hooks";
+import { useOrgs } from "@/hooks/orgs";
 
 import { AUDIT_PERIODS, patchAuditSearch, sinceFor, type AuditPeriod, type AuditSearch } from "./audit-search";
+import { AuditTarget } from "./audit-target";
 
 // Shape from docs/reference/api.md §1.6 and §7 (AuditEntry). Pages are cursor based.
 export type AuditEntry = {
@@ -45,6 +47,7 @@ export function AuditPage({ org, search, onSearchChange }: { org: string; search
   const since = useMemo(() => sinceFor(period), [period]);
   const filters: Filters = { actor: search.actor ?? "", action: search.action ?? "", since };
   const members = useMembers(org);
+  const orgs = useOrgs();
   const audit = useInfiniteQuery({
     queryKey: ["audit", org, filters],
     initialPageParam: null as string | null,
@@ -150,7 +153,7 @@ export function AuditPage({ org, search, onSearchChange }: { org: string; search
                     </span>
                   </TableCell>
                   <TableCell className="whitespace-nowrap font-mono">{e.action}</TableCell>
-                  <TableCell className="min-w-40 max-w-72 break-all">{e.target}</TableCell>
+                  <TableCell className="min-w-40 max-w-72 break-all"><AuditTarget target={e.target} orgs={orgs.data} /></TableCell>
                 </TableRow>
               ))}
             </TableBody>
