@@ -49,31 +49,31 @@
     "dismiss": "Hide next steps",
     "tryIt": "Try a request",
     "tryItHint": "Run this in a terminal:",
-    "keyHint": "This App needs a token: replace $TOKEN with an invoke token from Settings, Access.",
+    "keyHint": "This app needs a token: replace $TOKEN with an invoke token from Settings, Access.",
     "editCode": "Edit the code",
     "editCodeHint": "Change the handler and deploy a new version.",
     "logs": "Watch the logs",
     "logsHint": "Every request and console.log appears there.",
     "domain": "Add a domain",
-    "domainHint": "Serve the App from your own hostname."
+    "domainHint": "Serve the app from your own hostname."
   },
   "ingress": {
     "allMethods": "All methods",
     "methodsHint": "Turn this off to accept only the methods you tick.",
     "methodsRequired": "Tick at least one method, or choose All methods.",
-    "prefixesHint": "None means every path reaches the App.",
-    "ipHint": "None means every address can reach the App.",
+    "prefixesHint": "None means every path reaches the app.",
+    "ipHint": "None means every address can reach the app.",
     "defaultLimit": "Default rate limit",
-    "defaultLimitHint": "Counts all requests to this App. Leave empty or 0 for no default limit.",
+    "defaultLimitHint": "Counts all requests to this app. Leave empty or 0 for no default limit.",
     "rps": "Requests per second",
     "burst": "Burst",
     "burstHint": "Short peak allowed above the rate. It is never lower than the rate.",
     "numberInvalid": "Use a whole number, 0 or more.",
     "rulesRelation": "A request must pass both: the first matching rule below, and the default limit above.",
-    "accessMoved": "Who can call this App is set in the Access tab."
+    "accessMoved": "Who can call this app is set in the Access tab."
   },
   "triggers": {
-    "summary": "Access and allowed requests are edited in the App's settings.",
+    "summary": "Access and allowed requests are edited in the app's settings.",
     "access": "Access",
     "methods": "Methods",
     "paths": "Paths",
@@ -87,7 +87,7 @@
   },
   "source": {
     "plan": "the org plan",
-    "service": "this App's settings",
+    "service": "this app's settings",
     "node": "the node's settings",
     "default": "the default",
     "profile": "the {{name}} profile"
@@ -116,7 +116,7 @@
     "versionMove": "Version {{from}} to {{to}}",
     "socketsClosed_one": "{{count}} socket closed",
     "socketsClosed_other": "{{count}} sockets closed",
-    "unknownApp": "Unnamed App",
+    "unknownApp": "Unnamed app",
     "nodeWide": "Node",
     "kinds": {
       "service_created": "App created",
@@ -174,7 +174,7 @@
   },
   "node": {
     "system": "System",
-    "systemHint": "Part of this node, not an App of any org.",
+    "systemHint": "Part of this node, not an app of any org.",
     "statusTitle": "Status",
     "version": "Runtime version",
     "mode": "Mode",
@@ -226,7 +226,7 @@
     "version": "Version",
     "org": "Org",
     "digest": "Digest",
-    "unnamed": "System or removed App",
+    "unnamed": "System or removed app",
     "systemApp": "System app"
   },
   "backups": {
@@ -242,13 +242,14 @@
     "restoreHint": "Restoring is done offline on the node, not from the console. Stop the node, then check the archive and restore it into an empty data directory:",
     "restoreEncrypted": "For an encrypted archive, add --age-identity FILE to both commands. Then point the node at the restored directory and start it.",
     "warningTitle": "No backups are configured",
-    "warningBody": "This node's data is not being backed up. A lost disk would lose every App's data.",
+    "warningBody": "This node's data is not being backed up. A lost disk would lose every app's data.",
     "setUp": "Set up backups",
     "alertHint": "Alert rules cannot watch for backups being off. Once they are on, a Backup stale rule tells you if they stop working.",
     "addRule": "Open alert rules"
   },
   "details": "Details",
   "plan": {
+    "unlimited": "Unlimited",
     "statusNear": "Nearing limit",
     "statusCritical": "Almost full",
     "statusOver": "Over limit",

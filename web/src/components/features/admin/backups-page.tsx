@@ -119,11 +119,11 @@ export function BackupsPage() {
       </SectionCard>
 
       <SectionCard title={t("backups.download")} description={t("operator:backups.downloadHint")}>
-        <pre className="overflow-x-auto rounded bg-surface-2 p-3 font-mono text-xs">21ci backup download {list.data?.items[0]?.id ?? "<id>"}</pre>
+        <pre className="overflow-x-auto rounded bg-panel-2 p-3 font-mono text-xs">21ci backup download {list.data?.items[0]?.id ?? "<id>"}</pre>
       </SectionCard>
 
       <SectionCard title={t("operator:backups.restoreTitle")} description={t("operator:backups.restoreHint")}>
-        <pre className="overflow-x-auto rounded bg-surface-2 p-3 font-mono text-xs">{RESTORE}</pre>
+        <pre className="overflow-x-auto rounded bg-panel-2 p-3 font-mono text-xs">{RESTORE}</pre>
         <p className="mt-2 text-sm text-muted">{t("operator:backups.restoreEncrypted")}</p>
       </SectionCard>
 
@@ -131,7 +131,7 @@ export function BackupsPage() {
         title={t(on ? "operator:backups.toChange" : "operator:backups.toEnable")}
         description={t(on ? "operator:backups.toChangeHint" : "operator:backups.toEnableHint")}
       >
-        <pre className="overflow-x-auto rounded bg-surface-2 p-3 font-mono text-xs">{FRAGMENT}</pre>
+        <pre className="overflow-x-auto rounded bg-panel-2 p-3 font-mono text-xs">{FRAGMENT}</pre>
       </SectionCard>
     </div>
   );

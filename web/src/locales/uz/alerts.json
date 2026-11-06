@@ -33,7 +33,7 @@
     "botToken": "Bot tokeni",
     "chatId": "Chat ID",
     "app": "App",
-    "appHint": "Tashkilotning barcha App larini kuzatish uchun boʻsh qoldiring."
+    "appHint": "Tashkilotning barcha app larini kuzatish uchun boʻsh qoldiring."
   },
   "channels": {
     "title": "Kanallar",
@@ -53,7 +53,7 @@
     "none": "Hali qoidalar yoʻq.",
     "add": "Qoida qoʻshish",
     "channels": "Kanal",
-    "allApps": "Barcha App lar",
+    "allApps": "Barcha app lar",
     "enable": "Yoqish",
     "disable": "Oʻchirish",
     "delete": "Qoidani oʻchirish",

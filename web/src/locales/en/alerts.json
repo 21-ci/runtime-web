@@ -1,6 +1,6 @@
 {
   "title": "Alerts",
-  "description": "Get told when an App or the node has a problem, and again when it ends.",
+  "description": "Get told when an app or the node has a problem, and again when it ends.",
   "adminsOnly": "Org admins only",
   "adminsOnlyHint": "Ask an owner or admin of this org to set up alerts.",
   "active": {
@@ -33,7 +33,7 @@
     "botToken": "Bot token",
     "chatId": "Chat ID",
     "app": "App",
-    "appHint": "Leave empty to watch every App of this org."
+    "appHint": "Leave empty to watch every app of this org."
   },
   "channels": {
     "title": "Channels",
@@ -53,7 +53,7 @@
     "none": "No rules yet.",
     "add": "Add rule",
     "channels": "Channel",
-    "allApps": "All Apps",
+    "allApps": "All apps",
     "enable": "Turn on",
     "disable": "Turn off",
     "delete": "Delete rule",

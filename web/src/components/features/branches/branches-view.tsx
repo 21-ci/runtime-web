@@ -1,4 +1,4 @@
-import { Check, CircleAlert, CircleCheck, ExternalLink, GitBranch, X } from "lucide-react";
+import { Check, CircleAlert, CircleCheck, ExternalLink, GitBranch, Plus, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
@@ -91,7 +91,7 @@ export function BranchesView({ org, app }: { org: string; app: string }) {
         entity="versions"
         title={<span id="branches-heading">{t("title")}</span>}
         description={t("description")}
-        actions={deploy ? <Button onClick={() => setCreating(true)}>{t("operator:branch.new")}</Button> : undefined}
+        actions={deploy ? <Button onClick={() => setCreating(true)}><Plus aria-hidden="true" /> {t("operator:branch.new")}</Button> : undefined}
       />
       {branches.data.length === 0 ? (
         <EmptyState entity="versions" title={t("emptyTitle")} description={t("operator:branch.empty")} />
@@ -156,8 +156,9 @@ function BranchTable({ org, items, deploy, liveDigest, onSwitch, onDelete }: { o
             <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
               {t("operator:branch.needsKey")}
               <Button
-                variant="ghost"
+                variant="secondary"
                 size="sm"
+                className="h-6 px-2 text-xs"
                 aria-label={t("operator:branch.copyCurlFor", { name: b.name })}
                 onClick={() => void navigator.clipboard?.writeText(`curl -H "Authorization: Bearer $RT_KEY" ${b.url}`)}
               >

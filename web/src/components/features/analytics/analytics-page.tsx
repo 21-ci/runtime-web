@@ -67,7 +67,7 @@ function RequestHours({ org, app }: { org: string; app: string }) {
     refetchInterval: pollInterval,
     retry: false,
   });
-  const points = week.data?.series ?? [];
+  const points = useMemo(() => week.data?.series ?? [], [week.data]);
   const grid = useMemo(() => hourGrid(points), [points]);
   const weekdays = useMemo(() => {
     const f = new Intl.DateTimeFormat(i18n.language, { weekday: "short" });

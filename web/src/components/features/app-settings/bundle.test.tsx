@@ -34,7 +34,7 @@ describe("BundleSection", () => {
   it("keeps export, fork and import apart", async () => {
     setup();
     expect(await screen.findByRole("heading", { name: "Export a bundle" })).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Fork this App" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Fork this app" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Import a bundle" })).toBeInTheDocument();
   });
 
@@ -66,7 +66,7 @@ describe("BundleSection", () => {
 
   it("import needs a file, shows its size and refuses one over the limit", async () => {
     setup();
-    await userEvent.type(await screen.findByLabelText("Name of the new App"), "copy");
+    await userEvent.type(await screen.findByLabelText("Name of the new app"), "copy");
     const importButton = screen.getByRole("button", { name: "Import bundle" });
     expect(importButton).toBeDisabled();
     const input = screen.getByLabelText("Bundle file");
@@ -81,7 +81,7 @@ describe("BundleSection", () => {
   it("shows why an upload was refused", async () => {
     server.use(http.post(IMPORT, () => HttpResponse.json({ error: { code: "slug_taken", message: "slug taken" } }, { status: 409 })));
     setup();
-    await userEvent.type(await screen.findByLabelText("Name of the new App"), "copy");
+    await userEvent.type(await screen.findByLabelText("Name of the new app"), "copy");
     await userEvent.upload(screen.getByLabelText("Bundle file"), new File(["abc"], "a.tar.zst"));
     await userEvent.click(screen.getByRole("button", { name: "Import bundle" }));
     expect(await screen.findByRole("alert")).toHaveTextContent(/already has that name/i);

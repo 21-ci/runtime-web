@@ -49,7 +49,7 @@
     "dismiss": "Keyingi qadamlarni yashirish",
     "tryIt": "Soʻrov yuboring",
     "tryItHint": "Terminalda bajaring:",
-    "keyHint": "Bu App uchun token kerak: $TOKEN oʻrniga Sozlamalar, Kirish boʻlimidagi chaqiruv tokenini qoʻying.",
+    "keyHint": "Bu app uchun token kerak: $TOKEN oʻrniga Sozlamalar, Kirish boʻlimidagi chaqiruv tokenini qoʻying.",
     "editCode": "Kodni oʻzgartiring",
     "editCodeHint": "Ishlovchini oʻzgartirib, yangi versiyani joylang.",
     "logs": "Loglarni kuzating",
@@ -61,19 +61,19 @@
     "allMethods": "Barcha metodlar",
     "methodsHint": "Faqat belgilangan metodlarni qabul qilish uchun buni oʻchiring.",
     "methodsRequired": "Kamida bitta metodni belgilang yoki Barcha metodlarni tanlang.",
-    "prefixesHint": "Roʻyxat boʻsh boʻlsa, har qanday yoʻl App ga yetadi.",
-    "ipHint": "Roʻyxat boʻsh boʻlsa, har qanday manzil App ga yeta oladi.",
+    "prefixesHint": "Roʻyxat boʻsh boʻlsa, har qanday yoʻl app ga yetadi.",
+    "ipHint": "Roʻyxat boʻsh boʻlsa, har qanday manzil app ga yeta oladi.",
     "defaultLimit": "Umumiy soʻrov limiti",
-    "defaultLimitHint": "Bu App ga kelgan barcha soʻrovlarni sanaydi. Cheklamaslik uchun boʻsh qoldiring yoki 0 kiriting.",
+    "defaultLimitHint": "Bu app ga kelgan barcha soʻrovlarni sanaydi. Cheklamaslik uchun boʻsh qoldiring yoki 0 kiriting.",
     "rps": "Soniyasiga soʻrovlar",
     "burst": "Choʻqqi",
     "burstHint": "Limitdan yuqori qisqa choʻqqi. U limitning oʻzidan kam boʻlmaydi.",
     "numberInvalid": "Butun son kiriting, 0 yoki undan katta.",
     "rulesRelation": "Soʻrov ikkalasidan oʻtishi kerak: quyidagi birinchi mos qoida va yuqoridagi umumiy limit.",
-    "accessMoved": "Bu App ni kim chaqira olishi Kirish varagʻida sozlanadi."
+    "accessMoved": "Bu app ni kim chaqira olishi Kirish varagʻida sozlanadi."
   },
   "triggers": {
-    "summary": "Kirish va ruxsat etilgan soʻrovlar App sozlamalarida oʻzgartiriladi.",
+    "summary": "Kirish va ruxsat etilgan soʻrovlar app sozlamalarida oʻzgartiriladi.",
     "access": "Kirish",
     "methods": "Metodlar",
     "paths": "Yoʻllar",
@@ -87,7 +87,7 @@
   },
   "source": {
     "plan": "tashkilot tarifi",
-    "service": "shu App sozlamalari",
+    "service": "shu app sozlamalari",
     "node": "tugun sozlamalari",
     "default": "standart qiymat",
     "profile": "{{name}} profili"
@@ -116,7 +116,7 @@
     "versionMove": "{{from}}-versiyadan {{to}}-versiyaga",
     "socketsClosed_one": "{{count}} ta soket yopildi",
     "socketsClosed_other": "{{count}} ta soket yopildi",
-    "unknownApp": "Nomsiz App",
+    "unknownApp": "Nomsiz app",
     "nodeWide": "Tugun",
     "kinds": {
       "service_created": "App yaratildi",
@@ -174,7 +174,7 @@
   },
   "node": {
     "system": "Tizim",
-    "systemHint": "Bu tugunning bir qismi, biror tashkilotning App i emas.",
+    "systemHint": "Bu tugunning bir qismi, biror tashkilotning app i emas.",
     "statusTitle": "Holat",
     "version": "Ish muhiti versiyasi",
     "mode": "Rejim",
@@ -188,8 +188,8 @@
     "processors": "Protsessorlar",
     "cores": "CPU yadrolari",
     "inflight": "Hozir bajarilayotgan soʻrovlar",
-    "services": "Shu tugundagi App lar, tizimdagilar bilan",
-    "storage": "Diskdagi App maʼlumotlari",
+    "services": "Shu tugundagi app lar, tizimdagilar bilan",
+    "storage": "Diskdagi app maʼlumotlari",
     "load": "Yuklama (1, 5, 15 daq)",
     "disk": "Disk",
     "diskValue": "{{total}} dan {{free}} boʻsh",
@@ -226,8 +226,8 @@
     "version": "Versiya",
     "org": "Tashkilot",
     "digest": "Dayjest",
-    "unnamed": "Tizim yoki oʻchirilgan App",
-    "systemApp": "Tizim App"
+    "unnamed": "Tizim yoki oʻchirilgan app",
+    "systemApp": "Tizim app"
   },
   "backups": {
     "toEnable": "Yoqish uchun buni rt.toml ga qoʻshing",
@@ -242,13 +242,14 @@
     "restoreHint": "Tiklash konsoldan emas, tugunda oflayn bajariladi. Tugunni toʻxtating, soʻng arxivni tekshirib, boʻsh maʼlumotlar katalogiga tiklang:",
     "restoreEncrypted": "Shifrlangan arxiv uchun ikkala buyruqqa --age-identity FILE qoʻshing. Soʻng tugunga tiklangan katalogni koʻrsatib, uni ishga tushiring.",
     "warningTitle": "Zaxira nusxalash sozlanmagan",
-    "warningBody": "Bu tugun maʼlumotlari nusxalanmayapti. Disk yoʻqolsa, barcha App lar maʼlumotlari yoʻqoladi.",
+    "warningBody": "Bu tugun maʼlumotlari nusxalanmayapti. Disk yoʻqolsa, barcha app lar maʼlumotlari yoʻqoladi.",
     "setUp": "Zaxira nusxalashni sozlash",
     "alertHint": "Ogohlantirish qoidalari zaxira oʻchiqligini kuzata olmaydi. U yoqilgach, eskirgan zaxira qoidasi nusxalash toʻxtasa xabar beradi.",
     "addRule": "Ogohlantirish qoidalarini ochish"
   },
   "details": "Tafsilotlar",
   "plan": {
+    "unlimited": "Limitsiz",
     "statusNear": "Limitga yaqin",
     "statusCritical": "Deyarli toʻlgan",
     "statusOver": "Limitdan oshgan",

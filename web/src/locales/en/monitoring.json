@@ -21,7 +21,7 @@
   },
   "compare": {
     "title": "Compare with a branch",
-    "description": "This App and a branch over the same window. Stats are kept per App, not per version.",
+    "description": "This app and a branch over the same window. Stats are kept per app, not per version.",
     "branch": "Branch",
     "variant": "App",
     "errorRate": "Error rate",
@@ -61,7 +61,7 @@
     "tx": "Network out",
     "uptime": "Uptime",
     "unavailable": "This node does not report monitoring data. It may run an older runtime.",
-    "top": "Busiest Apps, last hour",
+    "top": "Busiest apps, last hour",
     "other": "Other",
     "errorCount": "Errors: {{n}}",
     "slug": "App",
@@ -115,7 +115,7 @@
   },
   "migrations": {
     "title": "SQL migrations",
-    "description": "Applied to this App's database, and waiting in the latest version.",
+    "description": "Applied to this app's database, and waiting in the latest version.",
     "applied": "Applied",
     "pending": "Pending",
     "none": "None",

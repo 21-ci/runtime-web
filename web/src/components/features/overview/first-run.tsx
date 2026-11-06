@@ -59,7 +59,7 @@ export function FirstRun(p: { org: string; app: string; url: string; access: str
         <li className="flex min-w-0 flex-col gap-1">
           <span className="font-medium">{t("firstRun.tryIt")}</span>
           <span className="text-muted">{t("firstRun.tryItHint")}</span>
-          <pre className="overflow-x-auto rounded bg-surface-2 p-3 font-mono text-xs">{sampleCurl(p.url, p.source ?? "", p.access === "key")}</pre>
+          <pre className="overflow-x-auto rounded bg-panel-2 p-3 font-mono text-xs">{sampleCurl(p.url, p.source ?? "", p.access === "key")}</pre>
           {p.access === "key" ? <span className="text-muted">{t("firstRun.keyHint")}</span> : null}
         </li>
         <li>
