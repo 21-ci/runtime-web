@@ -22,7 +22,7 @@ ARG NODE_IMAGE=node:22-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a3
 ARG GO_IMAGE=golang:1.26-bookworm@sha256:632dff7351799a5a9954a48dc06670ade72ee44e8c351cdc0e5a57af2fea21af
 ARG RT_IMAGE=ghcr.io/21-ci/rt:0.1.1@sha256:f97e799198af60447946792a910f2edc5b75bcf3daf5bf444bee115a0891a44f
 # rt is built on trixie (glibc 2.41): a Debian stage that runs it must not be older. Keep in step with the runtime's image.
-ARG DEBIAN_IMAGE=debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
+ARG DEBIAN_IMAGE=debian:trixie-slim@sha256:a72b4433de1cf7d6bae0c4cee74d0547f58601a643b3375f070c51600d63b6b2
 ARG DISTROLESS_IMAGE=gcr.io/distroless/cc-debian13:nonroot@sha256:3ee00291cf386ec52a552e6a858d555debd74776eb4bfa53fa3df2cd6677515e
 
 # ---------------------------------------------------------------------------------------------
