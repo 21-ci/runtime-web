@@ -115,17 +115,30 @@ describe("EnvEditor", () => {
     await waitFor(() => expect(puts).toEqual([{ MODE: "prod" }]));
   });
 
-  it("edits the raw .env text and returns to the table", async () => {
+  it("edits all variables as rows, adds one, and saves the whole map", async () => {
     const { puts } = useEnvHandlers({ MODE: "prod" });
     renderEditor();
     await screen.findByText("MODE");
-    await userEvent.click(screen.getByRole("button", { name: "Edit as .env" }));
-    const area = screen.getByRole("textbox", { name: "Environment variables" });
-    await userEvent.clear(area);
-    await userEvent.type(area, "MODE=dev{enter}DEBUG=1");
+    await userEvent.click(screen.getByRole("button", { name: "Edit all" }));
+    const value = screen.getByRole("textbox", { name: "Value" });
+    await userEvent.clear(value);
+    await userEvent.type(value, "dev");
+    await userEvent.click(screen.getByRole("button", { name: "Add row" }));
+    await userEvent.type(screen.getAllByRole("textbox", { name: "Key" })[1], "DEBUG");
+    await userEvent.type(screen.getAllByRole("textbox", { name: "Value" })[1], "1");
     await userEvent.click(screen.getByRole("button", { name: "Save variables" }));
     await waitFor(() => expect(puts).toEqual([{ MODE: "dev", DEBUG: "1" }]));
     expect(await screen.findByText("DEBUG")).toBeInTheDocument();
+  });
+
+  it("an empty added row does not block saving", async () => {
+    const { puts } = useEnvHandlers({ MODE: "prod" });
+    renderEditor();
+    await screen.findByText("MODE");
+    await userEvent.click(screen.getByRole("button", { name: "Edit all" }));
+    await userEvent.click(screen.getByRole("button", { name: "Add row" }));
+    await userEvent.click(screen.getByRole("button", { name: "Save variables" }));
+    await waitFor(() => expect(puts).toEqual([{ MODE: "prod" }]));
   });
 
   it("imports a .env file and merges it", async () => {

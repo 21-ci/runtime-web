@@ -324,6 +324,8 @@ export interface Version {
   lock_digest: string | null;
   build_state: string;
   failure: VersionFailure | null;
+  /** What the deploy claims ({git, label}): not verified, shown as text. */
+  meta?: unknown;
   created_at: number;
 }
 export interface UploadOpts {
@@ -366,6 +368,43 @@ export type Branch = Service & { scratch?: { name?: string; expires_at?: number 
 export interface SecretName {
   name: string;
   updated_at: number;
+  source?: "plain" | "vault";
+  last_synced_at?: number | null;
+  last_error?: string | null;
+}
+export interface SecretRefResult {
+  name: string;
+  source: string;
+  last_synced_at: number | null;
+}
+export interface DataEventsConfig {
+  topic: string;
+  tables: { name: string; ops: string[]; payload: "keys" | "row" }[];
+  kv_prefixes: { prefix: string; payload: "keys" | "row" }[];
+  max_backlog?: number;
+}
+export interface DataEvents {
+  state: "disabled" | "pending" | "active" | "paused_overflow" | "error";
+  lag: number;
+  backlog: number;
+  last_error: string | null;
+  tables: DataEventsConfig["tables"];
+  topic: string | null;
+  warnings: unknown[];
+}
+export interface PlanQuota {
+  limit: number | null;
+  used: number;
+  remaining: number | null;
+  period: "day" | "total" | "per_service";
+}
+/** GET /v1/usage. keys/usage.ts is the one place that reads it. */
+export interface PlanUsage {
+  plan: string;
+  day: string;
+  resets_at: number;
+  quotas: Record<string, PlanQuota>;
+  limits: Record<string, unknown>;
 }
 export interface Schedule {
   id: string;

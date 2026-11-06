@@ -16,7 +16,7 @@ import {
 import { useLogout } from "@/hooks/auth";
 import { LANGUAGES, currentLanguage, setLanguage } from "@/lib/i18n";
 import type { Theme } from "@/lib/theme";
-import { OrgAvatar } from "./org-switcher";
+import { PersonAvatar } from "./org-switcher";
 import { useShell } from "./shell-context";
 
 const THEMES = [
@@ -53,7 +53,7 @@ export function AccountMenu() {
         aria-label={t("account.menu")}
         className="ml-1 inline-flex h-8 cursor-pointer items-center gap-1 rounded-md py-0.5 pl-1 pr-1.5 text-muted outline-none transition-colors duration-[120ms] hover:bg-hover hover:text-text focus-visible:ring-2 focus-visible:ring-focus data-[state=open]:bg-hover"
       >
-        <OrgAvatar name={name} className="size-6 rounded-full text-[11px]" />
+        <PersonAvatar name={name} className="size-6 rounded-full [&_svg]:size-3.5" />
         <ChevronDown className="size-3.5" aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end" className="w-[220px]">

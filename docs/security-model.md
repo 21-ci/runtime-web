@@ -91,8 +91,40 @@ Changes to orgs, members, tokens, apps, domains and admin settings are recorded 
 action. Instance admins acting in an org are marked as such. Changes made with a bearer token record the token id
 (`tok_…`) as the actor.
 
+## Git deploys and previews
+
+Webhooks are verified per provider (GitHub, Gitea, GitLab) with a per-link secret, and every way of failing answers the
+same `404`. A webhook is only a hint: the console asks the provider for the branch's current head and deploys that. The
+first signed pull-request event pins the repository's numeric id. A fork's pull request is held with no service until
+a project admin approves that commit, and a later commit is held again. Previews get env only from `preview-env`,
+never from production, and a fork's preview gets it only when approved with `with_env`.
+
+## Data browser and bundles
+
+The data browser is read-only and for project admins. An instance admin needs a project role of their own. Reads use a
+separate key that holds only `data:read`, and the default key never has that scope. Each read is audited with who and a
+hash of the SQL or key, never values. Bundles hold settings, env values, data, blobs and sources, but no secrets, so
+exporting one needs `app.data.export`.
+
+## Alerts
+
+Channel configuration is sealed to its row and no route returns it. Webhook targets must be public `https`. Deliveries
+are signed with HMAC-SHA-256 under the channel's secret and carry a delivery id, because delivery is at least once.
+
+## Outbound calls from the console
+
+- **Update check.** Every six hours the console reads the public GitHub releases of both repositories, without a token.
+  It never installs anything. Only digits and dots from a tag reach the upgrade commands shown to an admin. Turn it off
+  with **Check for new releases** in the instance settings.
+- **Telemetry.** The console gives the runtime one number, the user count. The runtime is the only sender, and the opt-out
+  is on the node. See [Telemetry](admin/operations.md#telemetry).
+
 ## What is not protected
 
+- **Git webhook floods.** The webhook limit is per hook id, so requests with random ids are not limited at the
+  console. Rate-limit `/api/hooks/git/` at your edge if this matters to you.
+- **Runtime upgrade rollback.** `install.sh --upgrade-runtime` restores the old binary if the new one fails, but it
+  cannot undo a data migration the new binary already ran. Back up before you upgrade.
 - **A malicious instance admin** can read and change everything on the instance.
 - **A compromised host** or runtime operator can read the console's data, the keys and the environment.
 - **Apps are not a boundary against the runtime operator.** The runtime's own isolation is documented in its security

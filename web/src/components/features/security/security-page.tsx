@@ -1,4 +1,5 @@
 import { ShieldCheck as ShieldCheckTile } from "lucide-react";
+import { BoundedItems } from "@/components/ui/bounded";
 import { PageHeader } from "@/components/ui/page-header";
 import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
@@ -10,7 +11,6 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { ApiError } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 import { describeUserAgent } from "@/lib/user-agent";
@@ -26,6 +26,7 @@ import {
   useRevokeSession,
   useSessions,
   type LoginEvent,
+  type SessionInfo,
 } from "./hooks";
 
 const RESULT_KEY = {
@@ -193,6 +194,15 @@ function DisableTotp() {
   );
 }
 
+// orderedSessions puts the current session first, then groups the others by device so one device's
+// sessions sit together.
+function orderedSessions(items: SessionInfo[]): SessionInfo[] {
+  return [...items].sort((a, b) => {
+    if (a.current !== b.current) return a.current ? -1 : 1;
+    return describeUserAgent(a.ua).localeCompare(describeUserAgent(b.ua));
+  });
+}
+
 function SessionsSection() {
   const sessions = useSessions();
   const revoke = useRevokeSession();
@@ -228,9 +238,12 @@ function SessionsSection() {
       ) : sessions.isPending ? (
         <Skeleton className="h-24 w-full" />
       ) : (
-        <ul aria-label={t("sessions.list")} className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
-          {sessions.data.map((s) => (
-            <li key={s.id} className="group flex flex-wrap items-center justify-between gap-2 px-4 py-3 text-sm">
+        <BoundedItems
+          items={orderedSessions(sessions.data)}
+          getKey={(s) => s.id}
+          maxItems={10}
+          renderItem={(s) => (
+            <div className="group flex flex-wrap items-center justify-between gap-2 border-b border-line px-4 py-3 text-sm last:border-b-0">
               <span>
                 <span className="font-medium">{describeUserAgent(s.ua)}</span>
                 <span className="block text-muted">
@@ -251,9 +264,10 @@ function SessionsSection() {
                   {t("sessions.revoke")}
                 </Button>
               )}
-            </li>
-          ))}
-        </ul>
+            </div>
+          )}
+          className="rounded-lg border border-line bg-surface shadow-card"
+        />
       )}
     </section>
   );
@@ -278,26 +292,24 @@ function LoginHistorySection() {
       ) : logins.data.length === 0 ? (
         <EmptyState entity="security" title={t("logins.empty")} />
       ) : (
-        <Table>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("logins.when")}</TableHead>
-              <TableHead>{t("logins.device")}</TableHead>
-              <TableHead>{t("logins.method")}</TableHead>
-              <TableHead>{t("logins.result")}</TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {logins.data.map((e) => (
-              <TableRow key={e.id}>
-                <TableCell>{formatDateTime(e.at)}</TableCell>
-                <TableCell>{describeUserAgent(e.ua)}</TableCell>
-                <TableCell>{t(METHOD_KEY[e.method])}</TableCell>
-                <TableCell>{t(RESULT_KEY[e.result])}</TableCell>
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
+        <BoundedItems
+          items={logins.data}
+          getKey={(e) => e.id}
+          maxItems={10}
+          collapseId="security.logins"
+          title={t("logins.title")}
+          renderItem={(e) => (
+            <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-1 border-b border-line py-2 text-sm last:border-b-0">
+              <span className="min-w-0">
+                <span className="font-medium">{describeUserAgent(e.ua)}</span>
+                <span className="block text-[13px] text-muted">
+                  {formatDateTime(e.at)} · {t(METHOD_KEY[e.method])}
+                </span>
+              </span>
+              <Badge variant={e.result === "ok" ? "success" : "outline"}>{t(RESULT_KEY[e.result])}</Badge>
+            </div>
+          )}
+        />
       )}
     </section>
   );

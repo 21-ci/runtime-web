@@ -104,15 +104,15 @@ describe("code editor", () => {
     if (!cm) throw new Error("no EditorView");
     act(() => cm.dispatch({ changes: { from: 0, insert: "// edit\n" } }));
     await screen.findByRole("button", { name: /save \*/i });
-    act(() => void router.navigate({ to: "/$org/apps/$app/versions", params: { org: "acme", app: "hello" } }));
+    act(() => void router.navigate({ to: "/$org/apps/$app/deployments", params: { org: "acme", app: "hello" } }));
     const dialog = await screen.findByRole("alertdialog");
     expect(within(dialog).getByText("Leave without saving?")).toBeInTheDocument();
     await userEvent.click(within(dialog).getByRole("button", { name: /cancel/i }));
     await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
     expect(router.state.location.pathname).toBe("/acme/apps/hello/code");
-    act(() => void router.navigate({ to: "/$org/apps/$app/versions", params: { org: "acme", app: "hello" } }));
+    act(() => void router.navigate({ to: "/$org/apps/$app/deployments", params: { org: "acme", app: "hello" } }));
     await userEvent.click(within(await screen.findByRole("alertdialog")).getByRole("button", { name: "Discard changes" }));
-    await waitFor(() => expect(router.state.location.pathname).toBe("/acme/apps/hello/versions"));
+    await waitFor(() => expect(router.state.location.pathname).toBe("/acme/apps/hello/deployments"));
   });
 
   it("cmd+s triggers save mutation", async () => {
@@ -151,11 +151,13 @@ describe("code editor", () => {
     expect(await screen.findByText(/building/i)).toBeInTheDocument();
     built = true;
     const saved = await screen.findByRole("link", { name: /saved v2, not live/i });
-    expect(saved.getAttribute("href")).toContain("/acme/apps/hello/versions");
+    expect(saved.getAttribute("href")).toContain("/acme/apps/hello/deployments");
     // The preview stays on the live version: the runtime cannot address a saved one.
     expect(screen.getByText(/preview shows the live version \(v1\)/i)).toBeInTheDocument();
-    const frame = screen.getByTitle(/preview/i);
-    expect(frame.getAttribute("src")).toContain("https://run.example.test/s/hello/");
+    // Nothing calls the app until someone asks.
+    expect(screen.queryByTitle(/preview/i)).toBeNull();
+    expect(screen.getByRole("link", { name: "https://run.example.test/s/hello/" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /load preview/i })).toBeInTheDocument();
     let promoted: unknown = null;
     server.use(
       http.put(`${BASE}/live`, async ({ request }) => {

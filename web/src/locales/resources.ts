@@ -9,6 +9,8 @@ import apps from "./en/apps.json";
 import audit from "./en/audit.json";
 import auth from "./en/auth.json";
 import branches from "./en/branches.json";
+import operator from "./en/operator.json";
+import plans from "./en/plans.json";
 import platform from "./en/platform.json";
 import branding from "./en/branding.json";
 import common from "./en/common.json";
@@ -40,6 +42,8 @@ export const en = {
   audit,
   auth,
   branches,
+  operator,
+  plans,
   platform,
   branding,
   common,

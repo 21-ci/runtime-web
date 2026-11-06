@@ -32,6 +32,8 @@ export type Limits = {
   schedules: Quota;
   /** Trigger kinds the org's runtime plan allows (`plan.allowed_triggers`); null when unknown. */
   allowed_triggers: string[] | null;
+  /** Branches and previews counted in services, which the App lists hide; null when the node does not say. */
+  hidden_services?: number | null;
 };
 export type Usage = {
   app: string | null;

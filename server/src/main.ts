@@ -4,6 +4,7 @@ import { sdk } from "std:sdk";
 import { assets } from "./gen/assets.ts";
 import { runtimeStorage } from "./storage/runtime.ts";
 import { loadConfig } from "./config.ts";
+import { setGitTestOrigin } from "./git/provider.ts";
 import { scheduled } from "./jobs.ts";
 import { argon2Hasher } from "./auth/password.ts";
 import { sdkRtCtl } from "./runtime/client.ts";
@@ -22,6 +23,7 @@ const deps: Deps = {
   hasher: argon2Hasher,
   rtctl: sdkRtCtl(sdk("rtctl")),
 };
+setGitTestOrigin(deps.config.gitTestOrigin ?? null);
 deps.apps = appLookup(deps);
 const app = createApp(deps);
 

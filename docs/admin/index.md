@@ -25,7 +25,7 @@ The pages open in the normal console, with the org switcher and projects still i
 | Node | See the runtime node's status and its scheduler |
 | Cache | See the runtime's artifact cache |
 | Domains | See every custom domain on the instance and its verification state |
-| Settings | Instance policy, for example whether two-factor auth is required and which sign-in providers are enabled |
+| Settings | Instance policy, for example whether two-factor auth is required and which sign-in providers are enabled, and the check for new releases |
 | Audit | Search the instance-wide audit log |
 
 Admin actions that change state are written to the audit log. Review it on a schedule.

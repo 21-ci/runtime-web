@@ -59,7 +59,6 @@ export function CallersSection({ org, app }: { org: string; app: AppDetail }) {
             <p className="text-sm text-muted">{t("callers.none")}</p>
           ) : null}
           <FormAlert messages={errors} />
-          <p className="text-sm text-muted">{t("replaceNote")}</p>
           <div>
             <SaveButton disabled={patch.isPending}>
               {t("callers.save")}

@@ -31,9 +31,20 @@ const str = (v: unknown) => (typeof v === "string" ? v : "");
 export function registerMe(r: Router, deps: Deps): void {
   const s = (h: Handler) => requireSession(deps, withRetryAfter(codeAs422(h)));
 
+  // `?probe=1` is the console's start-up check: signed out is an expected answer there, not a failed request.
+  const quietWhenSignedOut = (h: Handler): Handler => async (ctx) => {
+    if (ctx.url.searchParams.get("probe") !== "1") return h(ctx);
+    try {
+      return await h(ctx);
+    } catch (e) {
+      if (e instanceof AppError && e.status === 401) return json({ user: null });
+      throw e;
+    }
+  };
+
   r.get(
     "/api/me",
-    s(async (ctx) => {
+    quietWhenSignedOut(s(async (ctx) => {
       const { user, session } = authOf(ctx);
       const db = await dbOf(deps);
       const base = await sessionResp(deps, user, session.csrf);
@@ -49,7 +60,7 @@ export function registerMe(r: Router, deps: Deps): void {
         policy: { require_2fa: pol.require2fa, password_login_disabled: pol.passwordLoginDisabled },
         mfa_enrollment_required: pol.require2fa && !base.user.totp_enabled,
       });
-    }),
+    })),
   );
 
   r.put(

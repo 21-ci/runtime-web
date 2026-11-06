@@ -153,6 +153,10 @@ export class Scoped {
   // self
   me = () => this.call<T.Me>({ method: "GET", path: "/v1/me" });
   limits = () => this.call<T.Limits>({ method: "GET", path: "/v1/limits" });
+  planUsage = () => this.call<T.PlanUsage>({ method: "GET", path: "/v1/usage" });
+  /** Operator only. The runtime holds the count and is the only side that reports it (telemetry.enabled decides). */
+  putConsoleTelemetry = (users: number) => this.call<unknown>({ method: "PUT", path: "/v1/telemetry/console", body: { users } });
+  telemetryPreview = () => this.call<{ sending: boolean }>({ method: "GET", path: "/v1/telemetry/preview" });
 
   // keys (tenant)
   listKeys = () => this.call<T.Key[]>({ method: "GET", path: "/v1/keys" });
@@ -237,7 +241,7 @@ export class Scoped {
   migrations = (s: string) => this.call<T.Migrations>({ method: "GET", path: `${svc(s)}/migrations` });
 
   // branches and switches
-  createBranch = (s: string, b: { name: string }, idempotencyKey: string) =>
+  createBranch = (s: string, b: { name: string; copy_data?: boolean; expires_at?: number }, idempotencyKey: string) =>
     this.call<T.Branch>({ method: "POST", path: `${svc(s)}/branches`, body: b, headers: { "idempotency-key": idempotencyKey } });
   listBranches = async (s: string) => {
     const b = await this.call<T.Branch[] | { items: T.Branch[] }>({ method: "GET", path: `${svc(s)}/branches` });
@@ -264,6 +268,15 @@ export class Scoped {
     this.call<null>({ method: "PUT", path: `${svc(s)}/secrets/${seg(name)}`, body: { value } });
   deleteSecret = (s: string, name: string) =>
     this.call<null>({ method: "DELETE", path: `${svc(s)}/secrets/${seg(name)}` });
+  putSecretRef = (s: string, name: string, b: { path: string; field: string }) =>
+    this.call<T.SecretRefResult>({ method: "PUT", path: `${svc(s)}/secrets/${seg(name)}/ref`, body: b });
+  deleteSecretRef = (s: string, name: string) =>
+    this.call<null>({ method: "DELETE", path: `${svc(s)}/secrets/${seg(name)}/ref` });
+  syncSecrets = (s: string) => this.call<unknown>({ method: "POST", path: `${svc(s)}/secrets/sync` });
+  getDataEvents = (s: string) => this.call<T.DataEvents>({ method: "GET", path: `${svc(s)}/data-events` });
+  putDataEvents = (s: string, b: T.DataEventsConfig) =>
+    this.call<T.DataEvents>({ method: "PUT", path: `${svc(s)}/data-events`, body: b });
+  deleteDataEvents = (s: string) => this.call<null>({ method: "DELETE", path: `${svc(s)}/data-events` });
 
   // schedules
   listSchedules = (s: string) => this.call<T.Schedule[]>({ method: "GET", path: `${svc(s)}/schedules` });

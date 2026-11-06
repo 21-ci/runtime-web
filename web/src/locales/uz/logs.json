@@ -1,8 +1,8 @@
 {
-  "title": "Jonli loglar",
+  "title": "Loglar",
   "compactLabel": "Loglar",
   "filterLabel": "Satrlarni filtrlash",
-  "filterPlaceholder": "Satrlarni filtrlash…",
+  "filterPlaceholder": "Filtr yoki @level:error @kind:build",
   "levelLabel": "Minimal daraja",
   "levels": {
     "all": "Barcha darajalar",
@@ -27,11 +27,43 @@
   "linesLabel": "Log satrlari",
   "empty": {
     "title": "Hali log satrlari yoʻq",
-    "description": "Ilova soʻrovlarni qayta ishlaganda satrlar shu yerda paydo boʻladi.",
+    "description": "Ilova biror narsa chiqarganda satrlar shu yerda paydo boʻladi. Hech narsa chiqarmagan soʻrov satr qoʻshmaydi.",
     "noMatchTitle": "Filtrga mos satrlar yoʻq",
     "noMatchDescription": "Barcha satrlarni koʻrish uchun filtrni tozalang.",
-    "compact": "Ilova soʻrovlarni qayta ishlaganda satrlar shu yerda paydo boʻladi.",
+    "compact": "Ilova biror narsa chiqarganda satrlar shu yerda paydo boʻladi. Hech narsa chiqarmagan soʻrov satr qoʻshmaydi.",
     "compactNoMatch": "Filtrga mos satrlar yoʻq."
   },
-  "streamEnded": "Log oqimi tugadi."
+  "scope": "Bu yerda kodingiz chiqargan matn va yigʻish natijasi, tugun saqlagan qismidan. Soʻrovlar birma-bir koʻrsatilmaydi: ularning soni va xatolari ilovaning Umumiy koʻrinishida.",
+  "streamEnded": "Log oqimi tugadi.",
+  "kindLabel": "Tur",
+  "kinds": {
+    "all": "Barcha turlar",
+    "runtime": "Ishga tushirish",
+    "build": "Yigʻish",
+    "system": "Tizim"
+  },
+  "modeLabel": "Rejim",
+  "mode": {
+    "live": "Jonli",
+    "range": "Oraliq"
+  },
+  "rangeLabel": "Oraliq",
+  "refresh": "Yangilash",
+  "loadNewer": "Yangiroq qatorlarni yuklash",
+  "rangeError": "Bu oraliq uchun loglarni yuklab boʻlmadi.",
+  "retry": "Qayta urinish",
+  "noRange": "{{since}} va {{until}} oraligʻida log qatorlari yoʻq.",
+  "details": {
+    "version": "Versiya",
+    "task": "Vazifa",
+    "trigger": "Trigger",
+    "truncated": "Qisqartirilgan",
+    "yes": "Ha"
+  },
+  "range": {
+    "custom": "Boshqa",
+    "since": "Dan",
+    "until": "Gacha",
+    "invalid": "Boshlanish tugashdan oldin boʻlishi kerak."
+  }
 }

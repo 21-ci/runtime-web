@@ -17,6 +17,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -76,7 +77,10 @@ export function TokensPage({ org, role }: { org: string; role: OrgRole }) {
           </h2>
           <p className="text-sm text-muted">{t("section.description")}</p>
         </div>
-        <NewTokenDialog org={org} role={role} />
+        <div className="flex flex-wrap items-center gap-2">
+          <ExportMenu formats={["csv"] as const} href={(f) => `/api/orgs/${encodeURIComponent(org)}/tokens?format=${f}`} />
+          <NewTokenDialog org={org} role={role} />
+        </div>
       </header>
 
       {tokens.isError ? (
@@ -90,7 +94,7 @@ export function TokensPage({ org, role }: { org: string; role: OrgRole }) {
           description={t("empty.description")}
         />
       ) : (
-        <Table>
+        <Table stack>
           <TableHeader>
             <TableRow>
               <TableHead>{t("common:name")}</TableHead>

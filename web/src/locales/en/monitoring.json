@@ -1,4 +1,39 @@
 {
+  "analytics": {
+    "plane": "Metrics",
+    "noTraffic": "No traffic in this range.",
+    "outcomes": "Outcomes",
+    "outcomesHint": "How requests ended, by runtime outcome. HTTP status codes are not recorded.",
+    "outcomeOk": "Completed",
+    "outcomeGuestError": "Guest error",
+    "latency": "Latency by phase",
+    "latencyHint": "From p50 to p99. The runtime keeps percentiles, not a full distribution.",
+    "phase": {
+      "total": "Total",
+      "queue": "Queue",
+      "init": "Start",
+      "exec": "Run"
+    },
+    "requestHours": "Requests by hour",
+    "requestHoursHint": "The last 7 days, in your time zone.",
+    "day": "Day",
+    "hour": "Hour"
+  },
+  "compare": {
+    "title": "Compare with a branch",
+    "description": "This App and a branch over the same window. Stats are kept per App, not per version.",
+    "branch": "Branch",
+    "variant": "App",
+    "errorRate": "Error rate",
+    "points": "percentage points",
+    "interval": "95% interval: {{low}} to {{high}}",
+    "same": "The interval crosses zero, so the difference for {{name}} could be chance.",
+    "better": "The whole interval is below zero: {{name}} very likely fewer errors.",
+    "worse": "The whole interval is above zero: {{name}} very likely more errors.",
+    "tooLittle": "Too little traffic to judge: each side needs {{min}} requests.",
+    "latency": "Latency",
+    "unavailable": "The figures for this comparison are unavailable."
+  },
   "range": {
     "label": "Time range",
     "1h": "1 hour",
@@ -15,6 +50,8 @@
     "restart": "The node keeps this in memory, so it starts over after a restart."
   },
   "node": {
+    "diskUsed": "{{pct}}% used",
+    "topEmpty": "No traffic in the last hour.",
     "title": "Monitoring",
     "cpu": "CPU, %",
     "load": "Load (1 min)",
@@ -25,19 +62,29 @@
     "uptime": "Uptime",
     "unavailable": "This node does not report monitoring data. It may run an older runtime.",
     "top": "Busiest Apps, last hour",
+    "other": "Other",
+    "errorCount": "Errors: {{n}}",
     "slug": "App",
     "requests": "Requests",
     "errors": "Errors",
-    "events": "Node events",
+    "events": "Activity",
     "eventsEmpty": "No events yet.",
     "kind": "Event"
   },
   "app": {
+    "totalRequests": "Total requests",
+    "totalErrors": "Total errors",
+    "errorRate": "Error rate",
+    "peakP95": "Peak p95, ms",
     "title": "Traffic",
     "requests": "Requests",
     "errors": "Errors",
     "p95": "p95, ms",
-    "weekNote": "Hourly counts. Percentiles are not kept for this range."
+    "queueP95": "Queue p95, ms",
+    "initP95": "Start p95, ms",
+    "execP95": "Run p95, ms",
+    "weekNote": "Hourly counts. Percentiles are not kept for this range.",
+    "unavailable": "Could not load traffic."
   },
   "backups": {
     "title": "Backups",

@@ -45,5 +45,6 @@
     "deployed": "Deployed",
     "skipped": "Skipped",
     "failed": "Failed"
-  }
+  },
+  "adminsOnly": "Only project admins can manage the repository link."
 }

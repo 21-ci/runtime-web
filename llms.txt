@@ -20,7 +20,7 @@ Docs site: https://21-ci.github.io/runtime-web/ . Source: https://github.com/21-
 
 ## Use the console
 
-- [User guide](https://21-ci.github.io/runtime-web/user-guide/): orgs, projects, apps, editor, logs, triggers, tokens and keys, domains, members, two-factor auth and OAuth
+- [User guide](https://21-ci.github.io/runtime-web/user-guide/): orgs, projects, apps, editor, logs, triggers, git deploys, branches and switches, previews, data browser, bundles, alerts, tokens and keys, domains, members, two-factor auth and OAuth
 
 ## API
 

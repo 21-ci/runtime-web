@@ -28,6 +28,8 @@
   "preflightError": "The check could not finish, so nothing changed.",
   "retry": "Check again",
   "preflight": {
+    "clear": "Nothing needs your attention.",
+    "review": "Items to review: {{count}}",
     "heading": "Before you switch",
     "liveChange": "Live version",
     "liveChangeValue": "v{{from}} to the build of {{name}} (v{{source}})",
@@ -44,9 +46,17 @@
   "warning": {
     "routes_refresh_delayed": "The new version is committed and reaches traffic once the node re-reads its routes.",
     "schedule_tick_skipped": "A schedule may skip one tick while an old run finishes.",
-    "other": "Runtime warning: {{code}}"
+    "other": "Runtime warning: {{code}}",
+    "replaces_with_starter": "This branch still runs the starter code. Switching replaces this app's live code with it."
   },
   "progress": {
+    "took": "Took {{time}}",
+    "step": {
+      "prepare": "Prepare",
+      "migrate": "Migrate",
+      "drain": "Drain",
+      "live": "Live"
+    },
     "heading": "Progress",
     "running": "{{count}} tasks of v{{version}} still running",
     "deadline": "Stops waiting at {{time}}",
@@ -69,6 +79,10 @@
     "rollback": "Rollback"
   },
   "history": {
+    "successRate": "Success rate",
+    "median": "Median duration",
+    "last": "Last switch",
+    "strip": "Completed {{ok}} of the last {{total}} switches",
     "title": "Switch history",
     "empty": "No switches yet.",
     "kind": "Kind",
@@ -83,6 +97,17 @@
   "rollbackDescription": "Version {{version}} becomes live again. Data written by the newer version stays.",
   "toast": {
     "switched": "Switching to version {{version}}",
-    "rolledBack": "Rolling back to version {{version}}"
-  }
+    "rolledBack": "Rolling back to version {{version}}",
+    "deleted": "Branch deleted"
+  },
+  "parentCode": "Start from this app's code",
+  "parentCodeHint": "The branch runs the live version from the start. Off: it has no code until you push, and the editor offers a starter.",
+  "parentCodeNotReady": "This app's live version has not finished building, so it cannot be copied yet. Try again after the first request, or start with no code.",
+  "copyUrlFor": "Copy URL of {{name}}",
+  "deleteFor": "Delete branch {{name}}",
+  "delete": "Delete branch",
+  "deleteTitle": "Delete branch {{name}}?",
+  "deleteHint": "Its code, data and secrets are deleted. This app is not affected.",
+  "count_one": "{{count}} branch",
+  "count_other": "{{count}} branches"
 }

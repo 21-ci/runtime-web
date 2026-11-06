@@ -2,6 +2,7 @@
   "breadcrumb": "Code",
   "readOnlyAccess": "You have read-only access to this app's code.",
   "readOnlyVersion": "This version is read-only.",
+  "firstPush": "Nothing has been pushed here yet. Edit this starter and save to push the first version.",
   "wasm": "This version is a WebAssembly component. Its source is not editable here; deploy a new build from your toolchain.",
   "save": "Save",
   "saveDirty": "Save *",
@@ -10,8 +11,18 @@
     "button": "Preview",
     "toggle": "Show or hide the response pane",
     "label": "Preview",
+    "load": "Load preview",
+    "loadHint": "This sends one real request to the live app. It counts in usage and metrics, and runs what the app does on GET /.",
+    "pretty": "Pretty-print",
+    "body": "Response body",
+    "needsKey": "This app needs a key, and the preview calls it without one.",
+    "truncated": "Showing the first part of the response.",
+    "blockedTitle": "Preview can't be embedded here",
+    "blockedBody": "The console's security policy does not allow framing this app's origin. Open it in a new tab instead.",
+    "openApp": "Open app",
     "frame": "App preview",
-    "liveOnly": "The preview shows the live version (v{{version}}). Deploy to see your saved changes."
+    "liveOnly": "The preview shows the live version (v{{version}}). Deploy to see your saved changes.",
+    "needsKeyClear": "This app needs an API key, so the console cannot load it here. Call it with a key:"
   },
   "files": {
     "title": "Files",

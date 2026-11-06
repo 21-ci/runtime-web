@@ -1,8 +1,10 @@
 import { QueryClientProvider } from "@tanstack/react-query";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
+import { http, HttpResponse } from "msw";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
+import { server } from "@/test/msw";
 import { createQueryClient } from "@/lib/query";
 import { FakeEventSource } from "./fake-event-source";
 import { LogsView } from "./logs-view";
@@ -43,14 +45,90 @@ describe("LogsView", () => {
     vi.unstubAllGlobals();
   });
 
+  it("says what the page shows: what the code prints, not each request", () => {
+    renderLogs();
+    expect(screen.getByText(/what your code prints/i)).toBeInTheDocument();
+    expect(screen.getByText(/requests are not listed/i)).toBeInTheDocument();
+    expect(screen.getByText(/prints something/i)).toBeInTheDocument();
+  });
+
   it("shows structured log fields", () => {
     renderLogs();
     act(() => {
       latest().open();
       latest().emit("log", { ...line(1, "order placed"), fields: { order: 7 } }, "1");
     });
-    expect(screen.getByText("order placed")).toBeInTheDocument();
-    expect(screen.getByText('{"order":7}')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: /order placed/ }));
+    expect(screen.getByText("order")).toBeInTheDocument();
+    expect(screen.getByText("7")).toBeInTheDocument();
+    expect(screen.getByText("http")).toBeInTheDocument();
+  });
+
+  it("@level and @kind tokens filter what the stream shows", () => {
+    renderLogs();
+    act(() => {
+      latest().open();
+      latest().emit("log", line(1, "calm"), "1");
+      latest().emit("log", line(2, "boom", "error"), "2");
+    });
+    fireEvent.change(screen.getByLabelText("Filter lines"), { target: { value: "@level:error" } });
+    expect(screen.getByText("boom")).toBeInTheDocument();
+    expect(screen.queryByText("calm")).not.toBeInTheDocument();
+  });
+
+  it("the kind select filters the stream", async () => {
+    renderLogs();
+    act(() => {
+      latest().open();
+      latest().emit("log", line(1, "app line"), "1");
+      latest().emit("log", { ...line(2, "compile line"), kind: "build" }, "2");
+    });
+    await pickOption(userEvent, screen.getByLabelText("Kind"), "Build");
+    expect(screen.getByText("compile line")).toBeInTheDocument();
+    expect(screen.queryByText("app line")).not.toBeInTheDocument();
+  });
+
+  describe("range mode", () => {
+    function ndjson(rows: unknown[], seen?: URL[]) {
+      server.use(
+        http.get("/api/orgs/acme/apps/hello/logs", ({ request }) => {
+          seen?.push(new URL(request.url));
+          return new HttpResponse(rows.map((r) => JSON.stringify(r)).join("\n") + (rows.length ? "\n" : ""), { headers: { "content-type": "application/x-ndjson" } });
+        }),
+      );
+    }
+
+    it("closes the stream and reads the window from the server", async () => {
+      const seen: URL[] = [];
+      ndjson([line(1, "old line")], seen);
+      renderLogs();
+      const es = latest();
+      fireEvent.click(screen.getByRole("radio", { name: "Range" }));
+      expect(es.closed).toBe(true);
+      expect(await screen.findByText("old line")).toBeInTheDocument();
+      expect(seen[0]?.searchParams.get("view")).toBe("range");
+      expect(seen[0]?.searchParams.get("format")).toBeNull();
+      expect(seen[0]?.searchParams.get("since")).toMatch(/Z$/);
+      expect(screen.queryByRole("button", { name: "Pause" })).not.toBeInTheDocument();
+    });
+
+    it("an empty window names the range", async () => {
+      ndjson([]);
+      renderLogs();
+      fireEvent.click(screen.getByRole("radio", { name: "Range" }));
+      expect(await screen.findByText(/^No log lines between .+ and .+\.$/)).toBeInTheDocument();
+    });
+
+    it("export carries the range and level", async () => {
+      ndjson([line(1, "old line")]);
+      const user = userEvent.setup();
+      renderLogs();
+      await user.click(screen.getByRole("radio", { name: "Range" }));
+      await user.click(screen.getByRole("button", { name: "Export" }));
+      const href = (await screen.findByRole("menuitem", { name: ".txt" })).getAttribute("href") ?? "";
+      expect(href).toContain("/api/orgs/acme/apps/hello/logs?format=txt");
+      expect(href).toContain("since=");
+    });
   });
 
   it("logs resume after reconnect", () => {

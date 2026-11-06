@@ -85,7 +85,17 @@ export function DangerZone({
                 components={{ mono: <span className="font-mono" /> }}
               />
             </Label>
-            <Input id="confirm-slug" value={typed} onChange={(e) => setTyped(e.target.value)} autoComplete="off" />
+            <Input
+              id="confirm-slug"
+              value={typed}
+              onChange={(e) => setTyped(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key !== "Enter") return;
+                e.preventDefault();
+                if (!del.isPending) void onConfirm();
+              }}
+              autoComplete="off"
+            />
           </div>
           <DialogFooter>
             <Button variant="secondary" onClick={() => setOpen(false)}>

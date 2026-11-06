@@ -3,6 +3,8 @@
 import type { Deps } from "../app.ts";
 import { authOf, requireSession } from "../auth/middleware.ts";
 import { dbOf } from "../auth/types.ts";
+import { audit } from "../audit/audit.ts";
+import { csvLine, exportFileName, exportFormat, exportResponse } from "../http/export.ts";
 import type { Router } from "../http/router.ts";
 import { json, noContent, readJson } from "../http/json.ts";
 import { addMember, listMembers, orgAccess, removeGrant, removeMember, setGrant, setRole } from "../orgs/members.ts";
@@ -32,8 +34,19 @@ export function registerOrgs(r: Router, deps: Deps): void {
   r.get(
     "/api/orgs/:org/members",
     s(async (ctx) => {
+      const format = exportFormat(ctx.url.searchParams, ["csv"] as const);
       const a = await orgAccess(deps, authOf(ctx).user, ctx.params.org as string, "org.read");
-      return json({ items: await listMembers(deps, a.org.id) });
+      const items = await listMembers(deps, a.org.id);
+      if (!format) return json({ items });
+      const res = await exportResponse({
+        fileName: exportFileName([a.org.slug], "members", null, deps.now(), format),
+        format,
+        header: "name,email,role,grants",
+        rows: items,
+        line: (m) => csvLine([m.user.name, m.user.email, m.role, m.grants]),
+      });
+      await audit(deps, { actor: a.actor, orgId: a.org.id, action: "org.members.export", target: a.org.slug, detail: { format, rows: items.length } });
+      return res;
     }),
   );
 

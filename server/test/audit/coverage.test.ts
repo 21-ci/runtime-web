@@ -46,6 +46,8 @@ const AUDITED: Record<string, string[]> = {
   "POST /api/orgs/:org/apps/:app/previews/:pr/approve": ["preview.approve"],
   "PUT /api/orgs/:org/apps/:app/preview-env": ["preview.env"],
   "POST /api/orgs/:org/apps/:app/versions/:v/rebuild": ["app.rebuild"],
+  "POST /api/orgs/:org/apps/wasm": ["app.create"],
+  "POST /api/orgs/:org/apps/:app/branches": ["app.branch.create"],
   // A dry run writes nothing and is deliberately not audited.
   "POST /api/orgs/:org/apps/:app/switch": ["app.switch"],
   "POST /api/orgs/:org/apps/:app/switches/:id/rollback": ["app.rollback"],
@@ -67,6 +69,11 @@ const AUDITED: Record<string, string[]> = {
   "PATCH /api/orgs/:org/apps/:app/env": ["app.env"],
   "PUT /api/orgs/:org/apps/:app/secrets/:name": ["app.secret.set"],
   "DELETE /api/orgs/:org/apps/:app/secrets/:name": ["app.secret.delete"],
+  "PUT /api/orgs/:org/apps/:app/secrets/:name/ref": ["app.secret.ref_set"],
+  "DELETE /api/orgs/:org/apps/:app/secrets/:name/ref": ["app.secret.ref_delete"],
+  "POST /api/orgs/:org/apps/:app/secrets/sync": ["app.secret.sync"],
+  "PUT /api/orgs/:org/apps/:app/data-events": ["app.data_events.set"],
+  "DELETE /api/orgs/:org/apps/:app/data-events": ["app.data_events.delete"],
   "POST /api/orgs/:org/apps/:app/schedules": ["app.schedule.create"],
   "PATCH /api/orgs/:org/apps/:app/schedules/:id": ["app.schedule.update"],
   "DELETE /api/orgs/:org/apps/:app/schedules/:id": ["app.schedule.delete"],
@@ -77,6 +84,7 @@ const AUDITED: Record<string, string[]> = {
   "POST /api/orgs/:org/apps/:app/domains/:id/verify": ["domain.verify"],
   "DELETE /api/orgs/:org/apps/:app/domains/:id": ["domain.remove"],
   "PUT /api/admin/settings": ["settings.update"],
+  "PUT /api/admin/updates": ["updates.configure"],
   "PUT /api/admin/branding": ["branding.update"],
   "DELETE /api/admin/branding": ["branding.reset"],
   "PUT /api/admin/branding/assets/:kind": ["branding.asset_update"],
@@ -88,6 +96,8 @@ const AUDITED: Record<string, string[]> = {
 /** Mutating routes that write no audit row, and why. */
 const NOT_AUDITED: Record<string, string> = {
   "POST /api/orgs/:org/apps/:app/live/dry-run": "runs migrations on a copy and changes nothing",
+  "POST /api/orgs/:org/apps/:app/preview": "one anonymous GET any visitor could make; changes nothing in the console",
+  "POST /api/admin/updates/check": "reads public release lists; changes no setting",
   "POST /api/hooks/git/:hook": "unauthenticated hint from a Git host; git_deliveries is the record",
   "POST /api/auth/login": "session lifecycle; sessions table is the record",
   "POST /api/auth/mfa": "session lifecycle",

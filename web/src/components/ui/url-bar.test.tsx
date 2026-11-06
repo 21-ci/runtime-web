@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { Badge } from "./badge";
-import { IconTile, LetterTile, hueFor } from "./icon-tile";
+import { IconTile, hueFor } from "./icon-tile";
 import { Kbd, PageHeader, SectionLabel, StatTile } from "./page-header";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "./tabs";
 import { PreviewFrame } from "./preview-frame";
@@ -70,13 +70,9 @@ describe("page primitives", () => {
     const { container } = render(
       <>
         <IconTile icon={Boxes} entity="apps" solid size="xl" />
-        <LetterTile label="hello" hue="green" size="lg" solid />
-        <LetterTile label="" size="xs" />
       </>,
     );
-    expect(container.querySelector(".bg-tag-blue-solid")).not.toBeNull();
-    expect(container.textContent).toContain("H");
-    expect(container.textContent).toContain("?");
+    expect(container.querySelector(".bg-tag-blue-solid svg")).not.toBeNull();
   });
 
   it("badge shows a dot and tabs support the segmented variant", async () => {

@@ -6,8 +6,25 @@ All notable changes to this project are documented here. The format follows
 
 ## [Unreleased]
 
+### Upgrade notes
+
+- **Runtime version.** This release needs the `rt` release that contains the new control routes (branches, switches,
+  backups, data browser, bundles, telemetry); 0.1.1 is too old. `RT_PINNED_VERSION` in `install.sh` and `RT_IMAGE` in
+  `Dockerfile` must move to that release before this one is tagged.
+- **rtctl allowlist.** `allowed_paths` in `deploy/rt.rtweb.toml` gained `/v1/scratch`, `/v1/usage`, `/v1/node/backups`,
+  `/v1/node/backups/status`, `/v1/telemetry/console` and `/v1/telemetry/preview`. A manual install must copy the new
+  file into `rt.toml` and restart `rt`; `install.sh` replaces its marked block.
+- **SDK republish.** The `rtctl` SDK changed. Publish it again by re-running the installer or `make server-install`.
+- **Telemetry.** A runtime built with a telemetry URL sends one anonymous report a day by default. The console adds only
+  the user count, through the runtime, and never contacts the telemetry server. Opt out on the node with
+  `telemetry.enabled = false` or `DO_NOT_TRACK=1`; see the report with `rt telemetry show`.
+
 ### Added
 
+- Git deploys, pull-request previews, branches with switch and rollback, app bundles and forks, a read-only data
+  browser, data-change events, ingress rate rules, alert channels and rules, node monitoring and a backups page.
+- Update notice: instance admins see in the sidebar when `rt` or Runtime Web has a newer release, with the release notes
+  and the upgrade commands. The check reads GitHub every six hours and can be turned off in the instance settings.
 - Interactive installer: `install.sh` asks for the mode (bare systemd service or Docker Compose), the domain, the
   console host, the apps domain, certificates and the ACME e-mail, checks DNS (including the `*.<apps domain>`
   wildcard) and ports 80/443, waits for the console and prints the URLs, the one-time setup token, the next steps and

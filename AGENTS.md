@@ -33,6 +33,7 @@ Vocabulary, use it exactly:
 | `server/src/alerts/` | alert channels, rules, evaluation into state and outbox, the send job |
 | `server/src/hooks/` | webhook verification (GitHub, Gitea, GitLab) and outbound signing |
 | `server/src/git/` | repository links and branch rules; webhook to deploy pipeline with the head check |
+| `server/src/updates/`, `server/src/telemetry/` | the GitHub release check for the update notice; the daily user count pushed to the runtime |
 | `deploy-action/` | GitHub Action that calls `POST …/deploys` |
 | `server/src/runtime/` | control-API client over `sdk("rtctl")`; `errors.ts` maps runtime errors |
 | `server/src/db/`, `server/src/storage/` | schema migrations; `std:sql` / `std:kv` adapters |
@@ -76,6 +77,8 @@ Vocabulary, use it exactly:
   plain SQL with append-only migrations in `server/src/db/schema.ts`.
 - Console: data goes through TanStack Query hooks only (never `fetch` inside a component). Use the primitives in
   `web/src/components/ui/` and the tokens in [docs/contributing/design-tokens.md](docs/contributing/design-tokens.md).
+  Every screen follows [docs/contributing/ui-guidelines.md](docs/contributing/ui-guidelines.md) (components, lists,
+  states, exports, copy, responsive and theme rules). It is binding.
 - Tests: Vitest everywhere; `testApp()` and `FakeRtCtl` on the server, Testing Library and MSW in the console.
 - Comments explain why, not what. Do not reference planning documents, task numbers or design doc sections in code.
 

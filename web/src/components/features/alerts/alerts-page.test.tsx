@@ -52,11 +52,44 @@ describe("AlertsPage", () => {
   it("creates a webhook channel with the fields the API takes", async () => {
     const posts = mount([], []);
     const user = userEvent.setup();
-    await user.type(await screen.findByLabelText("Name"), "pager");
-    await user.type(screen.getByLabelText("URL"), "https://hooks.example.com/x");
-    await user.type(screen.getByLabelText("Signing secret"), "0123456789abcdef");
-    await user.click(screen.getByRole("button", { name: "Add channel" }));
+    await user.click(await screen.findByRole("button", { name: "Add channel" }));
+    const sheet = await screen.findByRole("dialog");
+    await user.type(within(sheet).getByLabelText("Name"), "pager");
+    await user.type(within(sheet).getByLabelText("URL"), "https://hooks.example.com/x");
+    await user.type(within(sheet).getByLabelText("Signing secret"), "0123456789abcdef");
+    await user.click(within(sheet).getByRole("button", { name: "Add channel" }));
     await waitFor(() => expect(posts).toEqual([{ kind: "webhook", name: "pager", config: { url: "https://hooks.example.com/x", secret: "0123456789abcdef" } }]));
+  });
+
+  it("names the empty fields instead of sending an empty form", async () => {
+    const posts = mount([], []);
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Add channel" }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Add channel" }));
+    expect((await screen.findAllByText("Fill this in.")).length).toBe(3);
+    expect(posts).toEqual([]);
+  });
+
+  it("shows a refused URL on its field", async () => {
+    mount([], []);
+    server.use(http.post("*/api/orgs/acme/alerts/channels", () => HttpResponse.json({ error: { code: "invalid", message: "invalid", details: { fields: { "config.url": "not_public_https" } } } }, { status: 422 })));
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Add channel" }));
+    const sheet = await screen.findByRole("dialog");
+    await user.type(within(sheet).getByLabelText("Name"), "pager");
+    await user.type(within(sheet).getByLabelText("URL"), "http://127.0.0.1/hook");
+    await user.type(within(sheet).getByLabelText("Signing secret"), "0123456789abcdef");
+    await user.click(within(sheet).getByRole("button", { name: "Add channel" }));
+    expect(await screen.findByText(/Use a public HTTPS address/)).toBeTruthy();
+    expect(screen.getByLabelText("URL").getAttribute("aria-invalid")).toBe("true");
+  });
+
+  it("reports the status and excerpt of a failed test", async () => {
+    mount([CHANNEL], []);
+    server.use(http.post("*/api/orgs/acme/alerts/channels/ach_1/test", () => HttpResponse.json({ ok: false, status: "4xx", http_status: 403, excerpt: "bad token" })));
+    const user = userEvent.setup();
+    await user.click(await screen.findByRole("button", { name: "Send test" }));
+    expect(await screen.findByText("Test message failed: HTTP 403: bad token")).toBeTruthy();
   });
 
   it("does not delete a rule or channel until confirmed", async () => {
@@ -81,7 +114,8 @@ describe("AlertsPage", () => {
     }));
     mount([CHANNEL], [{ ...RULE, kind: "app_error_rate", params: { threshold_pct: 5, min_requests: 100 } }]);
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "Mute for 24 hours" }));
+    await user.click(await screen.findByRole("button", { name: "Mute" }));
+    await user.click(await screen.findByRole("menuitem", { name: "Mute for 24 hours" }));
     await waitFor(() => expect(patches).toHaveLength(1));
     expect((patches[0] as { muted_until: number }).muted_until).toBeGreaterThan(Date.now());
     await user.click(screen.getAllByRole("button", { name: "Edit" }).at(-1) as HTMLElement);
@@ -118,7 +152,12 @@ describe("AlertsPage", () => {
   it("creates a rule on the first channel", async () => {
     const posts = mount([CHANNEL], []);
     const user = userEvent.setup();
-    await user.click(await screen.findByRole("button", { name: "Add rule" }));
+    await user.click(await waitFor(() => {
+      const open = screen.getByRole("button", { name: "Add rule" });
+      expect(open).toBeEnabled();
+      return open;
+    }));
+    await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Add rule" }));
     await waitFor(() => expect(posts).toEqual([{ kind: "app_error_rate", channels: ["ach_1"] }]));
   });
 });

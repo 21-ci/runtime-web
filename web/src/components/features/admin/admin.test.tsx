@@ -1,4 +1,5 @@
 import { configure, screen, waitFor, within } from "@testing-library/react";
+import { toNodeConfig } from "./use-admin";
 import userEvent from "@testing-library/user-event";
 import { http, HttpResponse } from "msw";
 import { beforeEach, describe, expect, it, vi } from "vitest";
@@ -243,7 +244,7 @@ function useAdminStubs() {
   useAdminFixtures();
   server.use(
     http.get("/api/admin/node/status", () => HttpResponse.json({ state: "running", uptime_s: 3600 })),
-    http.get("/api/admin/node/scheduler", () => HttpResponse.json({ queued: 7 })),
+    http.get("/api/admin/node/scheduler", () => HttpResponse.json({ queued: 7, uptime_ms: 60_000 })),
     http.get("/api/admin/node/config", () =>
       HttpResponse.json({ degradation_mode: "shed", default_profile: "small", rate_limit: { rps: 10 } }),
     ),
@@ -274,7 +275,7 @@ describe("admin pages in the console shell", () => {
 
     const instance = within(nav).getByRole("group", { name: "Instance" });
     expect(within(instance).getByRole("link", { name: "Users" }).getAttribute("aria-current")).toBe("page");
-    expect(within(instance).getByRole("link", { name: "Node" }).getAttribute("href")).toBe("/admin/node");
+    expect(within(instance).getByRole("link", { name: "Node health" }).getAttribute("href")).toBe("/admin/node");
 
     const crumbs = screen.getByRole("navigation", { name: "Breadcrumb" });
     expect(within(crumbs).getByText("Users").getAttribute("aria-current")).toBe("page");
@@ -340,6 +341,10 @@ describe("admin node", () => {
     await waitFor(() => expect(drain).toHaveBeenCalledWith({ confirm: "drain" }));
   });
 
+  it("reads the runtime's real config shape into the form", () => {
+    expect(toNodeConfig({ node: { default_profile: "balanced" } }, "normal")).toEqual({ degradation_mode: "normal", default_profile: "balanced", rate_limit: {} });
+  });
+
   it("node config form has only three fields", async () => {
     useAdminStubs();
     renderAt("/admin/node");
@@ -348,30 +353,48 @@ describe("admin node", () => {
     const names = within(form)
       .getAllByRole("textbox")
       .map((field) => field.getAttribute("name"))
+      .filter((name): name is string => name !== null)
       .sort();
-    expect(names).toEqual(["default_profile", "degradation_mode", "rate_limit"]);
+    // The rate limit is a set of key and value rows, so its inputs carry no name.
+    expect(names).toEqual(["default_profile", "degradation_mode"]);
+    expect(within(form).getByRole("button", { name: "Add setting" })).toBeInTheDocument();
     expect(within(form).getByText("applies after restart")).toBeInTheDocument();
   });
 
   it("status and scheduler cards render", async () => {
     useAdminStubs();
     renderAt("/admin/node");
-    expect(await screen.findByText("running")).toBeInTheDocument();
-    expect(screen.getByText("7")).toBeInTheDocument();
+    const scheduler = await screen.findByRole("region", { name: "Scheduler" });
+    expect(within(scheduler).queryByText("Raw")).toBeNull();
+    expect(await within(scheduler).findByText("Running for")).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Status" })).toBeInTheDocument();
   });
 
-  it("lists scheduler processes in their own full-width table", async () => {
+  it("writes the fields that matter by hand, rounded, and leaves the rest to Raw", async () => {
     useAdminStubs();
     server.use(
+      http.get("/api/admin/node/status", () =>
+        HttpResponse.json({ version: "1.2.3", mode: "shed", processors: 4, host: { load: [1.36083984375, 1, 1], disk: { path_label: "data", free_bytes: 1024, total_bytes: 2048 } } }),
+      ),
       http.get("/api/admin/node/scheduler", () =>
-        HttpResponse.json({ queued: 7, procs: [{ id: 0, kind: "deno", status: "idle" }] }),
+        HttpResponse.json({ grq: { deno: 1, wasm: 2, build: 0 }, procs: [{ id: 0, kind: "deno", status: "idle" }] }),
       ),
     );
     renderAt("/admin/node");
-    const procs = await screen.findByRole("region", { name: "Procs" });
-    expect(within(procs).getByRole("columnheader", { name: "Kind" })).toBeInTheDocument();
-    const scheduler = screen.getByRole("region", { name: "Scheduler" });
-    expect(within(scheduler).queryByRole("table")).toBeNull();
+    expect(await screen.findByText("Shedding load")).toBeInTheDocument();
+    expect(await screen.findByText("1.36 / 1.00 / 1.00")).toBeInTheDocument();
+    expect(await screen.findByText("Waiting in shared queues")).toBeInTheDocument();
+    expect(screen.queryByText("Grq")).toBeNull();
+    expect(screen.queryByText("Path label")).toBeNull();
+    expect(screen.queryByRole("region", { name: "Procs" })).toBeNull();
+  });
+
+  it("warns when the node has no backups", async () => {
+    useAdminStubs();
+    server.use(http.get("/api/admin/backups/status", () => HttpResponse.json({ enabled: false, schedule: "", last_ok_at: null, last_failure: null, next_at: null, running_id: null, destination: null })));
+    renderAt("/admin/node");
+    expect(await screen.findByText("No backups are configured")).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: "Set up backups" })).toHaveAttribute("href", "/admin/backups");
   });
 });
 
@@ -380,8 +403,28 @@ describe("admin cache", () => {
     useAdminStubs();
     renderAt("/admin/cache");
     expect(await screen.findByRole("heading", { name: "Cache" })).toBeInTheDocument();
-    expect(await screen.findByText("42")).toBeInTheDocument();
-    expect(screen.getByText("0.93")).toBeInTheDocument();
+    expect(await screen.findByRole("region", { name: "Most used versions" })).toBeInTheDocument();
+    expect(screen.queryByText("Raw")).toBeNull();
+  });
+
+  it("maps digests to App and version and rounds the hit rate", async () => {
+    useAdminStubs();
+    server.use(
+      http.get("/api/admin/node/cache", () =>
+        HttpResponse.json({
+          deno: { t1_entries: 2, t1_bytes: 2048, t2_entries: 1, t2_bytes: 1024, hits: 2, misses: 1, loads_inflight: 0, builds_inflight: 0 },
+          top: { deno: ["sha256:aaaaaaaaaaaaaaaaaaaa", "sha256:bbbbbbbbbbbbbbbbbbbb"], wasm: [] },
+          owners: { "sha256:aaaaaaaaaaaaaaaaaaaa": { org: "acme", app: "todo", version: 3 } },
+        }),
+      ),
+    );
+    renderAt("/admin/cache");
+    expect(await screen.findByText("todo")).toBeInTheDocument();
+    expect(screen.getByText("67%")).toBeInTheDocument();
+    expect(screen.getByText("System or removed App")).toBeInTheDocument();
+    expect(screen.getAllByText("System app")).toHaveLength(2);
+    expect(screen.queryByText("–")).toBeNull();
+    expect(screen.getByText("aaaaaaaaaaaa")).toBeInTheDocument();
   });
 
   it("renders in Russian", async () => {
@@ -390,7 +433,6 @@ describe("admin cache", () => {
       useAdminStubs();
       renderAt("/admin/cache");
       expect(await screen.findByRole("heading", { name: "Кэш" })).toBeInTheDocument();
-      expect(screen.getByRole("region", { name: "Кэш узла" })).toBeInTheDocument();
     } finally {
       await setLanguage("en");
     }

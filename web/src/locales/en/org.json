@@ -4,11 +4,13 @@
   },
   "identity": {
     "title": "Organization",
-    "description": "Identity of this workspace. Renaming is not available yet.",
+    "description": "Identity of this workspace.",
     "slug": "Slug",
     "role": "Your role"
   },
   "quota": {
+    "near": "Near the limit: {{count}}",
+    "ok": "Within limits",
     "title": "Quota",
     "unavailable": "Quota not available",
     "resetsAt": "Daily counters reset {{time}}",
@@ -30,13 +32,15 @@
     }
   },
   "usageCard": {
-    "title": "Usage today",
-    "aria": "Usage",
+    "title": "Usage today by app",
     "empty": "No invocations yet today.",
     "invocations": "Invocations",
     "cpu": "CPU",
     "egress": "Egress",
-    "deletedApp": "Deleted app"
+    "deletedApp": "Deleted app",
+    "description": "Counted per UTC day.",
+    "app": "App",
+    "adminsOnly": "Only org owners and admins can see usage by app."
   },
   "rotate": {
     "title": "Default key",
@@ -54,7 +58,9 @@
     "slug": "Slug",
     "name": "Name (optional)",
     "environments": "Environments",
-    "environmentsHint": "Comma-separated, for example dev, staging, prod.",
+    "environmentPlaceholder": "Type a name, then press Enter",
+    "environmentsHint": "For example dev, staging, prod. Press Enter or comma to add each one.",
+    "removeEnvironment": "Remove {{name}}",
     "submit": "Create project",
     "errors": {
       "slug": "Enter a project name.",

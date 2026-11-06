@@ -9,7 +9,7 @@ import { randomBytes, base64url } from "../crypto/random.ts";
 import { AppError, conflict, invalid } from "../http/errors.ts";
 import type { Row } from "../storage/types.ts";
 import { appFor, type OrgCtx } from "../apps/service.ts";
-import { parseBaseUrl, PROVIDERS, validBranch, validPattern, validRepo, validSubdir, type Provider } from "./provider.ts";
+import { isGitTestOrigin, parseBaseUrl, PROVIDERS, validBranch, validPattern, validRepo, validSubdir, type Provider } from "./provider.ts";
 
 export const hookSecretContext = (hook: string) => `git.hook_secret:${hook}`;
 export const tokenContext = (hook: string) => `git.token:${hook}`;
@@ -109,7 +109,7 @@ export async function createLink(c: OrgCtx, slug: string, b: Record<string, unkn
   if (Object.keys(fields).length) throw invalid(fields);
   if (await linkOf(c, app.id)) throw conflict("git_link_exists", "this app already has a repository link");
   try {
-    await assertPublicHost(c.deps, new URL(base as string).hostname.replace(/\.+$/, ""));
+    if (!isGitTestOrigin(base as string)) await assertPublicHost(c.deps, new URL(base as string).hostname.replace(/\.+$/, ""));
   } catch {
     throw invalid({ base_url: "not_public" });
   }

@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, Outlet } from "@tanstack/react-router";
 
 import { BrandingEffects } from "@/components/features/branding/brand";
+import { NotFoundPage } from "@/components/features/empty/not-found-page";
 import { Toaster } from "@/components/ui/toast";
 import { RuntimeStatusBanner } from "@/components/runtime-status-banner";
 import { api, getCsrfToken, setCsrfToken } from "@/lib/api";
@@ -18,13 +19,18 @@ export type Me = {
 };
 
 // bootstrapSession loads GET /api/me after a reload (the CSRF token lives only in module memory).
-// A 401 means signed out: the token stays cleared and no redirect happens here.
+// Signed out is an expected answer (`user: null` from the probe, or a 401 from an older server):
+// the token stays cleared and no redirect happens here.
 export async function bootstrapSession(): Promise<Me | null> {
   if (getCsrfToken()) return null;
   try {
-    const me = await api.get<Me>("/me", { skipGate: true });
-    setCsrfToken(me.csrf);
-    return me;
+    const me = await api.get<Me | { user: null }>("/me?probe=1", { skipGate: true });
+    if (!me.user) {
+      setCsrfToken(null);
+      return null;
+    }
+    setCsrfToken((me as Me).csrf);
+    return me as Me;
   } catch {
     setCsrfToken(null);
     return null;
@@ -47,4 +53,5 @@ export const Route = createRootRouteWithContext<RouterContext>()({
     await bootstrapSession();
   },
   component: RootLayout,
+  notFoundComponent: NotFoundPage,
 });

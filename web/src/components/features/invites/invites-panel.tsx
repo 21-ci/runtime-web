@@ -5,6 +5,7 @@ import { toast } from "sonner";
 
 import { AuthForm, FormField } from "@/components/auth/auth-form";
 import { QueryError } from "@/components/features/empty/query-error";
+import { BoundedItems } from "@/components/ui/bounded";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +17,7 @@ import {
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Label } from "@/components/ui/label";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -68,10 +70,14 @@ export function InvitesPanel({ org, role }: { org: string; role: OrgRole }) {
       ) : invites.data.length === 0 ? (
         <EmptyState entity="invites" icon={MailPlus} title={t("empty.title")} description={t("empty.description")} />
       ) : (
-        <ul aria-label={t("listAria")} className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
-          {invites.data.map((inv) => (
-            <li key={inv.id} className="flex flex-wrap items-center justify-between gap-2 px-4 py-2.5 text-sm">
-              <span>
+        <BoundedItems
+          items={invites.data}
+          getKey={(inv) => inv.id}
+          collapseId="members.invites"
+          title={t("listAria")}
+          renderItem={(inv) => (
+            <div className="flex flex-wrap items-center justify-between gap-2 border-b border-line py-2.5 text-sm last:border-b-0">
+              <span className="min-w-0 break-words">
                 <span className="font-medium">{inv.email}</span>
                 <span className="ml-2 text-muted">
                   {t("item.meta", {
@@ -80,21 +86,15 @@ export function InvitesPanel({ org, role }: { org: string; role: OrgRole }) {
                   })}
                 </span>
               </span>
-              <Button
-                variant="ghost"
-                size="sm"
-                aria-label={t("revoke.label", { email: inv.email })}
-                onClick={() => setPendingRevoke(inv)}
-              >
+              <Button variant="ghost" size="sm" aria-label={t("revoke.label", { email: inv.email })} onClick={() => setPendingRevoke(inv)}>
                 <X className="size-4" aria-hidden />
                 {t("revoke.button")}
               </Button>
-            </li>
-          ))}
-        </ul>
+            </div>
+          )}
+        />
       )}
 
-      <InviteForm org={org} role={role} />
 
       <Dialog open={pendingRevoke !== null} onOpenChange={(open) => !open && setPendingRevoke(null)}>
         <DialogContent>
@@ -113,6 +113,29 @@ export function InvitesPanel({ org, role }: { org: string; role: OrgRole }) {
         </DialogContent>
       </Dialog>
     </section>
+  );
+}
+
+// InviteMemberButton opens the invite form in a sheet. It stays open after a create, because the link is shown once.
+export function InviteMemberButton({ org, role }: { org: string; role: OrgRole }) {
+  const { t } = useTranslation("invites");
+  const [open, setOpen] = useState(false);
+  return (
+    <>
+      <Button size="sm" onClick={() => setOpen(true)}>
+        <MailPlus className="size-4" aria-hidden />
+        {t("form.open")}
+      </Button>
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent>
+          <SheetHeader>
+            <SheetTitle>{t("form.open")}</SheetTitle>
+            <SheetDescription>{t("form.sheetDescription")}</SheetDescription>
+          </SheetHeader>
+          {open ? <div className="overflow-y-auto px-4 pb-4"><InviteForm org={org} role={role} /></div> : null}
+        </SheetContent>
+      </Sheet>
+    </>
   );
 }
 

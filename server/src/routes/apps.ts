@@ -4,6 +4,7 @@
 import type { Deps } from "../app.ts";
 import { authOf, requireSession, withRetryAfter } from "../auth/middleware.ts";
 import { AppError, badRequest, invalid } from "../http/errors.ts";
+import { csvLine, exportFileName, exportFormat, exportResponse, rangeBound, isoTime } from "../http/export.ts";
 import { json, noContent, readJson } from "../http/json.ts";
 import type { Handler, RequestContext, Router } from "../http/router.ts";
 import { orgAccess } from "../orgs/members.ts";
@@ -13,9 +14,11 @@ import * as A from "../apps/service.ts";
 import * as S from "../apps/switches.ts";
 import * as B from "../apps/bundles.ts";
 import * as D from "../apps/data.ts";
+import * as E from "../apps/data_events.ts";
 import { readCapped } from "../git/provider.ts";
 import { pauseGitAutomation, pauseIfBehindGit } from "../git/links.ts";
 import { LOG_RANK, sseResponse } from "../apps/logs.ts";
+import { NEEDS_KEY, readPreview } from "../apps/preview.ts";
 import { SLUG_RE } from "../apps/slug.ts";
 import type * as T from "../runtime/types.ts";
 
@@ -63,9 +66,36 @@ export function registerApps(router: Router, deps: Deps): void {
     return appResponse(c, value, etag, 201);
   }));
 
+  // A raw body, with the rest in the query: components are binary and can be megabytes.
+  router.post(`${base}/wasm`, route(async (c, ctx) => {
+    const q = ctx.url.searchParams;
+    const fields: Record<string, string> = {};
+    const s = (k: string) => {
+      const v = q.get(k) ?? "";
+      if (!v) fields[k] = "required";
+      return v;
+    };
+    const input = { project: s("project"), environment: s("environment"), slug: s("slug") };
+    if (input.slug && !SLUG_RE.test(input.slug)) fields.slug = "pattern";
+    if (Object.keys(fields).length) throw invalid(fields);
+    const bytes = ctx.req.body ? await readCapped(ctx.req.body, MAX_FILES_BODY) : new Uint8Array();
+    if (bytes === null) throw invalid({ file: "too_large" });
+    const name = q.get("name");
+    const { value, etag } = await A.createWasmApp(c, { ...input, ...(name ? { name } : {}) }, bytes);
+    await audit(c, "app.create", input.slug, { project: input.project, environment: input.environment, template: "wasm" });
+    return appResponse(c, value, etag, 201);
+  }));
+
   router.get(one, route(async (c, ctx) => {
     const { value, etag } = await A.getApp(c, slug(ctx));
     return appResponse(c, value, etag, 200);
+  }));
+
+  // A POST because it runs the app's handler. Only ever called from a click, never on page view.
+  router.post(`${one}/preview`, route(async (c, ctx) => {
+    const { value } = await A.getApp(c, slug(ctx));
+    if (value.access !== "public") return json(NEEDS_KEY);
+    return json(await readPreview(deps.fetch ?? globalThis.fetch, A.appUrl(deps.config.runtimePublicUrl, value.slug)));
   }));
 
   router.patch(one, route(async (c, ctx) => {
@@ -102,7 +132,20 @@ export function registerApps(router: Router, deps: Deps): void {
     return json(out, 200, etagHeader(out.etag));
   }));
 
-  router.get(`${one}/versions`, route(async (c, ctx) => json({ items: await A.listVersions(c, slug(ctx)) })));
+  router.get(`${one}/versions`, route(async (c, ctx) => {
+    const format = exportFormat(ctx.url.searchParams, ["csv"] as const);
+    const items = await A.listVersions(c, slug(ctx));
+    if (!format) return json({ items });
+    const res = await exportResponse({
+      fileName: exportFileName([c.org.slug, slug(ctx)], "versions", null, c.deps.now(), format),
+      format,
+      header: csvLine(["version", "state", "live", "source_digest", "author", "created_at", "failure", "meta"]),
+      rows: items,
+      line: (v) => csvLine([v.version, v.build_state, v.live, v.source_digest, v.author?.name ?? "", isoTime(v.created_at), v.failure?.reason ?? "", v.meta]),
+    });
+    await audit(c, "app.versions.export", slug(ctx), { format, rows: items.length });
+    return res;
+  }));
 
   router.put(`${one}/live`, route(async (c, ctx) => {
     const b = await readJson(ctx.req);
@@ -142,6 +185,13 @@ export function registerApps(router: Router, deps: Deps): void {
   // ---- branches and switches ----
 
   router.get(`${one}/branches`, route(async (c, ctx) => json({ items: await S.listBranches(c, slug(ctx)) })));
+
+  router.post(`${one}/branches`, route(async (c, ctx) => {
+    const input = S.parseBranch(await readJson(ctx.req));
+    const out = await S.createBranch(c, slug(ctx), input);
+    await audit(c, "app.branch.create", slug(ctx), { branch: input.name, copy_data: input.copy_data, expires_in_days: input.expires_in_days ?? null });
+    return json(out, 201);
+  }));
 
   router.post(`${one}/switch`, route(async (c, ctx) => {
     const input = S.parseSwitch(await readJson(ctx.req));
@@ -229,6 +279,50 @@ export function registerApps(router: Router, deps: Deps): void {
     const app = await A.appFor(c, slug(ctx), "app.secrets.write");
     await rt(() => c.cli.deleteSecret(app.id, ctx.params.name ?? ""));
     await audit(c, "app.secret.delete", slug(ctx), { name: ctx.params.name });
+    return noContent();
+  }));
+
+  router.put(`${one}/secrets/:name/ref`, route(async (c, ctx) => {
+    const b = await readJson(ctx.req);
+    const fields: Record<string, string> = {};
+    if (typeof b.path !== "string" || !b.path) fields.path = "required";
+    if (typeof b.field !== "string" || !b.field) fields.field = "required";
+    if (Object.keys(fields).length) throw invalid(fields);
+    const app = await A.appFor(c, slug(ctx), "app.secrets.write");
+    const out = await rt(() => c.cli.putSecretRef(app.id, ctx.params.name ?? "", { path: b.path as string, field: b.field as string }));
+    await audit(c, "app.secret.ref_set", slug(ctx), { name: ctx.params.name, path: b.path, field: b.field });
+    return json(out);
+  }));
+
+  router.delete(`${one}/secrets/:name/ref`, route(async (c, ctx) => {
+    const app = await A.appFor(c, slug(ctx), "app.secrets.write");
+    await rt(() => c.cli.deleteSecretRef(app.id, ctx.params.name ?? ""));
+    await audit(c, "app.secret.ref_delete", slug(ctx), { name: ctx.params.name });
+    return noContent();
+  }));
+
+  router.post(`${one}/secrets/sync`, route(async (c, ctx) => {
+    const app = await A.appFor(c, slug(ctx), "app.secrets.write");
+    await rt(() => c.cli.syncSecrets(app.id));
+    await audit(c, "app.secret.sync", slug(ctx), {});
+    return json({}, 202);
+  }));
+
+  // ---- data-change events ----
+  router.get(`${one}/data-events`, route(async (c, ctx) => {
+    const app = await A.appFor(c, slug(ctx), "app.read");
+    return json(await rt(() => c.cli.getDataEvents(app.id)));
+  }));
+
+  router.put(`${one}/data-events`, route(async (c, ctx) => {
+    const out = await E.enable(c, slug(ctx), E.parseConfig(await readJson(ctx.req)));
+    return json(out);
+  }));
+
+  router.delete(`${one}/data-events`, route(async (c, ctx) => {
+    const app = await A.appFor(c, slug(ctx), "app.update");
+    await rt(() => c.cli.deleteDataEvents(app.id));
+    await audit(c, "app.data_events.delete", slug(ctx), {});
     return noContent();
   }));
 
@@ -328,13 +422,18 @@ export function registerApps(router: Router, deps: Deps): void {
   // ---- observability ----
 
   router.get(`${one}/stats`, route(async (c, ctx) => {
+    const format = exportFormat(ctx.url.searchParams, ["csv"] as const);
     const window = ctx.url.searchParams.get("window") || "5m";
-    if (window === "7d") return json(await A.weekStats(c, slug(ctx)));
+    if (window === "7d") {
+      const week = await A.weekStats(c, slug(ctx));
+      return format ? statsExport(c, slug(ctx), week, window) : json(week);
+    }
     if (!["5m", "1h", "24h"].includes(window)) throw invalid({ window: "not_one_of" });
     const step = ctx.url.searchParams.get("step") ?? undefined;
     if (step !== undefined && !["1m", "5m", "1h"].includes(step)) throw invalid({ step: "not_one_of" });
     const app = await A.appFor(c, slug(ctx), "app.logs.read");
-    return json(statsView(await rt(() => c.cli.stats(app.id, window, step)), window));
+    const view = statsView(await rt(() => c.cli.stats(app.id, window, step)), window);
+    return format ? statsExport(c, slug(ctx), view, window) : json(view);
   }));
 
   router.get(`${one}/events`, route(async (c, ctx) => {
@@ -346,8 +445,13 @@ export function registerApps(router: Router, deps: Deps): void {
   }));
 
   router.get(`${one}/logs`, route(async (c, ctx) => {
+    const format = exportFormat(ctx.url.searchParams, ["ndjson", "txt"] as const);
     const level = ctx.url.searchParams.get("level") ?? "";
     if (level && LOG_RANK[level] === undefined) throw invalid({ level: "not_one_of" });
+    const view = ctx.url.searchParams.get("view");
+    if (view !== null && (view !== "range" || format)) throw invalid({ view: "not_one_of" });
+    if (view) return logsRead(c, slug(ctx), ctx.url.searchParams, level);
+    if (format) return logsExport(c, slug(ctx), ctx.url.searchParams, format, level);
     const raw = ctx.req.headers.get("last-event-id") ?? ctx.url.searchParams.get("last_event_id") ?? "";
     const last = /^\d+$/.test(raw.trim()) ? Number(raw.trim()) : null;
     const app = await A.appFor(c, slug(ctx), "app.logs.read");
@@ -524,6 +628,90 @@ export function statsView(raw: unknown, window: string): Record<string, unknown>
     p95_ms: num(total.p95_ms),
     p99_ms: num(total.p99_ms),
   };
+}
+
+/** Runtime pages one log export may read: bounds the scan when a level filter drops most lines. */
+const MAX_LOG_EXPORT_PAGES = 2000;
+
+/** Lines in one page of the Logs page's range read. */
+const LOG_READ_ROWS = 1000;
+
+async function* logRows(c: A.OrgCtx, appId: string, base: T.LogQuery, minRank: number) {
+  let cursor: string | undefined;
+  for (let i = 0; i < MAX_LOG_EXPORT_PAGES; i++) {
+    const q: T.LogQuery = { ...base, limit: 1000, ...(cursor ? { cursor } : {}) };
+    const page = await rt(() => c.cli.logs(appId, q));
+    for (const l of page.items ?? []) if ((LOG_RANK[l.level] ?? 0) >= minRank) yield A.logLine(l);
+    const next = page.next_cursor ?? undefined;
+    if (!next || next === cursor || !page.items?.length) return;
+    cursor = next;
+  }
+}
+
+/** A message stays on its one line, so log text cannot forge entries in the file. */
+const logText = (l: ReturnType<typeof A.logLine>) =>
+  `${isoTime(l.ts)} ${String(l.level).toUpperCase()} ${String(l.kind)} ${String(l.msg).replace(/\r/g, "\\r").replace(/\n/g, "\\n")}`;
+
+/** The filters a past range is read by, shared by the page's read and the file. */
+function logRange(q: URLSearchParams) {
+  const kind = q.get("kind") ?? "";
+  if (kind && !["runtime", "build", "system"].includes(kind)) throw invalid({ kind: "not_one_of" });
+  const since = rangeBound(q, "since");
+  const until = rangeBound(q, "until");
+  const taskId = q.get("task_id") ?? "";
+  const base: T.LogQuery = {
+    ...(since.text ? { since: since.text } : {}),
+    ...(until.text ? { until: until.text } : {}),
+    ...(kind ? { kind: kind as NonNullable<T.LogQuery["kind"]> } : {}),
+    ...(taskId ? { task_id: taskId } : {}),
+  };
+  return { kind, since, until, base };
+}
+
+/** One page of a past range for the Logs page. It is a view like the live tail: no file, no audit entry. */
+async function logsRead(c: A.OrgCtx, slug: string, q: URLSearchParams, level: string): Promise<Response> {
+  const { base } = logRange(q);
+  const app = await A.appFor(c, slug, "app.logs.read");
+  return exportResponse({
+    fileName: "",
+    format: "ndjson",
+    inline: true,
+    maxRows: LOG_READ_ROWS,
+    rows: logRows(c, app.id, base, level ? (LOG_RANK[level] ?? 0) : 0),
+    line: (l) => JSON.stringify(l),
+  });
+}
+
+async function logsExport(c: A.OrgCtx, slug: string, q: URLSearchParams, format: "ndjson" | "txt", level: string): Promise<Response> {
+  const { kind, since, until, base } = logRange(q);
+  const app = await A.appFor(c, slug, "app.logs.read");
+  // The level is applied here as a minimum, as the live view does; the runtime's filter is an exact match.
+  const res = await exportResponse({
+    fileName: exportFileName([c.org.slug, slug], "logs", since.ms, until.ms ?? c.deps.now(), format),
+    format,
+    rows: logRows(c, app.id, base, level ? (LOG_RANK[level] ?? 0) : 0),
+    line: format === "ndjson" ? (l) => JSON.stringify(l) : logText,
+  });
+  await audit(c, "app.logs.export", slug, { format, level: level || null, kind: kind || null, since: since.text ?? null, until: until.text ?? null });
+  return res;
+}
+
+/** The chart's series when it has one, otherwise the window's summary as one row. */
+async function statsExport(c: A.OrgCtx, slug: string, view: Record<string, unknown>, window: string): Promise<Response> {
+  const series = Array.isArray(view.series) ? (view.series as Record<string, unknown>[]) : null;
+  const columns = series
+    ? [...new Set(series.flatMap((p) => Object.keys(p)))]
+    : ["requests", "errors", "error_rate", "p50_ms", "p95_ms", "p99_ms"];
+  if (series && columns.length === 0) columns.push("ts", "count", "errors");
+  const res = await exportResponse({
+    fileName: exportFileName([c.org.slug, slug], `stats-${window}`, null, c.deps.now(), "csv"),
+    format: "csv",
+    header: csvLine(["window", ...columns]),
+    rows: series ?? [view],
+    line: (row) => csvLine([window, ...columns.map((k) => row[k])]),
+  });
+  await audit(c, "app.stats.export", slug, { format: "csv", window });
+  return res;
 }
 
 async function audit(c: A.OrgCtx, action: string, target: string, detail: unknown): Promise<void> {

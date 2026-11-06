@@ -140,7 +140,7 @@ describe("SSRF on the webhook URL", () => {
     const n = net(w, () => new Response(null, { status: 302, headers: { location: "http://169.254.169.254/" } }));
     const ch = await channelOf(w.admin);
     const out = await okJson(await w.admin.call("POST", `${ORG}/channels/${ch}/test`), 200);
-    expect(out).toEqual({ ok: false, status: "3xx" });
+    expect(out).toEqual({ ok: false, status: "3xx", http_status: 302 });
     expect(n.sent).toHaveLength(1);
     expect(n.sent[0]?.init.redirect).toBe("manual");
     expect((await channelRow(w, ch))?.last_error).toBe("3xx");
@@ -185,6 +185,28 @@ describe("secrets", () => {
     const ch = await channelOf(w.admin);
     await w.admin.call("POST", `${ORG}/channels/${ch}/test`);
     expect((await channelRow(w, ch))?.last_error).toBe("4xx");
+  });
+
+  it("answers a failed test with the status and a redacted, bounded excerpt, and audits neither", async () => {
+    const w = await world();
+    net(w, () => new Response(`denied\n${SIGNING} ${"x".repeat(500)}`, { status: 403 }));
+    const ch = await channelOf(w.admin);
+    const out = await okJson<{ http_status: number; excerpt: string; ok: boolean }>(await w.admin.call("POST", `${ORG}/channels/${ch}/test`), 200);
+    expect(out.ok).toBe(false);
+    expect(out.http_status).toBe(403);
+    expect(out.excerpt.startsWith("denied *** x")).toBe(true);
+    expect(out.excerpt).not.toContain(SIGNING);
+    expect(out.excerpt.length).toBeLessThanOrEqual(200);
+    const audits = await db(w).all("SELECT * FROM audit WHERE action = 'alert.channel.test'");
+    expect(JSON.stringify(audits)).not.toContain("denied");
+    expect((await channelRow(w, ch))?.last_error).toBe("4xx");
+  });
+
+  it("gives no excerpt for a test that was delivered", async () => {
+    const w = await world();
+    net(w, () => new Response("fine", { status: 200 }));
+    const ch = await channelOf(w.admin);
+    expect(await okJson(await w.admin.call("POST", `${ORG}/channels/${ch}/test`), 200)).toEqual({ ok: true, status: "ok", http_status: 200 });
   });
 
   it("binds the sealed config to its row", async () => {

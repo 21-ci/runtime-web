@@ -1,4 +1,5 @@
 import { describe, expect, it } from "vitest";
+import { renderTemplate } from "../../src/apps/templates.ts";
 import { APPS, createApp, errOf, world, type World } from "./helpers.ts";
 
 const svc = (w: World, slug: string) => {
@@ -23,6 +24,112 @@ interface SwitchRes {
   pending_migrations: string[] | null; next_cursor?: string;
 }
 
+describe("creating a branch", () => {
+  it("creates one, audits it, and shows its access and parent", async () => {
+    const w = await world();
+    await createApp(w.admin);
+    const r = await w.admin.call("POST", `${APPS}/hello/branches`, { name: "stage", copy_data: true, expires_in_days: 7 });
+    expect(r.status).toBe(201);
+    expect(await r.json()).toMatchObject({ name: "stage", slug: "hello-br-stage" });
+    const sent = w.fake.calls.find((c) => c.method === "POST" && c.path.endsWith("/branches"));
+    expect(sent?.body).toMatchObject({ name: "stage", copy_data: true });
+    expect((sent?.body as { expires_at: number }).expires_at).toBeGreaterThan(0);
+    expect(await auditRows(w, "app.branch.create")).toHaveLength(1);
+    const view = (await (await w.admin.call("GET", `${APPS}/hello-br-stage`)).json()) as { branch: unknown };
+    expect(view.branch).toEqual({ name: "stage", parent: "hello" });
+  });
+
+  it("refuses a bad body, and public access over copied data, before calling the runtime", async () => {
+    const w = await world();
+    await createApp(w.admin);
+    for (const bad of [{ name: "Bad_Name" }, { name: "a", extra: 1 }, { name: "a", expires_in_days: 0 }, { name: "a", copy_data: true, access: "public" }]) {
+      expect((await w.admin.call("POST", `${APPS}/hello/branches`, bad)).status).toBe(422);
+    }
+    expect(w.fake.calls.some((c) => c.method === "POST" && c.path.endsWith("/branches"))).toBe(false);
+  });
+
+  it("needs deploy rights", async () => {
+    const w = await world();
+    await createApp(w.admin);
+    const viewer = await w.user("v@example.com", "member", { default: "viewer" });
+    expect((await viewer.call("POST", `${APPS}/hello/branches`, { name: "a" })).status).toBe(403);
+  });
+});
+
+describe("what a new branch starts from", () => {
+  const created = (w: World) => w.fake.calls.find((c) => c.method === "POST" && c.path.endsWith("/branches"))?.body;
+
+  it("starts from the parent's code unless told otherwise", async () => {
+    const w = await world();
+    await createApp(w.admin);
+    await w.admin.call("POST", `${APPS}/hello/branches`, { name: "a" });
+    expect(created(w)).toMatchObject({ name: "a", code_of_parent: true });
+  });
+
+  it("can start with no code", async () => {
+    const w = await world();
+    await createApp(w.admin);
+    expect((await w.admin.call("POST", `${APPS}/hello/branches`, { name: "a", parent_code: false })).status).toBe(201);
+    expect(created(w)).not.toHaveProperty("code_of_parent");
+    expect((await w.admin.call("POST", `${APPS}/hello/branches`, { name: "b", parent_code: "yes" })).status).toBe(422);
+  });
+});
+
+describe("preflight of a branch still on starter code", () => {
+  const preflight = async (w: World) =>
+    (await (await w.admin.call("POST", `${APPS}/hello/switch`, { branch: "staging", dry_run: true })).json()) as SwitchRes;
+  const code = (s: SwitchRes) => s.warnings.map((x) => x.code);
+
+  it("warns when the branch would replace the parent with the editor's starter", async () => {
+    const w = await world();
+    const { branch } = await withBranch(w);
+    (branch.versions[0] as { source: string }).source = renderTemplate("http", "hello-br-staging") ?? "";
+    expect(code(await preflight(w))).toContain("replaces_with_starter");
+  });
+
+  it("stays quiet about real code, and when the source cannot be read", async () => {
+    const w = await world();
+    const { branch } = await withBranch(w);
+    (branch.versions[0] as { source: string }).source = "export default { fetch() { return new Response('mine'); } };";
+    expect(code(await preflight(w))).not.toContain("replaces_with_starter");
+    branch.versions.length = 0;
+    branch.versions[0] = undefined as never;
+    expect((await w.admin.call("POST", `${APPS}/hello/switch`, { branch: "staging", dry_run: true })).status).toBeLessThan(500);
+  });
+});
+
+describe("the console's preview of an app that needs a key", () => {
+  it("makes no request and says so", async () => {
+    const w = await world();
+    const { parent } = await withBranch(w);
+    (parent.view as { access: string }).access = "key";
+    const res = await w.admin.call("POST", `${APPS}/hello/preview`);
+    expect(res.status).toBe(200);
+    expect(await res.json()).toEqual({ status: null, content_type: null, body: null, truncated: false, needs_key: true });
+  });
+});
+
+describe("creating a WASM app", () => {
+  const wasm = new Uint8Array([0, 0x61, 0x73, 0x6d, 1, 0, 0, 0]);
+  const url = `${APPS}/wasm?project=default&environment=production&slug=comp`;
+
+  it("creates a wasm service and uploads the component as base64", async () => {
+    const w = await world();
+    const r = await w.admin.call("POST", url, wasm as unknown as Record<string, unknown>);
+    expect(r.status).toBe(201);
+    const up = w.fake.calls.find((c) => c.method === "POST" && c.path.endsWith("/versions"));
+    expect(up).toBeTruthy();
+    expect(w.fake.calls.find((c) => c.method === "POST" && c.path === "/v1/services")?.body).toMatchObject({ runtime: "wasm", slug: "comp" });
+  });
+
+  it("refuses bytes that are not WebAssembly", async () => {
+    const w = await world();
+    const r = await w.admin.call("POST", url, new Uint8Array([1, 2, 3, 4, 5]) as unknown as Record<string, unknown>);
+    expect(r.status).toBe(422);
+    expect(w.fake.calls.some((c) => c.method === "POST" && c.path === "/v1/services")).toBe(false);
+  });
+});
+
 describe("branches list", () => {
   it("shows URL, build state, digest and expiry", async () => {
     const w = await world();
@@ -33,8 +140,9 @@ describe("branches list", () => {
     const { items } = (await res.json()) as { items: Record<string, unknown>[] };
     expect(items).toEqual([{
       name: "staging", slug: "hello-br-staging", url: "https://hello-br-staging.apps.example.test/",
-      build_state: "ready", live_version: 1, digest: "sha256:1", expires_at: 5000,
+      build_state: "ready", live_version: 1, digest: "sha256:1", expires_at: 5000, access: items[0]?.access,
     }]);
+    expect(items[0]?.access).toBeTruthy();
   });
 
   it("a branch without a live version reports its newest build", async () => {

@@ -7,6 +7,7 @@ import { toast } from "sonner";
 import { QueryError } from "@/components/features/empty/query-error";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
+import { DataTable, type DataColumn } from "@/components/ui/data-table";
 import {
   Dialog,
   DialogContent,
@@ -16,11 +17,11 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
-import { Input, Textarea } from "@/components/ui/input";
+import { KeyValueRows, objectFromRows, type KvRow } from "@/components/ui/key-value-rows";
+import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { SectionCard, SMALL_CONTROL } from "@/components/ui/section-card";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { CopyButton } from "@/components/ui/url-bar";
 import { api, ApiError } from "@/lib/api";
 import { i18n } from "@/lib/i18n";
@@ -122,29 +123,32 @@ function downloadText(name: string, text: string) {
   URL.revokeObjectURL(url);
 }
 
-// EnvEditor edits the app's plain environment variables: row edits PATCH single keys, the text mode
-// replaces the complete map (PUT); both send the read's etag and reload on a 412 conflict:
-// a Key / Value table with Add, per-row edit and delete, plus Export .env, Import .env and a raw
-// ".env" text mode. canWrite false (role lacks app.env.write) shows the variables read-only.
+// EnvEditor edits the app's plain environment variables: row edits PATCH single keys, the all-rows
+// mode replaces the complete map (PUT); both send the read's etag and reload on a 412 conflict:
+// a Key / Value table with Add, per-row edit and delete, plus Export .env, Import .env and an
+// "edit all" mode with one Key / Value row per variable. canWrite false (role lacks
+// app.env.write) shows the variables read-only.
 export function EnvEditor({ org, app, canWrite = true }: { org: string; app: string; canWrite?: boolean }) {
   const env = useEnv(org, app);
   const save = useSaveEnv(org, app);
   const patch = usePatchEnv(org, app);
   const busy = save.isPending || patch.isPending;
   const { t } = useTranslation(["env", "common"]);
-  const [mode, setMode] = useState<"table" | "text">("table");
-  const [text, setText] = useState("");
+  const [mode, setMode] = useState<"table" | "rows">("table");
+  const [rows, setRows] = useState<KvRow[]>([]);
+  const [rowErrors, setRowErrors] = useState<Record<number, string>>({});
   const [error, setError] = useState<string | null>(null);
   const [revealed, setRevealed] = useState<Record<string, boolean>>({});
   const [editing, setEditing] = useState<{ key: string; value: string } | null>(null);
   const [deleting, setDeleting] = useState<string | null>(null);
   const fileRef = useRef<HTMLInputElement>(null);
 
-  // Reset the raw text whenever fresh data arrives (adjusting state during render, not in an effect).
+  // Reset the all-rows draft whenever fresh data arrives (adjusting state during render, not in an effect).
   const [syncedData, setSyncedData] = useState<typeof env.data>(undefined);
   if (env.data && env.data !== syncedData) {
     setSyncedData(env.data);
-    setText(toEnvText(env.data.env));
+    setRows(Object.keys(env.data.env).sort().map((k) => ({ key: k, value: env.data.env[k] })));
+    setRowErrors({});
   }
 
   if (env.isError && env.error instanceof ApiError && env.error.status === 403) {
@@ -169,15 +173,25 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
   const { env: data, etag } = env.data;
   const keys = Object.keys(data).sort();
 
-  function onSubmitText(e: FormEvent<HTMLFormElement>) {
+  function onSubmitRows(e: FormEvent<HTMLFormElement>) {
     e.preventDefault();
-    const parsed = parseEnvText(text);
-    if ("error" in parsed) {
-      setError(parsed.error);
+    const built = objectFromRows(
+      rows,
+      { keyRequired: t("rows.keyRequired"), valueRequired: t("rows.valueRequired"), duplicateKey: t("rows.duplicateKey") },
+      { typed: false, allowEmpty: true },
+    );
+    const bad: Record<number, string> = {};
+    rows.forEach((r, i) => {
+      if (r.key.trim() !== "" && !KEY_PATTERN.test(r.key.trim())) bad[i] = t("keyInvalid");
+    });
+    const found = "errors" in built ? { ...built.errors, ...bad } : bad;
+    if (Object.keys(found).length > 0) {
+      setRowErrors(found);
       return;
     }
-    setError(null);
-    save.mutate({ env: parsed.env, etag }, { onSuccess: () => setMode("table") });
+    if (!("value" in built)) return;
+    setRowErrors({});
+    save.mutate({ env: built.value as Record<string, string>, etag }, { onSuccess: () => setMode("table") });
   }
 
   function onSubmitRow(e: FormEvent<HTMLFormElement>) {
@@ -206,6 +220,62 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
     reader.readAsText(file);
   }
 
+  const columns: DataColumn<string>[] = [
+    {
+      key: "key",
+      header: t("columns.key"),
+      primary: true,
+      sortValue: (k) => k,
+      cell: (k) => (
+        <span className="inline-flex max-w-full items-center gap-1 font-mono text-[13px] font-medium">
+          <span className="truncate" title={k}>
+            {k}
+          </span>
+          <CopyButton text={k} label={t("copyLabel", { name: k })} />
+        </span>
+      ),
+    },
+    {
+      key: "value",
+      header: t("columns.value"),
+      cell: (k) => {
+        const shown = revealed[k] === true;
+        return (
+          <span className="inline-flex max-w-full items-center gap-1 font-mono text-[13px]">
+            <span className="truncate text-muted">{shown ? data[k] : "••••••••"}</span>
+            <Button
+              variant="ghost"
+              size="icon-sm"
+              aria-label={shown ? t("hideValue", { name: k }) : t("showValue", { name: k })}
+              onClick={() => setRevealed((r) => ({ ...r, [k]: !shown }))}
+            >
+              {shown ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
+            </Button>
+          </span>
+        );
+      },
+    },
+    ...(canWrite
+      ? [
+          {
+            key: "actions",
+            header: t("common:actions"),
+            align: "right" as const,
+            cell: (k: string) => (
+              <span className="inline-flex gap-0.5">
+                <Button variant="ghost" size="icon-sm" aria-label={t("editLabel", { name: k })} onClick={() => setEditing({ key: k, value: data[k] })}>
+                  <Pencil aria-hidden="true" />
+                </Button>
+                <Button variant="ghost" size="icon-sm" aria-label={t("deleteLabel", { name: k })} className="hover:bg-danger-soft hover:text-danger-text" onClick={() => setDeleting(k)}>
+                  <Trash2 aria-hidden="true" />
+                </Button>
+              </span>
+            ),
+          },
+        ]
+      : []),
+  ];
+
   const actions = (
     <>
       <button type="button" className={SMALL_CONTROL} onClick={() => downloadText(`${app}.env`, toEnvText(data))} disabled={keys.length === 0}>
@@ -230,13 +300,13 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
           <button
             type="button"
             className={SMALL_CONTROL}
-            aria-pressed={mode === "text"}
+            aria-pressed={mode === "rows"}
             onClick={() => {
               setError(null);
-              setMode(mode === "text" ? "table" : "text");
+              setMode(mode === "rows" ? "table" : "rows");
             }}
           >
-            <FileText aria-hidden="true" /> {mode === "text" ? t("table") : t("editAsText")}
+            <FileText aria-hidden="true" /> {mode === "rows" ? t("table") : t("editAll")}
           </button>
           <Button variant="default" size="sm" onClick={() => setEditing({ key: "", value: "" })}>
             <Plus aria-hidden="true" /> {t("common:add")}
@@ -253,31 +323,25 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
       actions={actions}
       flush
     >
-      {mode === "text" ? (
-        <form onSubmit={onSubmitText} className="flex flex-col gap-3 p-5" aria-labelledby="env-heading">
-          <label htmlFor="env-text" className="sr-only">
-            {t("text.label")}
-          </label>
-          <Textarea
-            id="env-text"
-            value={text}
-            onChange={(e) => setText(e.target.value)}
-            readOnly={!canWrite}
-            spellCheck={false}
-            rows={10}
-            aria-invalid={error ? true : undefined}
-            aria-describedby={error ? "env-error" : undefined}
-            autoComplete="off"
-            className="font-mono text-[13px]"
+      {mode === "rows" ? (
+        <form onSubmit={onSubmitRows} className="flex flex-col gap-3 p-5" aria-labelledby="env-heading">
+          <KeyValueRows
+            idPrefix="env-row"
+            rows={rows}
+            onChange={setRows}
+            errors={rowErrors}
+            disabled={!canWrite || save.isPending}
+            labels={{
+              key: t("dialog.key"),
+              value: t("dialog.value"),
+              add: t("rows.add"),
+              remove: (key) => t("deleteLabel", { name: key }),
+              keyPlaceholder: "DATABASE_URL",
+            }}
           />
-          {error ? (
-            <p id="env-error" role="alert" className="text-[13px] text-danger-text">
-              {error}
-            </p>
-          ) : null}
           <div className="flex gap-2">
-            <Button type="submit" variant="default" disabled={save.isPending}>
-              {t("text.save")}
+            <Button type="submit" variant="default" disabled={save.isPending || !canWrite}>
+              {t("rows.save")}
             </Button>
             <Button type="button" variant="ghost" onClick={() => setMode("table")}>
               {t("common:cancel")}
@@ -299,59 +363,14 @@ export function EnvEditor({ org, app, canWrite = true }: { org: string; app: str
           }
         />
       ) : (
-        <Table bare>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{t("columns.key")}</TableHead>
-              <TableHead>{t("columns.value")}</TableHead>
-              <TableHead className="w-28 text-right">
-                <span className="sr-only">{t("common:actions")}</span>
-              </TableHead>
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {keys.map((k) => {
-              const shown = revealed[k] === true;
-              return (
-                <TableRow key={k}>
-                  <TableCell className="max-w-[280px] font-mono text-[13px] font-medium">
-                    <span className="inline-flex max-w-full items-center gap-1">
-                      <span className="truncate" title={k}>
-                        {k}
-                      </span>
-                      <CopyButton text={k} label={t("copyLabel", { name: k })} />
-                    </span>
-                  </TableCell>
-                  <TableCell className="max-w-[320px] font-mono text-[13px]">
-                    <span className="inline-flex max-w-full items-center gap-1">
-                      <span className="truncate text-muted">{shown ? data[k] : "••••••••"}</span>
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={shown ? t("hideValue", { name: k }) : t("showValue", { name: k })}
-                        onClick={() => setRevealed((r) => ({ ...r, [k]: !shown }))}
-                      >
-                        {shown ? <EyeOff aria-hidden="true" /> : <Eye aria-hidden="true" />}
-                      </Button>
-                    </span>
-                  </TableCell>
-                  <TableCell className="text-right">
-                    {canWrite ? (
-                      <span className="inline-flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100 [@media(hover:none)]:opacity-100">
-                        <Button variant="ghost" size="icon-sm" aria-label={t("editLabel", { name: k })} onClick={() => setEditing({ key: k, value: data[k] })}>
-                          <Pencil aria-hidden="true" />
-                        </Button>
-                        <Button variant="ghost" size="icon-sm" aria-label={t("deleteLabel", { name: k })} className="hover:bg-danger-soft hover:text-danger-text" onClick={() => setDeleting(k)}>
-                          <Trash2 aria-hidden="true" />
-                        </Button>
-                      </span>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
-              );
-            })}
-          </TableBody>
-        </Table>
+        <DataTable
+          className="px-5 pb-5"
+          label={t("editor.title")}
+          columns={columns}
+          rows={keys}
+          rowKey={(k) => k}
+          count={t("count", { count: keys.length })}
+        />
       )}
 
       <Dialog open={editing !== null} onOpenChange={(open) => !open && setEditing(null)}>

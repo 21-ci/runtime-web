@@ -46,6 +46,13 @@ export async function appIndexPut(db: Db, e: AppIndexEntry): Promise<void> {
   );
 }
 
+/** Every indexed App, for naming the runtime's service IDs on the node's own pages. */
+export async function appIndexAll(db: Db): Promise<AppIndexEntry[]> {
+  await ensure(db);
+  const rows = await db.all<{ slug: string; org_id: string; service_id: string }>("SELECT slug, org_id, service_id FROM app_index");
+  return rows.map((r) => ({ orgId: r.org_id, slug: r.slug, serviceId: r.service_id }));
+}
+
 /** Forgets the App with this slug. Call after the runtime service is deleted. */
 export async function appIndexDelete(db: Db, slug: string): Promise<void> {
   await ensure(db);

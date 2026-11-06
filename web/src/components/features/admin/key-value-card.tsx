@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { QueryError } from "@/components/features/empty/query-error";
 import { Badge } from "@/components/ui/badge";
+import { NoData } from "@/components/ui/no-data";
 import { SectionCard } from "@/components/ui/section-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
@@ -54,7 +55,7 @@ function Word({ k }: { k: "kv.yes" | "kv.no" | "kv.none" | "kv.empty" }) {
 // from the key, arrays as chips and nested objects as their own label/value rows. Long ids and
 // hashes wrap inside their cell instead of pushing the card wider.
 function renderValue(key: string, value: unknown): ReactNode {
-  if (value === null || value === undefined) return <span className="text-muted">-</span>;
+  if (value === null || value === undefined) return <NoData inline />;
   if (typeof value === "boolean") {
     return <Badge variant={value ? "success" : "default"}><Word k={value ? "kv.yes" : "kv.no"} /></Badge>;
   }
@@ -74,8 +75,8 @@ function renderValue(key: string, value: unknown): ReactNode {
     );
   }
   if (typeof value === "object") return <Rows entries={Object.entries(value as Row)} nested />;
-  // Numbers keep their unit on one line; free text (ids, hashes) may break anywhere.
-  if (typeof value === "number") return <span className="whitespace-nowrap tabular-nums">{formatQuantity(key, value)}</span>;
+  // A number breaks only when it would otherwise push a phone-width page sideways; free text (ids, hashes) anywhere.
+  if (typeof value === "number") return <span className="tabular-nums [overflow-wrap:anywhere]">{formatQuantity(key, value)}</span>;
   return <span className="break-all">{formatQuantity(key, value)}</span>;
 }
 
@@ -86,7 +87,7 @@ export function ObjectTable({ rows, inset = false, label }: { rows: Row[]; inset
   const labels = labelsFor(cols);
   return (
     <div className={cn("min-w-0", inset && "max-h-72 overflow-y-auto rounded-md border border-line")}>
-      <Table bare className="text-[13px]">
+      <Table bare stack={cols.length > 3} className="text-[13px]">
         {label ? <caption className="sr-only">{label}</caption> : null}
         <TableHeader className="sticky top-0 z-[1]">
           <TableRow className="hover:bg-transparent">

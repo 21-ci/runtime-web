@@ -1,5 +1,4 @@
 {
-  "replaceNote": "Saqlash bu butun blokni almashtiradi.",
   "page": {
     "title": "Sozlamalar",
     "description": "{{name}} · {{environment}}",
@@ -12,10 +11,25 @@
     "access": "Kirish",
     "limits": "Cheklovlar",
     "advanced": "Qoʻshimcha",
-    "danger": "Xavfli hudud"
+    "danger": "Xavfli hudud",
+    "generalHint": "Masshtablash, kiruvchi va chiquvchi trafik.",
+    "accessHint": "Bu ilovani kim chaqira oladi.",
+    "limitsHint": "Har bir ishga tushirish uchun resurs cheklovlari.",
+    "advancedHint": "Identifikatorlar, havolalar va eksport.",
+    "dangerHint": "Bekor qilib boʻlmaydigan amallar.",
+    "git": "Git",
+    "gitHint": "Repozitoriy, joylash qoidalari va previewlar.",
+    "integrations": "Integratsiyalar",
+    "integrationsHint": "Shaxsiy domenlar va o'zgarishlar oqimi."
   },
   "status": {
     "label": "Ilova holati",
+    "build": {
+      "ready": "tayyor",
+      "failed": "xato",
+      "building": "yigʻilmoqda",
+      "pending": "navbatda"
+    },
     "tier": "daraja {{tier}}",
     "inflight": "{{count}} ta bajarilmoqda"
   },
@@ -78,18 +92,28 @@
     },
     "profile": "Profil",
     "profilePlaceholder": "masalan, small…",
-    "json": "Soʻralgan cheklovlar (JSON)",
-    "invalid": "Soʻralgan cheklovlar toʻgʻri JSON (obyekt) boʻlishi kerak.",
+    "requestedRows": "Soʻralgan cheklovlar",
+    "rowsHint": "Maydonlar: wall_ms, cpu_ms, memory_mb va max_body_bytes. Raqamlar raqam sifatida oʻqiladi; nomi va qiymati boʻlmagan qator eʼtiborga olinmaydi.",
+    "limitName": "Cheklov nomi",
+    "limitValue": "Qiymat",
+    "addRow": "Cheklov qoʻshish",
+    "removeRow": "{{key}} ni olib tashlash",
+    "keyRequired": "Bu cheklov nomini kiriting.",
+    "valueRequired": "Qiymat kiriting yoki qatorni oʻchiring.",
+    "duplicateKey": "Bu cheklov boshqa qatorda allaqachon koʻrsatilgan.",
     "formLabel": "Cheklovlar sozlamalari",
     "save": "Cheklovlarni saqlash",
     "saved": "Cheklovlar saqlandi"
   },
   "unlimited": "cheklovsiz",
   "egress": {
+    "hostsHint": "Xost nomlari, masalan api.example.com. Har birini Enter yoki vergul bilan qoʻshing. Boʻsh qiymat tarif sozlamasini ishlatadi.",
     "title": "Chiquvchi trafik",
     "description": "Bu ilovaning chiquvchi trafik siyosati.",
-    "json": "Chiquvchi trafik (JSON)",
-    "invalid": "Chiquvchi trafik toʻgʻri JSON (obyekt) boʻlishi kerak.",
+    "allowed": "Ruxsat etilgan xostlar",
+    "denied": "Taqiqlangan xostlar",
+    "hostPlaceholder": "Xost nomini yozing, so'ng Enter bosing",
+    "removeHost": "{{host}} ni olib tashlash",
     "formLabel": "Chiquvchi trafik sozlamalari",
     "save": "Chiquvchi trafikni saqlash",
     "saved": "Chiquvchi trafik saqlandi"
@@ -115,19 +139,17 @@
   },
   "advanced": {
     "slug": "Slug",
-    "slugHint": "Ilovani runtime va API da aniqlaydi.",
+    "slugHint": "Ilovaning URL va API dagi nomi.",
     "copySlug": "Slugni nusxalash",
     "liveUrl": "Jonli URL",
     "runtime": "Runtime",
     "runtimeProfile": "{{runtime}} · profil {{profile}}",
     "envSecrets": "Muhit va maxfiy qiymatlar",
-    "envSecretsHint": "Oʻzgaruvchilar va maxfiy qiymatlar alohida sahifaga koʻchirilgan.",
+    "envSecretsHint": "Bu ilovaning oʻzgaruvchilari va maxfiy qiymatlari.",
     "openEnvSecrets": "Muhit va maxfiy qiymatlarni ochish",
     "domains": "Domenlar",
     "domainsHint": "Bu ilova uchun maxsus host nomlari.",
     "openDomains": "Domenlarni ochish",
-    "exportData": "Maʼlumotlarni eksport qilish",
-    "exportHint": "Ilovaning SQLite bazasini yuklab olish.",
     "download": "Yuklab olish"
   },
   "danger": {
@@ -140,5 +162,9 @@
     "confirm": "Doimiy oʻchirish",
     "deleted": "{{name}} oʻchirildi",
     "failed": "Ilovani oʻchirib boʻlmadi. Qayta urinib koʻring."
+  },
+  "integrations": {
+    "domains": "Shaxsiy domenlar",
+    "domainsHint": "Ilovani o'z host nomlaringizda oching."
   }
 }

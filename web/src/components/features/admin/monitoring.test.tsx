@@ -6,7 +6,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { LineChart } from "@/components/ui/line-chart";
 import { AppCharts } from "@/components/features/overview/app-charts";
-import { MigrationsCard, migrationRefused, PromotePreflight } from "@/components/features/versions/migrations";
+import { MigrationsCard, migrationRefused, PromotePreflight } from "@/components/features/deployments/migrations";
 import { ApiError } from "@/lib/api";
 import { createQueryClient } from "@/lib/query";
 import { server } from "@/test/msw";
@@ -29,7 +29,7 @@ const STATUS = { enabled: true, schedule: "0 3 * * *", last_ok_at: null, last_fa
 describe("LineChart", () => {
   it("says so when there is nothing to draw", () => {
     render(<LineChart title="CPU" labels={labels} points={[{ ts: 1, value: null }]} />);
-    expect(screen.getByText("empty")).toBeTruthy();
+    expect(screen.getByText("No data")).toBeTruthy();
     expect(screen.queryByTestId("chart-line")).toBeNull();
   });
 
@@ -108,7 +108,7 @@ describe("NodeMonitor", () => {
     );
     wrap(<NodeMonitor />);
     await screen.findByText("shop");
-    expect(await screen.findByText("node.restored")).toBeTruthy();
+    expect(await screen.findByText(/Node restored/)).toBeTruthy();
     expect(screen.getByText("1d 1h")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "7 days" }));
     await waitFor(() => expect(asked).toContain("7d"));
@@ -136,10 +136,11 @@ describe("AppCharts", () => {
       }),
     );
     wrap(<AppCharts org="acme" app="hello" />);
-    await waitFor(() => expect(screen.getAllByTestId("chart-line")).toHaveLength(3));
-    fireEvent.click(screen.getByRole("button", { name: "7 days" }));
+    await waitFor(() => expect(screen.getAllByTestId("chart-line")).toHaveLength(1));
+    expect(screen.getByRole("button", { name: /p95, ms/ })).toBeTruthy();
+    fireEvent.click(screen.getByRole("radio", { name: "7 days" }));
     await screen.findByText(/Percentiles are not kept/);
-    await waitFor(() => expect(screen.getAllByTestId("chart-line")).toHaveLength(2));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /p95, ms/ })).toBeNull());
     expect(asked).toEqual(["?window=1h&step=1m", "?window=7d"]);
   });
 });

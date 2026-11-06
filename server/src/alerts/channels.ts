@@ -28,6 +28,8 @@ const CHAT_ID_RE = /^(-?\d{1,20}|@[A-Za-z0-9_]{5,32})$/;
 const SEND_TIMEOUT_MS = 3_000;
 const TEST_WINDOW_MS = 60_000;
 const TEST_LIMIT = 5;
+const EXCERPT_READ_BYTES = 4096;
+const EXCERPT_CHARS = 200;
 const CREATE_FIELDS = new Set(["kind", "name", "config"]);
 const PATCH_FIELDS = new Set(["name", "config"]);
 
@@ -194,12 +196,55 @@ function telegramText(m: AlertMessage): string {
   return parts.join(" ");
 }
 
+/** What a test send saw. It goes back to the admin who asked, and is neither stored nor audited. */
+export interface SendProbe {
+  http_status?: number;
+  excerpt?: string;
+}
+
+/**
+ * The start of a refusal's body, for telling a wrong token from a wrong path. The far end can echo what it was sent,
+ * so anything from the channel's config is blanked. Reads at most a few KiB, and a body that cannot be read is no
+ * excerpt rather than a failed test.
+ */
+async function readExcerpt(res: Response, secrets: (string | undefined)[]): Promise<string | undefined> {
+  const reader = res.body?.getReader();
+  if (!reader) return undefined;
+  const parts: Uint8Array[] = [];
+  let size = 0;
+  try {
+    while (size < EXCERPT_READ_BYTES) {
+      const { done, value } = await reader.read();
+      if (done || !value) break;
+      parts.push(value);
+      size += value.length;
+    }
+  } catch (e) {
+    rethrowBudget(e);
+  } finally {
+    void reader.cancel().catch(() => undefined);
+  }
+  const all = new Uint8Array(size);
+  let at = 0;
+  for (const p of parts) {
+    all.set(p, at);
+    at += p.length;
+  }
+  let text = new TextDecoder().decode(all);
+  for (const s of secrets) if (s) text = text.replaceAll(s, "***");
+  // eslint-disable-next-line no-control-regex
+  text = text.replace(/[\x00-\x1f\x7f]+/g, " ").trim();
+  return text ? text.slice(0, EXCERPT_CHARS) : undefined;
+}
+
 /**
  * One delivery attempt. Never follows a redirect, because the hop would skip the address check. Returns a status
  * class; running out of the tick's budget is the only thing it throws. Errors are dropped unread: their text can
  * quote the URL, and the URL can hold the credential.
+ *
+ * `probe`, for a test send only, receives the HTTP status and a redacted excerpt of a refusal's body.
  */
-export async function deliver(deps: SendDeps, c: ChannelRow, message: AlertMessage, delivery: string): Promise<SendStatus> {
+export async function deliver(deps: SendDeps, c: ChannelRow, message: AlertMessage, delivery: string, probe?: SendProbe): Promise<SendStatus> {
   let config: WebhookConfig & TelegramConfig;
   try {
     const plain = await (await sealerOf(deps)).open(c.config_sealed, configContext(c.id));
@@ -222,8 +267,14 @@ export async function deliver(deps: SendDeps, c: ChannelRow, message: AlertMessa
     } else {
       return "config";
     }
+    const status = statusClass(res.status);
+    if (probe) {
+      probe.http_status = res.status;
+      const excerpt = status === "ok" ? undefined : await readExcerpt(res, [config.url, config.secret, config.bot_token, config.chat_id]);
+      if (excerpt) probe.excerpt = excerpt;
+    }
     void res.body?.cancel().catch(() => undefined);
-    return statusClass(res.status);
+    return status;
   } catch (e) {
     rethrowBudget(e);
     return "network";
@@ -237,7 +288,7 @@ export async function recordStatus(deps: SendDeps, id: string, status: SendStatu
 }
 
 /** Sends a fixed test message. Limited per channel, since each call makes the console knock on a chosen URL. */
-export async function testChannel(deps: SendDeps, orgId: string | null, id: string): Promise<{ ok: boolean; status: SendStatus; kind: string }> {
+export async function testChannel(deps: SendDeps, orgId: string | null, id: string): Promise<{ ok: boolean; status: SendStatus; kind: string } & SendProbe> {
   const row = await rowOf(deps, orgId, id);
   const now = deps.now();
   const start = now - TEST_WINDOW_MS;
@@ -249,7 +300,8 @@ export async function testChannel(deps: SendDeps, orgId: string | null, id: stri
     [start, start, now, id, start, TEST_LIMIT],
   );
   if (taken.changes === 0) throw new AppError(429, "rate_limited", "too many test sends", { retry_after: Math.ceil(TEST_WINDOW_MS / 1000) });
-  const status = await deliver(deps, row, { event: "test", at: now }, `test_${base64url(randomBytes(9))}`);
+  const probe: SendProbe = {};
+  const status = await deliver(deps, row, { event: "test", at: now }, `test_${base64url(randomBytes(9))}`, probe);
   await recordStatus(deps, id, status);
-  return { ok: status === "ok", status, kind: row.kind };
+  return { ok: status === "ok", status, kind: row.kind, ...probe };
 }

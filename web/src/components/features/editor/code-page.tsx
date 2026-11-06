@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { QueryError } from "@/components/features/empty/query-error";
 import { LogsView } from "@/components/features/logs/logs-view";
-import { usePromoteAndWait } from "@/components/features/versions/use-versions";
+import { usePromoteAndWait } from "@/components/features/deployments/use-versions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -21,12 +21,11 @@ import {
 import { Kbd } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { PreviewFrame } from "@/components/ui/preview-frame";
-import { UrlBar } from "@/components/ui/url-bar";
 import { ApiError } from "@/lib/api";
 import { errorMessage } from "@/lib/error-message";
 import { cn } from "@/lib/utils";
 
+import { AppPreview } from "./app-preview";
 import { useAppView, useCanDeploy, useFiles, useSaveFiles, useVersionState, type BuildDetails, type Diagnostic, type Files } from "./hooks";
 
 // CodeMirror and the TS worker live in this lazy chunk only.
@@ -74,7 +73,7 @@ export function CodePage({ org, app }: { org: string; app: string }) {
   const [previewOpen, setPreviewOpen] = useState(() => readFlag(PREVIEW_KEY, true));
   const [logsOpen, setLogsOpen] = useState(() => readFlag(LOGS_KEY, false));
   // The newest saved version: the one Deploy would make live.
-  const latest = savedVersion ?? files.data?.version ?? null;
+  const latest = savedVersion ?? (files.data?.version || null); // 0: nothing pushed yet, only a starter
   const version = useVersionState(org, app, latest);
   const { t } = useTranslation("editor");
 
@@ -184,7 +183,7 @@ export function CodePage({ org, app }: { org: string; app: string }) {
   const paths = Object.keys(current).sort();
 
   return (
-    <div className="flex min-h-0 flex-1 flex-col md:h-[calc(100dvh-48px)]">
+    <div className="flex min-h-0 flex-1 flex-col md:h-[calc(100dvh-107px)]">
       <header className="flex h-11 shrink-0 items-center gap-2 border-b border-line bg-bg px-3">
         <p className="flex min-w-0 items-center gap-1.5 text-sm">
           <span className="hidden text-muted sm:inline">{t("breadcrumb")}</span>
@@ -199,10 +198,9 @@ export function CodePage({ org, app }: { org: string; app: string }) {
             size="sm"
             aria-pressed={previewOpen}
             onClick={togglePreview}
-            className="hidden lg:inline-flex"
             title={t("preview.toggle")}
           >
-            <PanelRight aria-hidden="true" /> {t("preview.button")}
+            <PanelRight aria-hidden="true" /> <span className="sr-only sm:not-sr-only">{t("preview.button")}</span>
           </Button>
           {deployable && (
             <Button
@@ -232,6 +230,10 @@ export function CodePage({ org, app }: { org: string; app: string }) {
       ) : readOnly ? (
         <p role="note" className="border-b border-line bg-panel px-4 py-1.5 text-[13px] text-muted">
           {canDeploy === false ? t("readOnlyAccess") : t("readOnlyVersion")}
+        </p>
+      ) : latest === null ? (
+        <p role="note" className="border-b border-line bg-panel px-4 py-1.5 text-[13px] text-muted">
+          {t("firstPush")}
         </p>
       ) : null}
 
@@ -298,15 +300,14 @@ export function CodePage({ org, app }: { org: string; app: string }) {
         <section
           aria-label={t("preview.label")}
           className={cn(
-            "flex min-h-[320px] flex-col gap-2 border-t border-line bg-panel p-2 md:min-h-0 lg:w-[42%] lg:border-l lg:border-t-0",
-            !previewOpen && "lg:hidden",
+            "flex min-h-[260px] flex-col gap-2 border-t border-line bg-panel p-2 md:min-h-0 lg:w-[42%] lg:border-l lg:border-t-0",
+            !previewOpen && "hidden",
           )}
         >
           {latest !== null && latest !== live ? (
             <p className="px-1 text-[12px] text-muted">{t("preview.liveOnly", { version: live ?? "-" })}</p>
           ) : null}
-          <UrlBar url={view.data.url} badge={<Badge variant="success">HTTP</Badge>} onReload={() => setPreviewKey((k) => k + 1)} className="bg-surface" />
-          <PreviewFrame url={view.data.url} title={t("preview.frame")} reloadKey={previewKey} className="min-h-[260px] flex-1 shadow-none" />
+          <AppPreview org={org} app={app} url={view.data.url} title={t("preview.frame")} refreshKey={previewKey} className="min-h-[200px] flex-1 shadow-none" barClassName="bg-surface" />
         </section>
       </div>
 
@@ -388,7 +389,7 @@ function StatusPill(props: { org: string; app: string; pending: boolean; version
   if (version === null) return null;
   if (state === "failed") {
     return (
-      <Link to="/$org/apps/$app/versions" params={{ org, app }} role="status">
+      <Link to="/$org/apps/$app/deployments" params={{ org, app }} role="status">
         <Badge variant="danger" dot>
           {t("status.failed", { version })}
         </Badge>
@@ -397,7 +398,7 @@ function StatusPill(props: { org: string; app: string; pending: boolean; version
   }
   if (version !== live) {
     return (
-      <Link to="/$org/apps/$app/versions" params={{ org, app }} aria-label={t("status.savedLabel", { version })}>
+      <Link to="/$org/apps/$app/deployments" params={{ org, app }} aria-label={t("status.savedLabel", { version })}>
         <Badge variant="info" dot>
           {t("status.saved", { version })}
         </Badge>
@@ -405,7 +406,7 @@ function StatusPill(props: { org: string; app: string; pending: boolean; version
     );
   }
   return (
-    <Link to="/$org/apps/$app/versions" params={{ org, app }} aria-label={t("status.liveLabel", { version })}>
+    <Link to="/$org/apps/$app/deployments" params={{ org, app }} aria-label={t("status.liveLabel", { version })}>
       <Badge variant="success" dot>
         {t("status.live", { version })}
       </Badge>

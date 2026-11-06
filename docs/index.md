@@ -1,15 +1,27 @@
 ---
 title: Runtime Web
 description: A self-hosted console for writing, deploying and running apps on 21 Cloud Functions Runtime.
+hide:
+  - navigation
+  - toc
 ---
+
+<div class="rt-hero" markdown>
 
 # Runtime Web
 
+<p class="rt-hero__lead">
 Runtime Web is a self-hosted console for writing, deploying and running small apps on
-[21 Cloud Functions Runtime](https://github.com/21-ci/runtime). Sign up, create an org and a project, write an app, watch its
+<a href="https://github.com/21-ci/runtime">21 Cloud Functions Runtime</a>. Sign up, create an org and a project, write an app, watch its
 logs, give it a route or a domain, and hand out a token to the people and services that need one.
-
 Everything the console does goes through the runtime's API, so anything you can do here you can also script.
+</p>
+
+[Get started](getting-started/install.md){ .md-button .md-button--primary }
+[User guide](user-guide/index.md){ .md-button }
+[API reference](reference/api.md){ .md-button }
+
+</div>
 
 ## Where to go next
 

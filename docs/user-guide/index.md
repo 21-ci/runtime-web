@@ -11,6 +11,8 @@ add a project, build an app, then run it.
 | [Editor](editor.md) | Editing app code in the browser, saving, and type checking |
 | [Logs](logs.md) | The live log stream and the level filter |
 | [Triggers](triggers.md) | HTTP routes, schedules, and the queue with its dead-letter queue |
+| [Git deploys](git.md) | Deploying on push, branch rules and previews |
+| [Branches, data and alerts](branches-and-data.md) | Branches and switches, previews, the data browser, bundles and alerts |
 | [Tokens and keys](tokens.md) | The default key, custom tokens and their scopes |
 | [Domains](domains.md) | Attaching a custom domain and verifying it |
 | [Members](members.md) | Inviting people and giving them access to projects |

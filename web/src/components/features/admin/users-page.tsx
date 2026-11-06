@@ -178,7 +178,7 @@ export function UsersPage() {
           }
         />
       ) : (
-        <Table>
+        <Table stack>
           <TableHeader>
             <TableRow>
               <TableHead>{t("users.columns.name")}</TableHead>
@@ -193,7 +193,7 @@ export function UsersPage() {
             {items.map((u) => (
               <TableRow key={u.id}>
                 <TableCell className="whitespace-nowrap font-medium">{u.name}</TableCell>
-                <TableCell className="whitespace-nowrap">{u.email}</TableCell>
+                <TableCell className="max-w-64 truncate" title={u.email}>{u.email}</TableCell>
                 <TableCell>
                   <div className="flex flex-wrap gap-1">
                     {u.instance_admin ? <Badge variant="info">{t("users.badges.instanceAdmin")}</Badge> : null}

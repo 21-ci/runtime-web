@@ -2,6 +2,7 @@
   "breadcrumb": "Kod",
   "readOnlyAccess": "Sizda bu ilova kodiga faqat koʻrish huquqi bor.",
   "readOnlyVersion": "Bu versiya faqat oʻqish uchun.",
+  "firstPush": "Bu yerga hali hech narsa yuklanmagan. Birinchi versiyani yuklash uchun shu andozani tahrirlab, saqlang.",
   "wasm": "Bu versiya WebAssembly komponenti. Uning manbasini bu yerda tahrirlab boʻlmaydi; yangi yigʻishni asboblaringiz orqali joylashtiring.",
   "save": "Saqlash",
   "saveDirty": "Saqlash *",
@@ -10,8 +11,18 @@
     "button": "Koʻrinish",
     "toggle": "Javob panelini koʻrsatish yoki yashirish",
     "label": "Koʻrinish",
+    "load": "Koʻrinishni yuklash",
+    "loadHint": "Ishlayotgan ilovaga bitta haqiqiy soʻrov yuboriladi. U foydalanish va metrikalarda hisobga olinadi hamda ilovaning GET / dagi amalini bajaradi.",
+    "pretty": "Chiroyli formatlash",
+    "body": "Javob matni",
+    "needsKey": "Bu ilovaga kalit kerak, koʻrinish esa uni kalitsiz chaqiradi.",
+    "truncated": "Javobning birinchi qismi koʻrsatilmoqda.",
+    "blockedTitle": "Koʻrinishni bu yerga joylab boʻlmaydi",
+    "blockedBody": "Konsol xavfsizlik siyosati bu ilova manzilini joylashga ruxsat bermaydi. Uni yangi varaqda oching.",
+    "openApp": "Ilovani ochish",
     "frame": "Ilova koʻrinishi",
-    "liveOnly": "Oldindan koʻrish ishlayotgan versiyani (v{{version}}) koʻrsatadi. Saqlangan oʻzgarishlarni koʻrish uchun joylashtiring."
+    "liveOnly": "Oldindan koʻrish ishlayotgan versiyani (v{{version}}) koʻrsatadi. Saqlangan oʻzgarishlarni koʻrish uchun joylashtiring.",
+    "needsKeyClear": "Bu ilovaga API kaliti kerak, shuning uchun konsol uni bu yerda yuklay olmaydi. Uni kalit bilan chaqiring:"
   },
   "files": {
     "title": "Fayllar",

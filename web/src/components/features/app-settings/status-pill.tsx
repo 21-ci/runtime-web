@@ -10,16 +10,23 @@ const VARIANT: Record<string, "success" | "danger" | "warning" | "default"> = {
   pending: "warning",
 };
 
+const BUILD_KEY = {
+  ready: "status.build.ready",
+  failed: "status.build.failed",
+  building: "status.build.building",
+  pending: "status.build.pending",
+} as const;
+
 // StatusPill shows the runtime status of the app: build state, tier, in-flight calls, and the last
-// error when there is one.
+// error when there is one. A state this console does not know yet stays as the runtime reports it.
 export function StatusPill({ status }: { status: AppDetail["status"] }) {
   const { t } = useTranslation("app-settings");
+  const buildKey = BUILD_KEY[status.build_state as keyof typeof BUILD_KEY];
   return (
     <div role="status" aria-label={t("status.label")} className="flex flex-col gap-1 text-sm">
       <div className="flex flex-wrap items-center gap-2">
-        {/* build_state is a runtime value (ready, failed, ...) and stays as the runtime reports it. */}
         <Badge variant={VARIANT[status.build_state] ?? "default"} dot>
-          {status.build_state}
+          {buildKey ? t(buildKey) : status.build_state}
         </Badge>
         <span className="text-[12px] text-muted">{t("status.tier", { tier: status.tier })}</span>
         <span className="text-[12px] text-muted">{t("status.inflight", { count: status.inflight })}</span>

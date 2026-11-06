@@ -21,7 +21,7 @@ export function PageHeader({
   className?: string;
 }) {
   return (
-    <header className={cn("flex flex-wrap items-center gap-3", className)}>
+    <header className={cn("flex flex-wrap items-center gap-3 border-b border-line pb-4", className)}>
       {icon ? <IconTile icon={icon} entity={entity} size="md" /> : null}
       <div className="min-w-0 flex-1 basis-60">
         <h1 className="truncate text-xl font-semibold tracking-[-0.01em] text-text">{title}</h1>

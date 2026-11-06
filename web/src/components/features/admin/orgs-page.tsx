@@ -81,7 +81,7 @@ export function OrgsPage() {
           action={<Button variant="default" onClick={() => setCreateOpen(true)}>{t("orgs.new")}</Button>}
         />
       ) : (
-        <Table>
+        <Table stack>
           <TableHeader>
             <TableRow>
               <TableHead>{t("orgs.columns.name")}</TableHead>

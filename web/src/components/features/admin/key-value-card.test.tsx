@@ -1,7 +1,7 @@
 import { render, screen, within } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 
-import { eventFields } from "@/components/features/overview/events-panel";
+import { eventFields } from "@/components/features/deployments/events-panel";
 
 import { KeyValueCard, KeyValueTables } from "./key-value-card";
 
@@ -29,7 +29,7 @@ describe("KeyValueCard", () => {
     expect(within(card).getByText("1.00 GiB")).toBeInTheDocument();
     expect(within(card).getByText("2 min")).toBeInTheDocument();
     expect(within(card).getByText("a")).toBeInTheDocument();
-    expect(within(card).getByText("-")).toBeInTheDocument();
+    expect(within(card).getByText("N/A")).toBeInTheDocument();
   });
 
   it("renders a list of same-shaped objects as a table", () => {

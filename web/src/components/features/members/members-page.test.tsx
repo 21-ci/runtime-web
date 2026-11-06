@@ -101,7 +101,7 @@ describe("MembersPage", () => {
     renderPage("owner");
 
     expect(await screen.findByText("2 участника")).toBeInTheDocument();
-    expect(screen.getByRole("heading", { name: "Участники" })).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Участники" })).toBeInTheDocument();
     expect(screen.getByRole("combobox", { name: "Роль для grace@example.test" })).toBeInTheDocument();
     expect(screen.getByText("web: разработчик")).toBeInTheDocument();
   });

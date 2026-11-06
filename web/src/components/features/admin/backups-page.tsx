@@ -3,6 +3,7 @@ import { useTranslation } from "react-i18next";
 
 import { QueryError } from "@/components/features/empty/query-error";
 import { Badge } from "@/components/ui/badge";
+import { Bounded } from "@/components/ui/bounded";
 import { Button } from "@/components/ui/button";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
@@ -18,16 +19,21 @@ enabled = true
 schedule = "0 3 * * *"
 keep_last = 3`;
 
+const RESTORE = `rt backup verify <archive>
+rt backup restore <archive> --data-dir <empty directory>`;
+
 // BackupsPage: what the node reports about its backups, and a button to start one. There is deliberately no
 // download or delete: the console's binding cannot reach them, because an archive holds every tenant's data.
 export function BackupsPage() {
-  const { t } = useTranslation("monitoring");
+  const { t } = useTranslation(["monitoring", "operator", "common"]);
   const status = useBackupStatus();
   const list = useBackups();
   const create = useCreateBackup();
   const s = status.data;
   const running = Boolean(s?.running_id);
   const when = (ts: number | null | undefined) => (ts ? formatDateTime(ts) : t("backups.never"));
+  const disabledWhy = status.isError ? t("operator:backups.whyUnknown") : s && !s.enabled ? t("operator:backups.whyOff") : running ? t("operator:backups.whyRunning") : null;
+  const on = Boolean(s?.enabled);
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
@@ -36,11 +42,12 @@ export function BackupsPage() {
       <SectionCard
         title={t("backups.status")}
         actions={
-          <Button size="sm" disabled={!s?.enabled || running || create.isPending} onClick={() => create.mutate()}>
+          <Button size="sm" disabled={!s?.enabled || running || create.isPending} title={disabledWhy ?? undefined} aria-describedby={disabledWhy ? "backup-why" : undefined} onClick={() => create.mutate()}>
             {running ? t("backups.running") : t("backups.now")}
           </Button>
         }
       >
+        {disabledWhy ? <p id="backup-why" className="mb-3 text-sm text-muted">{disabledWhy}</p> : null}
         {status.isError ? (
           <QueryError error={status.error} onRetry={() => void status.refetch()} notFoundTitle={t("node.unavailable")} />
         ) : !s ? (
@@ -80,8 +87,8 @@ export function BackupsPage() {
         {(list.data?.items.length ?? 0) === 0 ? (
           <p className="p-4 text-sm text-muted">{t("backups.empty")}</p>
         ) : (
-          <div className="overflow-x-auto">
-            <Table>
+          <Bounded>
+            <Table stack>
               <TableHeader>
                 <TableRow>
                   <TableHead>{t("backups.id")}</TableHead>
@@ -102,20 +109,28 @@ export function BackupsPage() {
                       </span>
                     </TableCell>
                     <TableCell>{formatDateTime(b.started_at)}</TableCell>
-                    <TableCell className="text-right tabular-nums">{b.bytes !== null ? formatBytes(b.bytes) : "–"}</TableCell>
+                    <TableCell className="text-right tabular-nums">{b.bytes !== null ? formatBytes(b.bytes) : t("common:na")}</TableCell>
                   </TableRow>
                 ))}
               </TableBody>
             </Table>
-          </div>
+          </Bounded>
         )}
       </SectionCard>
 
-      <SectionCard title={t("backups.download")} description={t("backups.downloadHint")}>
+      <SectionCard title={t("backups.download")} description={t("operator:backups.downloadHint")}>
         <pre className="overflow-x-auto rounded bg-surface-2 p-3 font-mono text-xs">21ci backup download {list.data?.items[0]?.id ?? "<id>"}</pre>
       </SectionCard>
 
-      <SectionCard title={t("backups.config")} description={t("backups.configHint")}>
+      <SectionCard title={t("operator:backups.restoreTitle")} description={t("operator:backups.restoreHint")}>
+        <pre className="overflow-x-auto rounded bg-surface-2 p-3 font-mono text-xs">{RESTORE}</pre>
+        <p className="mt-2 text-sm text-muted">{t("operator:backups.restoreEncrypted")}</p>
+      </SectionCard>
+
+      <SectionCard
+        title={t(on ? "operator:backups.toChange" : "operator:backups.toEnable")}
+        description={t(on ? "operator:backups.toChangeHint" : "operator:backups.toEnableHint")}
+      >
         <pre className="overflow-x-auto rounded bg-surface-2 p-3 font-mono text-xs">{FRAGMENT}</pre>
       </SectionCard>
     </div>

@@ -1,0 +1,103 @@
+{
+  "nav": "Foydalanish",
+  "usage": {
+    "title": "Tarif sarfi",
+    "description": "Tashkilot tarif limitlariga nisbatan qancha foydalangani.",
+    "plan": "Tarif: {{plan}}",
+    "resets": "Yangilanadi: {{when}}",
+    "unavailable": "Maʼlumot mavjud emas",
+    "unavailableHint": "Bu tugun hali tarif sarfini koʻrsatmaydi. Runtime’ni yangilang.",
+    "empty": "Bu tarifda koʻrsatiladigan limit yoʻq.",
+    "unlimited": "Limitsiz",
+    "amount": "{{used}} / {{limit}}",
+    "ariaUsage": "{{label}} sarfi",
+    "metric": {
+      "invocations": "Chaqiruvlar",
+      "cpu_ms": "CPU vaqti (ms)",
+      "egress_bytes": "Chiquvchi trafik",
+      "storage_bytes": "Xotira",
+      "services": "Ilovalar",
+      "schedules": "Jadvallar",
+      "builds": "Yigʻishlar",
+      "projects": "Loyihalar",
+      "branches": "Tarmoqlar",
+      "previews": "Oldindan ko‘rishlar",
+      "custom_hosts": "Maxsus domenlar",
+      "secrets": "Ilova sirlari"
+    },
+    "period": {
+      "day": "kuniga",
+      "month": "oyiga",
+      "total": "jami",
+      "per_service": "har bir ilova"
+    }
+  },
+  "telemetry": {
+    "title": "Telemetriya",
+    "body": "Runtime kuniga bitta anonim hisobot yuboradi: soʻrovlar, loyihalar, servislar, tashkilotlar va foydalanuvchilar soni, shuningdek versiya va tasodifiy ID. Konsol faqat foydalanuvchilar sonini runtime’ga beradi va telemetriya serveriga oʻzi murojaat qilmaydi. IP manzillar saqlanmaydi.",
+    "on": "Yuborilmoqda",
+    "off": "Oʻchirilgan",
+    "unknown": "Holati nomaʼlum",
+    "optOut": "Rad etish uchun rt.toml faylida telemetry.enabled = false yoki tugunda DO_NOT_TRACK=1 belgilang.",
+    "link": "Qanday rad etiladi"
+  },
+  "events": {
+    "title": "Oʻzgarishlar oqimi",
+    "description": "Ushbu ilovaning tasdiqlangan SQL va KV oʻzgarishlarini oqim mavzusiga eʼlon qiladi.",
+    "adminOnly": "Buni faqat loyiha adminlari oʻzgartira oladi: hodisalarda qator maʼlumotlari boʻlishi mumkin.",
+    "state": {
+      "disabled": "Oʻchiq",
+      "pending": "Ishga tushmoqda",
+      "active": "Yoqilgan",
+      "paused_overflow": "Pauza: navbat toʻldi",
+      "error": "Xato"
+    },
+    "backlog": "Navbat: {{count}}",
+    "topic": "Mavzu",
+    "topicRequired": "Mavzuni kiriting.",
+    "tables": "Jadvallar",
+    "tableName": "Jadval nomi",
+    "addTable": "Jadval qoʻshish",
+    "remove": "Olib tashlash",
+    "kv": "KV prefikslari",
+    "kvPrefix": "Kalit prefiksi",
+    "addKv": "Prefiks qoʻshish",
+    "payload": {
+      "keys": "Faqat kalitlar",
+      "row": "Butun qator"
+    },
+    "payloadLabel": "Tarkib",
+    "rowWarning": "Butun qatorlar shaxsiy maʼlumotlarni mavzuni oʻquvchilarga ochishi mumkin.",
+    "op": {
+      "insert": "Qoʻshish",
+      "update": "Yangilash",
+      "delete": "Oʻchirish"
+    },
+    "opsRequired": "Har bir jadval uchun kamida bitta amal tanlang.",
+    "save": "Saqlash",
+    "rearm": "Saqlash va davom ettirish",
+    "disable": "Oʻchirish",
+    "saved": "Hodisalar saqlandi.",
+    "disabled": "Hodisalar oʻchirildi."
+  },
+  "vault": {
+    "badge": "Vault",
+    "synced": "Sinxronlandi: {{when}}",
+    "neverSynced": "Hali sinxronlanmagan",
+    "errorPrefix": "Sinxronlash xatosi: {{error}}",
+    "link": "Vault bilan bogʻlash",
+    "linkTitle": "Sirni Vault bilan bogʻlash",
+    "linkDescription": "Tugun qiymatni sozlangan Vault manbasidan oʻqiydi. Konsol uni koʻrmaydi.",
+    "path": "Vault yoʻli",
+    "field": "Maydon",
+    "submit": "Bogʻlash",
+    "unlink": "Uzish",
+    "unlinkLabel": "{{name}} ni Vault’dan uzish",
+    "linked": "{{name}} Vault bilan bogʻlandi.",
+    "unlinked": "{{name}} uzildi. Qiymat oddiy sir sifatida qoladi.",
+    "sync": "Hozir sinxronlash",
+    "syncStarted": "Sinxronlash boshlandi.",
+    "required": "Nom, yoʻl va maydonni toʻldiring.",
+    "outsidePrefix": "Yoʻl bu tugunda ruxsat etilgan prefiksdan tashqarida yoki tugunda Vault manbasi yoʻq."
+  }
+}

@@ -1,12 +1,14 @@
 import { ScrollText } from "lucide-react";
-import { useId, useState } from "react";
+import { useId, useMemo } from "react";
 import { useTranslation } from "react-i18next";
 
 import { QueryError } from "@/components/features/empty/query-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Input } from "@/components/ui/input";
+import { Segmented } from "@/components/ui/segmented";
 import { PageHeader } from "@/components/ui/page-header";
 import { Label } from "@/components/ui/label";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -20,35 +22,46 @@ import {
 } from "@/components/ui/select";
 import { formatDateTime } from "@/lib/format";
 
-import { useAdminAudit, useAdminOrgs, useUserOptions, type AuditFilters } from "./admin-api";
+import { AUDIT_PERIODS, patchAuditSearch, sinceFor, type AuditPeriod, type AuditSearch } from "@/components/features/audit/audit-search";
+
+import { useAdminAudit, useAdminOrgs, withQuery, useUserOptions, type AuditFilters } from "./admin-api";
+
+const EXPORT_FORMATS = ["csv", "ndjson"] as const;
 
 // Radix Select items cannot have an empty value, so the "any" choices use sentinels.
 const ALL_ORGS = "__all__";
 const ANY_ACTOR = "__any__";
 
 // AuditPage is the instance-wide audit log. Filters go to the API (org slug, actor user id, action),
-// so each change reloads from the first page.
-export function AuditPage() {
+// so each change reloads from the first page. The filters live in the URL so the view can be shared.
+export function AuditPage({ search, onSearchChange }: { search: AuditSearch; onSearchChange: (next: AuditSearch) => void }) {
   const { t } = useTranslation(["admin", "common"]);
-  const [filters, setFilters] = useState<AuditFilters>({ org: "", actor: "", action: "" });
+  const { t: ta } = useTranslation("audit");
+  const period: AuditPeriod = search.period ?? "all";
+  const since = useMemo(() => sinceFor(period), [period]);
+  const filters: AuditFilters = { org: search.org ?? "", actor: search.actor ?? "", action: search.action ?? "", ...(since ? { since } : {}) };
   const orgs = useAdminOrgs();
   const users = useUserOptions();
   const audit = useAdminAudit({ ...filters, action: filters.action.trim() });
   const orgId = useId();
   const actorId = useId();
   const actionId = useId();
+  const pickPeriod = (next: AuditPeriod) => onSearchChange(patchAuditSearch(search, { period: next }));
+  const exportHref = (format: string) => `/api${withQuery("/admin/audit", { format, org: filters.org, actor: filters.actor, action: filters.action.trim(), since: filters.since })}`;
   const items = audit.data?.pages.flatMap((p) => p.items) ?? [];
 
   return (
     <div className="flex min-w-0 flex-col gap-6">
-      <PageHeader icon={ScrollText} entity="admin" title={t("audit.title")} description={t("audit.description")} />
+      <PageHeader icon={ScrollText} entity="admin" title={t("audit.title")} description={t("audit.description")} actions={<ExportMenu formats={EXPORT_FORMATS} href={exportHref} />} />
+
+      <Segmented label={ta("filters.period")} value={period} onChange={pickPeriod} options={AUDIT_PERIODS.map((p) => ({ value: p, label: ta(`filters.periods.${p}`) }))} />
 
       <form className="grid gap-3 sm:grid-cols-3" role="search" aria-label={t("audit.filters")} onSubmit={(e) => e.preventDefault()}>
         <div className="flex flex-col gap-1.5">
           <Label htmlFor={orgId}>{t("audit.organization")}</Label>
           <Select
             value={filters.org || ALL_ORGS}
-            onValueChange={(v) => setFilters((f) => ({ ...f, org: v === ALL_ORGS ? "" : v }))}
+            onValueChange={(v) => onSearchChange(patchAuditSearch(search, { org: v === ALL_ORGS ? "" : v }))}
           >
             <SelectTrigger id={orgId} className="h-8 min-w-0">
               <SelectValue />
@@ -67,7 +80,7 @@ export function AuditPage() {
           <Label htmlFor={actorId}>{t("audit.actor")}</Label>
           <Select
             value={filters.actor || ANY_ACTOR}
-            onValueChange={(v) => setFilters((f) => ({ ...f, actor: v === ANY_ACTOR ? "" : v }))}
+            onValueChange={(v) => onSearchChange(patchAuditSearch(search, { actor: v === ANY_ACTOR ? "" : v }))}
           >
             <SelectTrigger id={actorId} className="h-8 min-w-0">
               <SelectValue />
@@ -88,7 +101,7 @@ export function AuditPage() {
             id={actionId}
             placeholder={t("audit.actionPlaceholder")}
             value={filters.action}
-            onChange={(e) => setFilters((f) => ({ ...f, action: e.target.value }))}
+            onChange={(e) => onSearchChange(patchAuditSearch(search, { action: e.target.value }))}
           />
         </div>
       </form>
@@ -107,7 +120,7 @@ export function AuditPage() {
           description={t("audit.empty.description")}
         />
       ) : (
-        <Table>
+        <Table stack>
           <TableHeader>
             <TableRow>
               <TableHead>{t("audit.columns.when")}</TableHead>

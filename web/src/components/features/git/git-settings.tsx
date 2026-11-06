@@ -3,7 +3,7 @@ import { useState, type FormEvent } from "react";
 import { useTranslation } from "react-i18next";
 
 import { QueryError } from "@/components/features/empty/query-error";
-import { useAppDetail } from "@/components/features/versions/use-versions";
+import { useAppDetail } from "@/components/features/deployments/use-versions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -14,7 +14,8 @@ import { SectionCard } from "@/components/ui/section-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCan } from "@/hooks/authz";
-import { PreviewsCard } from "./previews";
+import { ApiError } from "@/lib/api";
+import { errorMessage } from "@/lib/error-message";
 import { formatDateTime } from "@/lib/format";
 
 import {
@@ -42,13 +43,13 @@ const STATE_VARIANT: Record<GitDelivery["state"], "success" | "danger" | "warnin
 // GitSettings manages an app's repository link. The server allows this to project admins only; the
 // section is hidden from everyone else rather than shown disabled, since none of it is theirs to read.
 export function GitSettings({ org, app }: { org: string; app: string }) {
-  const { t } = useTranslation(["git", "branches"]);
+  const { t } = useTranslation(["git", "branches", "operator"]);
   const detail = useAppDetail(org, app);
   const allowed = useCan(org, detail.data?.project)("app.git.manage") === true;
   const git = useGit(org, app, allowed);
   const [created, setCreated] = useState<GitLinkCreated | null>(null);
 
-  if (!allowed) return null;
+  if (!allowed) return detail.data ? <p className="text-sm text-muted">{t("adminsOnly")}</p> : null;
   if (git.isError) {
     return <QueryError error={git.error} onRetry={() => void git.refetch()} notFoundTitle={t("branches:notFound")} notFoundDescription={t("branches:notFoundDescription")} />;
   }
@@ -56,17 +57,20 @@ export function GitSettings({ org, app }: { org: string; app: string }) {
   const { link, rules, deliveries } = git.data;
 
   return (
-    <SectionCard title={t("title")} description={t("description")}>
+    <SectionCard title={<span id="git">{t("title")}</span>} description={t("description")}>
       <div className="flex flex-col gap-6 px-5 pb-5">
         {link ? (
           <>
             <LinkSummary org={org} app={app} link={link} />
             <RulesEditor key={JSON.stringify(rules)} org={org} app={app} rules={rules} />
             <Deliveries items={deliveries} />
-            <PreviewsToggle org={org} app={app} project={detail.data?.project} enabled={link.previews === true} />
+            <PreviewsToggle org={org} app={app} enabled={link.previews === true} />
           </>
         ) : (
-          <LinkForm org={org} app={app} onCreated={setCreated} />
+          <>
+            <LinkForm org={org} app={app} onCreated={setCreated} />
+            <p className="text-sm text-muted">{t("operator:previewsNeedRepo")}</p>
+          </>
         )}
       </div>
       {created ? <SecretDialog created={created} onClose={() => setCreated(null)} /> : null}
@@ -75,7 +79,7 @@ export function GitSettings({ org, app }: { org: string; app: string }) {
 }
 
 function LinkForm({ org, app, onCreated }: { org: string; app: string; onCreated: (c: GitLinkCreated) => void }) {
-  const { t } = useTranslation("git");
+  const { t } = useTranslation(["git", "operator"]);
   const create = useCreateGitLink(org, app);
   const [provider, setProvider] = useState<GitLinkInput["provider"]>("github");
   const [baseUrl, setBaseUrl] = useState("https://github.com");
@@ -83,12 +87,35 @@ function LinkForm({ org, app, onCreated }: { org: string; app: string; onCreated
   const [branch, setBranch] = useState("main");
   const [subdir, setSubdir] = useState("");
   const [token, setToken] = useState("");
+  const [fields, setFields] = useState<Record<string, string>>({});
+  const [formError, setFormError] = useState<string | null>(null);
+  const msg = (name: string) => {
+    const reason = fields[name];
+    if (!reason) return undefined;
+    return reason === "required" ? t("operator:gitField.required") : t("operator:gitField.invalid", { reason });
+  };
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    setFields({});
+    setFormError(null);
+    // A scripted or autofilled submit can skip the browser's own check.
+    if (!repo.trim()) {
+      setFields({ repo: "required" });
+      return;
+    }
     create.mutate(
       { provider, base_url: baseUrl, repo, branch, auto_promote: true, ...(subdir ? { subdir } : {}), ...(token ? { token } : {}) },
-      { onSuccess: onCreated },
+      {
+        onSuccess: onCreated,
+        onError: (err) => {
+          const f = err instanceof ApiError ? err.fieldErrors() : {};
+          setFields(f);
+          // A reason on no field of this form still has to reach the person.
+          const known = ["base_url", "repo", "branch", "subdir", "token"];
+          if (!Object.keys(f).some((k) => known.includes(k))) setFormError(errorMessage(err));
+        },
+      },
     );
   };
 
@@ -106,17 +133,18 @@ function LinkForm({ org, app, onCreated }: { org: string; app: string; onCreated
           </SelectContent>
         </Select>
       </div>
-      <Field id="git-base" label={t("baseUrl")} hint={t("baseUrlHint")} value={baseUrl} onChange={setBaseUrl} required />
-      <Field id="git-repo" label={t("repo")} value={repo} onChange={setRepo} placeholder="owner/name" required />
-      <Field id="git-branch" label={t("branch")} value={branch} onChange={setBranch} required />
-      <Field id="git-subdir" label={t("subdir")} value={subdir} onChange={setSubdir} />
-      <Field id="git-token" label={t("token")} hint={t("tokenHint")} value={token} onChange={setToken} type="password" />
+      <Field id="git-base" label={t("baseUrl")} hint={t("baseUrlHint")} value={baseUrl} onChange={setBaseUrl} required error={msg("base_url")} />
+      <Field id="git-repo" label={t("repo")} value={repo} onChange={setRepo} placeholder="owner/name" required error={msg("repo")} />
+      <Field id="git-branch" label={t("branch")} value={branch} onChange={setBranch} required error={msg("branch")} />
+      <Field id="git-subdir" label={t("subdir")} value={subdir} onChange={setSubdir} error={msg("subdir")} />
+      <Field id="git-token" label={t("token")} hint={t("tokenHint")} value={token} onChange={setToken} type="password" error={msg("token")} />
+      {formError ? <p role="alert" className="text-sm text-danger">{formError}</p> : null}
       <div><Button type="submit" disabled={create.isPending}>{t("create")}</Button></div>
     </form>
   );
 }
 
-function Field(p: { id: string; label: string; hint?: string; value: string; onChange: (v: string) => void; required?: boolean; placeholder?: string; type?: string }) {
+function Field(p: { id: string; label: string; hint?: string; value: string; onChange: (v: string) => void; required?: boolean; placeholder?: string; type?: string; error?: string | undefined }) {
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={p.id}>{p.label}</Label>
@@ -130,6 +158,7 @@ function Field(p: { id: string; label: string; hint?: string; value: string; onC
         {...(p.type ? { type: p.type } : {})}
       />
       {p.hint ? <p className="text-xs text-muted">{p.hint}</p> : null}
+      {p.error ? <p role="alert" className="text-sm text-danger">{p.error}</p> : null}
     </div>
   );
 }
@@ -155,9 +184,15 @@ function SecretDialog({ created, onClose }: { created: GitLinkCreated; onClose: 
   );
 }
 
-function PreviewsToggle({ org, app, project, enabled }: { org: string; app: string; project: string | undefined; enabled: boolean }) {
+function PreviewsToggle({ org, app, enabled }: { org: string; app: string; enabled: boolean }) {
+  const { t } = useTranslation("platform");
   const update = useUpdateGitLink(org, app);
-  return <PreviewsCard org={org} app={app} project={project} enabled={enabled} toggling={update.isPending} onToggle={(previews) => update.mutate({ previews })} />;
+  return (
+    <label className="flex items-center gap-2 text-sm">
+      <input type="checkbox" checked={enabled} disabled={update.isPending} onChange={(e) => update.mutate({ previews: e.target.checked })} />
+      {t("previews.enable")}
+    </label>
+  );
 }
 
 function LinkSummary({ org, app, link }: { org: string; app: string; link: GitLink }) {

@@ -23,6 +23,16 @@ export const isSha = (v: unknown): v is string => typeof v === "string" && SHA_R
 /** A trailing dot names the same host, and would slip past the name checks. */
 export const publicLiteral = (hostname: string) => !isPrivateHost(hostname.replace(/\.+$/, ""));
 
+let testOrigin: string | null = null;
+/** The harness's one private Git origin (Config.gitTestOrigin). Never set outside it. */
+export function setGitTestOrigin(origin: string | null): void {
+  testOrigin = origin;
+}
+/** Whether a Git host URL may be called: public as written, or exactly the harness's origin. */
+export const gitHostAllowed = (u: URL) => publicLiteral(u.hostname) || isGitTestOrigin(u.origin);
+
+export const isGitTestOrigin = (origin: string) => testOrigin !== null && origin === testOrigin;
+
 /** The canonical origin of a base URL, or null: https, no credentials, path, query or fragment, not private as written. */
 export function parseBaseUrl(raw: unknown): string | null {
   if (typeof raw !== "string" || raw.length > 255) return null;
@@ -33,7 +43,7 @@ export function parseBaseUrl(raw: unknown): string | null {
     return null;
   }
   if (u.protocol !== "https:" || u.username || u.password || u.search || u.hash || raw.includes("#") || raw.includes("?")) return null;
-  if (u.pathname !== "/" || !u.hostname || !publicLiteral(u.hostname)) return null;
+  if (u.pathname !== "/" || !u.hostname || !gitHostAllowed(u)) return null;
   return u.origin;
 }
 
@@ -93,7 +103,7 @@ export function authHeaders(provider: Provider, token: string | null): Record<st
 
 /** Returns the answer, or null for a network failure. The cap holds against a self-hosted server sending without end. */
 async function call(f: typeof fetch, url: string, token: string | null, r: Repo, init: RequestInit = {}): Promise<{ status: number; headers: Headers; body: unknown } | null> {
-  if (!publicLiteral(new URL(url).hostname)) return null;
+  if (!gitHostAllowed(new URL(url))) return null;
   try {
     const res = await f(url, {
       ...init,

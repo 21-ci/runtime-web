@@ -4,8 +4,9 @@ import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { QueryError } from "@/components/features/empty/query-error";
-import { InvitesPanel } from "@/components/features/invites/invites-panel";
+import { InviteMemberButton, InvitesPanel } from "@/components/features/invites/invites-panel";
 import { Badge } from "@/components/ui/badge";
+import { BoundedItems } from "@/components/ui/bounded";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -16,6 +17,7 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { EmptyState } from "@/components/ui/empty-state";
+import { ExportMenu } from "@/components/ui/export-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   Select,
@@ -73,17 +75,14 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
 
   return (
     <div className="flex flex-col gap-8">
-      <section aria-labelledby="members-heading" className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
-        <header className="flex items-start justify-between gap-3">
-          <div>
-            <h2 id="members-heading" className="text-[15px] font-semibold">
-              {t("title")}
-            </h2>
-            <p className="text-sm text-muted">{t("description")}</p>
+      <section aria-label={t("title")} className="flex flex-col gap-4 rounded-lg border border-line bg-surface p-5 shadow-card">
+        <header className="flex flex-wrap items-center justify-between gap-3">
+          <p className="min-w-0 flex-1 basis-40 text-sm text-muted">{t("description")}</p>
+          <div className="flex shrink-0 flex-wrap items-center justify-end gap-2">
+            {members.data ? <span className="text-sm tabular-nums text-muted">{t("count", { count: members.data.length })}</span> : null}
+            <ExportMenu formats={["csv"] as const} href={(f) => `/api/orgs/${encodeURIComponent(org)}/members?format=${f}`} />
+            {canManage ? <InviteMemberButton org={org} role={role} /> : null}
           </div>
-          {members.data ? (
-            <span className="shrink-0 text-sm tabular-nums text-muted">{t("count", { count: members.data.length })}</span>
-          ) : null}
         </header>
 
         {members.isError ? (
@@ -93,13 +92,15 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
         ) : members.data.length === 0 ? (
           <EmptyState entity="members" icon={Users} title={t("empty.title")} description={t("empty.description")} />
         ) : (
-          <ul aria-label={t("title")} className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
-            {members.data.map((m) => {
+          <BoundedItems
+            items={members.data}
+            getKey={(m) => m.user.id}
+            renderItem={(m) => {
               // Admins cannot touch owner rows at all.
               const locked = !callerIsOwner && m.role === "owner";
               const grants = Object.entries(m.grants);
-              return (
-                <li key={m.user.id} className="flex flex-wrap items-center justify-between gap-3 px-4 py-3 text-sm">
+               return (
+                <div className="flex flex-wrap items-center justify-between gap-3 border-b border-line py-3 text-sm last:border-b-0">
                   <span className="flex min-w-0 flex-1 flex-col">
                     <span className="truncate font-medium">{m.user.name}</span>
                     <span className="truncate text-muted" title={m.user.email}>
@@ -143,10 +144,10 @@ export function MembersPage({ org, role }: { org: string; role: OrgRole }) {
                       <Badge variant="outline">{t(ROLE_KEY[m.role])}</Badge>
                     )}
                   </span>
-                </li>
+                </div>
               );
-            })}
-          </ul>
+            }}
+          />
         )}
       </section>
 

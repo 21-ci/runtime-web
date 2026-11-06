@@ -3,6 +3,7 @@
     "description": "U oʻchirilgan yoki sizda ruxsat yoʻq boʻlishi mumkin."
   },
   "app": {
+    "backToOrg": "Tashkilotga qaytish",
     "notFound": "Ilova topilmadi"
   },
   "project": {
@@ -33,6 +34,12 @@
     "create": "Ilova yaratish",
     "chooseProject": "Loyihani tanlang.",
     "chooseEnvironment": "Muhitni tanlang.",
+    "slugChars": "{{chars}} ishlatib boʻlmaydi. Kichik lotin harflari, raqamlar va yakka chiziqchalardan foydalaning.",
+    "slugLong": "Koʻpi bilan {{max}} ta belgi.",
+    "slugEdge": "Harf yoki raqam bilan boshlang va tugating.",
+    "slugDouble": "Ketma-ket ikkita chiziqcha qoʻymang.",
+    "branchEnvironment": "{{environment}} (tarmoq)",
+    "branchEnvironmentHint": "Bu muhit tarmoqqa tegishli va u bilan birga oʻchiriladi.",
     "enterName": "Ilova nomini kiriting.",
     "slugTaken": "Bu ilova nomi ish muhitida allaqachon band.",
     "failed": "Ilovani yaratib boʻlmadi. Qaytadan urining.",
@@ -40,7 +47,13 @@
     "loadingProjects": "Loyihalar yuklanmoqda…",
     "noProjects": "Ilova yaratish uchun loyihangiz yoʻq. Tashkilot administratoridan ruxsat soʻrang.",
     "loadingEnvironments": "Muhitlar yuklanmoqda…",
-    "noEnvironments": "Bu loyihada hali muhitlar yoʻq."
+    "noEnvironments": "Bu loyihada hali muhitlar yoʻq.",
+    "wasm": {
+      "title": "WebAssembly komponenti",
+      "blurb": ".wasm faylini yuklash",
+      "file": "Komponent fayli (.wasm)",
+      "required": ".wasm faylini tanlang."
+    }
   },
   "templates": {
     "http": {

@@ -26,6 +26,10 @@ fd21b485ba6af76a3dfb51cb6dd40be20305db78:server/test/runtime/sdk.test.ts:generic
 fd21b485ba6af76a3dfb51cb6dd40be20305db78:server/test/runtime/sdk.test.ts:generic-api-key:105
 cf392e14132e46f5cce94e3ca29600115e2138a9:web/src/components/features/domains/domains-panel.test.tsx:generic-api-key:12
 88d988c5f97fdd6fa769d8d66601e9fb5076c136:web/src/components/features/admin/admin.test.tsx:generic-api-key:81
+0d00e71aa8ff0d30e871bc127921b77da73b4faa:server/test/runtime/sdk.test.ts:generic-api-key:94
+0d00e71aa8ff0d30e871bc127921b77da73b4faa:web/src/components/features/alerts/alerts-page.test.tsx:generic-api-key:59
+3d9f21409b6994c07eff85ed0047c40c78c287cf:server/test/runtime/sdk.test.ts:generic-api-key:87
+3d9f21409b6994c07eff85ed0047c40c78c287cf:server/test/runtime/sdk.test.ts:generic-api-key:90
 
 # internal/config/config_test.go: Go test key removed from the tree; kept in history only (pre-TypeScript rewrite)
 1a03b70d43d9ec2a7ef4d118bf1609d0a6331d26:internal/config/config_test.go:generic-api-key:9

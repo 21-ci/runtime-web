@@ -80,11 +80,33 @@ export const useDeleteRule = (base: string) => useWrite(base, (id: string) => ap
 export function useTestChannel(base: string) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (id: string) => api.post<{ ok: boolean; status: string }>(`${base}/channels/${id}/test`),
+    mutationFn: (id: string) => api.post<TestResult>(`${base}/channels/${id}/test`),
     onSuccess: (out) => {
       void qc.invalidateQueries({ queryKey: key(base) });
       if (out.ok) toast.success(i18n.t("alerts:channels.testOk"));
-      else toast.error(i18n.t("alerts:channels.testFailed", { status: out.status }));
+      else toast.error(testFailure(out));
     },
   });
+}
+
+export type TestResult = { ok: boolean; status: string; http_status?: number; excerpt?: string };
+
+/** A failed test in words: the far end's status and what it said, or why nothing reached it. */
+export function testFailure(out: TestResult): string {
+  if (out.http_status !== undefined) {
+    return out.excerpt
+      ? i18n.t("operator:alerts.testHttpExcerpt", { status: out.http_status, excerpt: out.excerpt })
+      : i18n.t("operator:alerts.testHttp", { status: out.http_status });
+  }
+  return i18n.t(`operator:alerts.testOther.${out.status}`, { defaultValue: i18n.t("alerts:channels.testFailed", { status: out.status }) });
+}
+
+/** The message for one field of a refused channel, from the code the server gives. */
+export function channelFieldMessage(field: string, code: string): string {
+  if (field === "name") return i18n.t("operator:alerts.nameFormat");
+  if (field === "config.url") return i18n.t(code === "invalid_format" ? "operator:alerts.urlFormat" : "operator:alerts.urlNotPublic");
+  if (field === "config.secret") return i18n.t("operator:alerts.secretFormat");
+  if (field === "config.bot_token") return i18n.t("operator:alerts.tokenFormat");
+  if (field === "config.chat_id") return i18n.t("operator:alerts.chatFormat");
+  return code;
 }

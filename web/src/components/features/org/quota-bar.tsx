@@ -1,15 +1,18 @@
+import type { TFunction } from "i18next";
 import { useTranslation } from "react-i18next";
 
 import { QueryError } from "@/components/features/empty/query-error";
-import { Progress } from "@/components/ui/progress";
+import { Badge } from "@/components/ui/badge";
 import { SectionCard } from "@/components/ui/section-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useLimits, type Limits, type Quota } from "@/hooks/orgs";
 import { formatBytes, formatCount } from "@/lib/format";
 import { intlLocale } from "@/lib/i18n";
 
+import { NEAR_PCT, UsageRows, type UsageRow } from "./usage-rows";
+
 type Row = {
-  key: keyof Omit<Limits, "day" | "resets_at" | "allowed_triggers">;
+  key: keyof Omit<Limits, "day" | "resets_at" | "allowed_triggers" | "hidden_services">;
   labelKey: "quota.rows.invocations" | "quota.rows.egress" | "quota.rows.storage" | "quota.rows.apps" | "quota.rows.schedules";
   bytes?: boolean;
 };
@@ -29,12 +32,16 @@ const PERIOD_KEY: Record<string, "quota.period.day" | "quota.period.total" | "qu
   per_service: "quota.period.perService",
 };
 
+const usedPct = (q: Quota) => (q.limit ? Math.min(100, Math.round((q.used / q.limit) * 100)) : 0);
+
 // QuotaBar shows the org's daily and total limits. It is read-only: no plan names, no upgrade
 // controls. The block keeps its height while loading so the page does not shift.
 export function QuotaBar({ org }: { org: string }) {
-  const { t } = useTranslation(["org", "common"]);
+  const { t } = useTranslation(["org", "common", "operator"]);
   const limits = useLimits(org);
   const title = t("quota.title");
+  const data = limits.data;
+  const near = data ? ROWS.filter((row) => usedPct(data[row.key]) >= NEAR_PCT).length : 0;
 
   return (
     <SectionCard
@@ -42,13 +49,20 @@ export function QuotaBar({ org }: { org: string }) {
       description={
         limits.data
           ? t("quota.resetsAt", {
-              time: new Intl.DateTimeFormat(intlLocale(), { hour: "2-digit", minute: "2-digit" }).format(
+              time: new Intl.DateTimeFormat(intlLocale(), { dateStyle: "medium", timeStyle: "short" }).format(
                 new Date(limits.data.resets_at),
               ),
             })
           : undefined
       }
       aria-label={title}
+      actions={
+        data ? (
+          <Badge variant={near ? "warning" : "success"} dot>
+            {near ? t("quota.near", { count: near }) : t("quota.ok")}
+          </Badge>
+        ) : undefined
+      }
     >
       {limits.isError ? (
         <QueryError error={limits.error} onRetry={() => void limits.refetch()} notFoundTitle={t("quota.unavailable")} />
@@ -59,44 +73,33 @@ export function QuotaBar({ org }: { org: string }) {
           <Skeleton className="h-4 w-full" />
         </div>
       ) : limits.data ? (
-        <ul className="flex flex-col gap-3.5">
-          {ROWS.map((row) => (
-            <li key={row.key} className="flex flex-col gap-1">
-              <QuotaLine row={row} quota={limits.data[row.key]} />
-            </li>
-          ))}
-        </ul>
+        <UsageRows
+          rows={ROWS.map((row) => quotaRow(row, limits.data[row.key], limits.data.hidden_services ?? 0, t))}
+          ariaLabel={(label) => t("quota.usage", { label })}
+        />
       ) : null}
     </SectionCard>
   );
 }
 
-function QuotaLine({ row, quota }: { row: Row; quota: Quota }) {
-  const { t } = useTranslation(["org"]);
+function quotaRow(row: Row, quota: Quota, hidden: number, t: TFunction<["org", "common", "operator"]>): UsageRow {
+  // The runtime's storage counter stays at 0 whatever the disk holds, so 0 here says nothing.
+  const unmetered = row.key === "storage_bytes" && quota.used === 0;
   const fmt = row.bytes ? formatBytes : formatCount;
-  const pct = quota.limit ? Math.min(100, Math.round((quota.used / quota.limit) * 100)) : 0;
-  const high = pct >= 90;
   const label = t(row.labelKey);
   const periodKey = PERIOD_KEY[quota.period];
-  const amount =
-    quota.limit === null
+  const amount = unmetered
+    ? quota.limit === null
+      ? t("operator:plan.notMetered")
+      : t("operator:plan.notMeteredLimit", { limit: fmt(quota.limit) })
+    : quota.limit === null
       ? t("quota.used", { used: fmt(quota.used) })
       : t("quota.amount", {
           used: fmt(quota.used),
           limit: fmt(quota.limit),
           period: periodKey ? t(periodKey) : quota.period,
         });
-  return (
-    <>
-      <div className="flex min-w-0 items-baseline justify-between gap-2 text-sm">
-        <span className="shrink-0">{label}</span>
-        <span className="min-w-0 truncate text-right tabular-nums text-[12px] text-muted" title={amount}>
-          {amount}
-        </span>
-      </div>
-      {quota.limit !== null ? (
-        <Progress value={pct} aria-label={t("quota.usage", { label })} className={high ? "[&>div]:bg-danger" : undefined} />
-      ) : null}
-    </>
-  );
+  const note = unmetered ? t("operator:plan.storageHint") : row.key === "services" && hidden > 0 ? t("operator:plan.includingHidden", { count: hidden }) : null;
+  const bar = quota.limit !== null && !unmetered;
+  return { key: row.key, label, amount, note, used: bar ? quota.used : null, limit: bar ? quota.limit : null };
 }

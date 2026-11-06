@@ -34,6 +34,13 @@ const me = {
   mfa_enrollment_required: false,
 };
 
+function sessionsSection(): HTMLElement {
+  const heading = screen.getByRole("heading", { name: "Sessions" });
+  const section = heading.closest("section");
+  if (!section) throw new Error("sessions section not found");
+  return section;
+}
+
 function renderPage() {
   return render(
     <QueryClientProvider client={createQueryClient()}>
@@ -70,7 +77,34 @@ describe("SecurityPage", () => {
 
     await user.click(screen.getByRole("button", { name: "Revoke session Chrome on Linux" }));
     await waitFor(() => expect(screen.queryByText("Chrome on Linux")).toBeNull());
-    expect(within(screen.getByRole("list", { name: "Sessions" })).getByText("Firefox on macOS")).toBeInTheDocument();
+    expect(within(sessionsSection()).getByText("Firefox on macOS")).toBeInTheDocument();
+  });
+
+  it("bounds sessions to ten, shows the rest on demand and marks the current one first", async () => {
+    const user = userEvent.setup();
+    const ua = "Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36";
+    const sessions = Array.from({ length: 12 }, (_, i) => ({
+      id: `s_${i}`,
+      ip: "10.0.0.2",
+      ua,
+      created_at: 1,
+      last_seen_at: 2,
+      current: i === 7,
+    }));
+    server.use(
+      http.get("/api/me", () => HttpResponse.json(me)),
+      http.get("/api/me/sessions", () => HttpResponse.json({ items: sessions })),
+      http.get("/api/me/logins", () => HttpResponse.json({ items: [] })),
+    );
+    renderPage();
+
+    const section = await waitFor(() => sessionsSection());
+    expect(await within(section).findByRole("button", { name: "Show all (12)" })).toBeInTheDocument();
+    expect(within(section).getAllByRole("listitem")).toHaveLength(10);
+    expect(within(section).getAllByRole("listitem")[0]).toHaveTextContent("This session");
+
+    await user.click(within(section).getByRole("button", { name: "Show all (12)" }));
+    expect(within(section).getAllByRole("listitem")).toHaveLength(12);
   });
 
   it("2fa enroll shows QR then recovery codes once", async () => {

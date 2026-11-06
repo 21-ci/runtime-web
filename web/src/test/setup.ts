@@ -12,6 +12,16 @@ import { server } from "./msw";
 // machine is loaded (lazy route chunks, parallel workers, coverage instrumentation).
 configure({ asyncUtilTimeout: 10_000 });
 
+// jsdom has no IntersectionObserver, which the library's reveal animations use.
+window.IntersectionObserver ??= class {
+  observe() {}
+  unobserve() {}
+  disconnect() {}
+  takeRecords() {
+    return [];
+  }
+} as unknown as typeof IntersectionObserver;
+
 // jsdom gaps: sonner reads matchMedia for theme="system", and router scroll restoration calls scrollTo.
 if (!window.matchMedia) {
   window.matchMedia = (query: string) =>

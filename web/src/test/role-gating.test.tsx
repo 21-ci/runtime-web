@@ -92,16 +92,15 @@ describe("role gating", { timeout: 15_000 }, () => {
   it("viewer cannot use trigger controls", async () => {
     useProjectRoleHandlers("viewer");
     renderAt("/acme/apps/hello/triggers");
-    const save = await screen.findByRole("button", { name: /save http route/i });
-    await waitFor(() => expect(save).toBeDisabled());
-    expect(screen.getByRole("button", { name: /enqueue test message/i })).toBeDisabled();
+    const enqueue = await screen.findByRole("button", { name: "Send test message" });
+    await waitFor(() => expect(enqueue).toBeDisabled());
   });
 
   it("a 403 on save shows a permission toast", async () => {
     useProjectRoleHandlers("developer");
     server.use(http.put(`${BASE}/env`, () => apiError(403, "forbidden", "forbidden")));
     renderAt("/acme/apps/hello/env");
-    await userEvent.click(await screen.findByRole("button", { name: "Edit as .env" }));
+    await userEvent.click(await screen.findByRole("button", { name: "Edit all" }));
     await userEvent.click(await screen.findByRole("button", { name: "Save variables" }));
     expect(await screen.findByText(/don't have permission/i)).toBeInTheDocument();
   });

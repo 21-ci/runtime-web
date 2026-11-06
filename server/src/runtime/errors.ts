@@ -25,6 +25,8 @@ export function runtimeAppError(e: unknown): AppError | null {
   if (e.code === "range_not_satisfiable") return new AppError(416, e.code, "This range of the data snapshot cannot be served.");
   if (e.code === "backup_disabled") return new AppError(503, e.code, "Backups are not enabled on this node.");
   if (MIGRATION_CODES.has(e.code)) return new AppError(409, e.code, msg || e.code, asDetails(e.details));
+  if (e.code === "secret_source_not_found") return new AppError(404, e.code, "Vault has no such path or field.");
+  if (e.code === "secret_source_unavailable") return new AppError(503, e.code, "Vault cannot be reached from the node.", retry);
   if (e.status === 429) return new AppError(429, e.code, "runtime rate limited", retry);
   if (e.status === 404) return new AppError(404, "not_found", "not found");
   if (e.status === 412) return new AppError(409, "stale", "changed elsewhere, reload");

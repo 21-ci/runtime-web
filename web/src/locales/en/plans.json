@@ -1,0 +1,103 @@
+{
+  "nav": "Usage",
+  "usage": {
+    "title": "Plan usage",
+    "description": "What this organization used against its plan's limits.",
+    "plan": "Plan: {{plan}}",
+    "resets": "Resets {{when}}",
+    "unavailable": "Usage is not available",
+    "unavailableHint": "This node does not report plan usage yet. Upgrade the runtime to see it.",
+    "empty": "This plan has no limits to show.",
+    "unlimited": "No limit",
+    "amount": "{{used}} of {{limit}}",
+    "ariaUsage": "{{label}} usage",
+    "metric": {
+      "invocations": "Invocations",
+      "cpu_ms": "CPU time (ms)",
+      "egress_bytes": "Egress",
+      "storage_bytes": "Storage",
+      "services": "Apps",
+      "schedules": "Schedules",
+      "builds": "Builds",
+      "projects": "Projects",
+      "branches": "Branches",
+      "previews": "Previews",
+      "custom_hosts": "Custom hosts",
+      "secrets": "Secrets per app"
+    },
+    "period": {
+      "day": "per day",
+      "month": "per month",
+      "total": "in total",
+      "per_service": "per app"
+    }
+  },
+  "telemetry": {
+    "title": "Telemetry",
+    "body": "The runtime sends one anonymous report a day: request, project, service, organization and user counts, plus the version and a random ID. This console only gives the runtime its user count, and contacts no telemetry server itself. No IP addresses are stored.",
+    "on": "Sending",
+    "off": "Off",
+    "unknown": "State unknown",
+    "optOut": "To opt out, set telemetry.enabled = false in rt.toml or DO_NOT_TRACK=1 on the node.",
+    "link": "How to opt out"
+  },
+  "events": {
+    "title": "Change stream",
+    "description": "Publish committed SQL and KV changes of this App to a stream topic.",
+    "adminOnly": "Only project admins can change this, because events can carry row contents.",
+    "state": {
+      "disabled": "Off",
+      "pending": "Starting",
+      "active": "On",
+      "paused_overflow": "Paused: backlog overflow",
+      "error": "Error"
+    },
+    "backlog": "Backlog: {{count}}",
+    "topic": "Topic",
+    "topicRequired": "Enter a topic.",
+    "tables": "Tables",
+    "tableName": "Table name",
+    "addTable": "Add table",
+    "remove": "Remove",
+    "kv": "KV prefixes",
+    "kvPrefix": "Key prefix",
+    "addKv": "Add prefix",
+    "payload": {
+      "keys": "Keys only",
+      "row": "Whole row"
+    },
+    "payloadLabel": "Payload",
+    "rowWarning": "Whole rows can publish personal data to everyone who reads the topic.",
+    "op": {
+      "insert": "Insert",
+      "update": "Update",
+      "delete": "Delete"
+    },
+    "opsRequired": "Choose at least one operation for each table.",
+    "save": "Save",
+    "rearm": "Save and resume",
+    "disable": "Turn off",
+    "saved": "Data-change events saved.",
+    "disabled": "Data-change events turned off."
+  },
+  "vault": {
+    "badge": "Vault",
+    "synced": "Synced {{when}}",
+    "neverSynced": "Not synced yet",
+    "errorPrefix": "Sync failed: {{error}}",
+    "link": "Link to Vault",
+    "linkTitle": "Link a secret to Vault",
+    "linkDescription": "The node reads the value from its configured Vault source. The console never sees it.",
+    "path": "Vault path",
+    "field": "Field",
+    "submit": "Link",
+    "unlink": "Unlink",
+    "unlinkLabel": "Unlink {{name}} from Vault",
+    "linked": "Linked {{name}} to Vault.",
+    "unlinked": "Unlinked {{name}}. The value stays as a plain secret.",
+    "sync": "Sync now",
+    "syncStarted": "Sync started.",
+    "required": "Fill in the name, path and field.",
+    "outsidePrefix": "This path is outside the prefix allowed on this node, or the node has no Vault source."
+  }
+}

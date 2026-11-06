@@ -5,7 +5,7 @@ import { appFor, type OrgCtx } from "../apps/service.ts";
 import { AppError, invalid } from "../http/errors.ts";
 import { rt } from "../runtime/errors.ts";
 import { sha256Hex } from "../crypto/hash.ts";
-import { isSha, publicLiteral, validBranch } from "./provider.ts";
+import { gitHostAllowed, isSha, validBranch } from "./provider.ts";
 import { BRANCH_NAME_RE } from "./links.ts";
 
 const FIELDS = new Set(["url", "sha", "ref", "branch"]);
@@ -15,7 +15,7 @@ function parseUrl(raw: unknown): URL | null {
   if (typeof raw !== "string" || raw.length > MAX_URL) return null;
   try {
     const u = new URL(raw);
-    return u.protocol === "https:" && !u.username && !u.password && publicLiteral(u.hostname) ? u : null;
+    return u.protocol === "https:" && !u.username && !u.password && gitHostAllowed(u) ? u : null;
   } catch {
     return null;
   }

@@ -204,6 +204,29 @@ type Page<T> = { items: T[]; next_cursor: string | null }; // null = last page
 Paged routes: `/api/admin/audit`, `/api/orgs/{org}/audit`, `/api/orgs/{org}/apps/{app}/events`,
 `/api/orgs/{org}/apps` and `/api/admin/users`. Every other list returns `{ items: T[] }` without paging.
 
+### 1.6.1 File exports
+
+These reads also answer as a file with `?format=`, under the same authorization as the view and with its filters:
+
+| Route | Formats | Audit action |
+|---|---|---|
+| `…/{app}/logs?format=&since&until&level&kind&task_id` | `ndjson`, `txt` | `app.logs.export` |
+| `…/{app}/versions?format=` | `csv` | `app.versions.export` |
+| `…/{app}/stats?format=&window&step` | `csv` (the series, or a one-row summary when the window has none) | `app.stats.export` |
+| `/api/orgs/{org}/audit?format=&actor&action&exclude_action&since&until`, `/api/admin/audit?format=&org&…` | `csv`, `ndjson` | `audit.export` |
+| `/api/orgs/{org}/members?format=` | `csv` | `org.members.export` |
+| `/api/orgs/{org}/tokens?format=` | `csv` (no secret: the list holds none) | `org.tokens.export` |
+| `/api/orgs/{org}/usage?format=&from&to`, `/api/admin/orgs/{org}/usage?format=&from&to` | `csv` | `org.usage.export` |
+
+- An unknown format is `422`. `since` and `until` are RFC 3339, and `level` is a minimum, as in the live log view.
+- The response carries `Content-Disposition: attachment; filename="<org>-[<app>-]<kind>-<from|start>-<to>.<ext>"`,
+  with times in UTC, and `Cache-Control: no-store`.
+- The body is streamed. A file holds at most 100 000 rows; past that its last line says so: `{"truncated":true,"limit":100000}`
+  in `ndjson`, `# truncated at 100000 rows` otherwise. A failure after the first row breaks the connection, so a cut
+  download looks cut.
+- CSV cells that start like a spreadsheet formula are prefixed with `'`. Log text keeps one `txt` line per entry:
+  new lines in a message are written as `\n`.
+
 ### 1.7 Optimistic concurrency
 
 - `GET /api/orgs/{org}/apps/{app}` returns the runtime service etag in the `ETag` header (quoted) and in the
@@ -276,7 +299,7 @@ type AuditEntry = {
 | POST | `/api/auth/login` | public (Origin) | `LoginReq` | `200 LoginResp` + cookie (full or MFA-pending) | `401 invalid_credentials`, `403 password_login_disabled`, `429 rate_limited`, `503 busy` |
 | POST | `/api/auth/mfa` | MFA-pending session cookie; no CSRF (there is no token yet); Origin enforced | `{code: string}` | `200 SessionResp` + full session cookie | `401 unauthenticated` (no/expired pending), `401 invalid_code`, `429 rate_limited` |
 | POST | `/api/auth/logout` | session | | `204` + cookie cleared | |
-| GET | `/api/me` | session (gate-exempt) | | `200 Me` | |
+| GET | `/api/me` | session (gate-exempt) | `?probe=1` turns the signed-out `401` into `200 {user: null}` | `200 Me` | |
 | PUT | `/api/me/password` | session (gate-exempt) | `{current_password: string; new_password: string}` | `204` (other sessions revoked) | `401 invalid_credentials` (wrong current), `422 invalid` (length < 12), `429 rate_limited` (10 wrong current passwords in 15 min) |
 
 ```ts
@@ -425,17 +448,21 @@ All routes require `instance.admin`. Every mutation is audited.
 | GET | `/api/admin/node/config` | | `200 object` (runtime passthrough) | |
 | PUT | `/api/admin/node/config` | `NodeConfigPatch` | `200 {applied: string[]; pending_restart: string[]}` | `422 invalid` (any other field) |
 | GET | `/api/admin/node/scheduler` | | `200 object` (runtime passthrough) | |
-| GET | `/api/admin/node/cache` | | `200 object` (runtime passthrough) | |
+| GET | `/api/admin/node/cache` | | `200 object` (runtime passthrough) plus `owners: {[digest]: {org; app; version}}` naming the top digests it could match | |
 | GET | `/api/admin/node/version` | | `200 {version: string; web_version: string}` | |
 | GET | `/api/admin/node/series` | `?range=1h\|6h\|24h\|7d` | `200 {range; step_s; points: [{ts, cpu_pct, load1, mem_committed, disk_free, rx, tx}]; data_from: number \| null}`; `7d` reads the console's ring, the others the node, which starts over at a restart | `422 invalid` |
-| GET | `/api/admin/node/stats` | `?cursor` | `200 {items: [{service, tenant, slug, count, errors, dlq, depth, …}]; next_cursor}` (all tenants, the last hour, counts only) | |
-| GET | `/api/admin/node/events` | `?after&kinds&limit` (limit at most 200) | `200 {items: [{id, ts, tenant, service, kind, data}]; next_cursor}` | `422 invalid` |
+| GET | `/api/admin/node/stats` | `?cursor` | `200 {items: [{service, tenant, slug, org, system, count, errors, dlq, depth, …}]; next_cursor}` (all tenants, the last hour, counts only) | |
+| GET | `/api/admin/node/events` | `?after&kinds&limit` (limit at most 200) | `200 {items: [{id, ts, tenant, service, app, org, kind, data}]; next_cursor}` | `422 invalid` |
 | GET | `/api/admin/backups/status` | | `200 BackupStatus` (runtime passthrough) | |
 | GET | `/api/admin/backups` | `?cursor` | `200 {items: Backup[]; next_cursor}` | |
 | POST | `/api/admin/backups` | | `202 {id; state}`, audited. There is no route to download or delete a backup: the console's binding cannot reach them | `409 backup_running`, `503 backup_disabled`, `507 insufficient_storage` |
 | POST | `/api/admin/node/drain` | `{confirm: "drain"}` | `202 object` (runtime passthrough) | `422 invalid` (bad confirm) |
 | GET | `/api/admin/domains` | | `200 {items: (Domain & {org: {slug; name}})[]}` | |
-| GET | `/api/admin/audit` | `?org&actor&action&exclude_action&cursor&limit` | `200 Page<AuditEntry>` (instance-wide) | |
+| GET | `/api/admin/audit` | `?org&actor&action&exclude_action&since&until&cursor&limit` (`since`, `until`: RFC 3339, inclusive) | `200 Page<AuditEntry>` (instance-wide) | |
+| GET | `/api/admin/updates` | | `200 {enabled; checked_at: number\|null; items: [{component: "runtime"\|"runtime_web"; repo; current: string\|null; latest: string\|null; outdated; check_failed; check_error: "http_<status>"\|"network"\|"bad_response"\|"unknown"\|null; notes_url: string\|null; commands: {bare; docker: string\|null}\|null}]}` | |
+| PUT | `/api/admin/updates` | `{enabled: boolean}` | `200` same as GET, audited as `updates.configure` | `422 invalid` |
+| POST | `/api/admin/updates/check` | | `200` same as GET. Checks now, unless the last check of that repository is under a minute old or checks are off | |
+| GET | `/api/admin/telemetry` | | `200 {sending: boolean\|null}`: whether the node sends its daily report; `null` when the node or its binding does not answer | |
 | GET | `/api/admin/settings` | | `200 InstanceSettings` | |
 | PUT | `/api/admin/settings` | `Partial<InstanceSettingsWrite>` | `200 InstanceSettings` | `422 invalid` (`details.fields.password_login_disabled` when SSO-only is enabled with no OAuth/OIDC provider configured; `auth.SetPolicy` returns `Conflict{sso_not_configured}`, and the handler maps it to this 422) |
 
@@ -529,7 +556,7 @@ The same routes exist per org, under `/api/orgs/{org}/alerts` (org owners and ad
 | POST | `/channels` | `{kind: "webhook", name, config: {url, secret}}` or `{kind: "telegram", name, config: {bot_token, chat_id}}` | `201 Channel`, audited | `409 alert_channel_limit` (20), `422 invalid` (`config.url`: `not_public_https`, `not_public`) |
 | PATCH | `/channels/{id}` | `{name?, config?}`; `config` replaces the whole config | `200 Channel`, audited | `404`, `422 invalid` |
 | DELETE | `/channels/{id}` | | `204`, audited | `404`, `409 alert_channel_in_use` |
-| POST | `/channels/{id}/test` | | `200 {ok; status}`, audited | `404`, `429 rate_limited` (5 per minute per channel) |
+| POST | `/channels/{id}/test` | | `200 {ok; status; http_status?; excerpt?}`, audited without the excerpt. `excerpt` is up to 200 characters of a refusal's body with the channel's config blanked; it is not stored | `404`, `429 rate_limited` (5 per minute per channel) |
 | GET | `/rules` | | `200 {items: Rule[]}` | |
 | POST | `/rules` | `{kind, channels: string[] (1 to 5), app?, params?, enabled?, for_s?, repeat_s?, muted_until?}` | `201 Rule`, audited | `404` (`app` not in this org), `409 alert_rule_limit` (50), `422 invalid` |
 | PATCH | `/rules/{id}` | `{channels?, params?, enabled?, for_s?, repeat_s?, muted_until?}` | `200 Rule`, audited | `404`, `422 invalid` |
@@ -573,9 +600,10 @@ Redirects are not followed. More than 5 notifications due at once on a channel a
 | POST | `/api/orgs/{org}/tokens` | `tokens.manage` | `TokenReq` | `201 {token: Token; secret: string}` (secret shown once) | `403`, `404` (unknown app), `422 invalid` (unknown scope, past expiry) |
 | DELETE | `/api/orgs/{org}/tokens/{id}` | `tokens.manage` | | `204` | `404` |
 | POST | `/api/orgs/{org}/default-key/rotate` | `defaultkey.rotate` | | `204` (custom tokens keep working) | `403`, `404` |
-| GET | `/api/orgs/{org}/limits` | `org.read` | | `200 Limits` (read-only quota bar) | `404` |
+| GET | `/api/orgs/{org}/limits` | `org.read` | | `200 Limits` (read-only quota bar), with `hidden_services`: branches and previews counted in `services`, or `null` when the node does not report them | `404` |
 | GET | `/api/orgs/{org}/usage` | `org.usage.read` | `?from&to` | `200 {items: Usage[]}` | `403`, `404` |
-| GET | `/api/orgs/{org}/audit` | `org.audit.read` | `?actor=<user id>&action=&exclude_action=a,b&cursor&limit` | `200 Page<AuditEntry>` (this org only) | `403`, `404` |
+| GET | `/api/orgs/{org}/plan-usage` | `org.usage.read` | | `200 {plan: string \| null; resets_at; metrics: {key; used; limit: number \| null; period}[]}` | `403`, `404` (also a node without the route) |
+| GET | `/api/orgs/{org}/audit` | `org.audit.read` | `?actor=<user id>&action=&exclude_action=a,b&since&until&cursor&limit` (`since`, `until`: RFC 3339, inclusive) | `200 Page<AuditEntry>` (this org only) | `403`, `404` |
 | GET | `/api/orgs/{org}/projects` | `org.read` | | `200 {items: Project[]}` (members see granted projects only) | `404` |
 | POST | `/api/orgs/{org}/projects` | `project.create` | `{slug: string; name?: string; environments?: string[]}` | `201 Project` | `403`, `409 slug_taken`, `422` |
 | GET | `/api/orgs/{org}/projects/{p}` | `project.read` | | `200 Project` | `404` |
@@ -667,7 +695,7 @@ type AppPatch = {
 
 | Method | Path | Auth | Request | Response | Errors |
 |---|---|---|---|---|---|
-| GET | `…/{app}/files` | `app.read` | `?version=<n>` or `?version=latest` (default: live) | `200 Files` | `404`, `422` |
+| GET | `…/{app}/files` | `app.read` | `?version=<n>` or `?version=latest` (default: live). `latest` with nothing pushed yet answers `version: 0` with a starter (read-only and empty for WASM) | `200 Files` | `404`, `422` |
 | PUT | `…/{app}/files` | `app.deploy` | `{entry: string; files: Record<string,string>}`, `If-Match` | `200 {version: Version; etag: string}` + `ETag` (built eagerly; the live version is unchanged, promote with `PUT …/live`) | `403`, `409 stale`, `422 build_failed` / runtime `422 validation_failed` (+ `BuildDetails`), `428`, `429 build_quota` |
 | GET | `…/{app}/versions` | `app.read` | | `200 {items: Version[]}` (newest first) | `404` |
 | PUT | `…/{app}/live` | `app.deploy` | `{version: number}`, `If-Match`; with `?async=1` also `{close_sockets?; migrate?}` (`migrate: false` takes `app.data.export`) | `200 {live_version: number; etag: string}` + `ETag`; with `?async=1`, `202` Switch at `preparing`: poll `…/switches/{id}` until past `preparing` and `migrating` (`draining`, `completed` and `drain_timed_out` are committed; `failed` has `error`) | `403`, `409 stale`, `409 version_not_ready`, `409 switch_in_progress` (never queued), `428` |
@@ -828,7 +856,13 @@ Holds settings, env values, data, blobs and sources, never secrets. Downloads an
 | GET | `…/{app}/env` | `app.env.read` (project `developer` and up) | | `200 {env: Record<string,string>}` + `ETag` | `403` (viewer), `404` |
 | PUT | `…/{app}/env` | `app.env.write` | `{env: Record<string,string>}` (complete map, replaces), `If-Match` | `200 {env: Record<string,string>}` + `ETag` | `403`, `412 precondition_failed` (env changed since the read), `422`, `428` |
 | PATCH | `…/{app}/env` | `app.env.write` | `{set?: Record<string,string>; unset?: string[]}`, optional `If-Match` | `200 {env: Record<string,string>}` + `ETag` | `403`, `412 precondition_failed`, `422` |
-| GET | `…/{app}/secrets` | `app.read` | | `200 {items: {name: string; updated_at: number}[]}` (names only) | `404` |
+| GET | `…/{app}/secrets` | `app.read` | | `200 {items: {name: string; updated_at: number; source?: "plain" \| "vault"; last_synced_at?: number \| null; last_error?: string \| null}[]}` (never values) | `404` |
+| PUT | `…/{app}/secrets/{name}/ref` | `app.secrets.write` | `{path: string; field: string}` | `200 {name; source; last_synced_at}` | `403`, `404 not_found`, `404 secret_source_not_found`, `422 ref_outside_prefix` (also no Vault on the node), `503 secret_source_unavailable` |
+| DELETE | `…/{app}/secrets/{name}/ref` | `app.secrets.write` | | `204`; the value stays as a plain secret | `403`, `404` |
+| POST | `…/{app}/secrets/sync` | `app.secrets.write` | | `202` | `403`, `404`, `429 rate_limited` |
+| GET | `…/{app}/data-events` | `app.read` | | `200 {state; lag; backlog; last_error; tables; topic; warnings}` | `404` |
+| PUT | `…/{app}/data-events` | `app.update` + `app.data.read` | `{topic: string; tables?: {name; ops: ("insert" \| "update" \| "delete")[]; payload?: "keys" \| "row"}[]; kv_prefixes?: {prefix; payload?}[]; max_backlog?: number}` | `200`, same shape as GET; also rearms paused events | `403`, `404`, `422` |
+| DELETE | `…/{app}/data-events` | `app.update` | | `204` | `403`, `404` |
 | PUT | `…/{app}/secrets/{name}` | `app.secrets.write` | `{value: string}` (write-only) | `204` | `403`, `422` |
 | DELETE | `…/{app}/secrets/{name}` | `app.secrets.write` | | `204` | `403`, `404` |
 | GET | `…/{app}/schedules` | `app.read` | | `200 {items: Schedule[]}` | `404` |
@@ -867,6 +901,8 @@ schedule count.
 | GET | `…/{app}/stats` | `app.logs.read` | `?window=5m\|1h\|24h\|7d` (default `5m`), `&step=1m\|5m\|1h` adds `series`; `7d` answers `{window, step_s, series: [{ts, count, errors}], data_from}` from the console's hourly ring | `200 object`: runtime stats passthrough (`count`, `errors`, `error_rate`, `outcomes`, `queue`/`init`/`exec`/`total` percentiles, `admission`) plus `window` and flat `requests` (= `count`), `p50_ms`/`p95_ms`/`p99_ms` (= `total.*`) | `404` |
 | GET | `…/{app}/events` | `app.logs.read` | `?cursor&limit` | `200 Page<{id: string; ts: number; kind: string; data: unknown}>` | `404` |
 | GET | `…/{app}/logs` | `app.logs.read` | SSE, see §8.6 | `text/event-stream` | `404`, `429 rate_limited` (org upstream cap) |
+| GET | `…/{app}/logs?view=range` | `app.logs.read` | `&since&until&level&kind&task_id`. The Logs page's read of a past range: not a file and not audited | `200` NDJSON of `LogLine`, at most 1000 lines, then `{truncated: true, limit}` when more exist | `404`, `422 invalid` |
+| POST | `…/{app}/preview` | `app.read` | | One anonymous `GET` of the app's live URL with redirects not followed: `200 {status: number; content_type: string\|null; body: string\|null; truncated: boolean}`. `body` is at most 256 KiB of text, `null` when binary. The app's request counts in its metrics | `404`, `502 preview_unavailable` (the console cannot reach the app) |
 | GET | `…/{app}/export` | `app.data.export` | | `200 application/vnd.sqlite3`, `Content-Disposition: attachment; filename="<app>.sqlite"` (streamed) | `403`, `404` |
 
 ### 8.4.1 Data browser

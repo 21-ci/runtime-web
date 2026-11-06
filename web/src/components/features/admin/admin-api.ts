@@ -37,7 +37,7 @@ export type OrgUsageRow = {
   storage_bytes: number;
 };
 
-export type AuditFilters = { org: string; actor: string; action: string };
+export type AuditFilters = { org: string; actor: string; action: string; since?: string };
 
 // withQuery appends the defined, non-empty params to a path.
 export function withQuery(path: string, params: Record<string, string | number | undefined>) {
@@ -107,13 +107,14 @@ export function useAdminInvites() {
 
 export function useAdminAudit(filters: AuditFilters) {
   return useInfiniteQuery({
-    queryKey: [...adminPrefix, "audit", filters.org, filters.actor, filters.action],
+    queryKey: [...adminPrefix, "audit", filters.org, filters.actor, filters.action, filters.since],
     queryFn: ({ pageParam }) =>
       api.get<Page<AdminAuditEntry>>(
         withQuery("/admin/audit", {
           org: filters.org,
           actor: filters.actor,
           action: filters.action,
+          since: filters.since,
           cursor: pageParam,
           limit: 50,
         }),

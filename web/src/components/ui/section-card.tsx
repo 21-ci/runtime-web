@@ -2,6 +2,8 @@ import * as React from "react";
 
 import { cn } from "@/lib/utils";
 
+import { Bounded } from "./bounded";
+
 // SectionCard is a dashboard panel: surface, hairline, 10px radius, a header row with a bold title
 // on the left and small controls (filter, "View all", ⋮) on the right. `flush` drops the body
 // padding so lists and tables can run edge to edge under the header. Text never widens the card:
@@ -12,32 +14,38 @@ function SectionCard({
   description,
   actions,
   flush = false,
+  bounded = false,
   className,
   children,
   ...props
 }: Omit<React.HTMLAttributes<HTMLElement>, "title"> & {
-  title: React.ReactNode;
+  /** Leave out when the page header already says it. The card is then named by `aria-label`. */
+  title?: React.ReactNode;
   description?: React.ReactNode;
   actions?: React.ReactNode;
   flush?: boolean;
+  /** The body holds a list: keep it to a set height, scrollable and expandable. */
+  bounded?: boolean;
 }) {
   const id = React.useId();
   return (
     <section
-      aria-labelledby={id}
+      aria-labelledby={title ? id : undefined}
       className={cn("flex min-w-0 flex-col rounded-lg border border-line bg-surface shadow-card", className)}
       {...props}
     >
       <header className="flex min-h-8 flex-wrap items-center gap-x-4 gap-y-2 px-5 pb-3 pt-4">
         <div className="min-w-0 flex-1 basis-40">
-          <h2 id={id} className="break-words text-[15px] font-semibold text-text">
-            {title}
-          </h2>
+          {title ? (
+            <h2 id={id} className="break-words text-[15px] font-semibold text-text">
+              {title}
+            </h2>
+          ) : null}
           {description ? <p className="break-words text-[13px] text-muted">{description}</p> : null}
         </div>
         {actions ? <div className="flex flex-wrap items-center gap-1.5">{actions}</div> : null}
       </header>
-      <div className={cn("min-w-0 flex-1", flush ? "border-t border-line" : "px-5 pb-5")}>{children}</div>
+      <div className={cn("min-w-0 flex-1", flush ? "border-t border-line" : "px-5 pb-5")}>{bounded ? <Bounded>{children}</Bounded> : children}</div>
     </section>
   );
 }

@@ -8,7 +8,7 @@ import { QuotaBar } from "@/components/features/org/quota-bar";
 import { RotateDefaultKey } from "@/components/features/org/rotate-default-key";
 import { useCan } from "@/hooks/authz";
 import { useOrgs } from "@/hooks/orgs";
-import { SectionCard } from "@/components/ui/section-card";
+import { SettingsRow, SettingsRows, SettingsSection } from "@/components/layout/settings-section";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export const Route = createFileRoute("/$org/settings/general")({
@@ -27,16 +27,19 @@ function GeneralRoute() {
   return (
     <div className="flex flex-col gap-6">
       <PageHeader icon={SettingsTile} entity="settings" title={t("general.title")} />
-      <SectionCard title={t("identity.title")} description={t("identity.description")}>
-        <dl className="grid max-w-md grid-cols-[auto_minmax(0,1fr)] gap-x-6 gap-y-2 text-sm">
-          <dt className="text-muted">{t("common:name")}</dt>
-          <dd className="min-w-0 break-words font-medium">{current?.name ?? org}</dd>
-          <dt className="text-muted">{t("identity.slug")}</dt>
-          <dd className="min-w-0 break-all font-mono text-[13px]">{org}</dd>
-          <dt className="text-muted">{t("identity.role")}</dt>
-          <dd className="capitalize">{current?.role ? t(ROLE_KEY[current.role]) : "-"}</dd>
-        </dl>
-      </SectionCard>
+      <SettingsSection title={t("identity.title")} description={t("identity.description")}>
+        <SettingsRows>
+          <SettingsRow label={t("common:name")}>
+            <span className="min-w-0 break-words text-sm">{current?.name ?? org}</span>
+          </SettingsRow>
+          <SettingsRow label={t("identity.slug")}>
+            <code className="min-w-0 break-all rounded-md bg-panel-2 px-1.5 py-0.5 text-[13px]">{org}</code>
+          </SettingsRow>
+          <SettingsRow label={t("identity.role")}>
+            <span className="text-sm capitalize">{current?.role ? t(ROLE_KEY[current.role]) : "-"}</span>
+          </SettingsRow>
+        </SettingsRows>
+      </SettingsSection>
       <div className="grid gap-6 lg:grid-cols-2">
         <QuotaBar org={org} />
         {can("defaultkey.rotate") === true ? <RotateDefaultKey org={org} /> : null}

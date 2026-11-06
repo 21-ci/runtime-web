@@ -5,6 +5,8 @@ import { useTranslation } from "react-i18next";
 import { QueryError } from "@/components/features/empty/query-error";
 import { useAdminDomains, type DomainRow } from "@/components/features/admin/use-admin";
 import { Badge } from "@/components/ui/badge";
+import { Bounded } from "@/components/ui/bounded";
+import { SectionCard } from "@/components/ui/section-card";
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -59,7 +61,9 @@ function AdminDomainsPage() {
       ) : (domains.data ?? []).length === 0 ? (
         <EmptyState entity="domains" icon={Globe} title={t("domains.emptyTitle")} description={t("domains.emptyDescription")} />
       ) : (
-          <Table>
+        <SectionCard title={t("domains.title")} flush>
+        <Bounded>
+          <Table stack>
             <caption className="sr-only">{t("domains.caption")}</caption>
             <TableHeader>
               <TableRow>
@@ -87,12 +91,14 @@ function AdminDomainsPage() {
                     {d.cert_error ? <p className="mt-1 max-w-64 break-words text-xs text-danger">{d.cert_error}</p> : null}
                   </TableCell>
                   <TableCell className="tabular-nums">
-                    {d.cert_not_after ? formatDate(d.cert_not_after) : "-"}
+                    {d.cert_not_after ? formatDate(d.cert_not_after) : t("common:na")}
                   </TableCell>
                 </TableRow>
               ))}
             </TableBody>
           </Table>
+        </Bounded>
+        </SectionCard>
       )}
     </div>
   );

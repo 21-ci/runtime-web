@@ -13,9 +13,9 @@ exclude_docs: |
   design/
   requirements.in
   requirements.txt
-  screenshots/
+  /screenshots/
 site_description: >-
-  Self-hosted console for writing, deploying and running apps on 21 Cloud Runtime.
+  Self-hosted console for writing, deploying and running apps on 21 Cloud Functions Runtime.
 site_author: 21 Cloud
 site_url: https://21-ci.github.io/runtime-web/
 repo_url: https://github.com/21-ci/runtime-web
@@ -32,12 +32,16 @@ theme:
   favicon: assets/images/favicon.svg
   font:
     text: Inter
-    code: JetBrains Mono
+    code: IBM Plex Mono
   icon:
     admonition:
       note: material/pencil-circle
       tip: material/lightbulb-on
   palette:
+    - media: "(prefers-color-scheme)"
+      toggle:
+        icon: material/brightness-auto
+        name: Switch to light mode
     - media: "(prefers-color-scheme: light)"
       scheme: default
       primary: custom
@@ -51,7 +55,7 @@ theme:
       accent: custom
       toggle:
         icon: material/weather-night
-        name: Switch to light mode
+        name: Switch to system preference
   features:
     - navigation.tabs
     - navigation.sections
@@ -65,6 +69,7 @@ theme:
     - toc.follow
     - search.suggest
     - search.highlight
+    - search.share
     - content.code.copy
     - content.code.annotate
     - content.tabs.link
@@ -74,6 +79,7 @@ plugins:
   - search
 
 extra_css:
+  - assets/stylesheets/design.css
   - assets/stylesheets/extra.css
 
 markdown_extensions:
@@ -122,6 +128,7 @@ nav:
       - Logs: user-guide/logs.md
       - Triggers: user-guide/triggers.md
       - Git deploys: user-guide/git.md
+      - Branches, data and alerts: user-guide/branches-and-data.md
       - Tokens and keys: user-guide/tokens.md
       - Domains: user-guide/domains.md
       - Members: user-guide/members.md
@@ -145,6 +152,7 @@ nav:
       - Architecture: contributing/architecture.md
       - Code style: contributing/code-style.md
       - Design tokens: contributing/design-tokens.md
+      - UI guidelines: contributing/ui-guidelines.md
       - Translations (i18n): contributing/i18n.md
       - CI and releases: contributing/ci-cd.md
       - Releases: contributing/releases.md

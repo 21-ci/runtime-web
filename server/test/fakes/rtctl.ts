@@ -9,8 +9,8 @@ import type * as T from "../../src/runtime/types.ts";
 import type { CtlReq, CtlRes, RtCtl } from "../../src/runtime/types.ts";
 
 // Keep in sync with sdk/rtctl/mod.ts (OP_PATHS / TENANT_PATHS).
-const OP_PATHS = ["/v1/tenants", "/v1/tenants/*", "/v1/plans", "/v1/plans/*", "/v1/node/status", "/v1/node/config", "/v1/node/cache", "/v1/node/scheduler", "/v1/node/drain", "/v1/node/series", "/v1/node/stats", "/v1/node/events", "/v1/node/backups", "/v1/node/backups/status", "/v1/version", "/v1/hosts", "/v1/hosts/*", "/v1/services/*/hosts/*"];
-const TENANT_PATHS = ["/v1/scratch", "/v1/services", "/v1/services/*", "/v1/projects", "/v1/projects/*", "/v1/keys", "/v1/keys/*", "/v1/tenants/*/usage", "/v1/me", "/v1/limits"];
+const OP_PATHS = ["/v1/tenants", "/v1/tenants/*", "/v1/plans", "/v1/plans/*", "/v1/node/status", "/v1/node/config", "/v1/node/cache", "/v1/node/scheduler", "/v1/node/drain", "/v1/node/series", "/v1/node/stats", "/v1/node/events", "/v1/node/backups", "/v1/node/backups/status", "/v1/version", "/v1/hosts", "/v1/hosts/*", "/v1/services/*/hosts/*", "/v1/telemetry/console", "/v1/telemetry/preview"];
+const TENANT_PATHS = ["/v1/scratch", "/v1/services", "/v1/services/*", "/v1/projects", "/v1/projects/*", "/v1/keys", "/v1/keys/*", "/v1/tenants/*/usage", "/v1/me", "/v1/limits", "/v1/usage"];
 const glob = (p: string) => new RegExp("^" + p.split("*").map((s) => s.replace(/[.+?^${}()|[\]\\]/g, "\\$&")).join(".*") + "$");
 const OP_RE = OP_PATHS.map(glob);
 const TENANT_RE = TENANT_PATHS.map(glob);
@@ -157,6 +157,14 @@ export class FakeRtCtl implements RtCtl {
     this.failures.push(f);
   }
   /** Create a tenant with a default project and a full-scope key; returns its secret. */
+  /** Mocks of routes the runtime is still building. */
+  consoleUsers: number | undefined;
+  telemetryError = 0;
+  telemetrySending = true;
+  planUsage: unknown = null;
+  secretRefs = new Map<string, unknown>();
+  dataEvents = new Map<string, unknown>();
+
   seedTenant(name: string, plan = "free"): { tenant: T.Tenant; key: string; keyId: string } {
     const t = this.makeTenant(name, plan);
     const k = this.issueKey(t.id, { scopes: [...VALID_SCOPES] as T.Scope[] }, null, false);
@@ -194,6 +202,7 @@ export class FakeRtCtl implements RtCtl {
   nodeStats: T.NodeStatsItem[] = [];
   readonly nodeStatsQueries: Record<string, string | undefined>[] = [];
   nodeEvents: T.NodeEvent[] = [];
+  nodeCacheBody: Record<string, unknown> = { entries: 0 };
   nodeHost: T.NodeStatus["host"] | undefined;
   backupStatusOver: Partial<T.BackupStatus> = {};
   backups: T.Backup[] = [];
@@ -307,6 +316,21 @@ export class FakeRtCtl implements RtCtl {
 
     // tenants, plans, node, version (operator)
     if (is("GET", "version")) return ok({ version: "rtctl-fake" });
+    if (is("GET", "telemetry", "preview")) {
+      need("operator");
+      if (this.telemetryError) return { status: this.telemetryError, headers: {}, body: { error: { code: "unavailable", message: "x" } } };
+      return ok({ sending: this.telemetrySending, url: null, report: {} });
+    }
+    if (is("PUT", "telemetry", "console")) {
+      need("operator");
+      if (this.telemetryError) return { status: this.telemetryError, headers: {}, body: { error: { code: "unavailable", message: "x" } } } as CtlRes;
+      this.consoleUsers = obj(body).users as number;
+      return noContent();
+    }
+    if (is("GET", "usage")) {
+      if (!this.planUsage) return notFound();
+      return ok(this.planUsage);
+    }
     if (is("GET", "plans")) return need("operator"), ok([...this.plans.keys()].map((n) => ({ name: n, settings: this.plans.get(n) })));
     if (is("GET", "tenants")) return need("operator"), ok(page([...this.tenants.values()]));
     if (is("POST", "tenants")) {
@@ -380,7 +404,7 @@ export class FakeRtCtl implements RtCtl {
         }
         return ok({ applied, pending_restart: [] });
       }
-      if (is("GET", "node", "cache")) return ok({ entries: 0 });
+      if (is("GET", "node", "cache")) return ok(this.nodeCacheBody);
       if (is("GET", "node", "scheduler")) return ok({ kinds: {} });
       if (is("POST", "node", "drain")) return (this.drained = true), noContent();
       if (is("GET", "node", "series")) return ok({ range: q.range ?? "1h", step_s: q.range === "1h" ? 60 : 300, points: this.nodeSeries });
@@ -644,7 +668,10 @@ export class FakeRtCtl implements RtCtl {
     if (at("GET", "migrations")) return need("services:read"), ok(this.migrations.get(s.view.id) ?? { applied: [], pending_for_latest: [] });
     if (at("POST", "branches")) {
       need("services:write");
-      return ok(svcView(this.seedBranch(s.view.id, String(obj(body).name))), 201);
+      const made = this.seedBranch(s.view.id, String(obj(body).name));
+      // Without code_of_parent the runtime leaves a branch with no version.
+      if (obj(body).code_of_parent !== true) { made.versions = []; made.live = null; }
+      return ok(svcView(made), 201);
     }
     if (at("POST", "versions")) {
       need("deploy");
@@ -742,7 +769,33 @@ export class FakeRtCtl implements RtCtl {
       s.env = b as Record<string, string>;
       return ok(s.env);
     }
-    if (at("GET", "secrets")) return need("services:read"), ok([...s.secrets].map(([name, updated_at]) => ({ name, updated_at })));
+    if (at("GET", "secrets")) {
+      need("services:read");
+      return ok([...s.secrets].map(([name, updated_at]) => ({ name, updated_at, source: this.secretRefs.has(`${s.view.id}/${name}`) ? "vault" : "plain", last_synced_at: null, last_error: null })));
+    }
+    if (at("PUT", "secrets", "*", "ref")) {
+      need("secrets:write");
+      const b = obj(body);
+      if (String(b.path).startsWith("outside/")) return { status: 422, headers: {}, body: { error: { code: "ref_outside_prefix", message: "outside" } } } as CtlRes;
+      this.secretRefs.set(`${s.view.id}/${sub[1] ?? ""}`, b);
+      s.secrets.set(sub[1] ?? "", this.now());
+      return ok({ name: sub[1], source: "vault", last_synced_at: this.now() });
+    }
+    if (at("DELETE", "secrets", "*", "ref")) {
+      need("secrets:write");
+      return this.secretRefs.delete(`${s.view.id}/${sub[1] ?? ""}`) ? noContent() : notFound();
+    }
+    if (at("POST", "secrets", "sync")) return need("secrets:write"), ok({}, 202);
+    if (at("GET", "data-events")) return need("services:read"), ok(this.dataEvents.get(s.view.id) ?? { state: "disabled", lag: 0, backlog: 0, last_error: null, tables: [], topic: null, warnings: [] });
+    if (at("PUT", "data-events")) {
+      need("services:write");
+      need("data:read");
+      const b = obj(body);
+      const out = { state: "pending", lag: 0, backlog: 0, last_error: null, tables: b.tables, topic: b.topic, warnings: [] };
+      this.dataEvents.set(s.view.id, out);
+      return ok(out);
+    }
+    if (at("DELETE", "data-events")) return need("services:write"), this.dataEvents.delete(s.view.id), noContent();
     if (at("PUT", "secrets", "*")) {
       need("secrets:write");
       if (!/^[A-Z_][A-Z0-9_]{0,127}$/.test((sub[1] ?? ""))) return invalid("secret name is not valid");

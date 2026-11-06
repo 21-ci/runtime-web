@@ -45,5 +45,6 @@
     "deployed": "Joylandi",
     "skipped": "Oʻtkazib yuborildi",
     "failed": "Xato"
-  }
+  },
+  "adminsOnly": "Repozitoriy bog'lanishini faqat loyiha adminlari boshqaradi."
 }

@@ -1,9 +1,9 @@
-import { GitBranch } from "lucide-react";
+import { Check, CircleAlert, CircleCheck, ExternalLink, GitBranch, X } from "lucide-react";
 import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { QueryError } from "@/components/features/empty/query-error";
-import { useAppDetail } from "@/components/features/versions/use-versions";
+import { useAppDetail } from "@/components/features/deployments/use-versions";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { ConfirmDialog } from "@/components/ui/confirm-dialog";
@@ -11,21 +11,29 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { EmptyState } from "@/components/ui/empty-state";
 import { PageHeader } from "@/components/ui/page-header";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { DataTable, type DataColumn } from "@/components/ui/data-table";
+import { CopyButton } from "@/components/ui/url-bar";
 import { useCan } from "@/hooks/authz";
-import { formatDateTime } from "@/lib/format";
+import { formatDateTime, formatDuration } from "@/lib/format";
+import { cn } from "@/lib/utils";
 
+import { Link } from "@tanstack/react-router";
+
+import { useVersions } from "@/components/features/deployments/use-versions";
+
+import { NewBranchDialog } from "./new-branch-dialog";
 import {
   type Branch,
   type Switch,
   type SwitchState,
   isActive,
   useBranches,
+  useDeleteBranch,
   usePreflight,
-  useRollback,
   useSwitch,
-  useSwitches,
   useSwitchStatus,
+  stepStates,
+  type StepState,
 } from "./use-branches";
 
 const BUILD_VARIANT: Record<string, "success" | "danger" | "warning" | "outline"> = {
@@ -50,14 +58,19 @@ const buildKey = (s: string) => (BUILD_STATES as readonly string[]).includes(s) 
 // The first 12 hex characters identify a build the way a short commit SHA does.
 const shortSha = (digest: string) => digest.replace(/^sha256:/, "").slice(0, 12);
 
-// BranchesView lists an app's branches and its switch history. The server authorizes every call;
+// BranchesView lists an app's branches; switches and rollbacks are rows of Deployments. The server authorizes every call;
 // useCan only hides controls a role cannot use.
 export function BranchesView({ org, app }: { org: string; app: string }) {
-  const { t } = useTranslation(["branches", "common"]);
+  const { t } = useTranslation(["branches", "common", "operator"]);
   const branches = useBranches(org, app);
   const detail = useAppDetail(org, app);
   const deploy = useCan(org, detail.data?.project)("app.deploy") === true;
   const [target, setTarget] = useState<string | null>(null);
+  const [creating, setCreating] = useState(false);
+  const [deleting, setDeleting] = useState<Branch | null>(null);
+  const remove = useDeleteBranch(org, app);
+  const versions = useVersions(org, app);
+  const liveDigest = versions.data?.find((v) => v.live)?.source_digest ?? null;
 
   if (branches.isError) {
     return (
@@ -78,13 +91,26 @@ export function BranchesView({ org, app }: { org: string; app: string }) {
         entity="versions"
         title={<span id="branches-heading">{t("title")}</span>}
         description={t("description")}
+        actions={deploy ? <Button onClick={() => setCreating(true)}>{t("operator:branch.new")}</Button> : undefined}
       />
       {branches.data.length === 0 ? (
-        <EmptyState entity="versions" title={t("emptyTitle")} description={t("emptyDescription")} />
+        <EmptyState entity="versions" title={t("emptyTitle")} description={t("operator:branch.empty")} />
       ) : (
-        <BranchTable items={branches.data} deploy={deploy} onSwitch={setTarget} />
+        <BranchTable org={org} items={branches.data} deploy={deploy} liveDigest={liveDigest} onSwitch={setTarget} onDelete={setDeleting} />
       )}
-      <History org={org} app={app} deploy={deploy} etag={detail.data?.etag} />
+      {creating ? <NewBranchDialog org={org} app={app} onClose={() => setCreating(false)} /> : null}
+      <ConfirmDialog
+        open={deleting !== null}
+        onOpenChange={(open) => !open && setDeleting(null)}
+        title={t("deleteTitle", { name: deleting?.name })}
+        description={t("deleteHint")}
+        confirmLabel={t("delete")}
+        typedValue={deleting?.name ?? ""}
+        pending={remove.isPending}
+        onConfirm={() => {
+          if (deleting) remove.mutate(deleting.slug, { onSuccess: () => setDeleting(null) });
+        }}
+      />
       {target !== null ? (
         <SwitchDialog org={org} app={app} branch={target} etag={detail.data?.etag} onClose={() => setTarget(null)} />
       ) : null}
@@ -92,61 +118,112 @@ export function BranchesView({ org, app }: { org: string; app: string }) {
   );
 }
 
-function BranchTable({ items, deploy, onSwitch }: { items: Branch[]; deploy: boolean; onSwitch: (name: string) => void }) {
-  const { t } = useTranslation(["branches", "common"]);
+// Below md each row stacks into a card, so the URL stays readable and Switch stays on screen.
+export const STACK_ON_MOBILE =
+  "max-md:[&_thead]:hidden max-md:[&_tbody]:block max-md:[&_tr]:block max-md:[&_tr]:border-b max-md:[&_tr]:border-line max-md:[&_tr]:py-2 max-md:[&_td]:block max-md:[&_td]:py-1";
+
+function BranchTable({ org, items, deploy, liveDigest, onSwitch, onDelete }: { org: string; items: Branch[]; deploy: boolean; liveDigest: string | null; onSwitch: (name: string) => void; onDelete: (b: Branch) => void }) {
+  const { t } = useTranslation(["branches", "common", "operator"]);
+  const columns: DataColumn<Branch>[] = [
+    {
+      key: "branch",
+      header: t("table.branch"),
+      primary: true,
+      sortValue: (b) => b.name,
+      cell: (b) => (
+        <>
+          <Link to="/$org/apps/$app" params={{ org, app: b.slug }} aria-label={t("operator:branch.open", { name: b.name })} className="font-medium hover:underline">
+            {b.name}
+          </Link>
+          <span className="block text-xs font-normal text-muted">{b.slug}</span>
+        </>
+      ),
+    },
+    {
+      key: "url",
+      header: t("table.url"),
+      primary: true,
+      cell: (b) => (
+        <>
+          <span className="inline-flex items-center gap-1">
+            <a href={b.url} target="_blank" rel="noopener noreferrer" className="inline-flex items-start gap-1 break-all font-mono text-xs text-accent hover:underline">
+              {b.url}
+              <ExternalLink aria-hidden="true" className="mt-0.5 size-3 shrink-0" />
+            </a>
+            <CopyButton text={b.url} label={t("copyUrlFor", { name: b.name })} />
+          </span>
+          {b.access === "key" ? (
+            <span className="mt-1 flex flex-wrap items-center gap-2 text-xs text-muted">
+              {t("operator:branch.needsKey")}
+              <Button
+                variant="ghost"
+                size="sm"
+                aria-label={t("operator:branch.copyCurlFor", { name: b.name })}
+                onClick={() => void navigator.clipboard?.writeText(`curl -H "Authorization: Bearer $RT_KEY" ${b.url}`)}
+              >
+                {t("operator:branch.copyCurl")}
+              </Button>
+              <Link to="/$org/settings/tokens" params={{ org }} className="underline">{t("operator:branch.getKey")}</Link>
+            </span>
+          ) : null}
+        </>
+      ),
+    },
+    {
+      key: "build",
+      header: t("table.build"),
+      cell: (b) => (
+        <span className="inline-flex items-center gap-2 whitespace-nowrap">
+          <Badge variant={BUILD_VARIANT[b.build_state] ?? "outline"} dot>
+            {t(`state.${buildKey(b.build_state)}`)}
+          </Badge>
+          {b.live_version !== null ? <span className="text-xs tabular-nums text-muted">v{b.live_version}</span> : null}
+        </span>
+      ),
+    },
+    { key: "sha", header: t("table.sha"), cell: (b) => <span className="font-mono text-xs">{b.digest ? shortSha(b.digest) : t("noSha")}</span> },
+    {
+      key: "expires",
+      header: t("table.expires"),
+      align: "right",
+      sortValue: (b) => b.expires_at ?? Number.MAX_SAFE_INTEGER,
+      cell: (b) => <span className="text-muted">{b.expires_at ? formatDateTime(b.expires_at) : t("never")}</span>,
+    },
+    {
+      key: "actions",
+      header: t("common:actions"),
+      align: "right",
+      cell: (b) =>
+        deploy ? (
+          <span className="inline-flex items-center justify-end gap-2">
+            {b.digest !== null && b.digest === liveDigest ? (
+              <Badge variant="info">{t("operator:branch.alreadyLive")}</Badge>
+            ) : (
+              <Button
+                variant="secondary"
+                size="sm"
+                aria-label={t("switchFor", { name: b.name })}
+                disabled={b.live_version === null || b.build_state !== "ready"}
+                onClick={() => onSwitch(b.name)}
+              >
+                {t("switch")}
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" aria-label={t("deleteFor", { name: b.name })} onClick={() => onDelete(b)}>
+              {t("delete")}
+            </Button>
+          </span>
+        ) : null,
+    },
+  ];
   return (
-    <div className="overflow-x-auto">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead>{t("table.branch")}</TableHead>
-            <TableHead>{t("table.url")}</TableHead>
-            <TableHead>{t("table.build")}</TableHead>
-            <TableHead>{t("table.sha")}</TableHead>
-            <TableHead>{t("table.expires")}</TableHead>
-            <TableHead>
-              <span className="sr-only">{t("common:actions")}</span>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          {items.map((b) => (
-            <TableRow key={b.slug}>
-              <TableCell className="font-medium">
-                {b.name}
-                <span className="block text-xs font-normal text-muted">{b.slug}</span>
-              </TableCell>
-              <TableCell>
-                <a href={b.url} target="_blank" rel="noopener noreferrer" className="break-all underline">
-                  {b.url}
-                </a>
-              </TableCell>
-              <TableCell>
-                <Badge variant={BUILD_VARIANT[b.build_state] ?? "outline"} dot>
-                  {t(`state.${buildKey(b.build_state)}`)}
-                </Badge>
-              </TableCell>
-              <TableCell className="font-mono text-xs">{b.digest ? shortSha(b.digest) : t("noSha")}</TableCell>
-              <TableCell className="text-muted">{b.expires_at ? formatDateTime(b.expires_at) : t("never")}</TableCell>
-              <TableCell>
-                {deploy ? (
-                  <div className="flex justify-end">
-                    <Button
-                      variant="secondary"
-                      aria-label={t("switchFor", { name: b.name })}
-                      disabled={b.live_version === null || b.build_state !== "ready"}
-                      onClick={() => onSwitch(b.name)}
-                    >
-                      {t("switch")}
-                    </Button>
-                  </div>
-                ) : null}
-              </TableCell>
-            </TableRow>
-          ))}
-        </TableBody>
-      </Table>
-    </div>
+    <DataTable
+      label={t("title")}
+      columns={columns}
+      rows={items}
+      rowKey={(b) => b.slug}
+      count={t("count", { count: items.length })}
+    />
   );
 }
 
@@ -173,6 +250,7 @@ function Row({ label, children }: { label: string; children: ReactNode }) {
 
 function WarningText({ code }: { code: string }) {
   const { t } = useTranslation("branches");
+  if (code === "replaces_with_starter") return t("warning.replaces_with_starter");
   return code === "routes_refresh_delayed" || code === "schedule_tick_skipped"
     ? t(`warning.${code}`)
     : t("warning.other", { code });
@@ -185,9 +263,21 @@ function Preflight({ data, branch }: { data: Switch; branch: string }) {
   const triggers = named("triggers_differ");
   const others = data.warnings.filter((w) => w.code !== "env_missing_on_parent" && w.code !== "triggers_differ");
   const source = data.source?.version ?? 0;
+  const review =
+    (env.length ? 1 : 0) + (triggers.length ? 1 : 0) + (data.pending_migrations?.length ? 1 : 0) + others.length;
   return (
     <div className="flex flex-col gap-3">
       <h3 className="text-sm font-medium">{t("preflight.heading")}</h3>
+      <p
+        role="status"
+        className={cn(
+          "flex items-center gap-2 rounded-md px-3 py-2 text-sm",
+          review ? "bg-tag-yellow-bg text-tag-yellow-text" : "bg-tag-green-bg text-tag-green-text",
+        )}
+      >
+        {review ? <CircleAlert aria-hidden="true" className="size-4 shrink-0" /> : <CircleCheck aria-hidden="true" className="size-4 shrink-0" />}
+        {review ? t("preflight.review", { count: review }) : t("preflight.clear")}
+      </p>
       <dl className="flex flex-col gap-3">
         <Row label={t("preflight.liveChange")}>
           {data.from_version === null
@@ -208,11 +298,59 @@ function Preflight({ data, branch }: { data: Switch; branch: string }) {
         </Row>
       </dl>
       {others.map((w) => (
-        <p key={w.code} role="status" className="text-sm">
+        <p
+          key={w.code}
+          role={w.code === "replaces_with_starter" ? "alert" : "status"}
+          className={cn("text-sm", w.code === "replaces_with_starter" && "rounded-md bg-tag-red-bg px-3 py-2 text-tag-red-text")}
+        >
           <WarningText code={w.code} />
         </p>
       ))}
     </div>
+  );
+}
+
+const STEP_KEYS = ["prepare", "migrate", "drain", "live"] as const;
+
+const STEP_DOT: Record<StepState, string> = {
+  todo: "border border-line-strong text-muted",
+  current: "bg-accent text-on-primary",
+  done: "bg-tag-green-bg text-tag-green-text",
+  failed: "bg-tag-red-bg text-tag-red-text",
+};
+
+function Steps({ states }: { states: StepState[] }) {
+  const { t } = useTranslation("branches");
+  return (
+    <ol className="flex items-start">
+      {STEP_KEYS.map((key, i) => {
+        const state = states[i] ?? "todo";
+        return (
+          <li
+            key={key}
+            aria-current={state === "current" ? "step" : undefined}
+            className="relative flex min-w-0 flex-1 flex-col items-center gap-1 text-center"
+          >
+            {i > 0 ? (
+              <span
+                aria-hidden="true"
+                className={cn("absolute right-1/2 top-3 h-px w-full", state === "todo" ? "bg-line" : "bg-line-strong")}
+              />
+            ) : null}
+            <span className={cn("relative grid size-6 place-items-center rounded-full bg-surface text-xs tabular-nums", STEP_DOT[state])}>
+              {state === "done" ? (
+                <Check aria-hidden="true" className="size-3.5" />
+              ) : state === "failed" ? (
+                <X aria-hidden="true" className="size-3.5" />
+              ) : (
+                i + 1
+              )}
+            </span>
+            <span className={cn("text-xs", state === "todo" ? "text-muted" : "text-text")}>{t(`progress.step.${key}`)}</span>
+          </li>
+        );
+      })}
+    </ol>
   );
 }
 
@@ -221,13 +359,17 @@ export function Progress({ org, app, id }: { org: string; app: string; id: strin
   const status = useSwitchStatus(org, app, id);
   if (!status.data) return <Skeleton className="h-16 w-full" />;
   const s = status.data;
+  const steps = stepStates(s.state);
+  const took = s.updated_at - s.created_at;
   return (
-    <div className="flex flex-col gap-2" aria-live="polite">
+    <div className="flex flex-col gap-3" aria-live="polite">
       <h3 className="text-sm font-medium">{t("progress.heading")}</h3>
-      <div>
+      {steps ? <Steps states={steps} /> : null}
+      <div className="flex flex-wrap items-center gap-2">
         <Badge variant={STATE_VARIANT[s.state]} dot>
           {t(`switchState.${s.state}`)}
         </Badge>
+        {!isActive(s.state) && took > 0 ? <span className="text-xs text-muted">{t("progress.took", { time: formatDuration(took) })}</span> : null}
       </div>
       {isActive(s.state) && s.inflight_old > 0 ? (
         <p className="text-sm">{t("progress.running", { count: s.inflight_old, version: s.from_version })}</p>
@@ -322,89 +464,5 @@ function SwitchDialog({
         </DialogFooter>
       </DialogContent>
     </Dialog>
-  );
-}
-
-function History({ org, app, deploy, etag }: { org: string; app: string; deploy: boolean; etag: string | undefined }) {
-  const { t } = useTranslation(["branches", "common"]);
-  const switches = useSwitches(org, app);
-  const rollback = useRollback(org, app);
-  const [target, setTarget] = useState<Switch | null>(null);
-
-  if (switches.isError) {
-    return <QueryError error={switches.error} onRetry={() => void switches.refetch()} notFoundTitle={t("notFound")} notFoundDescription={t("notFoundDescription")} />;
-  }
-  if (switches.isPending) return <Skeleton className="h-24 w-full" />;
-
-  // Going back only makes sense from the version that is live now: the newest flip that took effect.
-  const latest = switches.data.find((s) => s.state !== "failed");
-
-  return (
-    <div className="flex flex-col gap-3">
-      <h2 className="text-base font-medium">{t("history.title")}</h2>
-      {switches.data.length === 0 ? (
-        <p className="text-sm text-muted">{t("history.empty")}</p>
-      ) : (
-        <div className="overflow-x-auto">
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("history.kind")}</TableHead>
-                <TableHead>{t("history.change")}</TableHead>
-                <TableHead>{t("history.state")}</TableHead>
-                <TableHead>{t("common:created")}</TableHead>
-                <TableHead>
-                  <span className="sr-only">{t("common:actions")}</span>
-                </TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {switches.data.map((s) => (
-                <TableRow key={s.id}>
-                  <TableCell>{t(`kind.${s.kind}`)}</TableCell>
-                  <TableCell>
-                    {s.from_version === null
-                      ? t("history.first_value", { to: s.to_version })
-                      : t("history.change_value", { from: s.from_version, to: s.to_version })}
-                  </TableCell>
-                  <TableCell>
-                    <Badge variant={STATE_VARIANT[s.state]} dot>
-                      {t(`switchState.${s.state}`)}
-                    </Badge>
-                  </TableCell>
-                  <TableCell className="text-muted">{formatDateTime(s.created_at)}</TableCell>
-                  <TableCell>
-                    {deploy && s === latest && s.from_version !== null ? (
-                      <div className="flex justify-end">
-                        <Button
-                          variant="secondary"
-                          aria-label={t("rollbackFor", { version: s.from_version })}
-                          disabled={!etag}
-                          onClick={() => setTarget(s)}
-                        >
-                          {t("rollback")}
-                        </Button>
-                      </div>
-                    ) : null}
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </div>
-      )}
-      <ConfirmDialog
-        open={target !== null}
-        onOpenChange={(open) => !open && setTarget(null)}
-        title={t("rollbackTitle", { version: target?.from_version })}
-        description={t("rollbackDescription", { version: target?.from_version })}
-        confirmLabel={t("rollback")}
-        pending={rollback.isPending}
-        onConfirm={() => {
-          if (!target?.id || !etag) return;
-          rollback.mutate({ id: target.id, etag }, { onSuccess: () => setTarget(null) });
-        }}
-      />
-    </div>
   );
 }

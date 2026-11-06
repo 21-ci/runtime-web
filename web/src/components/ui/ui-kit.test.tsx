@@ -1,6 +1,7 @@
 import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
+import { EntityTile, hueFor } from "./icon-tile";
 import { Badge } from "./badge";
 import { Button } from "./button";
 import { Dialog, DialogContent, DialogDescription, DialogTitle, DialogTrigger } from "./dialog";
@@ -78,6 +79,25 @@ describe("ui kit", () => {
     expect(box.className).not.toMatch(/border-dashed/);
   });
 
+  it("stack labels each cell from its header and skips spanning cells", () => {
+    const { container } = render(
+      <Table stack>
+        <TableHeader>
+          <TableRow><TableHead>When</TableHead><TableHead>Who</TableHead></TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow><TableCell>now</TableCell><TableCell>Ada</TableCell></TableRow>
+          <TableRow><TableCell colSpan={2}>note</TableCell></TableRow>
+        </TableBody>
+      </Table>,
+    );
+    expect(container.querySelector("table")?.className).toMatch(/table-stack/);
+    const cells = container.querySelectorAll("td");
+    expect(cells[0]).toHaveAttribute("data-label", "When");
+    expect(cells[1]).toHaveAttribute("data-label", "Who");
+    expect(cells[2]).not.toHaveAttribute("data-label");
+  });
+
   it("table uses 40px rows and muted light headers", () => {
     render(
       <Table>
@@ -113,5 +133,47 @@ describe("ui kit", () => {
     await user.click(screen.getByRole("button", { name: "Open" }));
     expect(await screen.findByRole("dialog", { name: "Rename app" })).toBeInTheDocument();
     expect(screen.getByText("Choose a new name.")).toBeInTheDocument();
+  });
+
+  it("entity tile is a glyph, never a letter, tinted by name", () => {
+    const { container, rerender } = render(<EntityTile kind="app" name="todo" />);
+    const tile = container.firstElementChild as HTMLElement;
+    expect(tile.querySelector("svg")).not.toBeNull();
+    expect(tile.textContent).toBe("");
+    const tint = tile.className;
+    rerender(<EntityTile kind="project" name="todo" />);
+    expect((container.firstElementChild as HTMLElement).className).toBe(tint);
+    expect(tint).toContain(`bg-tag-${hueFor("todo")}-bg`);
+  });
+
+  it("empty state keeps its default look and action", () => {
+    render(<EmptyState title="No schedules" description="Add one." action={<Button>Add schedule</Button>} />);
+    expect(screen.getByRole("heading", { name: "No schedules" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Add schedule" })).toBeInTheDocument();
+  });
+
+  it("no-range state is one muted sentence that names the range", () => {
+    const { container } = render(<EmptyState variant="no-range" title="No requests in the last hour." />);
+    expect(screen.getByText("No requests in the last hour.").className).toMatch(/text-muted/);
+    expect(screen.queryByRole("heading")).toBeNull();
+    expect(container.querySelector("svg")).toBeNull();
+  });
+
+  it("error state is an inline alert with code, retry and collapsed details", async () => {
+    const user = userEvent.setup();
+    const onRetry = vi.fn();
+    render(<EmptyState variant="error" title="Could not load logs" code="runtime_unavailable" details="upstream 502" onRetry={onRetry} />);
+    expect(screen.getByRole("alert")).toHaveTextContent("Could not load logs");
+    expect(screen.getByText("runtime_unavailable")).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(onRetry).toHaveBeenCalledOnce();
+    expect(screen.getByText("upstream 502").closest("details")).not.toHaveAttribute("open");
+    expect(screen.getByText("Details")).toBeInTheDocument();
+  });
+
+  it("permission state is a one-line notice", () => {
+    render(<EmptyState variant="permission" title="Only project admins can change this" />);
+    expect(screen.getByRole("note")).toHaveTextContent("Only project admins can change this");
+    expect(screen.queryByRole("heading")).toBeNull();
   });
 });

@@ -3,6 +3,7 @@
     "description": "It may have been deleted or you lack access."
   },
   "app": {
+    "backToOrg": "Back to the organization",
     "notFound": "App not found"
   },
   "project": {
@@ -33,6 +34,12 @@
     "create": "Create app",
     "chooseProject": "Choose a project.",
     "chooseEnvironment": "Choose an environment.",
+    "slugChars": "Can't use {{chars}}. Use lowercase letters, digits and single hyphens.",
+    "slugLong": "Use at most {{max}} characters.",
+    "slugEdge": "Start and end with a letter or digit.",
+    "slugDouble": "Don't use two hyphens in a row.",
+    "branchEnvironment": "{{environment}} (branch)",
+    "branchEnvironmentHint": "This environment belongs to a branch and goes away with it.",
     "enterName": "Enter an app name.",
     "slugTaken": "This app name is taken on this runtime.",
     "failed": "Could not create the app. Try again.",
@@ -40,7 +47,13 @@
     "loadingProjects": "Loading projects…",
     "noProjects": "You have no project to create an app in. Ask an org admin for access to one.",
     "loadingEnvironments": "Loading environments…",
-    "noEnvironments": "This project has no environments yet."
+    "noEnvironments": "This project has no environments yet.",
+    "wasm": {
+      "title": "WebAssembly component",
+      "blurb": "Upload a .wasm file",
+      "file": "Component file (.wasm)",
+      "required": "Choose a .wasm file."
+    }
   },
   "templates": {
     "http": {

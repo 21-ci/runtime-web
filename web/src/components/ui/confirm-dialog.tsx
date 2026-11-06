@@ -35,7 +35,7 @@ export interface ConfirmDialogProps {
 }
 
 // ConfirmDialog gates destructive or security-sensitive actions. Focus opens on Cancel, so an
-// accidental Enter cannot confirm. The typed confirmation is either internal (`typedValue`) or
+// accidental Enter cannot confirm; Enter in the typed field does, once it matches. The typed confirmation is either internal (`typedValue`) or
 // owned by the caller (`confirmDisabled` plus children).
 export function ConfirmDialog({
   open,
@@ -72,6 +72,14 @@ export function ConfirmDialog({
         onOpenAutoFocus={(event) => {
           event.preventDefault();
           cancelRef.current?.focus();
+        }}
+        // Enter in a text field is a deliberate submit: the value typed there was the gate.
+        onKeyDown={(event) => {
+          const target = event.target as HTMLElement;
+          const typing = target instanceof HTMLInputElement && target.type !== "checkbox" && target.type !== "radio";
+          if (event.key !== "Enter" || !typing) return;
+          event.preventDefault();
+          if (!pending && !confirmDisabled && ready) onConfirm();
         }}
       >
         <DialogHeader>

@@ -1,18 +1,21 @@
 import { BellRing, Trash2 } from "lucide-react";
-import { useState, type FormEvent } from "react";
+import { useState, type FormEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
 import { QueryError } from "@/components/features/empty/query-error";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { PageHeader } from "@/components/ui/page-header";
 import { SectionCard } from "@/components/ui/section-card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { ApiError } from "@/lib/api";
 import { formatDateTime } from "@/lib/format";
 
 import {
@@ -27,6 +30,8 @@ import {
   useUpdateChannel,
   useUpdateRule,
   RULE_PARAMS,
+  channelFieldMessage,
+  testFailure,
   type AlertChannel,
   type AlertRule,
   type ChannelInput,
@@ -34,6 +39,12 @@ import {
 } from "./use-alerts";
 
 type Props = { base: string; kinds: readonly string[]; allowApp: boolean };
+
+/** A refused channel's field errors, in words. Anything else is left to the global toast. */
+function channelErrors(err: unknown): Record<string, string> {
+  if (!(err instanceof ApiError)) return {};
+  return Object.fromEntries(Object.entries(err.fieldErrors()).map(([field, code]) => [field, channelFieldMessage(field, code)]));
+}
 
 // AlertsPage is one screen for both scopes: base is the API root, kinds what that scope may watch.
 export function AlertsPage({ base, kinds, allowApp }: Props) {
@@ -76,11 +87,26 @@ function ActiveCard({ base }: { base: string }) {
   );
 }
 
+function FormSheet(p: { open: boolean; onOpenChange: (open: boolean) => void; title: string; children: ReactNode }) {
+  return (
+    <Sheet open={p.open} onOpenChange={p.onOpenChange}>
+      <SheetContent aria-describedby={undefined}>
+        <SheetHeader>
+          <SheetTitle>{p.title}</SheetTitle>
+          <SheetDescription className="sr-only">{p.title}</SheetDescription>
+        </SheetHeader>
+        {p.open ? <div className="overflow-y-auto px-4 pb-4">{p.children}</div> : null}
+      </SheetContent>
+    </Sheet>
+  );
+}
+
 function ChannelsCard({ base }: { base: string }) {
   const { t } = useTranslation(["alerts", "platform"]);
   const channels = useChannels(base);
   const remove = useDeleteChannel(base);
   const test = useTestChannel(base);
+  const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<AlertChannel | null>(null);
   const [deleting, setDeleting] = useState<AlertChannel | null>(null);
   const items = channels.data?.items;
@@ -89,15 +115,15 @@ function ChannelsCard({ base }: { base: string }) {
     return c.last_ok_at ? t("channels.lastOk", { at: formatDateTime(c.last_ok_at) }) : t("channels.neverSent");
   };
   return (
-    <SectionCard title={t("channels.title")}>
+    <SectionCard title={t("channels.title")} actions={<Button size="sm" variant="secondary" onClick={() => setAdding(true)}>{t("channels.add")}</Button>}>
       {channels.isError ? (
         <QueryError error={channels.error} onRetry={() => void channels.refetch()} notFoundTitle={t("adminsOnly")} />
       ) : !items ? (
         <Skeleton className="h-16 w-full" />
       ) : items.length === 0 ? (
-        <p className="mb-4 text-sm text-muted">{t("channels.none")}</p>
+        <p className="text-sm text-muted">{t("channels.none")}</p>
       ) : (
-        <Table className="mb-4">
+        <Table stack>
           <TableHeader>
             <TableRow>
               <TableHead>{t("fields.name")}</TableHead>
@@ -126,7 +152,14 @@ function ChannelsCard({ base }: { base: string }) {
           </TableBody>
         </Table>
       )}
-      <ChannelForm base={base} />
+      {test.data && !test.data.ok ? (
+        <p role="alert" className="mb-4 break-words rounded-md border border-danger/30 bg-danger-soft px-3 py-2 text-sm text-danger-text">
+          {testFailure(test.data)}
+        </p>
+      ) : null}
+      <FormSheet open={adding} onOpenChange={setAdding} title={t("channels.add")}>
+        <ChannelForm base={base} onDone={() => setAdding(false)} />
+      </FormSheet>
       {editing ? <ChannelEdit key={editing.id} base={base} channel={editing} onClose={() => setEditing(null)} /> : null}
       <ConfirmDelete
         open={deleting !== null}
@@ -165,12 +198,14 @@ function ChannelEdit({ base, channel, onClose }: { base: string; channel: AlertC
   const [name, setName] = useState(channel.name);
   const [first, setFirst] = useState("");
   const [second, setSecond] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const webhook = channel.kind === "webhook";
   const canConfig = channel.kind !== "email";
   const submit = (e: FormEvent) => {
     e.preventDefault();
     const config = first && second ? (webhook ? { url: first, secret: second } : { bot_token: first, chat_id: second }) : undefined;
-    update.mutate({ id: channel.id, name, ...(config ? { config } : {}) } as ChannelPatch & { id: string }, { onSuccess: onClose });
+    setErrors({});
+    update.mutate({ id: channel.id, name, ...(config ? { config } : {}) } as ChannelPatch & { id: string }, { onSuccess: onClose, onError: (err) => setErrors(channelErrors(err)) });
   };
   return (
     <Dialog open onOpenChange={(o) => !o && onClose()}>
@@ -180,17 +215,17 @@ function ChannelEdit({ base, channel, onClose }: { base: string; channel: AlertC
           <DialogDescription>{t("platform:alerts.configHint")}</DialogDescription>
         </DialogHeader>
         <form onSubmit={submit} className="flex flex-col gap-4">
-          <Field id="edit-channel-name" label={t("fields.name")} value={name} onChange={setName} />
+          <Field id="edit-channel-name" label={t("fields.name")} value={name} onChange={setName} error={errors.name} />
           {canConfig ? (
             webhook ? (
               <>
-                <Field id="edit-url" label={t("fields.url")} value={first} onChange={setFirst} placeholder="https://" optional />
-                <Field id="edit-secret" label={t("fields.secret")} value={second} onChange={setSecond} type="password" optional />
+                <Field id="edit-url" label={t("fields.url")} value={first} onChange={setFirst} placeholder="https://" optional error={errors["config.url"]} />
+                <Field id="edit-secret" label={t("fields.secret")} value={second} onChange={setSecond} type="password" optional error={errors["config.secret"]} />
               </>
             ) : (
               <>
-                <Field id="edit-bot-token" label={t("fields.botToken")} value={first} onChange={setFirst} type="password" optional />
-                <Field id="edit-chat-id" label={t("fields.chatId")} value={second} onChange={setSecond} optional />
+                <Field id="edit-bot-token" label={t("fields.botToken")} value={first} onChange={setFirst} type="password" optional error={errors["config.bot_token"]} />
+                <Field id="edit-chat-id" label={t("fields.chatId")} value={second} onChange={setSecond} optional error={errors["config.chat_id"]} />
               </>
             )
           ) : null}
@@ -262,34 +297,40 @@ function RuleEdit({ base, rule, channels, onClose }: { base: string; rule: Alert
   );
 }
 
-function ChannelForm({ base }: { base: string }) {
-  const { t } = useTranslation(["alerts", "platform"]);
+function ChannelForm({ base, onDone }: { base: string; onDone: () => void }) {
+  const { t } = useTranslation(["alerts", "platform", "operator"]);
   const create = useCreateChannel(base);
   const [kind, setKind] = useState<ChannelInput["kind"]>("webhook");
   const [name, setName] = useState("");
   const [first, setFirst] = useState("");
   const [second, setSecond] = useState("");
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const webhook = kind === "webhook";
+  const firstKey = webhook ? "config.url" : "config.bot_token";
+  const secondKey = webhook ? "config.secret" : "config.chat_id";
 
   const submit = (e: FormEvent) => {
     e.preventDefault();
+    const missing: Record<string, string> = {};
+    if (!name.trim()) missing.name = t("operator:alerts.required");
+    if (!first.trim()) missing[firstKey] = t("operator:alerts.required");
+    if (!second.trim()) missing[secondKey] = t("operator:alerts.required");
+    setErrors(missing);
+    if (Object.keys(missing).length > 0) return;
     const input: ChannelInput = webhook
       ? { kind, name, config: { url: first, secret: second } }
       : { kind, name, config: { bot_token: first, chat_id: second } };
     create.mutate(input, {
-      onSuccess: () => {
-        setName("");
-        setFirst("");
-        setSecond("");
-      },
+      onSuccess: onDone,
+      onError: (err) => setErrors(channelErrors(err)),
     });
   };
 
   return (
-    <form onSubmit={submit} className="flex max-w-xl flex-col gap-4">
+    <form onSubmit={submit} noValidate className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="alert-channel-kind">{t("fields.kind")}</Label>
-        <Select value={kind} onValueChange={(v) => { setKind(v as ChannelInput["kind"]); setFirst(""); setSecond(""); }}>
+        <Select value={kind} onValueChange={(v) => { setKind(v as ChannelInput["kind"]); setFirst(""); setSecond(""); setErrors({}); }}>
           <SelectTrigger id="alert-channel-kind"><SelectValue /></SelectTrigger>
           <SelectContent>
             <SelectItem value="webhook">{t("channelKinds.webhook")}</SelectItem>
@@ -297,16 +338,16 @@ function ChannelForm({ base }: { base: string }) {
           </SelectContent>
         </Select>
       </div>
-      <Field id="alert-channel-name" label={t("fields.name")} value={name} onChange={setName} />
+      <Field id="alert-channel-name" label={t("fields.name")} value={name} onChange={setName} error={errors.name} />
       {webhook ? (
         <>
-          <Field id="alert-url" label={t("fields.url")} hint={t("fields.urlHint")} value={first} onChange={setFirst} placeholder="https://" />
-          <Field id="alert-secret" label={t("fields.secret")} hint={t("fields.secretHint")} value={second} onChange={setSecond} type="password" />
+          <Field id="alert-url" label={t("fields.url")} hint={t("fields.urlHint")} value={first} onChange={setFirst} placeholder="https://" error={errors[firstKey]} />
+          <Field id="alert-secret" label={t("fields.secret")} hint={t("fields.secretHint")} value={second} onChange={setSecond} type="password" error={errors[secondKey]} />
         </>
       ) : (
         <>
-          <Field id="alert-bot-token" label={t("fields.botToken")} value={first} onChange={setFirst} type="password" />
-          <Field id="alert-chat-id" label={t("fields.chatId")} value={second} onChange={setSecond} />
+          <Field id="alert-bot-token" label={t("fields.botToken")} value={first} onChange={setFirst} type="password" error={errors[firstKey]} />
+          <Field id="alert-chat-id" label={t("fields.chatId")} value={second} onChange={setSecond} error={errors[secondKey]} />
         </>
       )}
       <div><Button type="submit" disabled={create.isPending}>{t("channels.add")}</Button></div>
@@ -320,6 +361,7 @@ function RulesCard({ base, kinds, allowApp }: Props) {
   const channels = useChannels(base);
   const update = useUpdateRule(base);
   const remove = useDeleteRule(base);
+  const [adding, setAdding] = useState(false);
   const [editing, setEditing] = useState<AlertRule | null>(null);
   const [deleting, setDeleting] = useState<AlertRule | null>(null);
   // Fixed when the list loads: a mute running out while the page is open shows at the next load.
@@ -328,15 +370,18 @@ function RulesCard({ base, kinds, allowApp }: Props) {
   const items = rules.data?.items;
   const nameOf = (id: string) => channels.data?.items.find((c) => c.id === id)?.name ?? id;
   return (
-    <SectionCard title={t("rules.title")}>
+    <SectionCard
+      title={t("rules.title")}
+      actions={<Button size="sm" variant="secondary" disabled={!channels.data?.items.length} onClick={() => setAdding(true)}>{t("rules.add")}</Button>}
+    >
       {rules.isError ? (
         <QueryError error={rules.error} onRetry={() => void rules.refetch()} notFoundTitle={t("adminsOnly")} />
       ) : !items ? (
         <Skeleton className="h-16 w-full" />
       ) : items.length === 0 ? (
-        <p className="mb-4 text-sm text-muted">{t("rules.none")}</p>
+        <p className="text-sm text-muted">{t("rules.none")}</p>
       ) : (
-        <Table className="mb-4">
+        <Table stack>
           <TableHeader>
             <TableRow>
               <TableHead>{t("fields.kind")}</TableHead>
@@ -362,11 +407,18 @@ function RulesCard({ base, kinds, allowApp }: Props) {
                     {muted(r) ? (
                       <Button size="sm" variant="secondary" disabled={update.isPending} onClick={() => update.mutate({ id: r.id, muted_until: null })}>{t("platform:alerts.unmute")}</Button>
                     ) : (
-                      MUTE_HOURS.map((h) => (
-                        <Button key={h} size="sm" variant="ghost" disabled={update.isPending} aria-label={t("platform:alerts.muteFor", { hours: h })} onClick={() => update.mutate({ id: r.id, muted_until: Date.now() + h * 3_600_000 })}>
-                          {t("platform:alerts.muteShort", { hours: h })}
-                        </Button>
-                      ))
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button size="sm" variant="secondary" disabled={update.isPending}>{t("platform:alerts.mute")}</Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent align="end">
+                          {MUTE_HOURS.map((h) => (
+                            <DropdownMenuItem key={h} onSelect={() => update.mutate({ id: r.id, muted_until: Date.now() + h * 3_600_000 })}>
+                              {t("platform:alerts.muteFor", { hours: h })}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
                     )}
                     <Button size="sm" variant="secondary" onClick={() => setEditing(r)}>{t("platform:alerts.edit")}</Button>
                     <Button size="sm" variant="ghost" aria-label={t("rules.delete")} onClick={() => setDeleting(r)}>
@@ -379,7 +431,10 @@ function RulesCard({ base, kinds, allowApp }: Props) {
           </TableBody>
         </Table>
       )}
-      <RuleForm base={base} kinds={kinds} allowApp={allowApp} channels={channels.data?.items ?? []} />
+      {channels.data && channels.data.items.length === 0 ? <p className="mt-2 text-sm text-muted">{t("rules.needChannel")}</p> : null}
+      <FormSheet open={adding} onOpenChange={setAdding} title={t("rules.add")}>
+        <RuleForm base={base} kinds={kinds} allowApp={allowApp} channels={channels.data?.items ?? []} onDone={() => setAdding(false)} />
+      </FormSheet>
       {editing ? <RuleEdit key={editing.id} base={base} rule={editing} channels={channels.data?.items ?? []} onClose={() => setEditing(null)} /> : null}
       <ConfirmDelete
         open={deleting !== null}
@@ -393,7 +448,7 @@ function RulesCard({ base, kinds, allowApp }: Props) {
   );
 }
 
-function RuleForm({ base, kinds, allowApp, channels }: Props & { channels: AlertChannel[] }) {
+function RuleForm({ base, kinds, allowApp, channels, onDone }: Props & { channels: AlertChannel[]; onDone: () => void }) {
   const { t } = useTranslation(["alerts", "platform"]);
   const create = useCreateRule(base);
   const [kind, setKind] = useState(kinds[0] ?? "");
@@ -401,15 +456,13 @@ function RuleForm({ base, kinds, allowApp, channels }: Props & { channels: Alert
   const [app, setApp] = useState("");
   const channel = picked || channels[0]?.id || "";
 
-  if (channels.length === 0) return <p className="text-sm text-muted">{t("rules.needChannel")}</p>;
-
   const submit = (e: FormEvent) => {
     e.preventDefault();
-    create.mutate({ kind, channels: [channel], ...(allowApp && app ? { app } : {}) }, { onSuccess: () => setApp("") });
+    create.mutate({ kind, channels: [channel], ...(allowApp && app ? { app } : {}) }, { onSuccess: onDone });
   };
 
   return (
-    <form onSubmit={submit} className="flex max-w-xl flex-col gap-4">
+    <form onSubmit={submit} className="flex flex-col gap-4">
       <div className="flex flex-col gap-1.5">
         <Label htmlFor="alert-rule-kind">{t("fields.kind")}</Label>
         <Select value={kind} onValueChange={setKind}>
@@ -434,7 +487,7 @@ function RuleForm({ base, kinds, allowApp, channels }: Props & { channels: Alert
   );
 }
 
-function Field(p: { id: string; label: string; hint?: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; optional?: boolean }) {
+function Field(p: { id: string; label: string; hint?: string; value: string; onChange: (v: string) => void; placeholder?: string; type?: string; optional?: boolean; error?: string | undefined }) {
   return (
     <div className="flex flex-col gap-1.5">
       <Label htmlFor={p.id}>{p.label}</Label>
@@ -444,10 +497,12 @@ function Field(p: { id: string; label: string; hint?: string; value: string; onC
         onChange={(e) => p.onChange(e.target.value)}
         autoComplete="off"
         required={!p.optional}
+        {...(p.error ? { "aria-invalid": true, "aria-describedby": `${p.id}-error` } : {})}
         {...(p.placeholder ? { placeholder: p.placeholder } : {})}
         {...(p.type ? { type: p.type } : {})}
       />
       {p.hint ? <p className="text-xs text-muted">{p.hint}</p> : null}
+      {p.error ? <p id={`${p.id}-error`} role="alert" className="text-sm text-danger-text">{p.error}</p> : null}
     </div>
   );
 }

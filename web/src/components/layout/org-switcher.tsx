@@ -1,6 +1,6 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
-import { Check, ChevronsUpDown } from "lucide-react";
+import { Building2, Check, ChevronsUpDown, UserRound } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import {
@@ -11,13 +11,18 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { LetterTile, hueFor } from "@/components/ui/icon-tile";
+import { ROLE_KEY } from "@/components/features/members/roles";
+import { IconTile, hueFor } from "@/components/ui/icon-tile";
 import { useOrgs } from "@/hooks/orgs";
 import { cn } from "@/lib/utils";
 
-// OrgAvatar is the coloured initial tile for an org or a person; the hue is stable per name.
+// OrgAvatar and PersonAvatar are coloured icon tiles; the hue is stable per name.
 export function OrgAvatar({ name, className, solid = false }: { name: string; className?: string; solid?: boolean }) {
-  return <LetterTile label={name} hue={hueFor(name)} size="xs" solid={solid} className={cn("rounded-md", className)} />;
+  return <IconTile icon={Building2} hue={hueFor(name)} size="xs" solid={solid} className={cn("rounded-md", className)} />;
+}
+
+export function PersonAvatar({ name, className, solid = false }: { name: string; className?: string; solid?: boolean }) {
+  return <IconTile icon={UserRound} hue={hueFor(name)} size="xs" solid={solid} className={cn("rounded-md", className)} />;
 }
 
 // OrgSwitcher changes the scope of the console. Switching drops every cached query first, so no
@@ -28,7 +33,7 @@ export function OrgSwitcher({ org }: { org: string }) {
   const navigate = useNavigate();
   const current = orgs.data?.find((o) => o.slug === org);
   const name = current?.name ?? org;
-  const { t } = useTranslation("shell");
+  const { t } = useTranslation(["shell", "members"]);
 
   function switchTo(slug: string) {
     if (slug === org) return;
@@ -43,11 +48,14 @@ export function OrgSwitcher({ org }: { org: string }) {
     <DropdownMenu>
       <DropdownMenuTrigger
         aria-label={t("orgSwitcher.switch")}
-        className="flex h-9 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm text-text outline-none transition-colors duration-[120ms] hover:bg-hover data-[state=open]:bg-hover focus-visible:ring-2 focus-visible:ring-focus"
+        className="flex h-11 min-w-0 flex-1 cursor-pointer items-center gap-2 rounded-md px-1.5 text-sm text-text outline-none transition-colors duration-[120ms] hover:bg-hover data-[state=open]:bg-hover focus-visible:ring-2 focus-visible:ring-focus"
       >
-        <OrgAvatar name={name} solid className="size-6 rounded-md text-[12px]" />
-        <span className="min-w-0 flex-1 truncate text-left font-semibold">{name}</span>
-        <ChevronsUpDown className="size-3.5 shrink-0 text-muted" aria-hidden="true" />
+        <OrgAvatar name={name} className="size-8 rounded-lg text-[13px]" />
+        <span className="grid min-w-0 flex-1 text-left leading-tight group-data-[collapsible=icon]:hidden">
+          <span className="truncate font-semibold">{name}</span>
+          {current?.role ? <span className="truncate text-[12px] text-muted">{t(ROLE_KEY[current.role])}</span> : null}
+        </span>
+        <ChevronsUpDown className="size-3.5 shrink-0 text-muted group-data-[collapsible=icon]:hidden" aria-hidden="true" />
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" className="w-[228px]">
         <DropdownMenuLabel>{t("orgSwitcher.organizations")}</DropdownMenuLabel>

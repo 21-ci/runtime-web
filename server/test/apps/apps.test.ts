@@ -171,6 +171,30 @@ describe("files and versions", () => {
     expect((await w.admin.call("GET", `${APPS}/hello/files?version=9`)).status).toBe(404);
   });
 
+  it("GET files?version=latest with no version offers a starter, so the first push can come from the console", async () => {
+    const w = await world();
+    await createApp(w.admin);
+    const s = w.fake.services.get(svcOf(w, "hello"));
+    if (!s) throw new Error("no service");
+    s.versions = [];
+    const r = await w.admin.call("GET", `${APPS}/hello/files?version=latest`);
+    expect(r.status).toBe(200);
+    const f = (await r.json()) as { version: number; entry: string; files: Record<string, string>; read_only: boolean };
+    expect(f).toMatchObject({ version: 0, entry: "main.ts", kind: "ts", read_only: false });
+    expect(f.files["main.ts"]).toContain("export default");
+  });
+
+  it("GET files?version=latest with no version stays read-only for a wasm app", async () => {
+    const w = await world();
+    await createApp(w.admin);
+    const s = w.fake.services.get(svcOf(w, "hello"));
+    if (!s) throw new Error("no service");
+    s.versions = [];
+    s.view.runtime = "wasm";
+    const f = (await (await w.admin.call("GET", `${APPS}/hello/files?version=latest`)).json()) as object;
+    expect(f).toMatchObject({ version: 0, files: {}, read_only: true, kind: "wasm" });
+  });
+
   it("PUT files round-trips 3 MB through the chunked SDK transport", async () => {
     const fake = new FakeRtCtl();
     const log: string[] = [];

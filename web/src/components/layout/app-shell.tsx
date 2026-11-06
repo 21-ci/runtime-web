@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useMemo, useState, type ReactNode } from "react";
-import * as SheetPrimitive from "@radix-ui/react-dialog";
 import { useMatches } from "@tanstack/react-router";
-import { Menu, PanelLeft, Search } from "lucide-react";
+import { Menu, Search } from "lucide-react";
 import { useTranslation } from "react-i18next";
 
 import { Button } from "@/components/ui/button";
+import { SidebarProvider, useSidebar } from "@/components/ui/sidebar";
 import { applyTheme, readTheme, subscribeSystemTheme, writeTheme, type Theme } from "@/lib/theme";
 import { cn } from "@/lib/utils";
 import { AccountMenu } from "./account-menu";
@@ -41,12 +41,11 @@ function writeCollapsed(v: boolean) {
 }
 
 // AppShell is the signed-in frame: a 240px sidebar from md up (collapsible with ⌘\), a sheet
-// below md, a 48px top bar with breadcrumbs, and the page content. It owns the shell state
+// below md, and an inset panel from md up (it scrolls on its own) with a 48px top bar and the page. It owns the shell state
 // (palette, theme, collapse). The skip link is the first focus stop and jumps past the navigation.
 // Org pages and instance-admin pages share it; `org` is the org in scope (null when the user has
 // none, or while an admin page loads the org list).
 export function AppShell({ org, children }: { org: string | null; children: ReactNode }) {
-  const [sheetOpen, setSheetOpen] = useState(false);
   const [paletteOpen, setPaletteOpen] = useState(false);
   const [theme, setThemeState] = useState<Theme>(() => readTheme());
   const [collapsed, setCollapsedState] = useState<boolean>(() => readCollapsed());
@@ -77,12 +76,6 @@ export function AppShell({ org, children }: { org: string | null; children: Reac
       if (e.key.toLowerCase() === "k") {
         e.preventDefault();
         setPaletteOpen((v) => !v);
-      } else if (e.key === "\\") {
-        e.preventDefault();
-        setCollapsedState((v) => {
-          writeCollapsed(!v);
-          return !v;
-        });
       }
     }
     document.addEventListener("keydown", onKey);
@@ -94,11 +87,9 @@ export function AppShell({ org, children }: { org: string | null; children: Reac
     [paletteOpen, theme, setTheme, collapsed, setCollapsed],
   );
 
-  const renderNav = (props: { onNavigate?: () => void; onCollapse?: () => void }) => <Sidebar org={org} {...props} />;
-
   return (
     <ShellContext.Provider value={shell}>
-      <div className="flex min-h-dvh bg-bg text-text">
+      <SidebarProvider open={!collapsed} onOpenChange={(open) => setCollapsed(!open)} className="min-h-dvh bg-bg text-text md:bg-panel">
         <a
           href="#main"
           className="sr-only focus:not-sr-only focus:fixed focus:left-3 focus:top-3 focus:z-50 focus:rounded-md focus:bg-surface-2 focus:px-3 focus:py-2 focus:shadow-menu"
@@ -106,45 +97,11 @@ export function AppShell({ org, children }: { org: string | null; children: Reac
           {t("top.skipToContent")}
         </a>
 
-        <aside
-          className={cn(
-            "sticky top-0 hidden h-dvh w-60 shrink-0 overflow-y-auto border-r border-line bg-panel",
-            !collapsed && "md:block",
-          )}
-        >
-          {renderNav({ onCollapse: () => setCollapsed(true) })}
-        </aside>
+        <Sidebar org={org} />
 
-        <div className="flex min-w-0 flex-1 flex-col">
-          <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-1 border-b border-line bg-bg/90 px-2 backdrop-blur-sm md:px-4">
-            <SheetPrimitive.Root open={sheetOpen} onOpenChange={setSheetOpen}>
-              <SheetPrimitive.Trigger asChild>
-                <Button variant="ghost" size="icon" className="md:hidden" aria-label={t("top.openNavigation")}>
-                  <Menu aria-hidden="true" />
-                </Button>
-              </SheetPrimitive.Trigger>
-              <SheetPrimitive.Portal>
-                <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-overlay/35 data-[state=open]:animate-[fade-in_160ms_var(--motion-ease)]" />
-                <SheetPrimitive.Content className="fixed inset-y-0 left-0 z-50 w-[280px] max-w-[85vw] overflow-y-auto border-r border-line bg-panel text-text shadow-menu outline-none data-[state=open]:animate-[slide-in-left_200ms_var(--motion-ease)]">
-                  <SheetPrimitive.Title className="sr-only">{t("top.navigation")}</SheetPrimitive.Title>
-                  <SheetPrimitive.Description className="sr-only">{t("top.consoleNavigation")}</SheetPrimitive.Description>
-                  {renderNav({ onNavigate: () => setSheetOpen(false) })}
-                </SheetPrimitive.Content>
-              </SheetPrimitive.Portal>
-            </SheetPrimitive.Root>
-
-            {collapsed ? (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="hidden md:inline-flex"
-                aria-label={t("top.expandSidebar")}
-                title={t("top.expandSidebarTitle")}
-                onClick={() => setCollapsed(false)}
-              >
-                <PanelLeft aria-hidden="true" />
-              </Button>
-            ) : null}
+        <div className="flex min-w-0 flex-1 flex-col md:my-2 md:mr-2 md:h-[calc(100dvh-1rem)] md:overflow-y-auto md:rounded-xl md:border md:border-line md:bg-bg md:shadow-card">
+          <header className="sticky top-0 z-10 flex h-12 shrink-0 items-center gap-1 border-b border-line bg-bg px-2 md:px-4">
+            <MobileNavButton label={t("top.openNavigation")} />
 
             <Breadcrumbs org={org} />
 
@@ -163,8 +120,18 @@ export function AppShell({ org, children }: { org: string | null; children: Reac
         </div>
 
         {org ? <CommandMenu org={org} /> : null}
-      </div>
+      </SidebarProvider>
     </ShellContext.Provider>
+  );
+}
+
+// MobileNavButton opens the library sidebar's sheet.
+function MobileNavButton({ label }: { label: string }) {
+  const { setOpenMobile } = useSidebar();
+  return (
+    <Button variant="ghost" size="icon" className="md:hidden" aria-label={label} onClick={() => setOpenMobile(true)}>
+      <Menu aria-hidden="true" />
+    </Button>
   );
 }
 

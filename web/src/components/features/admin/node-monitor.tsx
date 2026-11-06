@@ -1,14 +1,25 @@
-import { useState } from "react";
+import { Activity } from "lucide-react";
+import { useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 
-import { LineChart } from "@/components/ui/line-chart";
+import { topSegments } from "@/components/features/analytics/analytics-lib";
+import { RankedList } from "@/components/features/analytics/blocks";
+import { ExportMenu } from "@/components/ui/export-menu";
+import { NoData } from "@/components/ui/no-data";
+import { MetricPlane, type PlaneMetric } from "@/components/features/analytics/metric-plane";
 import { SectionCard } from "@/components/ui/section-card";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { formatBytes } from "@/lib/chart";
-import { formatDateTime } from "@/lib/format";
+import { Timeline } from "@/components/ui/timeline";
+import { StatTile, type StatTone } from "@/components/ui/stat-tile";
+import { Badge } from "@/components/ui/badge";
+import { EventDetails } from "@/components/features/deployments/events-panel";
+import { eventNote, groupEvents, groupTitle } from "@/components/features/deployments/event-text";
+import { formatBytes, formatDateTime } from "@/lib/format";
 
 import { RangeSwitch } from "./range-switch";
-import { RANGES, useNodeEvents, useNodeHost, useNodeSeries, useNodeTop, type RangeKey, type SeriesPoint } from "./use-monitoring";
+import { RANGES, useNodeEvents, useNodeHost, useNodeSeries, useNodeTop, type NodeEvent, type RangeKey, type SeriesPoint } from "./use-monitoring";
+
+// The node page shows the latest; the instance audit log is the full history.
+const ACTIVITY_ITEMS = 10;
 
 const CHARTS: { key: keyof Omit<SeriesPoint, "ts">; label: string; bytes: boolean }[] = [
   { key: "cpu_pct", label: "cpu", bytes: false },
@@ -25,19 +36,12 @@ function uptime(s: number): string {
   return d > 0 ? `${d}d ${h}h` : `${h}h ${Math.floor((s % 3600) / 60)}m`;
 }
 
-function Tile({ label, value }: { label: string; value: string }) {
-  return (
-    <div className="min-w-0">
-      <dt className="text-xs text-muted">{label}</dt>
-      <dd className="text-lg font-semibold tabular-nums">{value}</dd>
-    </div>
-  );
-}
+const pctTone = (pct: number | null | undefined): StatTone => (pct == null || pct < 75 ? "neutral" : pct < 90 ? "warning" : "danger");
 
 // NodeMonitor: the node's figures for instance admins. Everything here is fetched from /api/admin/*, which the
 // server refuses to anyone else; none of it is ever reachable from an org's pages.
-export function NodeMonitor() {
-  const { t } = useTranslation("monitoring");
+export function NodeMonitor({ activityLink }: { activityLink?: ReactNode }) {
+  const { t } = useTranslation(["monitoring", "operator", "common"]);
   const [range, setRange] = useState<RangeKey>("1h");
   const series = useNodeSeries(range);
   const status = useNodeHost();
@@ -45,36 +49,44 @@ export function NodeMonitor() {
   const events = useNodeEvents();
   const host = status.data?.host;
   const labels = { noData: t("chart.noData"), table: t("chart.table"), time: t("chart.time"), value: t("chart.value") };
-  const dash = "–";
+  const dash = t("common:na");
+  const points = series.data?.points ?? [];
+  const metrics: PlaneMetric[] = CHARTS.map((c) => {
+    const format = c.bytes ? formatBytes : (v: number) => String(Math.round(v * 100) / 100);
+    const last = [...points].reverse().find((p) => p[c.key] != null)?.[c.key];
+    return {
+      key: c.key,
+      label: t(`node.${c.label}` as "node.cpu"),
+      value: last != null ? format(last) : dash,
+      points: points.map((p) => ({ ts: p.ts, value: p[c.key] ?? null })),
+      format,
+      max: c.key === "disk_free" ? host?.disk?.total_bytes : undefined,
+    };
+  });
+  const diskUsed = host?.disk?.total_bytes ? Math.round((1 - host.disk.free_bytes / host.disk.total_bytes) * 100) : null;
+  const topItems = top.data?.items ?? [];
+  const byService = new Map(topItems.map((s) => [s.service, s]));
+  const segments = topSegments(topItems.map((s) => ({ key: s.service, label: s.slug ?? s.service, value: s.count })), 10, t("node.other"));
 
   return (
     <div className="flex min-w-0 flex-col gap-4">
       <SectionCard title={t("node.title")} actions={<RangeSwitch ranges={RANGES} value={range} onChange={setRange} />}>
         {host ? (
-          <dl className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-6">
-            <Tile label={t("node.uptime")} value={host.uptime_s != null ? uptime(host.uptime_s) : dash} />
-            <Tile label={t("node.cpu")} value={host.cpu_pct != null ? host.cpu_pct.toFixed(1) : dash} />
-            <Tile label={t("node.load")} value={host.load?.[0] != null ? host.load[0].toFixed(2) : dash} />
-            <Tile label={t("node.diskFree")} value={host.disk ? formatBytes(host.disk.free_bytes) : dash} />
-            <Tile label={t("node.rx")} value={host.net ? `${formatBytes(host.net.rx_bytes_per_s)}/s` : dash} />
-            <Tile label={t("node.tx")} value={host.net ? `${formatBytes(host.net.tx_bytes_per_s)}/s` : dash} />
+          <dl className="mb-4 grid grid-cols-2 gap-3 sm:grid-cols-3 xl:grid-cols-6">
+            <StatTile label={t("node.uptime")} value={host.uptime_s != null ? uptime(host.uptime_s) : dash} />
+            <StatTile
+              label={t("node.diskFree")}
+              value={host.disk ? formatBytes(host.disk.free_bytes) : dash}
+              tone={pctTone(diskUsed)}
+              hint={diskUsed !== null ? t("node.diskUsed", { pct: diskUsed }) : undefined}
+            />
           </dl>
         ) : null}
         {series.isError ? (
-          <p className="text-sm text-muted">{t("node.unavailable")}</p>
+          <NoData hint={t("node.unavailable")} />
         ) : (
           <>
-            <div className="grid min-w-0 gap-4 md:grid-cols-2">
-              {CHARTS.map((c) => (
-                <LineChart
-                  key={c.key}
-                  title={t(`node.${c.label}` as "node.cpu")}
-                  labels={labels}
-                  points={(series.data?.points ?? []).map((p) => ({ ts: p.ts, value: p[c.key] ?? null }))}
-                  {...(c.bytes ? { format: formatBytes } : {})}
-                />
-              ))}
-            </div>
+            <MetricPlane metrics={metrics} labels={labels} label={t("analytics.plane")} />
             <p className="mt-3 text-xs text-muted">
               {series.data?.data_from ? `${t("chart.dataFrom", { time: formatDateTime(series.data.data_from) })} ` : ""}
               {range !== "7d" ? t("chart.restart") : ""}
@@ -83,39 +95,57 @@ export function NodeMonitor() {
         )}
       </SectionCard>
 
-      <div className="grid min-w-0 gap-4 md:grid-cols-2">
-        <SectionCard title={t("node.top")} flush>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>{t("node.slug")}</TableHead>
-                <TableHead className="text-right">{t("node.requests")}</TableHead>
-                <TableHead className="text-right">{t("node.errors")}</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {[...(top.data?.items ?? [])].sort((a, b) => b.count - a.count).slice(0, 10).map((s) => (
-                <TableRow key={s.service}>
-                  <TableCell className="break-all">{s.slug ?? s.service}</TableCell>
-                  <TableCell className="text-right tabular-nums">{s.count}</TableCell>
-                  <TableCell className="text-right tabular-nums">{s.errors}</TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
-        </SectionCard>
-        <SectionCard title={t("node.events")}>
-          {(events.data?.items.length ?? 0) === 0 ? (
-            <p className="text-sm text-muted">{t("node.eventsEmpty")}</p>
+      <div className="flex min-w-0 flex-col gap-4">
+        <SectionCard title={t("node.top")} bounded>
+          {segments.length === 0 ? (
+            <NoData hint={t("node.topEmpty")} />
           ) : (
-            <ul className="flex max-h-72 flex-col gap-1 overflow-auto text-sm">
-              {[...(events.data?.items ?? [])].reverse().map((e) => (
-                <li key={String(e.id)} className="flex justify-between gap-3">
-                  <span className="break-all">{e.kind}</span>
-                  <span className="shrink-0 text-xs tabular-nums text-muted">{formatDateTime(e.ts)}</span>
-                </li>
-              ))}
-            </ul>
+            <RankedList
+              segments={segments}
+              label={t("node.top")}
+              extra={(seg) => {
+                const s = byService.get(seg.key);
+                if (!s) return null;
+                return (
+                  <>
+                    {s.system ? <Badge className="ml-2" title={t("operator:node.systemHint")}>{t("operator:node.system")}</Badge> : null}
+                    {s.errors > 0 ? <span className="ml-2 text-xs tabular-nums text-danger-text">{t("node.errorCount", { n: s.errors })}</span> : null}
+                  </>
+                );
+              }}
+            />
+          )}
+        </SectionCard>
+        <SectionCard
+          title={t("node.events")}
+          actions={<ExportMenu name="node-events" rows={(events.data?.items ?? []) as unknown as Record<string, unknown>[]} />}
+        >
+          {(events.data?.items.length ?? 0) === 0 ? (
+            <NoData hint={t("node.eventsEmpty")} />
+          ) : (
+            <>
+              <Timeline
+                items={groupEvents([...(events.data?.items ?? [])].reverse()).slice(0, ACTIVITY_ITEMS).map((g) => {
+                  const e = g.events[g.events.length - 1] as NodeEvent;
+                  const note = g.change ? null : eventNote(e);
+                  return {
+                    id: g.key,
+                    icon: Activity,
+                    title: (
+                      <>
+                        <span className="font-medium">{e.app ?? (e.service ? t("operator:events.unknownApp") : t("operator:events.nodeWide"))}</span>
+                        {": "}
+                        {groupTitle(g)}
+                        {note ? <span className="text-muted"> ({note})</span> : null}
+                      </>
+                    ),
+                    at: g.ts,
+                    detail: <EventDetails value={e} />,
+                  };
+                })}
+              />
+              {activityLink ? <div className="pt-2 text-[13px]">{activityLink}</div> : null}
+            </>
           )}
         </SectionCard>
       </div>

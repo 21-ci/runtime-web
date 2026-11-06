@@ -13,6 +13,7 @@ import { registerTokens } from "./routes/tokens.ts";
 import { registerProjects } from "./routes/projects.ts";
 import { registerLimitsUsage } from "./routes/limits_usage.ts";
 import { registerAdminNode } from "./routes/admin_node.ts";
+import { registerUpdates } from "./routes/updates.ts";
 import { registerApps } from "./routes/apps.ts";
 import { registerDomains } from "./routes/domains.ts";
 import { registerAudit } from "./routes/audit.ts";
@@ -70,6 +71,7 @@ export function createApp(deps: Deps): App {
   registerDomains(router, deps);
   registerAudit(router, deps);
   registerSettings(router, deps);
+  registerUpdates(router, deps);
   registerBranding(router, deps);
   registerInternal(router, deps);
   registerGit(router, deps);

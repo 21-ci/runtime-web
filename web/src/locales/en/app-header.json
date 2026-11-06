@@ -1,1 +1,16 @@
-{}
+{
+  "live": "Live v{{version}}",
+  "noLive": "Nothing live yet",
+  "state": {
+    "ready": "Ready",
+    "failed": "Failed",
+    "building": "Building",
+    "pending": "Pending"
+  },
+  "access": {
+    "public": "Public",
+    "key": "API key",
+    "internal": "Internal"
+  },
+  "openDeployments": "Open deployments"
+}

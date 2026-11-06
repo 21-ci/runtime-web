@@ -5,7 +5,7 @@
   "orgNotFound": "Tashkilot topilmadi",
   "empty": {
     "title": "Kutilayotgan takliflar yoʻq",
-    "description": "Quyidagi shakl orqali hamkasbingizni taklif qiling."
+    "description": "Hamkasb qoʻshish uchun «Aʼzoni taklif qilish» tugmasini bosing."
   },
   "item": {
     "noRole": "Rolsiz",
@@ -24,7 +24,9 @@
   },
   "form": {
     "submit": "Taklif yaratish",
-    "copyLinkAria": "Taklif havolasini nusxalash"
+    "copyLinkAria": "Taklif havolasini nusxalash",
+    "open": "Aʼzoni taklif qilish",
+    "sheetDescription": "Aʼzo tashkilotga qoʻshilish havolasini oladi. Havola bir marta koʻrsatiladi."
   },
   "errors": {
     "email": "Elektron pochta manzilini kiriting."

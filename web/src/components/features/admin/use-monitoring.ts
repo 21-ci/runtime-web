@@ -22,8 +22,8 @@ export type SeriesPoint = {
   tx?: number | null;
 };
 export type NodeSeries = { range: string; step_s: number; points: SeriesPoint[]; data_from: number | null };
-export type NodeStatsItem = { service: string; tenant: string; slug: string | null; count: number; errors: number };
-export type NodeEvent = { id: string | number; ts: number; service: string | null; kind: string };
+export type NodeStatsItem = { service: string; tenant: string; slug: string | null; count: number; errors: number; org?: string | null; system?: boolean };
+export type NodeEvent = { id: string | number; ts: number; service: string | null; kind: string; data?: unknown; app?: string | null; org?: string | null };
 export type NodeHost = {
   uptime_s?: number;
   cpu_pct?: number | null;

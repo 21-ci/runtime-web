@@ -13,13 +13,15 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { AuthForm, FormField } from "@/components/auth/auth-form";
+import { Label } from "@/components/ui/label";
+import { ChipInput } from "@/components/ui/chip-input";
 import { useCreateProject } from "@/hooks/orgs";
 import { ApiError } from "@/lib/api";
 import { handleMutationError } from "@/lib/query";
 
 // CreateProjectDialog creates a project with its environments. It is controlled when `open` is
 // passed (the ⌘K menu), otherwise it owns its state behind `trigger`. The default environments
-// match the runtime's own defaults; the list is editable as a comma-separated value.
+// match the runtime's own defaults; each environment is a chip the user adds and removes.
 export function CreateProjectDialog({
   org,
   trigger,
@@ -39,6 +41,7 @@ export function CreateProjectDialog({
     onOpenChange?.(next);
   };
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [environments, setEnvironments] = useState<string[]>(["dev", "prod"]);
   const create = useCreateProject(org);
 
   function onSubmit(e: FormEvent<HTMLFormElement>) {
@@ -46,10 +49,6 @@ export function CreateProjectDialog({
     const form = new FormData(e.currentTarget);
     const slug = String(form.get("slug") ?? "").trim();
     const name = String(form.get("name") ?? "").trim();
-    const environments = String(form.get("environments") ?? "")
-      .split(",")
-      .map((s) => s.trim())
-      .filter(Boolean);
     const next: Record<string, string> = {};
     if (!slug) next.slug = t("createProject.errors.slug");
     if (environments.length === 0) next.environments = t("createProject.errors.environments");
@@ -83,13 +82,21 @@ export function CreateProjectDialog({
         <AuthForm errors={errors} onSubmit={onSubmit}>
           <FormField label={t("createProject.slug")} name="slug" error={errors.slug} autoComplete="off" />
           <FormField label={t("createProject.name")} name="name" autoComplete="off" />
-          <FormField
-            label={t("createProject.environments")}
-            name="environments"
-            defaultValue="dev, prod"
-            hint={t("createProject.environmentsHint")}
-            error={errors.environments}
-          />
+          <div className="flex flex-col gap-1.5">
+            <Label htmlFor="create-project-environments">{t("createProject.environments")}</Label>
+            <ChipInput
+              id="create-project-environments"
+              value={environments}
+              onChange={setEnvironments}
+              placeholder={t("createProject.environmentPlaceholder")}
+              invalid={Boolean(errors.environments)}
+              describedBy="create-project-environments-hint"
+            />
+            <p id="create-project-environments-hint" className="text-sm text-muted">
+              {t("createProject.environmentsHint")}
+            </p>
+            {errors.environments ? <p className="text-sm text-danger-text">{errors.environments}</p> : null}
+          </div>
           <DialogFooter>
             <Button type="submit" variant="default" disabled={create.isPending}>
               {t("createProject.submit")}

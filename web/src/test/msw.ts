@@ -25,7 +25,11 @@ export const handlers = [
     HttpResponse.json({ password_login_disabled: false, providers: [] }),
   ),
   http.get("/api/branding", () => HttpResponse.json(defaultBranding)),
+  http.get("/api/admin/updates", () => HttpResponse.json({ enabled: true, checked_at: null, items: [] })),
   http.get("/api/setup", () => HttpResponse.json({ needed: false })),
+  http.get("/api/orgs/:org/apps/:app/data-events", () =>
+    HttpResponse.json({ state: "disabled", lag: 0, backlog: 0, last_error: null, tables: [], topic: null, warnings: [] }),
+  ),
   http.get("/api/me", () => HttpResponse.json({ error: { code: "unauthenticated", message: "signed out" } }, { status: 401 })),
 ];
 

@@ -4,15 +4,15 @@
 # (docs/getting-started/docker.md).
 #
 #   docker buildx build --target distroless -t runtime-web:dev .          # default: no shell, no package manager
-#   docker buildx build --target slim       -t runtime-web:dev-slim .     # debian bookworm-slim, with a shell
+#   docker buildx build --target slim       -t runtime-web:dev-slim .     # debian trixie-slim, with a shell
 #
 # Stages:
 #   web         node:22-bookworm-slim     vite build of web/, gen-assets embeds it into server/src/gen (build platform)
 #   entry       golang:1.26-bookworm      rtweb-entry, the static PID 1: supervisor, bootstrap, edge, relay (cross-compiled)
 #   rt          ghcr.io/21-ci/rt:0.1.1    the runtime's own signed release image, only the rt binary is taken
-#   fs          debian:bookworm-slim      an empty /data owned by uid 10001, CA bundle and passwd for slim
+#   fs          debian:trixie-slim        an empty /data owned by uid 10001, CA bundle and passwd for slim
 #   distroless  distroless/cc-debian13    glibc + libgcc + CA certificates (rt links libc, libm, libgcc_s)
-#   slim        debian:bookworm-slim      the same files on a Debian userland, for operators who want a shell
+#   slim        debian:trixie-slim        the same files on a Debian userland, for operators who want a shell
 #
 # Both run as uid 10001, work with a read-only root filesystem (only /data is written) and carry a HEALTHCHECK.
 # Secrets are never baked in: rtweb-entry reads them from the environment or *_FILE, or generates them into /data.
@@ -21,7 +21,8 @@
 ARG NODE_IMAGE=node:22-bookworm-slim@sha256:de170b39439eb0e5a3444ad7d60b015614a381e10fecae2e30ec9e735122f38d
 ARG GO_IMAGE=golang:1.26-bookworm@sha256:632dff7351799a5a9954a48dc06670ade72ee44e8c351cdc0e5a57af2fea21af
 ARG RT_IMAGE=ghcr.io/21-ci/rt:0.1.1@sha256:f97e799198af60447946792a910f2edc5b75bcf3daf5bf444bee115a0891a44f
-ARG DEBIAN_IMAGE=debian:bookworm-slim@sha256:7ff6ba31527b9e336162fa061746c366c4b2032f4d2cff2078bea43f78efe3f8
+# rt is built on trixie (glibc 2.41): a Debian stage that runs it must not be older. Keep in step with the runtime's image.
+ARG DEBIAN_IMAGE=debian:trixie-slim@sha256:62bd423aeee912639ca8ee681c2b762cb3e25137e0a92b20be455898a9f034ad
 ARG DISTROLESS_IMAGE=gcr.io/distroless/cc-debian13:nonroot@sha256:3ee00291cf386ec52a552e6a858d555debd74776eb4bfa53fa3df2cd6677515e
 
 # ---------------------------------------------------------------------------------------------
@@ -117,7 +118,7 @@ LABEL org.opencontainers.image.title="runtime-web" \
       org.opencontainers.image.vendor="21 Cloud" \
       org.opencontainers.image.version="${VERSION}" \
       org.opencontainers.image.revision="${REVISION}" \
-      org.opencontainers.image.base.name="debian:bookworm-slim"
+      org.opencontainers.image.base.name="debian:trixie-slim"
 # CA certificates: rt fetches npm/jsr imports of Apps over TLS. passwd/group add the rt user (uid 10001).
 COPY --from=fs /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/ca-certificates.crt
 COPY --from=fs /out/etc/passwd /out/etc/group /etc/

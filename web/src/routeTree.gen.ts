@@ -30,6 +30,7 @@ import { Route as InviteTokenRouteImport } from './routes/invite.$token'
 import { Route as LoginIndexRouteImport } from './routes/login.index'
 import { Route as LoginMfaRouteImport } from './routes/login.mfa'
 import { Route as MeSecurityRouteImport } from './routes/me.security'
+import { Route as OrgAppsIndexRouteImport } from './routes/$org.apps.index'
 import { Route as OrgAppsAppRouteImport } from './routes/$org.apps.$app'
 import { Route as OrgAppsNewRouteImport } from './routes/$org.apps.new'
 import { Route as OrgProjectsPRouteImport } from './routes/$org.projects.$p'
@@ -38,10 +39,13 @@ import { Route as OrgSettingsAuditRouteImport } from './routes/$org.settings.aud
 import { Route as OrgSettingsGeneralRouteImport } from './routes/$org.settings.general'
 import { Route as OrgSettingsMembersRouteImport } from './routes/$org.settings.members'
 import { Route as OrgSettingsTokensRouteImport } from './routes/$org.settings.tokens'
+import { Route as OrgSettingsUsageRouteImport } from './routes/$org.settings.usage'
 import { Route as OrgAppsAppIndexRouteImport } from './routes/$org.apps.$app.index'
+import { Route as OrgAppsAppAnalyticsRouteImport } from './routes/$org.apps.$app.analytics'
 import { Route as OrgAppsAppBranchesRouteImport } from './routes/$org.apps.$app.branches'
 import { Route as OrgAppsAppCodeRouteImport } from './routes/$org.apps.$app.code'
 import { Route as OrgAppsAppDataRouteImport } from './routes/$org.apps.$app.data'
+import { Route as OrgAppsAppDeploymentsRouteImport } from './routes/$org.apps.$app.deployments'
 import { Route as OrgAppsAppDomainsRouteImport } from './routes/$org.apps.$app.domains'
 import { Route as OrgAppsAppEnvRouteImport } from './routes/$org.apps.$app.env'
 import { Route as OrgAppsAppLogsRouteImport } from './routes/$org.apps.$app.logs'
@@ -154,6 +158,11 @@ const MeSecurityRoute = MeSecurityRouteImport.update({
   path: '/me/security',
   getParentRoute: () => rootRouteImport,
 } as any)
+const OrgAppsIndexRoute = OrgAppsIndexRouteImport.update({
+  id: '/apps/',
+  path: '/apps/',
+  getParentRoute: () => OrgRoute,
+} as any)
 const OrgAppsAppRoute = OrgAppsAppRouteImport.update({
   id: '/apps/$app',
   path: '/apps/$app',
@@ -194,9 +203,19 @@ const OrgSettingsTokensRoute = OrgSettingsTokensRouteImport.update({
   path: '/settings/tokens',
   getParentRoute: () => OrgRoute,
 } as any)
+const OrgSettingsUsageRoute = OrgSettingsUsageRouteImport.update({
+  id: '/settings/usage',
+  path: '/settings/usage',
+  getParentRoute: () => OrgRoute,
+} as any)
 const OrgAppsAppIndexRoute = OrgAppsAppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => OrgAppsAppRoute,
+} as any)
+const OrgAppsAppAnalyticsRoute = OrgAppsAppAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => OrgAppsAppRoute,
 } as any)
 const OrgAppsAppBranchesRoute = OrgAppsAppBranchesRouteImport.update({
@@ -212,6 +231,11 @@ const OrgAppsAppCodeRoute = OrgAppsAppCodeRouteImport.update({
 const OrgAppsAppDataRoute = OrgAppsAppDataRouteImport.update({
   id: '/data',
   path: '/data',
+  getParentRoute: () => OrgAppsAppRoute,
+} as any)
+const OrgAppsAppDeploymentsRoute = OrgAppsAppDeploymentsRouteImport.update({
+  id: '/deployments',
+  path: '/deployments',
   getParentRoute: () => OrgAppsAppRoute,
 } as any)
 const OrgAppsAppDomainsRoute = OrgAppsAppDomainsRouteImport.update({
@@ -275,9 +299,13 @@ export interface FileRoutesByFullPath {
   '/$org/settings/general': typeof OrgSettingsGeneralRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
   '/$org/settings/tokens': typeof OrgSettingsTokensRoute
+  '/$org/settings/usage': typeof OrgSettingsUsageRoute
+  '/$org/apps/': typeof OrgAppsIndexRoute
+  '/$org/apps/$app/analytics': typeof OrgAppsAppAnalyticsRoute
   '/$org/apps/$app/branches': typeof OrgAppsAppBranchesRoute
   '/$org/apps/$app/code': typeof OrgAppsAppCodeRoute
   '/$org/apps/$app/data': typeof OrgAppsAppDataRoute
+  '/$org/apps/$app/deployments': typeof OrgAppsAppDeploymentsRoute
   '/$org/apps/$app/domains': typeof OrgAppsAppDomainsRoute
   '/$org/apps/$app/env': typeof OrgAppsAppEnvRoute
   '/$org/apps/$app/logs': typeof OrgAppsAppLogsRoute
@@ -312,9 +340,13 @@ export interface FileRoutesByTo {
   '/$org/settings/general': typeof OrgSettingsGeneralRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
   '/$org/settings/tokens': typeof OrgSettingsTokensRoute
+  '/$org/settings/usage': typeof OrgSettingsUsageRoute
+  '/$org/apps': typeof OrgAppsIndexRoute
+  '/$org/apps/$app/analytics': typeof OrgAppsAppAnalyticsRoute
   '/$org/apps/$app/branches': typeof OrgAppsAppBranchesRoute
   '/$org/apps/$app/code': typeof OrgAppsAppCodeRoute
   '/$org/apps/$app/data': typeof OrgAppsAppDataRoute
+  '/$org/apps/$app/deployments': typeof OrgAppsAppDeploymentsRoute
   '/$org/apps/$app/domains': typeof OrgAppsAppDomainsRoute
   '/$org/apps/$app/env': typeof OrgAppsAppEnvRoute
   '/$org/apps/$app/logs': typeof OrgAppsAppLogsRoute
@@ -354,9 +386,13 @@ export interface FileRoutesById {
   '/$org/settings/general': typeof OrgSettingsGeneralRoute
   '/$org/settings/members': typeof OrgSettingsMembersRoute
   '/$org/settings/tokens': typeof OrgSettingsTokensRoute
+  '/$org/settings/usage': typeof OrgSettingsUsageRoute
+  '/$org/apps/': typeof OrgAppsIndexRoute
+  '/$org/apps/$app/analytics': typeof OrgAppsAppAnalyticsRoute
   '/$org/apps/$app/branches': typeof OrgAppsAppBranchesRoute
   '/$org/apps/$app/code': typeof OrgAppsAppCodeRoute
   '/$org/apps/$app/data': typeof OrgAppsAppDataRoute
+  '/$org/apps/$app/deployments': typeof OrgAppsAppDeploymentsRoute
   '/$org/apps/$app/domains': typeof OrgAppsAppDomainsRoute
   '/$org/apps/$app/env': typeof OrgAppsAppEnvRoute
   '/$org/apps/$app/logs': typeof OrgAppsAppLogsRoute
@@ -397,9 +433,13 @@ export interface FileRouteTypes {
     | '/$org/settings/general'
     | '/$org/settings/members'
     | '/$org/settings/tokens'
+    | '/$org/settings/usage'
+    | '/$org/apps/'
+    | '/$org/apps/$app/analytics'
     | '/$org/apps/$app/branches'
     | '/$org/apps/$app/code'
     | '/$org/apps/$app/data'
+    | '/$org/apps/$app/deployments'
     | '/$org/apps/$app/domains'
     | '/$org/apps/$app/env'
     | '/$org/apps/$app/logs'
@@ -434,9 +474,13 @@ export interface FileRouteTypes {
     | '/$org/settings/general'
     | '/$org/settings/members'
     | '/$org/settings/tokens'
+    | '/$org/settings/usage'
+    | '/$org/apps'
+    | '/$org/apps/$app/analytics'
     | '/$org/apps/$app/branches'
     | '/$org/apps/$app/code'
     | '/$org/apps/$app/data'
+    | '/$org/apps/$app/deployments'
     | '/$org/apps/$app/domains'
     | '/$org/apps/$app/env'
     | '/$org/apps/$app/logs'
@@ -475,9 +519,13 @@ export interface FileRouteTypes {
     | '/$org/settings/general'
     | '/$org/settings/members'
     | '/$org/settings/tokens'
+    | '/$org/settings/usage'
+    | '/$org/apps/'
+    | '/$org/apps/$app/analytics'
     | '/$org/apps/$app/branches'
     | '/$org/apps/$app/code'
     | '/$org/apps/$app/data'
+    | '/$org/apps/$app/deployments'
     | '/$org/apps/$app/domains'
     | '/$org/apps/$app/env'
     | '/$org/apps/$app/logs'
@@ -647,6 +695,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MeSecurityRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/$org/apps/': {
+      id: '/$org/apps/'
+      path: '/apps'
+      fullPath: '/$org/apps/'
+      preLoaderRoute: typeof OrgAppsIndexRouteImport
+      parentRoute: typeof OrgRoute
+    }
     '/$org/apps/$app': {
       id: '/$org/apps/$app'
       path: '/apps/$app'
@@ -703,11 +758,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof OrgSettingsTokensRouteImport
       parentRoute: typeof OrgRoute
     }
+    '/$org/settings/usage': {
+      id: '/$org/settings/usage'
+      path: '/settings/usage'
+      fullPath: '/$org/settings/usage'
+      preLoaderRoute: typeof OrgSettingsUsageRouteImport
+      parentRoute: typeof OrgRoute
+    }
     '/$org/apps/$app/': {
       id: '/$org/apps/$app/'
       path: '/'
       fullPath: '/$org/apps/$app/'
       preLoaderRoute: typeof OrgAppsAppIndexRouteImport
+      parentRoute: typeof OrgAppsAppRoute
+    }
+    '/$org/apps/$app/analytics': {
+      id: '/$org/apps/$app/analytics'
+      path: '/analytics'
+      fullPath: '/$org/apps/$app/analytics'
+      preLoaderRoute: typeof OrgAppsAppAnalyticsRouteImport
       parentRoute: typeof OrgAppsAppRoute
     }
     '/$org/apps/$app/branches': {
@@ -729,6 +798,13 @@ declare module '@tanstack/react-router' {
       path: '/data'
       fullPath: '/$org/apps/$app/data'
       preLoaderRoute: typeof OrgAppsAppDataRouteImport
+      parentRoute: typeof OrgAppsAppRoute
+    }
+    '/$org/apps/$app/deployments': {
+      id: '/$org/apps/$app/deployments'
+      path: '/deployments'
+      fullPath: '/$org/apps/$app/deployments'
+      preLoaderRoute: typeof OrgAppsAppDeploymentsRouteImport
       parentRoute: typeof OrgAppsAppRoute
     }
     '/$org/apps/$app/domains': {
@@ -777,9 +853,11 @@ declare module '@tanstack/react-router' {
 }
 
 interface OrgAppsAppRouteChildren {
+  OrgAppsAppAnalyticsRoute: typeof OrgAppsAppAnalyticsRoute
   OrgAppsAppBranchesRoute: typeof OrgAppsAppBranchesRoute
   OrgAppsAppCodeRoute: typeof OrgAppsAppCodeRoute
   OrgAppsAppDataRoute: typeof OrgAppsAppDataRoute
+  OrgAppsAppDeploymentsRoute: typeof OrgAppsAppDeploymentsRoute
   OrgAppsAppDomainsRoute: typeof OrgAppsAppDomainsRoute
   OrgAppsAppEnvRoute: typeof OrgAppsAppEnvRoute
   OrgAppsAppLogsRoute: typeof OrgAppsAppLogsRoute
@@ -790,9 +868,11 @@ interface OrgAppsAppRouteChildren {
 }
 
 const OrgAppsAppRouteChildren: OrgAppsAppRouteChildren = {
+  OrgAppsAppAnalyticsRoute: OrgAppsAppAnalyticsRoute,
   OrgAppsAppBranchesRoute: OrgAppsAppBranchesRoute,
   OrgAppsAppCodeRoute: OrgAppsAppCodeRoute,
   OrgAppsAppDataRoute: OrgAppsAppDataRoute,
+  OrgAppsAppDeploymentsRoute: OrgAppsAppDeploymentsRoute,
   OrgAppsAppDomainsRoute: OrgAppsAppDomainsRoute,
   OrgAppsAppEnvRoute: OrgAppsAppEnvRoute,
   OrgAppsAppLogsRoute: OrgAppsAppLogsRoute,
@@ -816,6 +896,8 @@ interface OrgRouteChildren {
   OrgSettingsGeneralRoute: typeof OrgSettingsGeneralRoute
   OrgSettingsMembersRoute: typeof OrgSettingsMembersRoute
   OrgSettingsTokensRoute: typeof OrgSettingsTokensRoute
+  OrgSettingsUsageRoute: typeof OrgSettingsUsageRoute
+  OrgAppsIndexRoute: typeof OrgAppsIndexRoute
 }
 
 const OrgRouteChildren: OrgRouteChildren = {
@@ -828,6 +910,8 @@ const OrgRouteChildren: OrgRouteChildren = {
   OrgSettingsGeneralRoute: OrgSettingsGeneralRoute,
   OrgSettingsMembersRoute: OrgSettingsMembersRoute,
   OrgSettingsTokensRoute: OrgSettingsTokensRoute,
+  OrgSettingsUsageRoute: OrgSettingsUsageRoute,
+  OrgAppsIndexRoute: OrgAppsIndexRoute,
 }
 
 const OrgRouteWithChildren = OrgRoute._addFileChildren(OrgRouteChildren)

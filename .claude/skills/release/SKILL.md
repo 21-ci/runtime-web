@@ -21,6 +21,8 @@ Do not hand-edit versions or the changelog on `main` for a normal release. relea
 - Is the version right? Versions come from commit titles: `feat` is a minor bump, `fix` a patch, `feat!` or a
   `BREAKING CHANGE` footer bumps major (while `0.x`, a breaking change bumps minor). To force one, put
   `Release-As: X.Y.Z` in a commit body on `main`. Do not guess when breaking changes exist; ask.
+- Does this release need a newer runtime? Move `RT_PINNED_VERSION` in `install.sh` and `RT_IMAGE` in `Dockerfile`
+  together, after that `rt` release is out.
 - Is this a security release? See `SECURITY.md`. The changelog must not describe exploit detail before the advisory is
   public.
 

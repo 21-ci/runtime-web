@@ -14,7 +14,7 @@ beforeEach(() => {
 
 describe("app settings route", () => {
   it("shows one section at a time from a left sub-nav", async () => {
-    useAppHandlers({ effective: { egress_bytes: 1_048_576 } });
+    useAppHandlers({ effective: { max_body_bytes: 1_048_576 } });
     renderAt("/acme/apps/hello/settings");
 
     const nav = await screen.findByRole("navigation", { name: "Settings sections" });

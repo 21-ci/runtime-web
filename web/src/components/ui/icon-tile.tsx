@@ -1,5 +1,5 @@
 import { cva, type VariantProps } from "class-variance-authority";
-import type { LucideIcon } from "lucide-react";
+import { Boxes, Building2, FolderOpen, GitBranch, Users, type LucideIcon } from "lucide-react";
 import * as React from "react";
 
 import { cn } from "@/lib/utils";
@@ -89,29 +89,6 @@ function IconTile({ icon: Icon, hue, entity, size, solid = false, className, ...
   );
 }
 
-// LetterTile is the same square with an initial instead of an icon (apps, orgs).
-function LetterTile({
-  label,
-  hue = "gray",
-  size = "sm",
-  solid = false,
-  className,
-  ...props
-}: Omit<IconTileProps, "icon"> & { label: string }) {
-  const text = label.trim().charAt(0).toUpperCase() || "?";
-  const font =
-    size === "xl" ? "text-2xl" : size === "lg" ? "text-lg" : size === "md" ? "text-sm" : size === "xs" ? "text-[10px]" : "text-[12px]";
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(tileVariants({ size }), "font-semibold", font, solid ? SOLID[hue] : HUE[hue], className)}
-      {...props}
-    >
-      {text}
-    </span>
-  );
-}
-
 // hueFor picks a stable hue for a name (org and app avatars).
 const HUES: Hue[] = ["blue", "green", "purple", "orange", "pink", "teal", "yellow", "red"];
 export function hueFor(name: string): Hue {
@@ -120,4 +97,19 @@ export function hueFor(name: string): Hue {
   return HUES[h % HUES.length];
 }
 
-export { IconTile, LetterTile };
+const ENTITY_GLYPH = { app: Boxes, project: FolderOpen, org: Building2, member: Users, branch: GitBranch } as const;
+
+export type EntityKind = keyof typeof ENTITY_GLYPH;
+
+export interface EntityTileProps extends Omit<IconTileProps, "icon" | "hue" | "entity"> {
+  kind: EntityKind;
+  /** The object's name: its tint identifies it among others of the same kind. */
+  name: string;
+}
+
+// EntityTile identifies an app, project, org, member or branch by a glyph for its kind and a hue from its name.
+function EntityTile({ kind, name, ...props }: EntityTileProps) {
+  return <IconTile icon={ENTITY_GLYPH[kind]} hue={hueFor(name)} {...props} />;
+}
+
+export { EntityTile, IconTile };

@@ -70,14 +70,32 @@ export function useNodeCache() {
 }
 
 export function useNodeConfig() {
-  return useQuery({ queryKey: ["admin", "node", "config"], queryFn: () => api.get<NodeConfig>("/admin/node/config") });
+  return useQuery({
+    queryKey: ["admin", "node", "config"],
+    queryFn: async () => {
+      const [config, status] = await Promise.all([api.get<RawNodeConfig>("/admin/node/config"), api.get<{ mode?: string }>("/admin/node/status")]);
+      return toNodeConfig(config, status.mode);
+    },
+  });
+}
+
+// GET /v1/node/config returns the whole rt.toml by section, while PUT takes three flat fields: the profile is under
+// `node`, the live degradation mode is only in the status, and there is no node-wide rate limit to read.
+type RawNodeConfig = Partial<NodeConfig> & { node?: { default_profile?: string } };
+
+export function toNodeConfig(raw: RawNodeConfig, mode: string | undefined): NodeConfig {
+  return {
+    degradation_mode: raw.degradation_mode ?? mode ?? "",
+    default_profile: raw.default_profile ?? raw.node?.default_profile ?? "",
+    rate_limit: raw.rate_limit ?? {},
+  };
 }
 
 export function useSaveNodeConfig() {
   const qc = useQueryClient();
   return useMutation({
     meta: inline,
-    mutationFn: (body: NodeConfig) =>
+    mutationFn: (body: Partial<NodeConfig>) =>
       api.put<{ applied: string[]; pending_restart: string[] }>("/admin/node/config", body),
     onSuccess: () => void qc.invalidateQueries({ queryKey: ["admin", "node", "config"] }),
   });

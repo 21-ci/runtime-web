@@ -1,6 +1,7 @@
 import { screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { pickOption } from "@/test/select";
 
 import { renderAt } from "@/test/render";
 
@@ -90,7 +91,7 @@ describe("language picker", () => {
     renderAt("/login");
     expect(await screen.findByRole("heading", { name: "Welcome back" })).toBeInTheDocument();
 
-    await user.selectOptions(screen.getByRole("combobox", { name: "Language" }), "ru");
+    await pickOption(user, screen.getByRole("combobox", { name: "Language" }), "Русский");
 
     expect(await screen.findByRole("heading", { name: "С возвращением" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Войти" })).toBeInTheDocument();

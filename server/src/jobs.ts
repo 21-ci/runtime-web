@@ -7,6 +7,8 @@
 //   - retry deletes of services orphaned by a failed app create (pending_service_deletes, backoff)
 //   - git deliveries: head check, deploy, build status and commit status (git/deliveries.ts)
 //   - alerts: evaluate rules into state and outbox, then send the outbox last (alerts/)
+//   - update check: reads the GitHub releases of the runtime and the console (updates/updates.ts)
+//   - telemetry: hands the runtime the console's user count; the runtime decides whether to report it
 //   - legacy reseal: one pass that binds every no-AAD sealed value to its context (crypto/reseal.ts)
 
 import type { Deps } from "./app.ts";
@@ -23,6 +25,8 @@ import { GIT_DELIVERIES_JOB } from "./git/deliveries.ts";
 import { PREVIEW_SWEEP_JOB } from "./git/previews.ts";
 import { runJobs, type Job, type RunnerDeps } from "./jobs/runner.ts";
 import { METRICS_JOB } from "./metrics/collect.ts";
+import { TELEMETRY_USERS_JOB } from "./telemetry/telemetry.ts";
+import { UPDATE_CHECK_JOB } from "./updates/updates.ts";
 
 export type JobDeps = RunnerDeps;
 
@@ -50,6 +54,8 @@ export const HOUSEKEEPING_JOBS: readonly Job[] = [
   ALERTS_EVAL_JOB,
   GIT_DELIVERIES_JOB,
   PREVIEW_SWEEP_JOB,
+  UPDATE_CHECK_JOB,
+  TELEMETRY_USERS_JOB,
   ALERTS_SEND_JOB,
 ];
 

@@ -1,5 +1,6 @@
 import { ExternalLink, MonitorOff } from "lucide-react";
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 
 import { cn } from "@/lib/utils";
 import { Button } from "./button";
@@ -18,6 +19,7 @@ export function PreviewFrame({
   reloadKey?: number;
   className?: string;
 }) {
+  const { t } = useTranslation("editor");
   const [blocked, setBlocked] = useState(false);
 
   useEffect(() => {
@@ -41,13 +43,11 @@ export function PreviewFrame({
         )}
       >
         <MonitorOff className="size-5 text-muted" aria-hidden="true" />
-        <p className="text-sm font-medium">Preview can't be embedded here</p>
-        <p className="max-w-[40ch] text-[13px] text-muted">
-          The console's security policy does not allow framing this app's origin. Open it in a new tab instead.
-        </p>
+        <p className="text-sm font-medium">{t("preview.blockedTitle")}</p>
+        <p className="max-w-[40ch] text-[13px] text-muted">{t("preview.blockedBody")}</p>
         <Button asChild variant="secondary" size="sm" className="mt-1">
           <a href={url} target="_blank" rel="noreferrer">
-            <ExternalLink aria-hidden="true" /> Open app
+            <ExternalLink aria-hidden="true" /> {t("preview.openApp")}
           </a>
         </Button>
       </div>

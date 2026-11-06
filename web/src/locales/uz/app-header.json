@@ -1,1 +1,16 @@
-{}
+{
+  "live": "Faol v{{version}}",
+  "noLive": "Hali hech narsa ishga tushmagan",
+  "state": {
+    "ready": "Tayyor",
+    "failed": "Xato",
+    "building": "Yigʻilmoqda",
+    "pending": "Kutilmoqda"
+  },
+  "access": {
+    "public": "Ochiq",
+    "key": "API kaliti",
+    "internal": "Ichki"
+  },
+  "openDeployments": "Joylashtirishlarni ochish"
+}

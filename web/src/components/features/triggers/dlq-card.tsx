@@ -1,9 +1,12 @@
+import { MoreHorizontal } from "lucide-react";
 import { useState } from "react";
 import { useTranslation } from "react-i18next";
 import { toast } from "sonner";
 
 import { QueryError } from "@/components/features/empty/query-error";
+import { BoundedItems } from "@/components/ui/bounded";
 import { Button } from "@/components/ui/button";
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
 import { EmptyState } from "@/components/ui/empty-state";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -45,30 +48,35 @@ export function DlqCard({ org, app }: { org: string; app: string }) {
           </h2>
           <p className="text-sm text-muted">{t("dlq.description")}</p>
         </div>
-        <div className="flex gap-2">
-          <Button variant="secondary" disabled={count === 0} onClick={() => setRedriveOpen(true)}>
-            {t("dlq.redrive")}
-          </Button>
-          <Button variant="danger" disabled={count === 0} onClick={() => setPurgeOpen(true)}>
-            {t("dlq.purge")}
-          </Button>
-        </div>
+        <DropdownMenu modal={false}>
+          <DropdownMenuTrigger asChild>
+            <Button variant="ghost" size="icon-sm" disabled={count === 0} aria-label={t("dlq.actions")}>
+              <MoreHorizontal aria-hidden="true" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onSelect={() => setRedriveOpen(true)}>{t("dlq.redrive")}</DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setPurgeOpen(true)}>{t("dlq.purge")}</DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
       </div>
 
       {count === 0 ? (
         <EmptyState entity="triggers" title={t("dlq.empty")} description={t("dlq.emptyDescription")} />
       ) : (
-        <ul className="divide-y divide-line rounded-lg border border-line bg-surface shadow-card">
-          {items.map((m) => (
-            <li key={m.id} className="flex min-w-0 flex-col gap-1 px-3 py-2 text-sm">
+        <BoundedItems
+          items={items}
+          getKey={(m) => m.id}
+          renderItem={(m) => (
+            <div className="flex min-w-0 flex-col gap-1 border-b border-line py-2 text-sm">
               <span className="break-all font-mono text-xs">{m.id}</span>
               <span className="text-xs text-muted">
                 {t("dlq.attempts", { count: m.attempts, when: formatDateTime(m.failed_at) })}
               </span>
               <code className="truncate text-xs">{JSON.stringify(m.body)}</code>
-            </li>
-          ))}
-        </ul>
+            </div>
+          )}
+        />
       )}
 
       <ConfirmDialog

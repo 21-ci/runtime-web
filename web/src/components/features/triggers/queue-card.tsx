@@ -6,12 +6,14 @@ import { QueryError } from "@/components/features/empty/query-error";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { NoData } from "@/components/ui/no-data";
+import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@/components/ui/sheet";
 import { Skeleton } from "@/components/ui/skeleton";
 
 import { describeTriggerError } from "./errors";
 import { useEnqueue, useQueueStats, type EnqueueBody } from "./hooks";
 
-// QueueCard shows queue depth and sends a test message. A busy runtime or rate limit keeps the
+// QueueCard shows queue depth; a sheet sends a test message. A busy runtime or rate limit keeps the
 // message in the form and offers a retry with the same payload.
 export function QueueCard({ org, app }: { org: string; app: string }) {
   const { t } = useTranslation(["triggers", "common"]);
@@ -21,6 +23,7 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
   const [delay, setDelay] = useState("");
   const [parseError, setParseError] = useState<string | null>(null);
   const [pending, setPending] = useState<EnqueueBody | null>(null);
+  const [open, setOpen] = useState(false);
 
   if (stats.isError) {
     return <QueryError error={stats.error} onRetry={() => void stats.refetch()} notFoundTitle={t("queue.notFound")} />;
@@ -31,6 +34,7 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
     enqueue.mutate(body, {
       onSuccess: () => {
         setPending(null);
+        setOpen(false);
         toast.success(t("queue.toast.enqueued"));
       },
     });
@@ -54,11 +58,16 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
 
   return (
     <section aria-labelledby="queue-heading" className="flex flex-col gap-3">
-      <div>
-        <h2 id="queue-heading" className="text-[15px] font-semibold">
-          {t("queue.title")}
-        </h2>
-        <p className="text-sm text-muted">{t("queue.description")}</p>
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <div className="min-w-0">
+          <h2 id="queue-heading" className="text-[15px] font-semibold">
+            {t("queue.title")}
+          </h2>
+          <p className="text-sm text-muted">{t("queue.description")}</p>
+        </div>
+        <Button variant="secondary" size="sm" onClick={() => setOpen(true)}>
+          {t("queue.openSend")}
+        </Button>
       </div>
 
       {stats.isPending ? (
@@ -76,7 +85,7 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
           <div className="flex flex-col gap-0.5 p-3">
             <dt className="text-[12px] text-muted">{t("queue.oldest")}</dt>
             <dd className="text-base font-medium tabular-nums">
-              {t("queue.oldestSeconds", { seconds: Math.round(stats.data.oldest_age_ms / 1000) })}
+              {stats.data.depth === 0 ? <NoData inline /> : t("queue.oldestSeconds", { seconds: Math.round(stats.data.oldest_age_ms / 1000) })}
             </dd>
           </div>
           <div className="flex flex-col gap-0.5 p-3">
@@ -86,7 +95,13 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
         </dl>
       )}
 
-      <form onSubmit={onSubmit} className="flex max-w-xl flex-col gap-3">
+      <Sheet open={open} onOpenChange={setOpen}>
+        <SheetContent className="bg-surface">
+          <SheetHeader>
+            <SheetTitle>{t("queue.openSend")}</SheetTitle>
+            <SheetDescription>{t("queue.sendDescription")}</SheetDescription>
+          </SheetHeader>
+      <form onSubmit={onSubmit} className="flex flex-col gap-3 px-4 pb-4">
         <div className="flex flex-col gap-1.5">
           <Label htmlFor="queue-body">{t("queue.body")}</Label>
           <textarea
@@ -130,6 +145,8 @@ export function QueueCard({ org, app }: { org: string; app: string }) {
           {enqueue.isPending ? t("queue.sending") : t("queue.send")}
         </Button>
       </form>
+        </SheetContent>
+      </Sheet>
     </section>
   );
 }

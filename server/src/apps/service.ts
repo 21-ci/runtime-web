@@ -131,6 +131,13 @@ export function appUrl(runtimeUrl: string, slug: string): string {
   return `/s/${slug}/`;
 }
 
+/** A branch's identity: its slug is always `<parent>-br-<name>`. */
+function branchOf(s: T.Service): { name: string; parent: string } | null {
+  const name = (s as T.Branch).scratch?.name;
+  const suffix = `-br-${name}`;
+  return name && s.slug.endsWith(suffix) ? { name, parent: s.slug.slice(0, -suffix.length) } : null;
+}
+
 export function appView(s: T.Service, etag: string, runtimeUrl: string) {
   const requested = s.limits === undefined || s.limits === null ? null : s.limits;
   const e = etag || s.etag;
@@ -138,6 +145,7 @@ export function appView(s: T.Service, etag: string, runtimeUrl: string) {
     ...summary(s),
     etag: e,
     runtime: s.runtime, profile: s.profile, access: s.access,
+    branch: branchOf(s),
     url: appUrl(runtimeUrl, s.slug),
     scaling: s.scaling ?? null, ingress: s.ingress ?? null, egress: s.egress ?? null,
     call: s.call ?? null, triggers: s.triggers ?? null,
@@ -172,19 +180,33 @@ export async function createApp(c: OrgCtx, b: { project: string; environment: st
   authorize(c.sub, "app.create", b.project);
   const src = renderTemplate(b.template, b.slug);
   if (src === undefined) throw invalid({ template: "not_one_of" });
+  return createWith(c, b, "deno", src, "application/typescript");
+}
+
+/** A WebAssembly component: the runtime validates it, this only stops a file that is plainly something else. */
+export async function createWasmApp(c: OrgCtx, b: { project: string; environment: string; slug: string; name?: string }, bytes: Uint8Array) {
+  authorize(c.sub, "app.create", b.project);
+  const magic = [0, 0x61, 0x73, 0x6d];
+  if (!magic.every((m, i) => bytes[i] === m)) throw invalid({ file: "not_wasm" });
+  let bin = "";
+  for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+  return createWith(c, b, "wasm", btoa(bin), "application/wasm;base64");
+}
+
+async function createWith(c: OrgCtx, b: { project: string; environment: string; slug: string; name?: string }, runtime: "deno" | "wasm", src: string, contentType: string) {
   const envs = await rt(() => c.cli.getProjectEnvironments(b.project));
   // Items are `{name, services}` objects (runtime v0.1.1); accept bare strings too.
   const names = (envs.environments as unknown[]).map((e) => (typeof e === "string" ? e : String((e as { name?: unknown })?.name ?? "")));
   if (!names.includes(b.environment)) throw invalid({ environment: "not_one_of" });
   let svc: T.Service;
   try {
-    svc = await rt(() => c.cli.createService({ slug: b.slug, runtime: "deno", project: b.project, environment: b.environment, ...(b.name ? { name: b.name } : {}) }));
+    svc = await rt(() => c.cli.createService({ slug: b.slug, runtime, project: b.project, environment: b.environment, ...(b.name ? { name: b.name } : {}) }));
   } catch (e) {
     if (e instanceof AppError && e.code === "slug_taken") throw conflict("slug_taken", SLUG_TAKEN_MESSAGE);
     throw e;
   }
   try {
-    const v = await rt(() => c.cli.uploadVersion(svc.id, src, "application/typescript", { activate: true, compile: "eager" }));
+    const v = await rt(() => c.cli.uploadVersion(svc.id, src, contentType, { activate: true, compile: "eager" }));
     await recordAuthor(c, svc.id, v.version);
   } catch (e) {
     // Do not leave an empty app holding the slug: delete it now, or queue the delete for scheduled().
@@ -348,7 +370,12 @@ export async function getFiles(c: OrgCtx, slug: string, version: number | "lates
   const app = await appFor(c, slug, "app.read");
   if (version === "latest") {
     const list = await rt(() => c.cli.listVersions(app.id));
-    if (list.length === 0) throw notFound();
+    if (list.length === 0) {
+      // Nothing pushed yet (a new branch): version 0 is a starter for the editor, stored only on save.
+      const { value } = await rt(() => c.cli.getService(app.id));
+      if (value.runtime === "wasm") return { version: 0, entry: "", files: {}, read_only: true, kind: "wasm" as const };
+      return { version: 0, entry: "main.ts", files: { "main.ts": renderTemplate("http", slug) ?? "" }, read_only: false, kind: "ts" as const };
+    }
     version = Math.max(...list.map((v) => v.version));
   } else if (version === 0) {
     const { value } = await rt(() => c.cli.getService(app.id));
@@ -366,7 +393,7 @@ interface Author { user_id: string; name: string }
 function versionView(v: T.Version, live: number | null, author: Author | null) {
   return {
     version: v.version, build_state: v.build_state, live: live !== null && v.version === live,
-    source_digest: v.source_digest, failure: v.failure, author, created_at: v.created_at,
+    source_digest: v.source_digest, failure: v.failure, author, meta: v.meta ?? null, created_at: v.created_at,
   };
 }
 

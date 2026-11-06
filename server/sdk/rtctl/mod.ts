@@ -89,6 +89,8 @@ export const OP_PATHS = [
   "/v1/hosts",
   "/v1/hosts/*",
   "/v1/services/*/hosts/*",
+  "/v1/telemetry/console",
+  "/v1/telemetry/preview",
 ];
 export const TENANT_PATHS = [
   "/v1/scratch",
@@ -101,6 +103,7 @@ export const TENANT_PATHS = [
   "/v1/tenants/*/usage",
   "/v1/me",
   "/v1/limits",
+  "/v1/usage",
 ];
 const METHODS = new Set(["GET", "HEAD", "POST", "PUT", "PATCH", "DELETE"]);
 const FWD_HEADERS = new Set(["if-match", "if-none-match", "accept", "last-event-id", "range", "if-range", "idempotency-key"]);

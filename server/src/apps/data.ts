@@ -53,7 +53,7 @@ function checkAccess(sub: Subject, project: string): void {
   if (sub.instanceAdmin && !can({ ...sub, instanceAdmin: false }, ACTION, project)) throw forbidden("forbidden", "not allowed");
 }
 
-async function target(c: OrgCtx, slug: string) {
+export async function target(c: OrgCtx, slug: string) {
   const app = await resolve(c, slug);
   checkAccess(c.sub, app.project);
   return app;

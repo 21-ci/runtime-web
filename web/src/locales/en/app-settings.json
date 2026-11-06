@@ -1,5 +1,4 @@
 {
-  "replaceNote": "Saving replaces this whole block.",
   "page": {
     "title": "Settings",
     "description": "{{name}} · {{environment}}",
@@ -12,10 +11,25 @@
     "access": "Access",
     "limits": "Limits",
     "advanced": "Advanced",
-    "danger": "Danger zone"
+    "danger": "Danger zone",
+    "generalHint": "Scaling, inbound and outbound traffic.",
+    "accessHint": "Who can call this app.",
+    "limitsHint": "Resource limits for each run.",
+    "advancedHint": "Identifiers, links and export.",
+    "dangerHint": "Actions that cannot be undone.",
+    "git": "Git",
+    "gitHint": "Repository, deploy rules and previews.",
+    "integrations": "Integrations",
+    "integrationsHint": "Custom domains and the change stream."
   },
   "status": {
     "label": "App status",
+    "build": {
+      "ready": "ready",
+      "failed": "failed",
+      "building": "building",
+      "pending": "pending"
+    },
     "tier": "tier {{tier}}",
     "inflight": "{{count}} in flight"
   },
@@ -78,18 +92,28 @@
     },
     "profile": "Profile",
     "profilePlaceholder": "e.g. small…",
-    "json": "Requested limits (JSON)",
-    "invalid": "Requested limits must be valid JSON (an object).",
+    "requestedRows": "Requested limits",
+    "rowsHint": "Fields: wall_ms, cpu_ms, memory_mb and max_body_bytes. Numbers are read as numbers; a row with no name and no value is ignored.",
+    "limitName": "Limit name",
+    "limitValue": "Value",
+    "addRow": "Add limit",
+    "removeRow": "Remove {{key}}",
+    "keyRequired": "Enter the name of this limit.",
+    "valueRequired": "Enter a value, or remove the row.",
+    "duplicateKey": "This limit is already set in another row.",
     "formLabel": "Limits settings",
     "save": "Save limits",
     "saved": "Limits saved"
   },
   "unlimited": "unlimited",
   "egress": {
+    "hostsHint": "Host names such as api.example.com. Press Enter or comma to add each one. Empty uses the plan default.",
     "title": "Egress",
     "description": "Outbound traffic policy for this app.",
-    "json": "Egress JSON",
-    "invalid": "Egress must be valid JSON (an object).",
+    "allowed": "Allowed hosts",
+    "denied": "Denied hosts",
+    "hostPlaceholder": "Type a host name, then press Enter",
+    "removeHost": "Remove {{host}}",
     "formLabel": "Egress settings",
     "save": "Save egress",
     "saved": "Egress saved"
@@ -115,19 +139,17 @@
   },
   "advanced": {
     "slug": "Slug",
-    "slugHint": "Identifies the app on the runtime and in the API.",
+    "slugHint": "The app's name in its URL and in the API.",
     "copySlug": "Copy slug",
     "liveUrl": "Live URL",
     "runtime": "Runtime",
     "runtimeProfile": "{{runtime}} · profile {{profile}}",
     "envSecrets": "Env & Secrets",
-    "envSecretsHint": "Variables and secrets moved to their own page.",
+    "envSecretsHint": "Variables and secrets for this app.",
     "openEnvSecrets": "Open Env & Secrets",
     "domains": "Domains",
     "domainsHint": "Custom host names for this app.",
     "openDomains": "Open Domains",
-    "exportData": "Export data",
-    "exportHint": "Download the app's SQLite database.",
     "download": "Download"
   },
   "danger": {
@@ -140,5 +162,9 @@
     "confirm": "Delete permanently",
     "deleted": "Deleted {{name}}",
     "failed": "Could not delete the app. Try again."
+  },
+  "integrations": {
+    "domains": "Custom domains",
+    "domainsHint": "Serve this app from your own hostnames."
   }
 }
