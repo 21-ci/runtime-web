@@ -17,16 +17,35 @@ export function BoundedList(props: React.HTMLAttributes<HTMLUListElement>) {
   );
 }
 
+const CLOSED_MAX_PX = 384; // max-h-96
+
+/** The height that ends on a row's edge, so the closed list never shows half a row. Null with no rows past the cap. */
+export function wholeRowsHeight(el: HTMLElement): number | null {
+  const top = el.getBoundingClientRect().top - el.scrollTop;
+  let fit: number | null = null;
+  let past = false;
+  for (const row of el.querySelectorAll("tbody > tr, ul > li")) {
+    const bottom = row.getBoundingClientRect().bottom - top;
+    if (bottom <= CLOSED_MAX_PX) fit = bottom;
+    else past = true;
+  }
+  return past ? fit : null;
+}
+
 export function Bounded({ children, className }: { children: ReactNode; className?: string }) {
   const { t } = useTranslation("common");
   const ref = useRef<HTMLDivElement>(null);
   const [open, setOpen] = useState(false);
   const [overflows, setOverflows] = useState(false);
+  const [cut, setCut] = useState<number | null>(null);
 
   useEffect(() => {
     const el = ref.current;
     if (!el || typeof ResizeObserver === "undefined") return;
-    const measure = () => setOverflows(el.scrollHeight > el.clientHeight + 1);
+    const measure = () => {
+      setOverflows(el.scrollHeight > el.clientHeight + 1);
+      setCut(wholeRowsHeight(el));
+    };
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     if (el.firstElementChild) observer.observe(el.firstElementChild);
@@ -40,6 +59,7 @@ export function Bounded({ children, className }: { children: ReactNode; classNam
         ref={ref}
         data-testid="bounded"
         tabIndex={overflows ? 0 : undefined}
+        style={!open && cut !== null ? { maxHeight: cut } : undefined}
         className={cn("min-w-0 overflow-y-auto overscroll-contain outline-none focus-visible:ring-2 focus-visible:ring-focus", open ? "max-h-[70vh]" : "max-h-96", className)}
       >
         {children}

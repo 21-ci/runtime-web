@@ -2,7 +2,27 @@ import { render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 
-import { BoundedItems } from "./bounded";
+import { BoundedItems, wholeRowsHeight } from "./bounded";
+
+describe("wholeRowsHeight", () => {
+  function table(bottoms: number[]) {
+    const el = document.createElement("div");
+    el.innerHTML = `<table><tbody>${bottoms.map(() => "<tr></tr>").join("")}</tbody></table>`;
+    el.querySelectorAll("tr").forEach((tr, i) => {
+      tr.getBoundingClientRect = () => ({ bottom: 100 + (bottoms[i] ?? 0) }) as DOMRect;
+    });
+    el.getBoundingClientRect = () => ({ top: 100 }) as DOMRect;
+    return el;
+  }
+
+  it("ends on the last row that fits when rows run past the cap", () => {
+    expect(wholeRowsHeight(table([180, 360, 400]))).toBe(360);
+  });
+
+  it("leaves the height alone when every row fits", () => {
+    expect(wholeRowsHeight(table([100, 200]))).toBeNull();
+  });
+});
 
 const items = Array.from({ length: 14 }, (_, i) => `item ${i}`);
 const base = { items, getKey: (s: string) => s, renderItem: (s: string) => <span>{s}</span> };
