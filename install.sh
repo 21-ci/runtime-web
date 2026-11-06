@@ -1112,7 +1112,7 @@ master_key_credential() {
   [ -f "$RT_CRED_DROPIN" ] && { ok "master key: $RT_CRED_DIR/rt-master-key ($RT_CRED_DROPIN)"; return 0; }
   if grep -Eq '^RT_MASTER_KEY(_FILE)?=' "$RT_ENV" 2>/dev/null || [ -f /var/lib/rt/master.key ] ||
     grep -Eq '^[[:space:]]*master_key_file[[:space:]]*=[[:space:]]*"[^"]' "$RT_TOML" 2>/dev/null; then
-    step "master key: kept where it is (see docs/design/data-protection.md to move it to a systemd credential)"
+    step "master key: kept where it is (see docs/getting-started/install.md to move it to a systemd credential)"
     return 0
   fi
   sdv=$(systemctl --version 2>/dev/null | awk 'NR==1 {print $2}')
