@@ -160,6 +160,9 @@ function NodeConfigForm({ initial }: { initial: NodeConfig }) {
         </div>
         <div className="flex flex-col gap-2">
           <p className="text-[13px] text-muted">{t("node.rateLimitHint")}</p>
+          {initial.rate_limit === undefined && rateLimit.length === 0 ? (
+            <p className="text-sm text-muted">{t("node.rateLimitNotReported")}</p>
+          ) : null}
           <KeyValueRows
             idPrefix="rate_limit"
             rows={rateLimit}

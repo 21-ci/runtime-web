@@ -51,7 +51,8 @@ export type InstanceSettingsWrite = {
 export type NodeConfig = {
   degradation_mode: string;
   default_profile: string;
-  rate_limit: Record<string, unknown>;
+  /** Absent when the node does not report one, which is not the same as having none. */
+  rate_limit?: Record<string, unknown>;
 };
 
 // Form-driven writes show their own field errors, so the global toast is skipped for them.
@@ -87,7 +88,7 @@ export function toNodeConfig(raw: RawNodeConfig, mode: string | undefined): Node
   return {
     degradation_mode: raw.degradation_mode ?? mode ?? "",
     default_profile: raw.default_profile ?? raw.node?.default_profile ?? "",
-    rate_limit: raw.rate_limit ?? {},
+    ...(raw.rate_limit ? { rate_limit: raw.rate_limit } : {}),
   };
 }
 

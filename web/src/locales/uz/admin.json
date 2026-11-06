@@ -228,6 +228,7 @@
     "degradation": "Pasayish rejimi",
     "profile": "Standart profil",
     "rateLimit": "Chastota chegarasi",
+    "rateLimitNotReported": "Maʼlum qilinmagan",
     "restartBadge": "qayta ishga tushirilgandan keyin qoʻllanadi",
     "rateLimitHint": "Har bir ijarachi uchun. rps (soniyasiga soʻrovlar) va burstni belgilang. Nomi va qiymati boʻlmagan qator eʼtiborga olinmaydi.",
     "rateLimitKey": "Sozlama",

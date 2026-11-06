@@ -228,6 +228,7 @@
     "degradation": "Degradation mode",
     "profile": "Default profile",
     "rateLimit": "Rate limit",
+    "rateLimitNotReported": "Not reported",
     "restartBadge": "applies after restart",
     "rateLimitHint": "Per tenant. Set rps (requests per second) and burst. A row with no name and no value is ignored.",
     "rateLimitKey": "Setting",

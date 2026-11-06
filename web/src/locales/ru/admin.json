@@ -235,6 +235,7 @@
     "rateLimitValue": "Значение",
     "rateLimitAdd": "Добавить настройку",
     "rateLimitRemove": "Удалить {{key}}",
+    "rateLimitNotReported": "Не сообщается",
     "rateLimitKeyRequired": "Введите имя этой настройки.",
     "rateLimitValueRequired": "Введите значение или удалите строку.",
     "rateLimitDuplicateKey": "Эта настройка уже задана в другой строке.",

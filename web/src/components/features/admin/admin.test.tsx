@@ -342,7 +342,8 @@ describe("admin node", () => {
   });
 
   it("reads the runtime's real config shape into the form", () => {
-    expect(toNodeConfig({ node: { default_profile: "balanced" } }, "normal")).toEqual({ degradation_mode: "normal", default_profile: "balanced", rate_limit: {} });
+    // No rate_limit key: the node did not report one, so the form must not treat it as empty.
+    expect(toNodeConfig({ node: { default_profile: "balanced" } }, "normal")).toEqual({ degradation_mode: "normal", default_profile: "balanced" });
   });
 
   it("node config form has only three fields", async () => {
@@ -421,7 +422,7 @@ describe("admin cache", () => {
     renderAt("/admin/cache");
     expect(await screen.findByText("todo")).toBeInTheDocument();
     expect(screen.getByText("67%")).toBeInTheDocument();
-    expect(screen.getByText("System or removed App")).toBeInTheDocument();
+    expect(screen.getByText("System or removed app")).toBeInTheDocument();
     expect(screen.getAllByText("System app")).toHaveLength(2);
     expect(screen.queryByText("–")).toBeNull();
     expect(screen.getByText("aaaaaaaaaaaa")).toBeInTheDocument();
