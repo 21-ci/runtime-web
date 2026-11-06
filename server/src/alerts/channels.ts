@@ -104,6 +104,8 @@ async function parseConfig(deps: SendDeps, kind: ChannelKind, raw: unknown): Pro
     for (const k of Object.keys(c)) if (k !== "url" && k !== "secret") fields[`config.${k}`] = "unknown";
     const urlError = webhookUrlError(c.url);
     if (urlError) fields["config.url"] = urlError;
+    // Validates the caller's secret; "pattern" is an error code, not a value.
+    // nosemgrep: ajinabraham.njsscan.generic.hardcoded_secrets.node_secret
     if (typeof c.secret !== "string" || !SECRET_RE.test(c.secret)) fields["config.secret"] = "pattern";
     if (Object.keys(fields).length) throw invalid(fields);
     if (!(await resolvesPublic(deps, c.url as string))) throw invalid({ "config.url": "not_public" });
