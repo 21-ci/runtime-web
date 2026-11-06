@@ -126,6 +126,23 @@ describe("DeploymentsView", () => {
     expect(screen.getByText("CLI or API")).toBeInTheDocument();
   });
 
+  it("a version made by a switch names the version it came from; a switch with no source says N/A and why", async () => {
+    setup({
+      liveVersion: 2,
+      versions: [v(2, "ready", true, null), v(1, "ready", false, null)],
+      switches: [
+        { ...sw("completed"), id: "swt_2", kind: "switch", to_version: 2, source: { version: 7, digest: "d7" }, created_at: 5, updated_at: 6 },
+        { ...sw("completed"), to_version: 1, from_version: 2, source: null },
+      ],
+    });
+    renderVersions();
+    const named = await screen.findAllByText("Version 7");
+    expect(named.length).toBe(2);
+    expect(named[0]?.closest("td")).toHaveAttribute("title", "Switched from version 7 of the source app");
+    expect(screen.getByText("CLI or API")).toBeInTheDocument();
+    expect(document.querySelector('td[title="The runtime did not record where this came from."]')).toHaveTextContent("N/A");
+  });
+
   it("the period filter says when nothing matches", async () => {
     setup({ liveVersion: 1, versions: [v(1, "ready", true)] });
     renderVersions();

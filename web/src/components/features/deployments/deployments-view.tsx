@@ -190,6 +190,13 @@ export function DeploymentsView({
     );
   };
 
+  // A version made by a switch has no author or git commit of its own: its source is the version it was switched from.
+  const switchedFrom = (r: HistoryRow): number | null => {
+    if (r.type === "switch") return r.item.source?.version ?? null;
+    if (versionSource(r.version).kind !== "api") return null;
+    return (switches.data ?? []).find((s) => s.to_version === r.version.version && s.source)?.source?.version ?? null;
+  };
+
   const columns: DataColumn<HistoryRow>[] = [
     {
       key: "version",
@@ -222,11 +229,15 @@ export function DeploymentsView({
       key: "source",
       header: t("table.source"),
       title: (r) => {
-        if (r.type !== "version") return "";
+        const from = switchedFrom(r);
+        if (from !== null) return t("source.fromVersionHint", { version: from });
+        if (r.type !== "version") return t("source.unknownHint");
         const src = versionSource(r.version);
         return src.kind === "git" ? [src.sha, src.ref].filter(Boolean).join(" ") : "";
       },
       cell: (r) => {
+        const from = switchedFrom(r);
+        if (from !== null) return t("source.fromVersion", { version: from });
         if (r.type !== "version") return <NoData inline />;
         const src = versionSource(r.version);
         return src.kind === "git" ? <code className="font-mono text-[13px]">{src.sha.slice(0, 7)}</code> : t(`source.${src.kind}`);
@@ -501,7 +512,7 @@ function LineChanges({ before, after }: { before: string; after: string }) {
   const lines = lineDiff(before, after);
   if (lines === null) return <p className="text-xs text-muted">{t("diffTooLarge")}</p>;
   return (
-    <pre className="overflow-x-auto rounded bg-surface-2 p-2 font-mono text-xs">
+    <pre className="overflow-x-auto rounded bg-panel-2 p-2 font-mono text-xs">
       {lines.filter((l) => l.kind !== "same").map((l, i) => (
         <div key={i} className={l.kind === "add" ? "text-tag-green-text" : "text-tag-red-text"}>
           {l.kind === "add" ? "+ " : "- "}{l.text}

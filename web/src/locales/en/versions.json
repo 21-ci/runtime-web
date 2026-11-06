@@ -53,7 +53,10 @@
   "source": {
     "git": "Git",
     "console": "Console",
-    "api": "CLI or API"
+    "api": "CLI or API",
+    "fromVersion": "Version {{version}}",
+    "fromVersionHint": "Switched from version {{version}} of the source app",
+    "unknownHint": "The runtime did not record where this came from."
   },
   "switchState": {
     "preparing": "Preparing",
