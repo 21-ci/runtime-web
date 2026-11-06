@@ -9,7 +9,7 @@ import { useLimits, type Limits, type Quota } from "@/hooks/orgs";
 import { formatBytes, formatCount } from "@/lib/format";
 import { intlLocale } from "@/lib/i18n";
 
-import { NEAR_PCT, UsageRows, type UsageRow } from "./usage-rows";
+import { effectiveLimit, NEAR_PCT, UsageRows, type UsageRow } from "./usage-rows";
 
 type Row = {
   key: keyof Omit<Limits, "day" | "resets_at" | "allowed_triggers" | "hidden_services">;
@@ -32,7 +32,10 @@ const PERIOD_KEY: Record<string, "quota.period.day" | "quota.period.total" | "qu
   per_service: "quota.period.perService",
 };
 
-const usedPct = (q: Quota) => (q.limit ? Math.min(100, Math.round((q.used / q.limit) * 100)) : 0);
+const usedPct = (key: string, q: Quota) => {
+  const limit = effectiveLimit(key, q.limit);
+  return limit ? Math.min(100, Math.round((q.used / limit) * 100)) : 0;
+};
 
 // QuotaBar shows the org's daily and total limits. It is read-only: no plan names, no upgrade
 // controls. The block keeps its height while loading so the page does not shift.
@@ -41,7 +44,7 @@ export function QuotaBar({ org }: { org: string }) {
   const limits = useLimits(org);
   const title = t("quota.title");
   const data = limits.data;
-  const near = data ? ROWS.filter((row) => usedPct(data[row.key]) >= NEAR_PCT).length : 0;
+  const near = data ? ROWS.filter((row) => usedPct(row.key, data[row.key]) >= NEAR_PCT).length : 0;
 
   return (
     <SectionCard
@@ -88,18 +91,19 @@ function quotaRow(row: Row, quota: Quota, hidden: number, t: TFunction<["org", "
   const fmt = row.bytes ? formatBytes : formatCount;
   const label = t(row.labelKey);
   const periodKey = PERIOD_KEY[quota.period];
+  const limit = effectiveLimit(row.key, quota.limit);
   const amount = unmetered
-    ? quota.limit === null
+    ? limit === null
       ? t("operator:plan.notMetered")
-      : t("operator:plan.notMeteredLimit", { limit: fmt(quota.limit) })
-    : quota.limit === null
-      ? t("quota.used", { used: fmt(quota.used) })
+      : t("operator:plan.notMeteredLimit", { limit: fmt(limit) })
+    : limit === null
+      ? `${fmt(quota.used)} · ${t("operator:plan.unlimited")}`
       : t("quota.amount", {
           used: fmt(quota.used),
-          limit: fmt(quota.limit),
+          limit: fmt(limit),
           period: periodKey ? t(periodKey) : quota.period,
         });
   const note = unmetered ? t("operator:plan.storageHint") : row.key === "services" && hidden > 0 ? t("operator:plan.includingHidden", { count: hidden }) : null;
-  const bar = quota.limit !== null && !unmetered;
-  return { key: row.key, label, amount, note, used: bar ? quota.used : null, limit: bar ? quota.limit : null };
+  const bar = limit !== null && !unmetered;
+  return { key: row.key, label, amount, note, used: bar ? quota.used : null, limit: bar ? limit : null };
 }

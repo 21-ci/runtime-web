@@ -33,7 +33,28 @@ describe("PlanUsagePanel", () => {
     expect(await screen.findByText(/Plan: pro/)).toBeInTheDocument();
     expect(screen.getByRole("progressbar", { name: "Invocations usage" })).toBeInTheDocument();
     expect(screen.getByText(/5 of 10 per month/)).toBeInTheDocument();
-    expect(screen.getByText(/No limit/)).toBeInTheDocument();
+    expect(screen.getByText(/Unlimited/)).toBeInTheDocument();
+    expect(screen.getAllByRole("progressbar")).toHaveLength(1);
+  });
+
+  it("reads the unlimited plan's stand-in caps as Unlimited, with no bar", async () => {
+    server.use(
+      http.get("/api/orgs/acme/plan-usage", () =>
+        HttpResponse.json({
+          plan: "unlimited",
+          metrics: [
+            { key: "egress_bytes", used: 2048, limit: 2 ** 50, period: "day" },
+            { key: "services", used: 13, limit: 1_000_000, period: "total" },
+            { key: "invocations", used: 5, limit: 1_000_000, period: "day" },
+          ],
+        }),
+      ),
+    );
+    wrap(<PlanUsagePanel org="acme" />);
+    expect(await screen.findByText(/2\.00 KiB · Unlimited/)).toBeInTheDocument();
+    expect(screen.getByText(/13 · Unlimited/)).toBeInTheDocument();
+    expect(screen.queryByText(/TiB/)).not.toBeInTheDocument();
+    // A real million-a-day cap on invocations stays a limit.
     expect(screen.getAllByRole("progressbar")).toHaveLength(1);
   });
 

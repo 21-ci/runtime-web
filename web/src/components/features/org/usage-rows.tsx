@@ -17,6 +17,18 @@ export type UsageRow = {
 export const NEAR_PCT = 75;
 export const FULL_PCT = 90;
 
+// The `unlimited` plan cannot say "no cap" for these keys, so it sets values nobody reaches: 1 PiB and a million.
+const UNLIMITED_BYTES = 2 ** 50;
+const UNLIMITED_COUNT = 1_000_000;
+const COUNTED_CAPS = new Set(["services", "schedules"]);
+
+/** The limit as the user should read it: null when the plan's value only stands in for no cap. */
+export function effectiveLimit(key: string, limit: number | null): number | null {
+  if (limit === null) return null;
+  if (key.endsWith("_bytes")) return limit >= UNLIMITED_BYTES ? null : limit;
+  return COUNTED_CAPS.has(key) && limit >= UNLIMITED_COUNT ? null : limit;
+}
+
 export function UsageRows({ rows, ariaLabel }: { rows: readonly UsageRow[]; ariaLabel: (label: string) => string }) {
   const { t } = useTranslation("operator");
   const statusLabels = { warning: t("plan.statusNear"), critical: t("plan.statusCritical"), over: t("plan.statusOver") };

@@ -10,7 +10,7 @@ import { api } from "@/lib/api";
 import { formatBytes, formatCount, formatDuration } from "@/lib/format";
 import { intlLocale } from "@/lib/i18n";
 
-import { UsageRows, type UsageRow } from "./usage-rows";
+import { effectiveLimit, UsageRows, type UsageRow } from "./usage-rows";
 
 export interface PlanMetric {
   key: string;
@@ -81,15 +81,16 @@ function metricRow(metric: PlanMetric, hidden: number, t: TFunction<["plans", "o
   const period = metric.period ? t(`usage.period.${metric.period}`, { defaultValue: metric.period }) : "";
   // The runtime's storage counter stays at 0 whatever the disk holds, so 0 here says nothing.
   const unmetered = metric.key === "storage_bytes" && metric.used === 0;
+  const limit = effectiveLimit(metric.key, metric.limit);
   const amount = unmetered
-    ? metric.limit === null
+    ? limit === null
       ? t("operator:plan.notMetered")
-      : t("operator:plan.notMeteredLimit", { limit: fmt(metric.limit) })
-    : metric.limit === null
+      : t("operator:plan.notMeteredLimit", { limit: fmt(limit) })
+    : limit === null
       ? `${fmt(metric.used)} · ${t("usage.unlimited")}`
-      : `${t("usage.amount", { used: fmt(metric.used), limit: fmt(metric.limit) })}${period ? ` ${period}` : ""}`;
-  // A per-App ceiling is not a level this org fills up; a bar over it only ever looks empty.
-  const bar = metric.limit !== null && !unmetered && metric.period !== "per_service";
+      : `${t("usage.amount", { used: fmt(metric.used), limit: fmt(limit) })}${period ? ` ${period}` : ""}`;
+  // A per-app ceiling is not a level this org fills up; a bar over it only ever looks empty.
+  const bar = limit !== null && !unmetered && metric.period !== "per_service";
   const note = unmetered ? t("operator:plan.storageHint") : metric.key === "services" && hidden > 0 ? t("operator:plan.includingHidden", { count: hidden }) : null;
-  return { key: metric.key, label, amount, note, used: bar ? metric.used : null, limit: bar ? metric.limit : null };
+  return { key: metric.key, label, amount, note, used: bar ? metric.used : null, limit: bar ? limit : null };
 }

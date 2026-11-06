@@ -8,7 +8,7 @@
     "unavailable": "Usage is not available",
     "unavailableHint": "This node does not report plan usage yet. Upgrade the runtime to see it.",
     "empty": "This plan has no limits to show.",
-    "unlimited": "No limit",
+    "unlimited": "Unlimited",
     "amount": "{{used}} of {{limit}}",
     "ariaUsage": "{{label}} usage",
     "metric": {
@@ -43,7 +43,7 @@
   },
   "events": {
     "title": "Change stream",
-    "description": "Publish committed SQL and KV changes of this App to a stream topic.",
+    "description": "Publish committed SQL and KV changes of this app to a stream topic.",
     "adminOnly": "Only project admins can change this, because events can carry row contents.",
     "state": {
       "disabled": "Off",
